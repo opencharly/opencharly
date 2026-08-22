@@ -96,8 +96,8 @@ Every PR body must contain:
 2. **## How tested** — pasted command + output for every verification step
 3. **## Rulebook compliance** — table with every applicable umbrella rule
 4. **## Change Classification** — change class, verification gate, attribution tier
-5. **## CHANGELOG** — a `## CHANGELOG` section in the PR body; the
-   tag-on-merge workflow extracts it to `CHANGELOG/<calver>.md` at merge time
+5. **The PR body IS the changelog** — the tag-on-merge workflow writes it
+   to `CHANGELOG/<calver>.md` at merge time
 6. ***Assisted-by: <Harness> <Provider Full Model Name> (<confidence>)*** — italicized
    footer in the EXACT form, e.g. \`*Assisted-by: pi openrouter/deepseek/deepseek-v4-flash-0731 (fully tested and validated)*\` (rule A1)
 

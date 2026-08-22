@@ -15,7 +15,8 @@ Independently derive and run the full verification:
 - Check git submodule status is clean
 - Confirm policy B equality and merged-ref-only pins
 - Verify the PR body has all required sections (Summary, How tested,
-  Rulebook compliance, Change Classification, CHANGELOG, Assisted-by)
+  Rulebook compliance, Change Classification, Assisted-by) — the body IS
+  the changelog
 - Confirm attribution tier matches the evidence
 
 Return a structured verdict: PASS or BLOCK with specific findings.
