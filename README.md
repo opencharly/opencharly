@@ -51,13 +51,15 @@ occupied by a submodule.
 Every submodule is pinned to a specific commit (a gitlink). The policy (`policy B`):
 
 1. `charly` → its own default-branch HEAD (`main`).
-2. `sdk`, `spec`, `plugins`, `docs`, `distro-*` → **exactly the commits charly's own
+2. `sdk`, `plugins`, `docs`, `distro-*` → **exactly the commits charly's own
    gitlinks pin** (charly's `box/<distro>` maps to `distro-<distro>` here). The umbrella
    therefore means *"the org exactly as charly sees it"* — one coherent snapshot, never
-   two versions of sdk/spec visible.
-3. Everything else (`charly-*`, `pkg-*`, `plugin-generate-packages`,
+   two versions of sdk visible.
+3. Everything else (`spec`, `charly-*`, `pkg-*`, `plugin-generate-packages`,
    `pi-review-action`, `pixelflux`) → its own default-branch HEAD (`av1` for
-   `pixelflux`).
+   `pixelflux`). (`spec` is no longer charly-pinned — charly resolves
+   `github.com/opencharly/spec` from the Go proxy at a pinned go.mod require since the
+   spec de-submodule cutover, charly#371 — so it follows the every-other-repo rule.)
 
 `.gitmodules` carries `branch = <repo default>` on every entry; nothing ever assumes
 `main` — defaults are resolved via `git ls-remote --symref`, so a future default-branch
