@@ -18,7 +18,7 @@ needed for a read-only checkout.
 
 | path | repo | role |
 |---|---|---|
-| `charly/` | [opencharly/charly](https://github.com/opencharly/charly) | the CLI + core — itself a superrepo (nested gitlinks for sdk/spec/plugins/docs/box/*) |
+| `charly/` | [opencharly/charly](https://github.com/opencharly/charly) | the CLI + core — itself a superrepo (nested gitlinks for plugins/docs/box/*; the sdk + spec contract modules resolve from the Go proxy at pinned go.mod requires) |
 | `sdk/` | [opencharly/sdk](https://github.com/opencharly/sdk) | plugin SDK + contract |
 | `spec/` | [opencharly/spec](https://github.com/opencharly/spec) | wire/IR contract (CUE → proto) |
 | `plugins/` | [opencharly/plugins](https://github.com/opencharly/plugins) | skills, agents, workflows |
@@ -51,15 +51,15 @@ occupied by a submodule.
 Every submodule is pinned to a specific commit (a gitlink). The policy (`policy B`):
 
 1. `charly` → its own default-branch HEAD (`main`).
-2. `sdk`, `plugins`, `docs`, `distro-*` → **exactly the commits charly's own
+2. `plugins`, `docs`, `distro-*` → **exactly the commits charly's own
    gitlinks pin** (charly's `box/<distro>` maps to `distro-<distro>` here). The umbrella
-   therefore means *"the org exactly as charly sees it"* — one coherent snapshot, never
-   two versions of sdk visible.
-3. Everything else (`spec`, `charly-*`, `pkg-*`, `plugin-generate-packages`,
+   therefore means *"the org exactly as charly sees it"* — one coherent snapshot.
+3. Everything else (`sdk`, `spec`, `charly-*`, `pkg-*`, `plugin-generate-packages`,
    `pi-review-action`, `pixelflux`) → its own default-branch HEAD (`av1` for
-   `pixelflux`). (`spec` is no longer charly-pinned — charly resolves
-   `github.com/opencharly/spec` from the Go proxy at a pinned go.mod require since the
-   spec de-submodule cutover, charly#371 — so it follows the every-other-repo rule.)
+   `pixelflux`). (`sdk` and `spec` are no longer charly-pinned — charly resolves both
+   `github.com/opencharly/sdk` and `github.com/opencharly/spec` from the Go proxy at
+   pinned go.mod requires since the de-submodule cutovers (spec: charly#371; sdk:
+   mirroring it), so they follow the every-other-repo rule.)
 
 `.gitmodules` carries `branch = <repo default>` on every entry; nothing ever assumes
 `main` — defaults are resolved via `git ls-remote --symref`, so a future default-branch
@@ -80,7 +80,9 @@ equality).
 - **Git ops on submodules go through `git -C <path>`** — never root a worker in a
   submodule.
 - **No `go.work` at the umbrella root.** `charly/` has its own workspace spanning
-  `sdk/` + `spec/`; Go forbids nested workspace files. All Go work happens inside
+  the charly module + the compiled plugin candies (the sdk + spec contract modules
+  resolve from the Go proxy at pinned go.mod requires — no workspace members); Go
+  forbids nested workspace files. All Go work happens inside
   `charly/`.
 - **Pin only merged refs** — never a PR branch. `verify` fails on dangling pins.
 - Read each subrepo's own `README.md` / `AGENTS.md` before editing inside it.

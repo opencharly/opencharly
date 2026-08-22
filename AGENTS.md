@@ -13,16 +13,19 @@ else's repo.
    umbrella root. Never root a worker in a submodule, and never run git commands that
    cross the boundary implicitly (no `git add -A` from a submodule, no `git pull` at
    the umbrella root and then assuming submodules moved).
-3. **No nested `go.work`.** `charly/` carries its own `go.work` (spanning `sdk/` +
-   `spec/`); Go forbids nested workspace files. No `go.work` at the umbrella root —
+3. **No nested `go.work`.** `charly/` carries its own `go.work` (the charly module + the
+   compiled plugin candies; the sdk + spec contract modules resolve from the Go proxy at
+   pinned go.mod requires — no workspace members). Go forbids nested workspace files. No
+   `go.work` at the umbrella root —
    all Go builds happen inside `charly/`.
 4. **No worktrees inside submodules.** The `.claude/worktrees/` pattern belongs to the
    `charly` checkout, not here.
 5. **Pin discipline:** only pin merged refs (default branches or gitlinks charly
    records). Never a PR branch. `verify` treats dangling pins as failures.
-6. **Policy B is the contract:** `sdk spec plugins docs distro-*` must equal charly's
-   own gitlinks. If charly's pinning changed, the fix is a sync (`task sync` + PR),
-   not a hand-pin.
+6. **Policy B is the contract:** `spec plugins docs distro-*` must equal charly's own
+   gitlinks (`sdk` is no longer charly-pinned — charly resolves it from the Go proxy at a
+   pinned go.mod require since the sdk de-submodule cutover, mirroring `spec`, charly#371).
+   If charly's pinning changed, the fix is a sync (`task sync` + PR), not a hand-pin.
 7. When a task touches a subrepo, read that subrepo's own `AGENTS.md`/`CLAUDE.md`
    first — its rulebook applies inside it. Charly's R0–R10 rulebook lives in
    `charly/AGENTS.md`; this file owns only the umbrella's policy.
