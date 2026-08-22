@@ -24,9 +24,10 @@ tasks:
       - bash scripts/sync-gitlinks.sh
 
   verify:
-    desc: Run the CI pinning gate locally
+    desc: Run the CI gate locally (pins + harness syntax)
     cmds:
       - bash scripts/verify-pins.sh
+      - node --disable-warning=ExperimentalWarning scripts/check-umbrella-gates-syntax.mjs
 
   harness:
     desc: Check harness config parity with charly/ (shared files identical)

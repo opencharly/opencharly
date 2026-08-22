@@ -25,3 +25,6 @@ jobs:
 
       - name: Run pinning gate
         run: bash scripts/verify-pins.sh
+
+      - name: Run harness syntax gate
+        run: node --disable-warning=ExperimentalWarning scripts/check-umbrella-gates-syntax.mjs
