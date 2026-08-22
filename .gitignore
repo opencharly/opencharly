@@ -1,0 +1,7 @@
+# secrets — never commit keys
+*.pem
+*.key
+*.p12
+
+# local env
+.env

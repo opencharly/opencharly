@@ -1,0 +1,34 @@
+name: smoke
+
+# Nightly proof that the pinned snapshot is buildable: fresh recursive clone of
+# the umbrella, then charly's own Go gate (its go.work spans sdk + spec, so a
+# coherent snapshot is exactly what this exercises).
+
+on:
+  schedule:
+    - cron: '0 4 * * *'   # nightly 04:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: charly/go.mod
+          cache-dependency-path: charly/go.sum
+
+      - name: Build the snapshot
+        env:
+          TMPDIR: /tmp/charly-smoke
+          GOTMPDIR: /tmp/charly-smoke
+        run: |
+          mkdir -p /tmp/charly-smoke
+          go build ./...

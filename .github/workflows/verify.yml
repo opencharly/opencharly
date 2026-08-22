@@ -1,0 +1,27 @@
+name: verify
+
+# The umbrella's pinning gate: runs on every push and PR, and is the gate the
+# auto-merge workflow waits for. Enforces:
+#   branch == real default branch, clean checkouts, gitlink == checked-out HEAD,
+#   policy B (sdk/spec/plugins/docs/distro-* == charly's own gitlinks),
+#   charly's nested submodules initialized at their gitlinks.
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Run pinning gate
+        run: bash scripts/verify-pins.sh

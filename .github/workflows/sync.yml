@@ -1,0 +1,64 @@
+name: sync
+
+# Bumps every submodule pin per policy B and opens a `chore: sync gitlinks` PR
+# when anything moved. The PR rides the org's auto-merge flow (auto-merge.yml),
+# which merges once verify passes and tags the snapshot with a calver tag.
+
+on:
+  schedule:
+    - cron: '17 3 * * *'   # daily 03:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Bump pins
+        run: bash scripts/sync-gitlinks.sh
+
+      - name: Nothing to sync?
+        id: dirty
+        run: |
+          if git diff --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Skip if a sync PR is already open
+        id: skip
+        if: steps.dirty.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          OPEN=$(gh pr list --search 'chore: sync gitlinks in:title' --state open --json number --jq 'length')
+          if [ "$OPEN" -gt 0 ]; then
+            echo "sync PR already open — skipping"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Open sync PR
+        if: steps.dirty.outputs.changed == 'true' && steps.skip.outputs.skip == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "sync/$(date -u +%Y%m%d-%H%M%S)"
+          git add -A
+          git commit -m "chore: sync gitlinks"
+          git push -u origin HEAD
+          gh label create auto-merge --force 2>/dev/null || true
+          gh pr create --title "chore: sync gitlinks" \
+            --body "Automated sync of all umbrella submodule pins to policy B (charly's default-branch HEAD + charly's own gitlinks + per-repo default branches)." \
+            --label auto-merge

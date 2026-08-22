@@ -1,0 +1,88 @@
+[submodule "charly"]
+	path = charly
+	url = https://github.com/opencharly/charly.git
+	branch = main
+[submodule "sdk"]
+	path = sdk
+	url = https://github.com/opencharly/sdk.git
+	branch = main
+[submodule "spec"]
+	path = spec
+	url = https://github.com/opencharly/spec.git
+	branch = main
+[submodule "plugins"]
+	path = plugins
+	url = https://github.com/opencharly/plugins.git
+	branch = main
+[submodule "docs"]
+	path = docs
+	url = https://github.com/opencharly/docs.git
+	branch = main
+[submodule "distro-arch"]
+	path = distro-arch
+	url = https://github.com/opencharly/distro-arch.git
+	branch = main
+[submodule "distro-cachyos"]
+	path = distro-cachyos
+	url = https://github.com/opencharly/distro-cachyos.git
+	branch = main
+[submodule "distro-debian"]
+	path = distro-debian
+	url = https://github.com/opencharly/distro-debian.git
+	branch = main
+[submodule "distro-fedora"]
+	path = distro-fedora
+	url = https://github.com/opencharly/distro-fedora.git
+	branch = main
+[submodule "distro-ubuntu"]
+	path = distro-ubuntu
+	url = https://github.com/opencharly/distro-ubuntu.git
+	branch = main
+[submodule "charly-alpine"]
+	path = charly-alpine
+	url = https://github.com/opencharly/charly-alpine.git
+	branch = main
+[submodule "charly-arch"]
+	path = charly-arch
+	url = https://github.com/opencharly/charly-arch.git
+	branch = main
+[submodule "charly-debian"]
+	path = charly-debian
+	url = https://github.com/opencharly/charly-debian.git
+	branch = main
+[submodule "charly-fedora"]
+	path = charly-fedora
+	url = https://github.com/opencharly/charly-fedora.git
+	branch = main
+[submodule "charly-openwrt"]
+	path = charly-openwrt
+	url = https://github.com/opencharly/charly-openwrt.git
+	branch = main
+[submodule "charly-ubuntu"]
+	path = charly-ubuntu
+	url = https://github.com/opencharly/charly-ubuntu.git
+	branch = main
+[submodule "pkg-arch"]
+	path = pkg-arch
+	url = https://github.com/opencharly/pkg-arch.git
+	branch = main
+[submodule "pkg-debian"]
+	path = pkg-debian
+	url = https://github.com/opencharly/pkg-debian.git
+	branch = main
+[submodule "pkg-fedora"]
+	path = pkg-fedora
+	url = https://github.com/opencharly/pkg-fedora.git
+	branch = main
+[submodule "plugin-generate-packages"]
+	path = plugin-generate-packages
+	url = https://github.com/opencharly/plugin-generate-packages.git
+	branch = main
+[submodule "pi-review-action"]
+	path = pi-review-action
+	url = https://github.com/opencharly/pi-review-action.git
+	branch = main
+[submodule "pixelflux"]
+	path = pixelflux
+	url = https://github.com/opencharly/pixelflux.git
+	branch = av1

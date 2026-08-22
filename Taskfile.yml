@@ -1,0 +1,29 @@
+version: '3'
+
+tasks:
+  default:
+    desc: Show available tasks
+    cmds:
+      - task --list
+
+  map:
+    desc: List every submodule with its pin and sync state
+    cmds:
+      - |
+        printf '%-28s %-10s %s\n' PATH BRANCH PIN
+        for m in $(git config -f .gitmodules --get-regexp '^submodule\..*\.path$' | awk '{print $2}'); do
+          b=$(git config -f .gitmodules --get "submodule.$m.branch")
+          p=$(git -C "$m" rev-parse --short HEAD 2>/dev/null || echo '-')
+          d=$(git -C "$m" status --porcelain 2>/dev/null | head -1)
+          printf '%-28s %-10s %s %s\n' "$m" "$b" "$p" "${d:+DIRTY}"
+        done
+
+  sync:
+    desc: Bump all submodule pins per policy B (preview; does not commit)
+    cmds:
+      - bash scripts/sync-gitlinks.sh
+
+  verify:
+    desc: Run the CI pinning gate locally
+    cmds:
+      - bash scripts/verify-pins.sh
