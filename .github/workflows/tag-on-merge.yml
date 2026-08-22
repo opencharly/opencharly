@@ -1,11 +1,23 @@
 # ORG-WIDE TAG-ON-MERGE DISPATCHER — installed in every opencharly repo.
 name: tag-on-merge
 
+# Event-driven: the squash-merge IS a push to main, and push events are the
+# only GitHub trigger that has demonstrably fired in this repo (verify.yml's
+# push runs arrive ~20s after each merge — e.g. 17:36:51 for the 17:36:30
+# merge of PR #6). This replaces the previous triggers:
+#   - `pull_request: closed` (added in PR #4): NEVER fired a single run in
+#     this repo's history (0 runs across 7 merges, API-confirmed).
+#   - `schedule: */15` cron: GitHub cron delivery is best-effort with no SLA;
+#     measured 21-44 min gaps (never the configured 15), and PR #3's tag
+#     landed 4+ hours late.
+# The reusable workflow is idempotent, so re-triggers (e.g. the CHANGELOG
+# bot's own push to main) are cheap no-op sweeps that find nothing new.
+# If a merge ever misses the push event, the rulebook's add-only backfill
+# doctrine (git tag -a + push refs/tags) is the documented failure path.
 on:
-  pull_request:
-    types: [closed]
-  schedule:
-    - cron: "*/15 * * * *"
+  push:
+    branches:
+      - main
 
 permissions:
   contents: write
@@ -13,8 +25,5 @@ permissions:
 
 jobs:
   tag:
-    if: >
-      github.event_name == 'schedule' ||
-      (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
     uses: opencharly/.github/.github/workflows/tag-on-merge.yml@main
     secrets: inherit
