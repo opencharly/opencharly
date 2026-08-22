@@ -31,9 +31,4 @@ description: Generate a structured PR body with How-tested, Rule-compliance, Att
 - Verification gate: `verify` (CI) + `validate` (pr-validator AI gate)
 - Attribution tier: (see AGENTS.md)
 
-## CHANGELOG
-
-Add `CHANGELOG/<calver>.md` (placeholder, e.g. `CHANGELOG/2026.234.0000.md`) —
-the pr-validator finalizes it to the merge-time CalVer (B19).
-
 *Assisted-by: <Harness> <Provider Full Model Name> (<confidence>)*
