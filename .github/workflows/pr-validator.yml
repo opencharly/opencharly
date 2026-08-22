@@ -1,0 +1,68 @@
+# ORG-WIDE PR-VALIDATOR DISPATCHER — installed in every opencharly repo.
+# The umbrella twin of charly/.github/workflows/pr-validator.yml; the only
+# difference is the CI gate waited on (charly: `go`, umbrella: `verify`).
+name: charly/pr-validator
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+    inputs:
+      pr-number:
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write
+
+jobs:
+  # The review requires the pinning gate to be green on the head before it
+  # passes. Every push starts this workflow and the verify (pinning) gate at
+  # the same moment, and the review (~2 min) usually finishes before the
+  # gate — so a fresh-head review can see in-progress CI and self-block, and
+  # each blocked run leaves a red validate check that later re-runs treat as
+  # a failed project gate. Wait for the head's `verify` check-run conclusion
+  # before invoking the review; the dispatched re-run path gets the same
+  # guarantee.
+  wait-ci:
+    name: wait-for-ci
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Wait for the verify gate on the head
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: pr } = await github.rest.pulls.get({
+              ...context.repo, pull_number: context.issue.number,
+            });
+            const head = pr.head.sha;
+            const deadline = Date.now() + 19 * 60 * 1000;
+            while (Date.now() < deadline) {
+              const { data: runs } = await github.rest.checks.listForRef({
+                ...context.repo, ref: head,
+              });
+              const verify = runs.check_runs.find((r) => r.name === 'verify');
+              if (verify && verify.conclusion) {
+                console.log(`verify gate on ${head.slice(0, 8)}: ${verify.conclusion}`);
+                if (verify.conclusion === 'success') process.exit(0);
+                core.setFailed(`verify gate ${verify.conclusion} on ${head.slice(0, 8)}`);
+              }
+              await new Promise((r) => setTimeout(r, 15000));
+            }
+            core.setFailed(`verify gate did not conclude on ${head.slice(0, 8)} within 19m`);
+  validate:
+    name: validate
+    needs: wait-ci
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      github.event.pull_request.head.repo.fork == false
+    uses: opencharly/.github/.github/workflows/pr-validator.yml@main
+    with:
+      pr-number: ${{ inputs.pr-number || github.event.pull_request.number }}
+      ai_review_provider: ${{ vars.AI_REVIEW_PROVIDER }}
+      ai_review_model: ${{ vars.AI_REVIEW_MODEL }}
+      ai_review_base_url: ${{ vars.AI_REVIEW_BASE_URL }}
+    secrets: inherit

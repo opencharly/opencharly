@@ -1,0 +1,20 @@
+# ORG-WIDE TAG-ON-MERGE DISPATCHER — installed in every opencharly repo.
+name: tag-on-merge
+
+on:
+  workflow_run:
+    workflows: ["charly/pr-validator"]
+    types: [completed]
+  schedule:
+    - cron: "*/15 * * * *"
+
+permissions:
+  contents: write
+
+jobs:
+  tag:
+    if: >
+      github.event_name == 'schedule' ||
+      github.event.workflow_run.conclusion == 'success'
+    uses: opencharly/.github/.github/workflows/tag-on-merge.yml@main
+    secrets: inherit
