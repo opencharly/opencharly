@@ -89,3 +89,4 @@
 [submodule "dotgithub"]
 	path = dotgithub
 	url = https://github.com/opencharly/.github.git
+	branch = main
