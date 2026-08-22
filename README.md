@@ -81,12 +81,22 @@ equality).
 - **Pin only merged refs** — never a PR branch. `verify` fails on dangling pins.
 - Read each subrepo's own `README.md` / `AGENTS.md` before editing inside it.
 
+## AI & harness parity
+
+This repo runs the same agent harness config and discipline as `charly/` — pi
+(`.pi/`, same packages + `umbrella-gates.ts`), Claude Code (`.claude/`), opencode
+(`opencode.json`), reasonix (`reasonix.toml`), and skills (`.agents/skills/` links
+into the `plugins/` submodule). See `HARNESS-PARITY.md` for the full map.
+`AGENTS.md`/`CLAUDE.md` own the umbrella rulebook; `charly/AGENTS.md` owns charly's.
+Shared gate scripts are diff-checked by `scripts/check-harness-parity.sh`.
+
 ## Helpers
 
 ```
 task map      # list every submodule with its pin and sync state
 task sync     # run scripts/sync-gitlinks.sh (preview a pin bump)
 task verify   # run scripts/verify-pins.sh (the CI gate, locally)
+task harness  # run scripts/check-harness-parity.sh (harness config vs charly/)
 ```
 
 `--depth 1` keeps the clone light (~50 MB of working trees):

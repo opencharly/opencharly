@@ -1,0 +1,25 @@
+{
+  "enabledPlugins": {
+    "charly-internals@charly-plugins": true,
+    "charly-automation@charly-plugins": true,
+    "claude-md-management@claude-plugins-official": true
+  },
+  "extraKnownMarketplaces": {
+    "charly-plugins": {
+      "source": {
+        "path": "./plugins",
+        "source": "directory"
+      }
+    }
+  },
+  "includeCoAuthoredBy": false,
+  "permissions": {
+    "allow": [
+      "Bash(git -C *)",
+      "Bash(task *)",
+      "Bash(bash scripts/*)",
+      "Bash(gh pr merge:*)",
+      "Bash(gh api --method POST repos/opencharly:*)"
+    ]
+  }
+}
