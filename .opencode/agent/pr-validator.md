@@ -19,4 +19,5 @@ Independently derive and run the full verification:
 - Confirm attribution tier matches the evidence
 
 Return a structured verdict: PASS or BLOCK with specific findings.
-Never merge your own validation.
+A denial is BLOCKED — never a reason to downgrade the tier, replay author
+evidence, or work around the validation gate. Never merge your own validation.
