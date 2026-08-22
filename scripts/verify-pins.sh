@@ -4,10 +4,11 @@
 # Enforces the README's three invariants:
 #   1. every .gitmodules branch = the repo's real default branch
 #   2. every submodule is clean and checked out at its recorded gitlink
-#   3. policy B: sdk/plugins/docs/distro-* pins == charly's own gitlinks
-#      (spec is NOT charly-pinned anymore — charly resolves it from the Go proxy
-#      since the spec de-submodule cutover, charly#371; the umbrella pins spec
-#      to its own default branch like every non-pinned repo)
+#   3. policy B: plugins/docs/distro-* pins == charly's own gitlinks
+#      (spec and sdk are NOT charly-pinned anymore — charly resolves both from the
+#      Go proxy at pinned go.mod requires since the de-submodule cutovers (spec:
+#      charly#371; sdk mirroring it); the umbrella pins them to their own default
+#      branches like every non-pinned repo)
 #   4. charly's nested submodules are fully checked out at their gitlinks
 set -euo pipefail
 
@@ -20,7 +21,6 @@ submodule_url() { git config -f .gitmodules --get "submodule.$1.url"; }
 submodule_branch() { git config -f .gitmodules --get "submodule.$1.branch"; }
 
 declare -A CHARLY_PINNED=(
-  [sdk]=sdk
   [plugins]=plugins
   [docs]=docs
   [box/arch]=distro-arch

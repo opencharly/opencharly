@@ -1,8 +1,9 @@
 name: smoke
 
 # Nightly proof that the pinned snapshot is buildable: fresh recursive clone of
-# the umbrella, then charly's own Go gate (its go.work spans sdk + spec, so a
-# coherent snapshot is exactly what this exercises).
+# the umbrella, then charly's own Go gate (its go.work spans the in-repo modules;
+# the sdk + spec contract modules resolve from the module proxy at the pinned
+# require versions, so a coherent snapshot is exactly what this exercises).
 
 on:
   schedule:

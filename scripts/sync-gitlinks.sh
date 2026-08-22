@@ -2,11 +2,12 @@
 # sync-gitlinks.sh — bump every umbrella submodule pin (policy B, see README).
 #
 #   charly                → its default-branch HEAD (rolling)
-#   sdk plugins docs distro-* → exactly the commits charly's own gitlinks pin
-#   everything else       → its own default-branch HEAD (spec is NOT charly-pinned
-#                           anymore — charly resolved it to a go-proxy module in
-#                           the spec de-submodule cutover, so the umbrella pins
-#                           spec to its own default branch like every other repo)
+#   plugins docs distro-* → exactly the commits charly's own gitlinks pin
+#   everything else       → its own default-branch HEAD (sdk and spec are NOT
+#                           charly-pinned anymore — charly resolves both from the
+#                           Go proxy at pinned go.mod requires, mirroring the spec
+#                           de-submodule cutover, so the umbrella pins sdk and spec
+#                           to their own default branches like every other repo)
 #
 # Never pins a PR branch — only merged refs. Does not commit or open PRs itself;
 # the sync workflow (or a human) commits the staged gitlinks and PRs them.
@@ -16,11 +17,10 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
 # charly-path → umbrella-path for the repos charly itself pins
-# NOTE: spec is intentionally ABSENT — charly no longer carries a spec gitlink
-# (it resolves github.com/opencharly/spec from the Go proxy at a pinned go.mod
-# require; the spec de-submodule cutover, charly#371).
+# NOTE: spec and sdk are intentionally ABSENT — charly no longer carries a gitlink
+# for either (both resolve from the Go proxy at pinned go.mod requires; the spec
+# de-submodule cutover, charly#371, and the sdk de-submodule cutover mirroring it).
 declare -A CHARLY_PINNED=(
-  [sdk]=sdk
   [plugins]=plugins
   [docs]=docs
   [box/arch]=distro-arch

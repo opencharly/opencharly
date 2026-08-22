@@ -3,7 +3,9 @@ name: verify
 # The umbrella's pinning gate: runs on every push and PR, and is the gate the
 # auto-merge workflow waits for. Enforces:
 #   branch == real default branch, clean checkouts, gitlink == checked-out HEAD,
-#   policy B (sdk/spec/plugins/docs/distro-* == charly's own gitlinks),
+#   policy B (plugins/docs/distro-* == charly's own gitlinks; the sdk + spec
+#   contract modules resolve from the Go proxy at pinned go.mod requires since the
+#   charly de-submodule cutovers),
 #   charly's nested submodules initialized at their gitlinks.
 
 on:
