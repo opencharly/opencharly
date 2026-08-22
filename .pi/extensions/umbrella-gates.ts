@@ -96,10 +96,10 @@ Every PR body must contain:
 2. **## How tested** — pasted command + output for every verification step
 3. **## Rulebook compliance** — table with every applicable umbrella rule
 4. **## Change Classification** — change class, verification gate, attribution tier
-5. **CHANGELOG entry** — `CHANGELOG/<calver>.md` placeholder in the diff (the
+5. **CHANGELOG entry** — \`CHANGELOG/<calver>.md\` placeholder in the diff (the
    pr-validator finalizes it to the merge-time CalVer; rule B19)
 6. ***Assisted-by: <Harness> <Provider Full Model Name> (<confidence>)*** — italicized
-   footer in the EXACT form, e.g. `*Assisted-by: pi openrouter/deepseek/deepseek-v4-flash-0731 (fully tested and validated)*` (rule A1)
+   footer in the EXACT form, e.g. \`*Assisted-by: pi openrouter/deepseek/deepseek-v4-flash-0731 (fully tested and validated)*\` (rule A1)
 
 ### Attribution Tiers
 | Confidence | Required proof |

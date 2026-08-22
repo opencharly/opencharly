@@ -5,3 +5,6 @@
 
 # local env
 .env
+
+# Pi project-local package installs (generated on startup from .pi/settings.json)
+.pi/npm/
