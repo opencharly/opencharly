@@ -82,8 +82,11 @@ Every PR body must contain:
 1. **## Summary** — what changed and why
 2. **## How tested** — pasted command + output for every verification step
 3. **## Rulebook compliance** — the umbrella rules applicable to the change
-4. **## Change classification** — change class, verification gate, attribution tier
-5. ***Assisted-by: ...*** — italicized footer at the end
+4. **## Change classification** — classification, verification gate, attribution tier
+5. **CHANGELOG entry** — `CHANGELOG/<calver>.md` (placeholder) in the diff; the
+   pr-validator fills it to the merge-time CalVer (B19)
+6. ***Assisted-by: <Harness> <Provider Full Model Name> (<confidence>)*** — italicized
+   footer in the exact form (A1)
 
 ### Attribution tiers
 
