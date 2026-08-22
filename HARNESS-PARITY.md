@@ -1,4 +1,31 @@
-# Plan — AI/harness parity with `charly/`
+# AI/harness parity with `charly/` — status: IMPLEMENTED (see commit log)
+
+This document is both the original plan and the living parity map. Every file
+below is in place at the umbrella root; the shared files are diff-checked by
+`scripts/check-harness-parity.sh` (AGENTS.md rule 8).
+
+> Deviation from the plan: the parity table lives here instead of
+> `docs/harness-parity.md` because `docs/` is a submodule (rule 1 — never edit
+> inside a submodule).
+
+## Implemented parity map
+
+| Layer | charly/ (source) | umbrella (twin) | Shared? |
+|---|---|---|---|
+| Instructions | `AGENTS.md` + `CLAUDE.md` | `AGENTS.md` + `CLAUDE.md` (umbrella rulebook, not a copy) | fork |
+| Skills | `.agents/skills/` (~140 links) + `.agents/plugins/marketplace.json` | `.agents/skills/` (6 links, via `scripts/link-skills.sh`) + `.agents/plugins/marketplace.json` | marketplace shared; links are a subset |
+| Pi | `.pi/settings.json` (same 6 packages) | `.pi/settings.json` | identical packages |
+| Pi extension | `.pi/extensions/charly-gates.ts` | `.pi/extensions/umbrella-gates.ts` | fork (no worktrees, no Go gates) |
+| Pi prompts | `cutover, pr-body, rulebook, skill, subagent-review, subagent-verify` | `sync, pr-body, rulebook, skill, subagent-review, subagent-verify` | fork |
+| Pi subagents | `.pi/subagents/charly-agents.json` | `.pi/subagents/umbrella-agents.json` | fork |
+| Claude hooks | `.claude/hooks/{pre-commit-gate.sh,pre-push-gate.sh,gitcmd.py,gate_test.py}` | same paths | identical (diff-checked) |
+| Claude settings | `.claude/settings.json` (full plugin list) | `.claude/settings.json` (internals + automation subset) | fork |
+| Claude workflows | `.claude/workflows/{verify-status,triage-check-failure,audit-deploy-configs,verify-beds}.js` | `.claude/workflows/{verify-status,triage-check-failure}.js` | fork |
+| opencode | `opencode.json` + `.opencode/plugin/charly-gates.ts` + `.opencode/agent/pr-validator.md` | `opencode.json` + `.opencode/plugin/umbrella-gates.ts` + `.opencode/agent/pr-validator.md` | fork |
+| reasonix | `reasonix.toml` + `.reasonix/settings.json` | `reasonix.toml` + `.reasonix/settings.json` | settings identical; toml fork |
+
+Shared-by-design files are enforced by `scripts/check-harness-parity.sh`
+(`task harness`).
 
 Goal: the umbrella repo gets the same AI and harness configuration and
 instructions as `charly/` — same harnesses (pi, Claude Code, opencode,

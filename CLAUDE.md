@@ -1,4 +1,7 @@
-# AGENTS.md — rules for agent workers in the umbrella
+# CLAUDE.md — rules for agent workers in the umbrella
+
+> Mirrors `AGENTS.md` (Claude Code reads this file; pi and other harnesses read
+> `AGENTS.md`). Keep both in sync — edit `AGENTS.md` and copy.
 
 The umbrella is a *view* of the org: 22 submodules at the root, each a real repo owned
 elsewhere. Short rulebook — every rule exists because breaking it corrupts someone
@@ -97,7 +100,7 @@ Every PR body must contain:
 Deterministic git-workflow mechanics — bypass flags, force-push, direct-main push,
 untokenizable commands — are enforced by hooks: `.claude/hooks/pre-commit-gate.sh`
 + `pre-push-gate.sh`, wired into pi via `.pi/extensions/umbrella-gates.ts`, into
-Claude Code via `.reasonix/settings.json`-style PreToolUse hooks, into reasonix via
+Claude Code via `.claude/settings.json`-style PreToolUse hooks, into reasonix via
 `.reasonix/settings.json`, and into opencode via `.opencode/plugin/umbrella-gates.ts`.
 Attribution, change class, and rulebook compliance are judged once by the fresh
 `pr-validator` at merge — never by the gates.

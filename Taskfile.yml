@@ -27,3 +27,8 @@ tasks:
     desc: Run the CI pinning gate locally
     cmds:
       - bash scripts/verify-pins.sh
+
+  harness:
+    desc: Check harness config parity with charly/ (shared files identical)
+    cmds:
+      - bash scripts/check-harness-parity.sh

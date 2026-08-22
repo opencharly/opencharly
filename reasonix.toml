@@ -1,0 +1,31 @@
+[permissions]
+mode = "ask"
+allow = [
+    # Built-in exploration
+    "explore",
+    # Submodule and pinning discovery
+    "Bash(git -C $PWD submodule status 2>/dev/null)",
+    "Bash(cd $PWD && git config -f .gitmodules --get-regexp '^submodule\..*\.path$')",
+    "Bash(cd $PWD && cat .agents/skills/.charly-profile.json | python3 -c \"import json,sys; d=json.load(sys.stdin); print(json.dumps(list(d.keys())[:5], indent=2)); print('...'); print('total entries:', len(d))\" 2>/dev/null || echo \"parse failed\")",
+    # Umbrella verbs (parity with Claude Code + Kimi + opencode)
+    "Bash(task sync:*)",
+    "Bash(task verify:*)",
+    "Bash(task map:*)",
+    "Bash(bash scripts/sync-gitlinks.sh:*)",
+    "Bash(bash scripts/verify-pins.sh:*)",
+    # Submodule git ops run through git -C (AGENTS.md rule 2)
+    "Bash(git -C:*)",
+    # GitHub PR merge (pr-validator)
+    "Bash(gh pr merge:*)",
+    "Bash(gh api --method POST repos/opencharly:*)",
+]
+
+# --- Sandbox note ------------------------------------------------------------
+# Charly disables reasonix's OS-level Bash sandbox because rootless podman
+# needs a writable runroot + subordinate-id-mapping caps. The umbrella has no
+# container engine, but it DOES need git-over-SSH and gh to talk to the real
+# host SSH agent, so `bash = "off"` (project-scoped; the operator's global
+# reasonix posture is unchanged) keeps agent git ops equivalent to a normal
+# terminal. See the charly reasonix.toml for the full podman RCA.
+[sandbox]
+bash = "off"
