@@ -2,8 +2,11 @@
 # sync-gitlinks.sh — bump every umbrella submodule pin (policy B, see README).
 #
 #   charly                → its default-branch HEAD (rolling)
-#   sdk spec plugins docs distro-* → exactly the commits charly's own gitlinks pin
-#   everything else       → its own default-branch HEAD
+#   sdk plugins docs distro-* → exactly the commits charly's own gitlinks pin
+#   everything else       → its own default-branch HEAD (spec is NOT charly-pinned
+#                           anymore — charly resolved it to a go-proxy module in
+#                           the spec de-submodule cutover, so the umbrella pins
+#                           spec to its own default branch like every other repo)
 #
 # Never pins a PR branch — only merged refs. Does not commit or open PRs itself;
 # the sync workflow (or a human) commits the staged gitlinks and PRs them.
@@ -13,9 +16,11 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
 # charly-path → umbrella-path for the repos charly itself pins
+# NOTE: spec is intentionally ABSENT — charly no longer carries a spec gitlink
+# (it resolves github.com/opencharly/spec from the Go proxy at a pinned go.mod
+# require; the spec de-submodule cutover, charly#371).
 declare -A CHARLY_PINNED=(
   [sdk]=sdk
-  [spec]=spec
   [plugins]=plugins
   [docs]=docs
   [box/arch]=distro-arch
@@ -53,7 +58,7 @@ done
 echo "== everything else (own default-branch HEAD) =="
 for path in "${MODULES[@]}"; do
   case "$path" in
-    charly | sdk | spec | plugins | docs | distro-*) continue ;;
+    charly | sdk | plugins | docs | distro-*) continue ;;
   esac
   pin "$path" "origin/$(submodule_branch "$path")"
 done
