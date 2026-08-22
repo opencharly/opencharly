@@ -64,8 +64,10 @@ Every submodule is pinned to a specific commit (a gitlink). The policy (`policy 
 rename keeps working.
 
 The daily `sync` workflow runs `scripts/sync-gitlinks.sh`, opens a `chore: sync
-gitlinks` PR when anything moved, and the `auto-merge` workflow merges it when
-`verify` passes — same discipline as charly. `verify.yml` runs on every push/PR and
+gitlinks` PR when anything moved, and the org-wide validation chain lands it:
+`charly/pr-validator` runs the fresh AI validator (`pi-review-action`) and
+enables native auto-merge on PASS; `tag-on-merge` tags the merged snapshot —
+same discipline as charly. `verify.yml` runs on every push/PR and
 enforces the three invariants (branch == real default, pins reachable + clean, policy B
 equality).
 
