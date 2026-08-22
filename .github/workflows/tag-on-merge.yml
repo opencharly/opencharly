@@ -2,19 +2,19 @@
 name: tag-on-merge
 
 on:
-  workflow_run:
-    workflows: ["charly/pr-validator"]
-    types: [completed]
+  pull_request:
+    types: [closed]
   schedule:
     - cron: "*/15 * * * *"
 
 permissions:
   contents: write
+  pull-requests: read
 
 jobs:
   tag:
     if: >
       github.event_name == 'schedule' ||
-      github.event.workflow_run.conclusion == 'success'
+      (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
     uses: opencharly/.github/.github/workflows/tag-on-merge.yml@main
     secrets: inherit

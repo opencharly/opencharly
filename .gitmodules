@@ -86,3 +86,6 @@
 	path = pixelflux
 	url = https://github.com/opencharly/pixelflux.git
 	branch = av1
+[submodule "dotgithub"]
+	path = dotgithub
+	url = https://github.com/opencharly/.github.git
