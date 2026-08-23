@@ -21,7 +21,7 @@ needed for a read-only checkout.
 | `charly/` | [opencharly/charly](https://github.com/opencharly/charly) | the CLI + core — itself a superrepo (nested gitlinks for box/*; the sdk + spec contract modules resolve from the Go proxy at pinned go.mod requires) |
 | `sdk/` | [opencharly/sdk](https://github.com/opencharly/sdk) | plugin SDK + contract |
 | `spec/` | [opencharly/spec](https://github.com/opencharly/spec) | wire/IR contract (CUE → proto) |
-| `marketplace/` | [opencharly/marketplace](https://github.com/opencharly/marketplace) | the plugin/skill corpus + per-harness catalogs — standalone (pins charly in its own `.gitmodules`; its deploy workflow owns generation) |
+| `marketplace` (no checkout) | [opencharly/marketplace](https://github.com/opencharly/marketplace) | the plugin/skill corpus + per-harness catalogs — NOT a submodule here (each harness loads it natively); standalone (pins charly in its own `.gitmodules`; its deploy workflow owns generation) |
 | `docs/` | [opencharly/docs](https://github.com/opencharly/docs) | the opencharly.ai site — standalone: pins charly in its own `.gitmodules`, and its `deploy.yml` workflow is the sole owner of generation/building/publishing |
 | `distro-arch/` | [opencharly/distro-arch](https://github.com/opencharly/distro-arch) | Arch image family (charly's `box/arch`) |
 | `distro-cachyos/` | [opencharly/distro-cachyos](https://github.com/opencharly/distro-cachyos) | CachyOS image family (`box/cachyos`) |
@@ -54,7 +54,7 @@ Every submodule is pinned to a specific commit (a gitlink). The policy (`policy 
 2. `distro-*` → **exactly the commits charly's own
    gitlinks pin** (charly's `box/<distro>` maps to `distro-<distro>` here). The umbrella
    therefore means *"the org exactly as charly sees it"* — one coherent snapshot.
-3. Everything else (`sdk`, `spec`, `plugins`→`marketplace`, `docs`, `charly-*`, `pkg-*`,
+3. Everything else (`sdk`, `spec`, `docs`, `charly-*`, `pkg-*`,
    `plugin-generate-packages`, `pi-review-action`, `pixelflux`) → its own default-branch HEAD
    (`av1` for `pixelflux`). (`sdk`, `spec`, `plugins` and `docs` are no longer charly-pinned —
    `sdk` and `spec` resolve from the Go proxy at pinned go.mod requires since the
