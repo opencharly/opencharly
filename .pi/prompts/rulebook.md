@@ -9,7 +9,7 @@ description: Quick reference: umbrella rules, pinning policy, attribution tiers
 3. No nested `go.work` — all Go builds happen inside `charly/`
 4. No worktrees inside submodules (charly's `.claude/worktrees/` pattern is not for here)
 5. Pin only merged refs — never a PR branch
-6. Policy B: `sdk spec docs distro-*` == charly's own gitlinks (plugins moved to the standalone marketplace repo); a changed pin is a sync, not a hand-pin
+6. Policy B: `distro-*` == charly's own gitlinks; `sdk`/`spec`/`docs`/`marketplace` follow their own default-branch HEAD (a changed pin is a sync, not a hand-pin)
 7. Read the subrepo's own AGENTS.md/CLAUDE.md before touching it
 8. Harness config mirrors charly's — `scripts/check-harness-parity.sh` enforces
 

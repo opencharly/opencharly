@@ -22,12 +22,12 @@ else's repo.
    `charly` checkout, not here.
 5. **Pin discipline:** only pin merged refs (default branches or gitlinks charly
    records). Never a PR branch. `verify` treats dangling pins as failures.
-6. **Policy B is the contract:** `spec docs distro-*` must equal charly's own
-   gitlinks (`sdk` and `plugins` are no longer charly-pinned — `sdk` resolves from the Go
-   proxy at a pinned go.mod require since the sdk de-submodule cutover (mirroring `spec`,
-   charly#371), and the plugins corpus moved to the standalone `opencharly/marketplace`
-   repo since the marketplace cutover). If charly's pinning changed, the fix is a sync
-   (`task sync` + PR), not a hand-pin.
+6. **Policy B is the contract:** `distro-*` must equal charly's own gitlinks
+   (`sdk`, `spec` and `plugins` are no longer charly-pinned — `sdk` and `spec` resolve from
+   the Go proxy at pinned go.mod requires since their de-submodule cutovers, and the
+   plugins corpus moved to the standalone `opencharly/marketplace` repo — which IS a
+   submodule here, pinned to its own default-branch HEAD like `docs`). If charly's
+   pinning changed, the fix is a sync (`task sync` + PR), not a hand-pin.
 7. When a task touches a subrepo, read that subrepo's own `AGENTS.md`/`CLAUDE.md`
    first — its rulebook applies inside it. Charly's R0–R10 rulebook lives in
    `charly/AGENTS.md`; this file owns only the umbrella's policy.

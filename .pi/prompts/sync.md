@@ -17,7 +17,7 @@ argument-hint: "<none>"
 1. `bash scripts/sync-gitlinks.sh` — preview the pin bump (does not commit)
 2. Review the proposed gitlinks against policy B (README):
    - `charly` → its own default-branch HEAD
-   - `sdk spec docs distro-*` → exactly what charly's own gitlinks pin (plugins moved to the standalone marketplace repo; it follows its own default branch)
+   - `distro-*` → exactly what charly's own gitlinks pin; `sdk`/`spec`/`docs`/`marketplace` follow their own default-branch HEAD
    - everything else → its own default-branch HEAD (`av1` for `pixelflux`)
 3. Only pin merged refs — never a PR branch
 4. `bash scripts/verify-pins.sh` — must pass before committing
