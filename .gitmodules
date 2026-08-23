@@ -97,3 +97,4 @@
 [submodule "layer-ripgrep"]
 	path = layer-ripgrep
 	url = https://github.com/opencharly/layer-ripgrep.git
+	branch = main
