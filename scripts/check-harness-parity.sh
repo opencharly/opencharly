@@ -20,7 +20,6 @@ SHARED=(
   ".claude/hooks/pre-push-gate.sh charly/.claude/hooks/pre-push-gate.sh"
   ".claude/hooks/gitcmd.py charly/.claude/hooks/gitcmd.py"
   ".claude/hooks/gate_test.py charly/.claude/hooks/gate_test.py"
-  ".agents/plugins/marketplace.json charly/.agents/plugins/marketplace.json"
   ".reasonix/settings.json charly/.reasonix/settings.json"
 )
 

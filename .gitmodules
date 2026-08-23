@@ -10,10 +10,6 @@
 	path = spec
 	url = https://github.com/opencharly/spec.git
 	branch = main
-[submodule "plugins"]
-	path = plugins
-	url = https://github.com/opencharly/plugins.git
-	branch = main
 [submodule "docs"]
 	path = docs
 	url = https://github.com/opencharly/docs.git
@@ -89,4 +85,8 @@
 [submodule "dotgithub"]
 	path = dotgithub
 	url = https://github.com/opencharly/.github.git
+	branch = main
+[submodule "marketplace"]
+	path = marketplace
+	url = https://github.com/opencharly/marketplace.git
 	branch = main

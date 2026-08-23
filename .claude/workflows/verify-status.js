@@ -42,7 +42,7 @@ const INVARIANTS = [
   },
   {
     id: 'policy-b',
-    invariant: 'policy B: sdk/spec/plugins/docs/distro-* pins == charly own gitlinks',
+    invariant: 'policy B: distro-* pins == charly own gitlinks (sdk/spec/docs/marketplace follow their own default-branch HEAD)',
     cmd: 'bash scripts/verify-pins.sh',
     proves: 'ls-tree comparison charly/ vs umbrella/',
   },

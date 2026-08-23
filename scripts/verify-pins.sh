@@ -4,12 +4,14 @@
 # Enforces the README's three invariants:
 #   1. every .gitmodules branch = the repo's real default branch
 #   2. every submodule is clean and checked out at its recorded gitlink
-#   3. policy B: plugins/distro-* pins == charly's own gitlinks
-#      (spec, sdk and docs are NOT charly-pinned anymore — spec and sdk resolve
-#      from the Go proxy at pinned go.mod requires since their de-submodule
-#      cutovers, and docs pins charly in ITS .gitmodules since the docs
-#      de-submodule cutover — the umbrella pins them to their own default
-#      branches like every non-pinned repo)
+#   3. policy B: distro-* pins == charly's own gitlinks
+#      (spec, sdk and docs are NOT charly-pinned anymore — spec and sdk resolve from
+#      the Go proxy at pinned go.mod requires since their de-submodule cutovers, and
+#      docs pins charly in ITS .gitmodules since the docs cutover. plugins is NOT a
+#      submodule at all — the corpus moved to the standalone opencharly/marketplace
+#      repo — and marketplace IS a submodule pinned to its own default branch like
+#      every non-pinned repo (the every-other-repo rule); every harness loads the
+#      marketplace repo natively, the checkout is the org-snapshot view)
 #   4. charly's nested submodules are fully checked out at their gitlinks
 set -euo pipefail
 
@@ -22,7 +24,6 @@ submodule_url() { git config -f .gitmodules --get "submodule.$1.url"; }
 submodule_branch() { git config -f .gitmodules --get "submodule.$1.branch"; }
 
 declare -A CHARLY_PINNED=(
-  [plugins]=plugins
   [box/arch]=distro-arch
   [box/cachyos]=distro-cachyos
   [box/debian]=distro-debian
