@@ -18,11 +18,11 @@ needed for a read-only checkout.
 
 | path | repo | role |
 |---|---|---|
-| `charly/` | [opencharly/charly](https://github.com/opencharly/charly) | the CLI + core — itself a superrepo (nested gitlinks for plugins/docs/box/*; the sdk + spec contract modules resolve from the Go proxy at pinned go.mod requires) |
+| `charly/` | [opencharly/charly](https://github.com/opencharly/charly) | the CLI + core — itself a superrepo (nested gitlinks for plugins/box/*; the sdk + spec contract modules resolve from the Go proxy at pinned go.mod requires) |
 | `sdk/` | [opencharly/sdk](https://github.com/opencharly/sdk) | plugin SDK + contract |
 | `spec/` | [opencharly/spec](https://github.com/opencharly/spec) | wire/IR contract (CUE → proto) |
 | `plugins/` | [opencharly/plugins](https://github.com/opencharly/plugins) | skills, agents, workflows |
-| `docs/` | [opencharly/docs](https://github.com/opencharly/docs) | the opencharly.ai site |
+| `docs/` | [opencharly/docs](https://github.com/opencharly/docs) | the opencharly.ai site — standalone: pins charly in its own `.gitmodules`, and its `deploy.yml` workflow is the sole owner of generation/building/publishing |
 | `distro-arch/` | [opencharly/distro-arch](https://github.com/opencharly/distro-arch) | Arch image family (charly's `box/arch`) |
 | `distro-cachyos/` | [opencharly/distro-cachyos](https://github.com/opencharly/distro-cachyos) | CachyOS image family (`box/cachyos`) |
 | `distro-debian/` | [opencharly/distro-debian](https://github.com/opencharly/distro-debian) | Debian image family (`box/debian`) |
@@ -51,15 +51,16 @@ occupied by a submodule.
 Every submodule is pinned to a specific commit (a gitlink). The policy (`policy B`):
 
 1. `charly` → its own default-branch HEAD (`main`).
-2. `plugins`, `docs`, `distro-*` → **exactly the commits charly's own
+2. `plugins`, `distro-*` → **exactly the commits charly's own
    gitlinks pin** (charly's `box/<distro>` maps to `distro-<distro>` here). The umbrella
    therefore means *"the org exactly as charly sees it"* — one coherent snapshot.
-3. Everything else (`sdk`, `spec`, `charly-*`, `pkg-*`, `plugin-generate-packages`,
+3. Everything else (`sdk`, `spec`, `docs`, `charly-*`, `pkg-*`, `plugin-generate-packages`,
    `pi-review-action`, `pixelflux`) → its own default-branch HEAD (`av1` for
-   `pixelflux`). (`sdk` and `spec` are no longer charly-pinned — charly resolves both
-   `github.com/opencharly/sdk` and `github.com/opencharly/spec` from the Go proxy at
-   pinned go.mod requires since the de-submodule cutovers (spec: charly#371; sdk:
-   mirroring it), so they follow the every-other-repo rule.)
+   `pixelflux`). (`sdk`, `spec` and `docs` are no longer charly-pinned — `sdk` and
+   `spec` resolve from the Go proxy at pinned go.mod requires since the
+   de-submodule cutovers (spec: charly#371; sdk: mirroring it), and `docs` pins
+   charly in ITS .gitmodules since the docs de-submodule cutover, so they follow
+   the every-other-repo rule.)
 
 `.gitmodules` carries `branch = <repo default>` on every entry; nothing ever assumes
 `main` — defaults are resolved via `git ls-remote --symref`, so a future default-branch
