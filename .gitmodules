@@ -90,7 +90,7 @@
 	path = marketplace
 	url = https://github.com/opencharly/marketplace.git
 	branch = main
-[submodule "ripgrep"]
-	path = ripgrep
-	url = https://github.com/opencharly/ripgrep.git
+[submodule "layer-ripgrep"]
+	path = layer-ripgrep
+	url = https://github.com/opencharly/layer-ripgrep.git
 	branch = main
