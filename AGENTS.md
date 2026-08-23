@@ -22,10 +22,12 @@ else's repo.
    `charly` checkout, not here.
 5. **Pin discipline:** only pin merged refs (default branches or gitlinks charly
    records). Never a PR branch. `verify` treats dangling pins as failures.
-6. **Policy B is the contract:** `spec plugins docs distro-*` must equal charly's own
-   gitlinks (`sdk` is no longer charly-pinned — charly resolves it from the Go proxy at a
-   pinned go.mod require since the sdk de-submodule cutover, mirroring `spec`, charly#371).
-   If charly's pinning changed, the fix is a sync (`task sync` + PR), not a hand-pin.
+6. **Policy B is the contract:** `spec docs distro-*` must equal charly's own
+   gitlinks (`sdk` and `plugins` are no longer charly-pinned — `sdk` resolves from the Go
+   proxy at a pinned go.mod require since the sdk de-submodule cutover (mirroring `spec`,
+   charly#371), and the plugins corpus moved to the standalone `opencharly/marketplace`
+   repo since the marketplace cutover). If charly's pinning changed, the fix is a sync
+   (`task sync` + PR), not a hand-pin.
 7. When a task touches a subrepo, read that subrepo's own `AGENTS.md`/`CLAUDE.md`
    first — its rulebook applies inside it. Charly's R0–R10 rulebook lives in
    `charly/AGENTS.md`; this file owns only the umbrella's policy.
@@ -38,9 +40,9 @@ else's repo.
 ## R0. Skills first
 
 Before the first tool call of a task, load every skill the dispatcher below selects
-(via `umbrella_load_skills` in pi, or by reading the `plugins/<plugin>/skills/<name>/SKILL.md`
-file directly). Skills live in the `plugins/` submodule; the symlinks under
-`.agents/skills/` (created by `scripts/link-skills.sh`) point at them.
+(via `umbrella_load_skills` in pi, or by reading the skill from the opencharly/marketplace
+repo — the standalone marketplace: Claude Code loads it as the `charly-plugins` marketplace,
+pi as the `git:github.com/opencharly/marketplace` package, kimi as a plugin).
 
 ### Skill Dispatcher
 

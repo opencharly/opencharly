@@ -13,7 +13,7 @@ below is in place at the umbrella root; the shared files are diff-checked by
 | Layer | charly/ (source) | umbrella (twin) | Shared? |
 |---|---|---|---|
 | Instructions | `AGENTS.md` + `CLAUDE.md` | `AGENTS.md` + `CLAUDE.md` (umbrella rulebook, not a copy) | fork |
-| Skills | `.agents/skills/` (~140 links) + `.agents/plugins/marketplace.json` | `.agents/skills/` (6 links, via `scripts/link-skills.sh`) + `.agents/plugins/marketplace.json` | marketplace shared; links are a subset |
+| Skills | the opencharly/marketplace repo (each harness loads it natively: Claude Code marketplace, pi `git:` package, kimi plugin, Codex catalog) | same marketplace (no local links) | marketplace shared |
 | Pi | `.pi/settings.json` (same 6 packages) | `.pi/settings.json` | identical packages |
 | Pi extension | `.pi/extensions/charly-gates.ts` | `.pi/extensions/umbrella-gates.ts` | fork (no worktrees, no Go gates) |
 | Pi prompts | `cutover, pr-body, rulebook, skill, subagent-review, subagent-verify` | `sync, pr-body, rulebook, skill, subagent-review, subagent-verify` | fork |
@@ -38,24 +38,26 @@ root).
 | Layer | charly/ (source) | umbrella (target) |
 |---|---|---|
 | Instructions | `AGENTS.md` (32KB, R0–R10 rulebook) + `CLAUDE.md` mirror | `AGENTS.md` (1.6KB, 7 rules) — expand, **not verbatim copy** |
-| Skills | `.agents/skills/` — ~140 symlinks into `plugins/` submodule + `.charly-profile.json` | none |
+| Skills | the marketplace corpus (loaded natively by every harness from the standalone opencharly/marketplace repo) | none |
 | Pi | `.pi/settings.json` (6 packages + gates extension), `extensions/charly-gates.ts` (477L), 6 prompts, `subagents/charly-agents.json`, `README.md` | none |
 | Claude Code | `.claude/settings.json`, `.claude/hooks/` (2 gate `.sh` + `gitcmd.py` + tests), `.claude/workflows/` | none |
 | opencode | `opencode.json` + `.opencode/plugin/charly-gates.ts` | none |
 | reasonix/kimi | `reasonix.toml`, `.reasonix/settings.json` | none |
 
-Key enabler: the umbrella's `plugins/` submodule is pinned (policy B) to the
-same commit charly's own gitlink points at, so the exact skill symlink
-topology from charly is reproducible here. The gate scripts are
-mechanically repo-agnostic (they only parse `git commit`/`git push`
+Key enabler: both repos load the SAME marketplace — the standalone
+opencharly/marketplace repo — natively (Claude Code's `charly-plugins`
+marketplace, pi's `git:` package, Kimi's plugin), so the skill topology is
+identical by construction and no symlink farm needs reproducing. The gate
+scripts are mechanically repo-agnostic (they only parse `git commit`/`git push`
 command strings).
 
 ## Constraints
 
 - **Submodule isolation (AGENTS.md rules 1–2):** every new file lands at the
-  umbrella root or in new root-level dirs (`.pi/`, `.claude/`, `.agents/`).
-  Symlinks into `plugins/` are read-only references — allowed. Nothing is
-  ever written inside a submodule.
+  umbrella root or in new root-level dirs (`.pi/`, `.claude/`, `.opencode/`,
+  `.reasonix/`). The skills farm (`scripts/link-skills.sh` + `.agents/skills/`)
+  was DELETED in the marketplace cutover — each harness loads the marketplace
+  natively. Nothing is ever written inside a submodule.
 - **No worktrees (rule 4):** charly's worktree flow is banned here — no
   `charly_worktree_create` tool, no cutover prompt. The umbrella equivalent
   is "sync + verify + PR".
@@ -88,11 +90,10 @@ command strings).
 
 ### Phase 2 — Skills (root, committed)
 
-4. Create `.agents/plugins/marketplace.json` + `.agents/skills/` symlinks
-   into `plugins/` (same relative targets as charly:
-   `../../plugins/<plugin>/skills/<skill>`), driven by a new
-   `scripts/link-skills.sh` so it is reproducible, and extend
-   `verify-pins.sh` with a dangling-link check.
+4. ~~Create `.agents/plugins/marketplace.json` + `.agents/skills/` symlinks~~ — OBSOLETE
+   since the marketplace cutover: each harness loads the standalone
+   opencharly/marketplace repo natively (Claude Code marketplace, pi git package,
+   kimi plugin). `scripts/link-skills.sh` was deleted with the farm.
 5. Recommend **subset first** (`internals:git-workflow, agents,
    root-cause-analyzer, strict-policy` + `automation:*` — the ops the
    umbrella actually runs), with full parity as a flag. The other ~120

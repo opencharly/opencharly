@@ -23,9 +23,11 @@ cd "$ROOT"
 # de-submodule cutover, charly#371, and the sdk de-submodule cutover mirroring it).
 # NOTE: docs is also ABSENT — the docs de-submodule cutover made the docs repo
 # standalone (it pins charly in ITS .gitmodules); the umbrella pins docs to its own
-# default branch like every other repo.
+# default branch like every other repo. NOTE: plugins is ABSENT too — the marketplace
+# de-submodule cutover moved the corpus to the standalone opencharly/marketplace repo
+# (charly carries no plugins gitlink anymore), so the umbrella pins marketplace to its
+# own default branch like every other repo.
 declare -A CHARLY_PINNED=(
-  [plugins]=plugins
   [box/arch]=distro-arch
   [box/cachyos]=distro-cachyos
   [box/debian]=distro-debian
@@ -61,7 +63,7 @@ done
 echo "== everything else (own default-branch HEAD) =="
 for path in "${MODULES[@]}"; do
   case "$path" in
-    charly | plugins | distro-*) continue ;;
+    charly | distro-*) continue ;;
   esac
   pin "$path" "origin/$(submodule_branch "$path")"
 done
