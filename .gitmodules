@@ -94,3 +94,6 @@
 	path = ripgrep
 	url = https://github.com/opencharly/ripgrep.git
 	branch = main
+[submodule "layer-ripgrep"]
+	path = layer-ripgrep
+	url = https://github.com/opencharly/layer-ripgrep.git
