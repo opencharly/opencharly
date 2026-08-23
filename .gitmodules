@@ -86,3 +86,7 @@
 	path = dotgithub
 	url = https://github.com/opencharly/.github.git
 	branch = main
+[submodule "marketplace"]
+	path = marketplace
+	url = https://github.com/opencharly/marketplace.git
+	branch = main
