@@ -2,12 +2,13 @@
 # sync-gitlinks.sh — bump every umbrella submodule pin (policy B, see README).
 #
 #   charly                → its default-branch HEAD (rolling)
-#   plugins docs distro-* → exactly the commits charly's own gitlinks pin
-#   everything else       → its own default-branch HEAD (sdk and spec are NOT
-#                           charly-pinned anymore — charly resolves both from the
-#                           Go proxy at pinned go.mod requires, mirroring the spec
-#                           de-submodule cutover, so the umbrella pins sdk and spec
-#                           to their own default branches like every other repo)
+#   plugins distro-* → exactly the commits charly's own gitlinks pin
+#   everything else       → its own default-branch HEAD (sdk, spec and docs are NOT
+#                           charly-pinned anymore — sdk and spec resolve from the
+#                           Go proxy at pinned go.mod requires, and docs pins charly
+#                           in its own .gitmodules since the docs de-submodule
+#                           cutover — so the umbrella pins them to their own
+#                           default branches like every other repo)
 #
 # Never pins a PR branch — only merged refs. Does not commit or open PRs itself;
 # the sync workflow (or a human) commits the staged gitlinks and PRs them.
@@ -20,9 +21,11 @@ cd "$ROOT"
 # NOTE: spec and sdk are intentionally ABSENT — charly no longer carries a gitlink
 # for either (both resolve from the Go proxy at pinned go.mod requires; the spec
 # de-submodule cutover, charly#371, and the sdk de-submodule cutover mirroring it).
+# NOTE: docs is also ABSENT — the docs de-submodule cutover made the docs repo
+# standalone (it pins charly in ITS .gitmodules); the umbrella pins docs to its own
+# default branch like every other repo.
 declare -A CHARLY_PINNED=(
   [plugins]=plugins
-  [docs]=docs
   [box/arch]=distro-arch
   [box/cachyos]=distro-cachyos
   [box/debian]=distro-debian
@@ -58,7 +61,7 @@ done
 echo "== everything else (own default-branch HEAD) =="
 for path in "${MODULES[@]}"; do
   case "$path" in
-    charly | plugins | docs | distro-*) continue ;;
+    charly | plugins | distro-*) continue ;;
   esac
   pin "$path" "origin/$(submodule_branch "$path")"
 done

@@ -4,10 +4,11 @@
 # Enforces the README's three invariants:
 #   1. every .gitmodules branch = the repo's real default branch
 #   2. every submodule is clean and checked out at its recorded gitlink
-#   3. policy B: plugins/docs/distro-* pins == charly's own gitlinks
-#      (spec and sdk are NOT charly-pinned anymore — charly resolves both from the
-#      Go proxy at pinned go.mod requires since the de-submodule cutovers (spec:
-#      charly#371; sdk mirroring it); the umbrella pins them to their own default
+#   3. policy B: plugins/distro-* pins == charly's own gitlinks
+#      (spec, sdk and docs are NOT charly-pinned anymore — spec and sdk resolve
+#      from the Go proxy at pinned go.mod requires since their de-submodule
+#      cutovers, and docs pins charly in ITS .gitmodules since the docs
+#      de-submodule cutover — the umbrella pins them to their own default
 #      branches like every non-pinned repo)
 #   4. charly's nested submodules are fully checked out at their gitlinks
 set -euo pipefail
@@ -22,7 +23,6 @@ submodule_branch() { git config -f .gitmodules --get "submodule.$1.branch"; }
 
 declare -A CHARLY_PINNED=(
   [plugins]=plugins
-  [docs]=docs
   [box/arch]=distro-arch
   [box/cachyos]=distro-cachyos
   [box/debian]=distro-debian
@@ -60,6 +60,8 @@ for cpath in "${!CHARLY_PINNED[@]}"; do
 done
 
 # charly's own nested submodules must be initialized at their gitlinks
+# (docs' nested charly pin is NOT checked here — the docs repo owns its content;
+# its own deploy workflow checks out the pinned charly recursively on every run)
 dirty="$(git -C charly submodule status --recursive | grep -E '^[+-]' || true)"
 [ -z "$dirty" ] || fail "charly nested submodules not at their gitlinks:
 $dirty"
