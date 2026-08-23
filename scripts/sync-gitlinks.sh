@@ -58,7 +58,7 @@ done
 echo "== everything else (own default-branch HEAD) =="
 for path in "${MODULES[@]}"; do
   case "$path" in
-    charly | sdk | plugins | docs | distro-*) continue ;;
+    charly | plugins | docs | distro-*) continue ;;
   esac
   pin "$path" "origin/$(submodule_branch "$path")"
 done
