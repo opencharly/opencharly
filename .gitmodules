@@ -94,3 +94,63 @@
 	path = layer-ripgrep
 	url = https://github.com/opencharly/layer-ripgrep.git
 	branch = main
+[submodule "layer-supervisord"]
+	path = layer-supervisord
+	url = https://github.com/opencharly/layer-supervisord.git
+	branch = main
+[submodule "layer-nodejs"]
+	path = layer-nodejs
+	url = https://github.com/opencharly/layer-nodejs.git
+	branch = main
+[submodule "layer-golang"]
+	path = layer-golang
+	url = https://github.com/opencharly/layer-golang.git
+	branch = main
+[submodule "pod-dbus"]
+	path = pod-dbus
+	url = https://github.com/opencharly/pod-dbus.git
+	branch = main
+[submodule "pod-pipewire"]
+	path = pod-pipewire
+	url = https://github.com/opencharly/pod-pipewire.git
+	branch = main
+[submodule "layer-ffmpeg"]
+	path = layer-ffmpeg
+	url = https://github.com/opencharly/layer-ffmpeg.git
+	branch = main
+[submodule "pod-sway"]
+	path = pod-sway
+	url = https://github.com/opencharly/pod-sway.git
+	branch = main
+[submodule "layer-cuda"]
+	path = layer-cuda
+	url = https://github.com/opencharly/layer-cuda.git
+	branch = main
+[submodule "layer-tmux"]
+	path = layer-tmux
+	url = https://github.com/opencharly/layer-tmux.git
+	branch = main
+[submodule "layer-socat"]
+	path = layer-socat
+	url = https://github.com/opencharly/layer-socat.git
+	branch = main
+[submodule "pod-selkies"]
+	path = pod-selkies
+	url = https://github.com/opencharly/pod-selkies.git
+	branch = main
+[submodule "layer-chrome"]
+	path = layer-chrome
+	url = https://github.com/opencharly/layer-chrome.git
+	branch = main
+[submodule "layer-python"]
+	path = layer-python
+	url = https://github.com/opencharly/layer-python.git
+	branch = main
+[submodule "layer-gemini"]
+	path = layer-gemini
+	url = https://github.com/opencharly/layer-gemini.git
+	branch = main
+[submodule "pod-chrome-cdp"]
+	path = pod-chrome-cdp
+	url = https://github.com/opencharly/pod-chrome-cdp.git
+	branch = main
