@@ -78,6 +78,31 @@ load ALL their skills before doing anything.
 - **R10 — Fresh disposable proof.** Verify from the final committed tree, never
   from an edited state.
 
+## Command hygiene & context discipline
+
+The harness executes commands with **SIGPIPE ignored**, so `grep <pattern> <huge-file> | head -N`
+does NOT kill grep when head exits — grep keeps writing to the closed pipe and prints
+`grep: write error: Broken pipe` per failed write, flooding output with hundreds of
+identical lines and truncating the response. This is a recurring, self-inflicted
+context-waste failure; the following rules are mandatory:
+
+- **NEVER pipe unbounded grep into `head`/`awk`/`sed` for "first N matches".**
+  Use `grep -m N` (max-count) — grep terminates itself after N matches, no closed
+  pipe, deterministic in every environment.
+- **Redirect large outputs to a file first** (`cmd > /tmp/x.log 2>&1`), then read
+  the file with `grep -m N` / `sed -n 'a,bp'` — never stream a multi-MB log
+  through the response.
+- **Bound every command's output.** If a command can print more than a screen,
+  cap it (`-m`, `-n`, `--max-count`, `tail -c`), or redirect to a file.
+- **Prefer subagents for exploration.** Long-running or output-heavy investigation
+  (log archaeology, repo-wide greps, build/validator loops) should be delegated to
+  a subagent that returns only a concise verdict + evidence paths, keeping the main
+  context clean. The main agent plans, decides, and lands; the subagent digs.
+- **Never re-issue the same diagnostic command in a loop.** If a command's output
+  was truncated or the answer is not visible, change the approach (file + bounded
+  read, or a subagent) — repeating the identical command is the failure mode, not
+  the fix.
+
 ### PR body requirements
 
 Every PR body must contain:
