@@ -154,3 +154,697 @@
 	path = pod-chrome-cdp
 	url = https://github.com/opencharly/pod-chrome-cdp.git
 	branch = main
+[submodule "layer-a11y-tools"]
+	path = layer-a11y-tools
+	url = https://github.com/opencharly/layer-a11y-tools.git
+	branch = main
+
+[submodule "layer-agentteams-cli"]
+	path = layer-agentteams-cli
+	url = https://github.com/opencharly/layer-agentteams-cli.git
+	branch = main
+
+[submodule "pod-agentteams-controller"]
+	path = pod-agentteams-controller
+	url = https://github.com/opencharly/pod-agentteams-controller.git
+	branch = main
+
+[submodule "pod-agentteams-element"]
+	path = pod-agentteams-element
+	url = https://github.com/opencharly/pod-agentteams-element.git
+	branch = main
+
+[submodule "pod-agentteams-higress"]
+	path = pod-agentteams-higress
+	url = https://github.com/opencharly/pod-agentteams-higress.git
+	branch = main
+
+[submodule "pod-agentteams-matrix"]
+	path = pod-agentteams-matrix
+	url = https://github.com/opencharly/pod-agentteams-matrix.git
+	branch = main
+
+[submodule "pod-agentteams-minio"]
+	path = pod-agentteams-minio
+	url = https://github.com/opencharly/pod-agentteams-minio.git
+	branch = main
+
+[submodule "layer-agentteams-openclaw"]
+	path = layer-agentteams-openclaw
+	url = https://github.com/opencharly/layer-agentteams-openclaw.git
+	branch = main
+
+[submodule "layer-agentteams-snapshot"]
+	path = layer-agentteams-snapshot
+	url = https://github.com/opencharly/layer-agentteams-snapshot.git
+	branch = main
+
+[submodule "layer-android-apidemos"]
+	path = layer-android-apidemos
+	url = https://github.com/opencharly/layer-android-apidemos.git
+	branch = main
+
+[submodule "layer-android-test-apps"]
+	path = layer-android-test-apps
+	url = https://github.com/opencharly/layer-android-test-apps.git
+	branch = main
+
+[submodule "layer-asciinema"]
+	path = layer-asciinema
+	url = https://github.com/opencharly/layer-asciinema.git
+	branch = main
+
+[submodule "layer-blogwatcher"]
+	path = layer-blogwatcher
+	url = https://github.com/opencharly/layer-blogwatcher.git
+	branch = main
+
+[submodule "layer-build-toolchain"]
+	path = layer-build-toolchain
+	url = https://github.com/opencharly/layer-build-toolchain.git
+	branch = main
+
+[submodule "layer-camsnap"]
+	path = layer-camsnap
+	url = https://github.com/opencharly/layer-camsnap.git
+	branch = main
+
+[submodule "pod-charly-core"]
+	path = pod-charly-core
+	url = https://github.com/opencharly/pod-charly-core.git
+	branch = main
+
+[submodule "layer-charly-distros"]
+	path = layer-charly-distros
+	url = https://github.com/opencharly/layer-charly-distros.git
+	branch = main
+
+[submodule "pod-charly-hooks"]
+	path = pod-charly-hooks
+	url = https://github.com/opencharly/pod-charly-hooks.git
+	branch = main
+
+[submodule "layer-charly-languages"]
+	path = layer-charly-languages
+	url = https://github.com/opencharly/layer-charly-languages.git
+	branch = main
+
+[submodule "layer-charly-local"]
+	path = layer-charly-local
+	url = https://github.com/opencharly/layer-charly-local.git
+	branch = main
+
+[submodule "layer-charly-pod"]
+	path = layer-charly-pod
+	url = https://github.com/opencharly/layer-charly-pod.git
+	branch = main
+
+[submodule "layer-charly-tools"]
+	path = layer-charly-tools
+	url = https://github.com/opencharly/layer-charly-tools.git
+	branch = main
+
+[submodule "pod-charly-versa"]
+	path = pod-charly-versa
+	url = https://github.com/opencharly/pod-charly-versa.git
+	branch = main
+
+[submodule "vm-charly-vm"]
+	path = vm-charly-vm
+	url = https://github.com/opencharly/vm-charly-vm.git
+	branch = main
+
+[submodule "layer-check-base-layer"]
+	path = layer-check-base-layer
+	url = https://github.com/opencharly/layer-check-base-layer.git
+	branch = main
+
+[submodule "layer-check-builder-npm"]
+	path = layer-check-builder-npm
+	url = https://github.com/opencharly/layer-check-builder-npm.git
+	branch = main
+
+[submodule "layer-check-composition-layer"]
+	path = layer-check-composition-layer
+	url = https://github.com/opencharly/layer-check-composition-layer.git
+	branch = main
+
+[submodule "layer-check-cross-local-driver-layer"]
+	path = layer-check-cross-local-driver-layer
+	url = https://github.com/opencharly/layer-check-cross-local-driver-layer.git
+	branch = main
+
+[submodule "layer-check-group-layer"]
+	path = layer-check-group-layer
+	url = https://github.com/opencharly/layer-check-group-layer.git
+	branch = main
+
+[submodule "pod-check-keepalive"]
+	path = pod-check-keepalive
+	url = https://github.com/opencharly/pod-check-keepalive.git
+	branch = main
+
+[submodule "layer-check-retention-fixture"]
+	path = layer-check-retention-fixture
+	url = https://github.com/opencharly/layer-check-retention-fixture.git
+	branch = main
+
+[submodule "layer-check-structkind-layer"]
+	path = layer-check-structkind-layer
+	url = https://github.com/opencharly/layer-check-structkind-layer.git
+	branch = main
+
+[submodule "layer-check-substrate-layer"]
+	path = layer-check-substrate-layer
+	url = https://github.com/opencharly/layer-check-substrate-layer.git
+	branch = main
+
+[submodule "layer-check-tier1-layer"]
+	path = layer-check-tier1-layer
+	url = https://github.com/opencharly/layer-check-tier1-layer.git
+	branch = main
+
+[submodule "pod-check-tier23-layer"]
+	path = pod-check-tier23-layer
+	url = https://github.com/opencharly/pod-check-tier23-layer.git
+	branch = main
+
+[submodule "pod-chrome-devtools-mcp"]
+	path = pod-chrome-devtools-mcp
+	url = https://github.com/opencharly/pod-chrome-devtools-mcp.git
+	branch = main
+
+[submodule "pod-chrome-headless"]
+	path = pod-chrome-headless
+	url = https://github.com/opencharly/pod-chrome-headless.git
+	branch = main
+
+[submodule "layer-chrome-sway"]
+	path = layer-chrome-sway
+	url = https://github.com/opencharly/layer-chrome-sway.git
+	branch = main
+
+[submodule "layer-claude-code"]
+	path = layer-claude-code
+	url = https://github.com/opencharly/layer-claude-code.git
+	branch = main
+
+[submodule "layer-clawhub"]
+	path = layer-clawhub
+	url = https://github.com/opencharly/layer-clawhub.git
+	branch = main
+
+[submodule "layer-codex"]
+	path = layer-codex
+	url = https://github.com/opencharly/layer-codex.git
+	branch = main
+
+[submodule "pod-comfyui"]
+	path = pod-comfyui
+	url = https://github.com/opencharly/pod-comfyui.git
+	branch = main
+
+[submodule "layer-cue"]
+	path = layer-cue
+	url = https://github.com/opencharly/layer-cue.git
+	branch = main
+
+[submodule "layer-debootstrap-builder"]
+	path = layer-debootstrap-builder
+	url = https://github.com/opencharly/layer-debootstrap-builder.git
+	branch = main
+
+[submodule "layer-docker-ce"]
+	path = layer-docker-ce
+	url = https://github.com/opencharly/layer-docker-ce.git
+	branch = main
+
+[submodule "layer-docs-site"]
+	path = layer-docs-site
+	url = https://github.com/opencharly/layer-docs-site.git
+	branch = main
+
+[submodule "pod-dsh"]
+	path = pod-dsh
+	url = https://github.com/opencharly/pod-dsh.git
+	branch = main
+
+[submodule "layer-examplebuilder-consumer"]
+	path = layer-examplebuilder-consumer
+	url = https://github.com/opencharly/layer-examplebuilder-consumer.git
+	branch = main
+
+[submodule "layer-fastfetch"]
+	path = layer-fastfetch
+	url = https://github.com/opencharly/layer-fastfetch.git
+	branch = main
+
+[submodule "pod-filebrowser"]
+	path = pod-filebrowser
+	url = https://github.com/opencharly/pod-filebrowser.git
+	branch = main
+
+[submodule "layer-forgecode"]
+	path = layer-forgecode
+	url = https://github.com/opencharly/layer-forgecode.git
+	branch = main
+
+[submodule "layer-gh"]
+	path = layer-gh
+	url = https://github.com/opencharly/layer-gh.git
+	branch = main
+
+[submodule "layer-gifgrep"]
+	path = layer-gifgrep
+	url = https://github.com/opencharly/layer-gifgrep.git
+	branch = main
+
+[submodule "layer-github-actions"]
+	path = layer-github-actions
+	url = https://github.com/opencharly/layer-github-actions.git
+	branch = main
+
+[submodule "layer-gnupg"]
+	path = layer-gnupg
+	url = https://github.com/opencharly/layer-gnupg.git
+	branch = main
+
+[submodule "layer-gocryptfs"]
+	path = layer-gocryptfs
+	url = https://github.com/opencharly/layer-gocryptfs.git
+	branch = main
+
+[submodule "layer-gogcli"]
+	path = layer-gogcli
+	url = https://github.com/opencharly/layer-gogcli.git
+	branch = main
+
+[submodule "layer-google-cloud"]
+	path = layer-google-cloud
+	url = https://github.com/opencharly/layer-google-cloud.git
+	branch = main
+
+[submodule "layer-goplaces"]
+	path = layer-goplaces
+	url = https://github.com/opencharly/layer-goplaces.git
+	branch = main
+
+[submodule "layer-grafana-tools"]
+	path = layer-grafana-tools
+	url = https://github.com/opencharly/layer-grafana-tools.git
+	branch = main
+
+[submodule "layer-java-openjdk"]
+	path = layer-java-openjdk
+	url = https://github.com/opencharly/layer-java-openjdk.git
+	branch = main
+
+[submodule "layer-jupyter-mcp"]
+	path = layer-jupyter-mcp
+	url = https://github.com/opencharly/layer-jupyter-mcp.git
+	branch = main
+
+[submodule "layer-k3s"]
+	path = layer-k3s
+	url = https://github.com/opencharly/layer-k3s.git
+	branch = main
+
+[submodule "layer-k3s-kernel"]
+	path = layer-k3s-kernel
+	url = https://github.com/opencharly/layer-k3s-kernel.git
+	branch = main
+
+[submodule "pod-k8s-layer"]
+	path = pod-k8s-layer
+	url = https://github.com/opencharly/pod-k8s-layer.git
+	branch = main
+
+[submodule "layer-kde-shell"]
+	path = layer-kde-shell
+	url = https://github.com/opencharly/layer-kde-shell.git
+	branch = main
+
+[submodule "layer-keepassxc"]
+	path = layer-keepassxc
+	url = https://github.com/opencharly/layer-keepassxc.git
+	branch = main
+
+[submodule "layer-kimi"]
+	path = layer-kimi
+	url = https://github.com/opencharly/layer-kimi.git
+	branch = main
+
+[submodule "layer-kubernetes"]
+	path = layer-kubernetes
+	url = https://github.com/opencharly/layer-kubernetes.git
+	branch = main
+
+[submodule "pod-labwc"]
+	path = pod-labwc
+	url = https://github.com/opencharly/pod-labwc.git
+	branch = main
+
+[submodule "layer-libnotify"]
+	path = layer-libnotify
+	url = https://github.com/opencharly/layer-libnotify.git
+	branch = main
+
+[submodule "layer-llama-cpp"]
+	path = layer-llama-cpp
+	url = https://github.com/opencharly/layer-llama-cpp.git
+	branch = main
+
+[submodule "layer-maplibre-versatiles-styler"]
+	path = layer-maplibre-versatiles-styler
+	url = https://github.com/opencharly/layer-maplibre-versatiles-styler.git
+	branch = main
+
+[submodule "pod-maputnik"]
+	path = pod-maputnik
+	url = https://github.com/opencharly/pod-maputnik.git
+	branch = main
+
+[submodule "pod-marimo"]
+	path = pod-marimo
+	url = https://github.com/opencharly/pod-marimo.git
+	branch = main
+
+[submodule "pod-mcp-layer"]
+	path = pod-mcp-layer
+	url = https://github.com/opencharly/pod-mcp-layer.git
+	branch = main
+
+[submodule "layer-mcporter"]
+	path = layer-mcporter
+	url = https://github.com/opencharly/layer-mcporter.git
+	branch = main
+
+[submodule "layer-nano-pdf"]
+	path = layer-nano-pdf
+	url = https://github.com/opencharly/layer-nano-pdf.git
+	branch = main
+
+[submodule "layer-notebook-graph"]
+	path = layer-notebook-graph
+	url = https://github.com/opencharly/layer-notebook-graph.git
+	branch = main
+
+[submodule "layer-notebook-llm-on-supercomputers"]
+	path = layer-notebook-llm-on-supercomputers
+	url = https://github.com/opencharly/layer-notebook-llm-on-supercomputers.git
+	branch = main
+
+[submodule "layer-notebook-osm"]
+	path = layer-notebook-osm
+	url = https://github.com/opencharly/layer-notebook-osm.git
+	branch = main
+
+[submodule "layer-notebook-templates"]
+	path = layer-notebook-templates
+	url = https://github.com/opencharly/layer-notebook-templates.git
+	branch = main
+
+[submodule "layer-nvenc-headers"]
+	path = layer-nvenc-headers
+	url = https://github.com/opencharly/layer-nvenc-headers.git
+	branch = main
+
+[submodule "layer-nvidia"]
+	path = layer-nvidia
+	url = https://github.com/opencharly/layer-nvidia.git
+	branch = main
+
+[submodule "pod-ollama"]
+	path = pod-ollama
+	url = https://github.com/opencharly/pod-ollama.git
+	branch = main
+
+[submodule "pod-openclaw"]
+	path = pod-openclaw
+	url = https://github.com/opencharly/pod-openclaw.git
+	branch = main
+
+[submodule "layer-oracle"]
+	path = layer-oracle
+	url = https://github.com/opencharly/layer-oracle.git
+	branch = main
+
+[submodule "layer-ordercli"]
+	path = layer-ordercli
+	url = https://github.com/opencharly/layer-ordercli.git
+	branch = main
+
+[submodule "pod-os-layer"]
+	path = pod-os-layer
+	url = https://github.com/opencharly/pod-os-layer.git
+	branch = main
+
+[submodule "pod-osm-tools"]
+	path = pod-osm-tools
+	url = https://github.com/opencharly/pod-osm-tools.git
+	branch = main
+
+[submodule "layer-pacstrap-builder"]
+	path = layer-pacstrap-builder
+	url = https://github.com/opencharly/layer-pacstrap-builder.git
+	branch = main
+
+[submodule "layer-pavucontrol"]
+	path = layer-pavucontrol
+	url = https://github.com/opencharly/layer-pavucontrol.git
+	branch = main
+
+[submodule "layer-pi-agent"]
+	path = layer-pi-agent
+	url = https://github.com/opencharly/layer-pi-agent.git
+	branch = main
+
+[submodule "layer-pixi"]
+	path = layer-pixi
+	url = https://github.com/opencharly/layer-pixi.git
+	branch = main
+
+[submodule "layer-playwright"]
+	path = layer-playwright
+	url = https://github.com/opencharly/layer-playwright.git
+	branch = main
+
+[submodule "pod-pmtiles-viewer"]
+	path = pod-pmtiles-viewer
+	url = https://github.com/opencharly/pod-pmtiles-viewer.git
+	branch = main
+
+[submodule "layer-pod-addcandy-marker"]
+	path = layer-pod-addcandy-marker
+	url = https://github.com/opencharly/layer-pod-addcandy-marker.git
+	branch = main
+
+[submodule "pod-postgresql"]
+	path = pod-postgresql
+	url = https://github.com/opencharly/pod-postgresql.git
+	branch = main
+
+[submodule "layer-pre-commit"]
+	path = layer-pre-commit
+	url = https://github.com/opencharly/layer-pre-commit.git
+	branch = main
+
+[submodule "pod-qemu-guest-agent"]
+	path = pod-qemu-guest-agent
+	url = https://github.com/opencharly/pod-qemu-guest-agent.git
+	branch = main
+
+[submodule "pod-redis"]
+	path = pod-redis
+	url = https://github.com/opencharly/pod-redis.git
+	branch = main
+
+[submodule "pod-redis-client-layer"]
+	path = pod-redis-client-layer
+	url = https://github.com/opencharly/pod-redis-client-layer.git
+	branch = main
+
+[submodule "pod-redis-server-layer"]
+	path = pod-redis-server-layer
+	url = https://github.com/opencharly/pod-redis-server-layer.git
+	branch = main
+
+[submodule "layer-rocm"]
+	path = layer-rocm
+	url = https://github.com/opencharly/layer-rocm.git
+	branch = main
+
+[submodule "layer-rpmfusion"]
+	path = layer-rpmfusion
+	url = https://github.com/opencharly/layer-rpmfusion.git
+	branch = main
+
+[submodule "layer-rust"]
+	path = layer-rust
+	url = https://github.com/opencharly/layer-rust.git
+	branch = main
+
+[submodule "layer-sag"]
+	path = layer-sag
+	url = https://github.com/opencharly/layer-sag.git
+	branch = main
+
+[submodule "layer-sherpa-onnx"]
+	path = layer-sherpa-onnx
+	url = https://github.com/opencharly/layer-sherpa-onnx.git
+	branch = main
+
+[submodule "layer-shortbread"]
+	path = layer-shortbread
+	url = https://github.com/opencharly/layer-shortbread.git
+	branch = main
+
+[submodule "layer-songsee"]
+	path = layer-songsee
+	url = https://github.com/opencharly/layer-songsee.git
+	branch = main
+
+[submodule "layer-sqlite"]
+	path = layer-sqlite
+	url = https://github.com/opencharly/layer-sqlite.git
+	branch = main
+
+[submodule "layer-ssh-client"]
+	path = layer-ssh-client
+	url = https://github.com/opencharly/layer-ssh-client.git
+	branch = main
+
+[submodule "pod-sshd"]
+	path = pod-sshd
+	url = https://github.com/opencharly/pod-sshd.git
+	branch = main
+
+[submodule "layer-summarize"]
+	path = layer-summarize
+	url = https://github.com/opencharly/layer-summarize.git
+	branch = main
+
+[submodule "pod-swaync"]
+	path = pod-swaync
+	url = https://github.com/opencharly/pod-swaync.git
+	branch = main
+
+[submodule "layer-tailscale"]
+	path = layer-tailscale
+	url = https://github.com/opencharly/layer-tailscale.git
+	branch = main
+
+[submodule "pod-testapi"]
+	path = pod-testapi
+	url = https://github.com/opencharly/pod-testapi.git
+	branch = main
+
+[submodule "pod-traefik"]
+	path = pod-traefik
+	url = https://github.com/opencharly/pod-traefik.git
+	branch = main
+
+[submodule "layer-typst"]
+	path = layer-typst
+	url = https://github.com/opencharly/layer-typst.git
+	branch = main
+
+[submodule "layer-unsloth"]
+	path = layer-unsloth
+	url = https://github.com/opencharly/layer-unsloth.git
+	branch = main
+
+[submodule "layer-uv"]
+	path = layer-uv
+	url = https://github.com/opencharly/layer-uv.git
+	branch = main
+
+[submodule "pod-valkey"]
+	path = pod-valkey
+	url = https://github.com/opencharly/pod-valkey.git
+	branch = main
+
+[submodule "pod-versatiles"]
+	path = pod-versatiles
+	url = https://github.com/opencharly/pod-versatiles.git
+	branch = main
+
+[submodule "layer-versatiles-fonts"]
+	path = layer-versatiles-fonts
+	url = https://github.com/opencharly/layer-versatiles-fonts.git
+	branch = main
+
+[submodule "pod-versatiles-frontend"]
+	path = pod-versatiles-frontend
+	url = https://github.com/opencharly/pod-versatiles-frontend.git
+	branch = main
+
+[submodule "layer-versatiles-style"]
+	path = layer-versatiles-style
+	url = https://github.com/opencharly/layer-versatiles-style.git
+	branch = main
+
+[submodule "pod-virtualization"]
+	path = pod-virtualization
+	url = https://github.com/opencharly/pod-virtualization.git
+	branch = main
+
+[submodule "layer-vscode"]
+	path = layer-vscode
+	url = https://github.com/opencharly/layer-vscode.git
+	branch = main
+
+[submodule "layer-wacli"]
+	path = layer-wacli
+	url = https://github.com/opencharly/layer-wacli.git
+	branch = main
+
+[submodule "pod-waybar"]
+	path = pod-waybar
+	url = https://github.com/opencharly/pod-waybar.git
+	branch = main
+
+[submodule "pod-wayvnc"]
+	path = pod-wayvnc
+	url = https://github.com/opencharly/pod-wayvnc.git
+	branch = main
+
+[submodule "pod-web-layer"]
+	path = pod-web-layer
+	url = https://github.com/opencharly/pod-web-layer.git
+	branch = main
+
+[submodule "layer-wf-recorder"]
+	path = layer-wf-recorder
+	url = https://github.com/opencharly/layer-wf-recorder.git
+	branch = main
+
+[submodule "layer-whisper"]
+	path = layer-whisper
+	url = https://github.com/opencharly/layer-whisper.git
+	branch = main
+
+[submodule "layer-wl-overlay"]
+	path = layer-wl-overlay
+	url = https://github.com/opencharly/layer-wl-overlay.git
+	branch = main
+
+[submodule "layer-wl-record-pixelflux"]
+	path = layer-wl-record-pixelflux
+	url = https://github.com/opencharly/layer-wl-record-pixelflux.git
+	branch = main
+
+[submodule "layer-wl-screenshot-grim"]
+	path = layer-wl-screenshot-grim
+	url = https://github.com/opencharly/layer-wl-screenshot-grim.git
+	branch = main
+
+[submodule "layer-wl-screenshot-pixelflux"]
+	path = layer-wl-screenshot-pixelflux
+	url = https://github.com/opencharly/layer-wl-screenshot-pixelflux.git
+	branch = main
+
+[submodule "layer-wl-tools"]
+	path = layer-wl-tools
+	url = https://github.com/opencharly/layer-wl-tools.git
+	branch = main
