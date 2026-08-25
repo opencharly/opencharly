@@ -1008,3 +1008,111 @@
 	path = pod-waybar-labwc
 	url = https://github.com/opencharly/pod-waybar-labwc.git
 	branch = main
+[submodule "pod-appium-server"]
+	path = pod-appium-server
+	url = https://github.com/opencharly/pod-appium-server.git
+	branch = main
+[submodule "layer-charly-filebrowser"]
+	path = layer-charly-filebrowser
+	url = https://github.com/opencharly/layer-charly-filebrowser.git
+	branch = main
+[submodule "layer-helm-chart"]
+	path = layer-helm-chart
+	url = https://github.com/opencharly/layer-helm-chart.git
+	branch = main
+[submodule "pod-hermes"]
+	path = pod-hermes
+	url = https://github.com/opencharly/pod-hermes.git
+	branch = main
+[submodule "pod-immich-ml"]
+	path = pod-immich-ml
+	url = https://github.com/opencharly/pod-immich-ml.git
+	branch = main
+[submodule "pod-jupyter-ml"]
+	path = pod-jupyter-ml
+	url = https://github.com/opencharly/pod-jupyter-ml.git
+	branch = main
+[submodule "layer-notebook-finetuning"]
+	path = layer-notebook-finetuning
+	url = https://github.com/opencharly/layer-notebook-finetuning.git
+	branch = main
+[submodule "layer-openclaw-full"]
+	path = layer-openclaw-full
+	url = https://github.com/opencharly/layer-openclaw-full.git
+	branch = main
+[submodule "pod-openwebui"]
+	path = pod-openwebui
+	url = https://github.com/opencharly/pod-openwebui.git
+	branch = main
+[submodule "pod-selkies-desktop"]
+	path = pod-selkies-desktop
+	url = https://github.com/opencharly/pod-selkies-desktop.git
+	branch = main
+[submodule "layer-selkies-kde-desktop"]
+	path = layer-selkies-kde-desktop
+	url = https://github.com/opencharly/layer-selkies-kde-desktop.git
+	branch = main
+[submodule "layer-vectorchord"]
+	path = layer-vectorchord
+	url = https://github.com/opencharly/layer-vectorchord.git
+	branch = main
+[submodule "pod-android-emulator-layer"]
+	path = pod-android-emulator-layer
+	url = https://github.com/opencharly/pod-android-emulator-layer.git
+	branch = main
+[submodule "layer-charly-openwebui"]
+	path = layer-charly-openwebui
+	url = https://github.com/opencharly/layer-charly-openwebui.git
+	branch = main
+[submodule "layer-charly-selkies"]
+	path = layer-charly-selkies
+	url = https://github.com/opencharly/layer-charly-selkies.git
+	branch = main
+[submodule "layer-container-nesting"]
+	path = layer-container-nesting
+	url = https://github.com/opencharly/layer-container-nesting.git
+	branch = main
+[submodule "pod-hermes-full"]
+	path = pod-hermes-full
+	url = https://github.com/opencharly/pod-hermes-full.git
+	branch = main
+[submodule "layer-hermes-playwright"]
+	path = layer-hermes-playwright
+	url = https://github.com/opencharly/layer-hermes-playwright.git
+	branch = main
+[submodule "layer-notebook-ollama"]
+	path = layer-notebook-ollama
+	url = https://github.com/opencharly/layer-notebook-ollama.git
+	branch = main
+[submodule "layer-openclaw-full-ml"]
+	path = layer-openclaw-full-ml
+	url = https://github.com/opencharly/layer-openclaw-full-ml.git
+	branch = main
+[submodule "layer-charly-coder"]
+	path = layer-charly-coder
+	url = https://github.com/opencharly/layer-charly-coder.git
+	branch = main
+[submodule "layer-charly-hermes"]
+	path = layer-charly-hermes
+	url = https://github.com/opencharly/layer-charly-hermes.git
+	branch = main
+[submodule "layer-charly-openclaw"]
+	path = layer-charly-openclaw
+	url = https://github.com/opencharly/layer-charly-openclaw.git
+	branch = main
+[submodule "pod-github-runner"]
+	path = pod-github-runner
+	url = https://github.com/opencharly/pod-github-runner.git
+	branch = main
+[submodule "pod-nested-podman-socket"]
+	path = pod-nested-podman-socket
+	url = https://github.com/opencharly/pod-nested-podman-socket.git
+	branch = main
+[submodule "layer-notebook-openrouter"]
+	path = layer-notebook-openrouter
+	url = https://github.com/opencharly/layer-notebook-openrouter.git
+	branch = main
+[submodule "layer-charly-jupyter"]
+	path = layer-charly-jupyter
+	url = https://github.com/opencharly/layer-charly-jupyter.git
+	branch = main
