@@ -1116,3 +1116,31 @@
 	path = layer-charly-jupyter
 	url = https://github.com/opencharly/layer-charly-jupyter.git
 	branch = main
+[submodule "layer-heroic"]
+	path = layer-heroic
+	url = https://github.com/opencharly/layer-heroic.git
+	branch = main
+[submodule "layer-steam"]
+	path = layer-steam
+	url = https://github.com/opencharly/layer-steam.git
+	branch = main
+[submodule "layer-sway-desktop"]
+	path = layer-sway-desktop
+	url = https://github.com/opencharly/layer-sway-desktop.git
+	branch = main
+[submodule "layer-sway-desktop-vnc"]
+	path = layer-sway-desktop-vnc
+	url = https://github.com/opencharly/layer-sway-desktop-vnc.git
+	branch = main
+[submodule "layer-thunar"]
+	path = layer-thunar
+	url = https://github.com/opencharly/layer-thunar.git
+	branch = main
+[submodule "layer-xfce4-terminal"]
+	path = layer-xfce4-terminal
+	url = https://github.com/opencharly/layer-xfce4-terminal.git
+	branch = main
+[submodule "pod-charly-automation"]
+	path = pod-charly-automation
+	url = https://github.com/opencharly/pod-charly-automation.git
+	branch = main
