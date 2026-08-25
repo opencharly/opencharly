@@ -1144,3 +1144,371 @@
 	path = pod-charly-automation
 	url = https://github.com/opencharly/pod-charly-automation.git
 	branch = main
+[submodule "plugin-adb"]
+	path = plugin-adb
+	url = https://github.com/opencharly/plugin-adb.git
+	branch = main
+[submodule "plugin-addr"]
+	path = plugin-addr
+	url = https://github.com/opencharly/plugin-addr.git
+	branch = main
+[submodule "plugin-agent"]
+	path = plugin-agent
+	url = https://github.com/opencharly/plugin-agent.git
+	branch = main
+[submodule "plugin-agent-pi"]
+	path = plugin-agent-pi
+	url = https://github.com/opencharly/plugin-agent-pi.git
+	branch = main
+[submodule "plugin-agentteams"]
+	path = plugin-agentteams
+	url = https://github.com/opencharly/plugin-agentteams.git
+	branch = main
+[submodule "plugin-alias"]
+	path = plugin-alias
+	url = https://github.com/opencharly/plugin-alias.git
+	branch = main
+[submodule "plugin-appium"]
+	path = plugin-appium
+	url = https://github.com/opencharly/plugin-appium.git
+	branch = main
+[submodule "plugin-authoring"]
+	path = plugin-authoring
+	url = https://github.com/opencharly/plugin-authoring.git
+	branch = main
+[submodule "plugin-box"]
+	path = plugin-box
+	url = https://github.com/opencharly/plugin-box.git
+	branch = main
+[submodule "plugin-build"]
+	path = plugin-build
+	url = https://github.com/opencharly/plugin-build.git
+	branch = main
+[submodule "plugin-builder"]
+	path = plugin-builder
+	url = https://github.com/opencharly/plugin-builder.git
+	branch = main
+[submodule "plugin-builder-aur"]
+	path = plugin-builder-aur
+	url = https://github.com/opencharly/plugin-builder-aur.git
+	branch = main
+[submodule "plugin-builder-cargo"]
+	path = plugin-builder-cargo
+	url = https://github.com/opencharly/plugin-builder-cargo.git
+	branch = main
+[submodule "plugin-builder-npm"]
+	path = plugin-builder-npm
+	url = https://github.com/opencharly/plugin-builder-npm.git
+	branch = main
+[submodule "plugin-builder-pixi"]
+	path = plugin-builder-pixi
+	url = https://github.com/opencharly/plugin-builder-pixi.git
+	branch = main
+[submodule "plugin-candy"]
+	path = plugin-candy
+	url = https://github.com/opencharly/plugin-candy.git
+	branch = main
+[submodule "plugin-candy-kind"]
+	path = plugin-candy-kind
+	url = https://github.com/opencharly/plugin-candy-kind.git
+	branch = main
+[submodule "plugin-cdp"]
+	path = plugin-cdp
+	url = https://github.com/opencharly/plugin-cdp.git
+	branch = main
+[submodule "plugin-check"]
+	path = plugin-check
+	url = https://github.com/opencharly/plugin-check.git
+	branch = main
+[submodule "plugin-clean"]
+	path = plugin-clean
+	url = https://github.com/opencharly/plugin-clean.git
+	branch = main
+[submodule "plugin-cmd"]
+	path = plugin-cmd
+	url = https://github.com/opencharly/plugin-cmd.git
+	branch = main
+[submodule "plugin-command"]
+	path = plugin-command
+	url = https://github.com/opencharly/plugin-command.git
+	branch = main
+[submodule "plugin-dbus"]
+	path = plugin-dbus
+	url = https://github.com/opencharly/plugin-dbus.git
+	branch = main
+[submodule "plugin-deploy-local"]
+	path = plugin-deploy-local
+	url = https://github.com/opencharly/plugin-deploy-local.git
+	branch = main
+[submodule "plugin-deploy-pod"]
+	path = plugin-deploy-pod
+	url = https://github.com/opencharly/plugin-deploy-pod.git
+	branch = main
+[submodule "plugin-deploy-vm"]
+	path = plugin-deploy-vm
+	url = https://github.com/opencharly/plugin-deploy-vm.git
+	branch = main
+[submodule "plugin-distro"]
+	path = plugin-distro
+	url = https://github.com/opencharly/plugin-distro.git
+	branch = main
+[submodule "plugin-dns"]
+	path = plugin-dns
+	url = https://github.com/opencharly/plugin-dns.git
+	branch = main
+[submodule "plugin-docs"]
+	path = plugin-docs
+	url = https://github.com/opencharly/plugin-docs.git
+	branch = main
+[submodule "plugin-doctor"]
+	path = plugin-doctor
+	url = https://github.com/opencharly/plugin-doctor.git
+	branch = main
+[submodule "plugin-dsh"]
+	path = plugin-dsh
+	url = https://github.com/opencharly/plugin-dsh.git
+	branch = main
+[submodule "plugin-egress"]
+	path = plugin-egress
+	url = https://github.com/opencharly/plugin-egress.git
+	branch = main
+[submodule "plugin-enc"]
+	path = plugin-enc
+	url = https://github.com/opencharly/plugin-enc.git
+	branch = main
+[submodule "plugin-example"]
+	path = plugin-example
+	url = https://github.com/opencharly/plugin-example.git
+	branch = main
+[submodule "plugin-example-bootstrap"]
+	path = plugin-example-bootstrap
+	url = https://github.com/opencharly/plugin-example-bootstrap.git
+	branch = main
+[submodule "plugin-example-builder"]
+	path = plugin-example-builder
+	url = https://github.com/opencharly/plugin-example-builder.git
+	branch = main
+[submodule "plugin-example-command"]
+	path = plugin-example-command
+	url = https://github.com/opencharly/plugin-example-command.git
+	branch = main
+[submodule "plugin-example-deploy"]
+	path = plugin-example-deploy
+	url = https://github.com/opencharly/plugin-example-deploy.git
+	branch = main
+[submodule "plugin-example-dispatch"]
+	path = plugin-example-dispatch
+	url = https://github.com/opencharly/plugin-example-dispatch.git
+	branch = main
+[submodule "plugin-example-external"]
+	path = plugin-example-external
+	url = https://github.com/opencharly/plugin-example-external.git
+	branch = main
+[submodule "plugin-example-kind"]
+	path = plugin-example-kind
+	url = https://github.com/opencharly/plugin-example-kind.git
+	branch = main
+[submodule "plugin-example-lifecycle"]
+	path = plugin-example-lifecycle
+	url = https://github.com/opencharly/plugin-example-lifecycle.git
+	branch = main
+[submodule "plugin-examplerunverb"]
+	path = plugin-examplerunverb
+	url = https://github.com/opencharly/plugin-examplerunverb.git
+	branch = main
+[submodule "plugin-example-step"]
+	path = plugin-example-step
+	url = https://github.com/opencharly/plugin-example-step.git
+	branch = main
+[submodule "plugin-example-stepkind"]
+	path = plugin-example-stepkind
+	url = https://github.com/opencharly/plugin-example-stepkind.git
+	branch = main
+[submodule "plugin-example-structkind"]
+	path = plugin-example-structkind
+	url = https://github.com/opencharly/plugin-example-structkind.git
+	branch = main
+[submodule "plugin-feature"]
+	path = plugin-feature
+	url = https://github.com/opencharly/plugin-feature.git
+	branch = main
+[submodule "plugin-file"]
+	path = plugin-file
+	url = https://github.com/opencharly/plugin-file.git
+	branch = main
+[submodule "plugin-fleet"]
+	path = plugin-fleet
+	url = https://github.com/opencharly/plugin-fleet.git
+	branch = main
+[submodule "plugin-gpu"]
+	path = plugin-gpu
+	url = https://github.com/opencharly/plugin-gpu.git
+	branch = main
+[submodule "plugin-group"]
+	path = plugin-group
+	url = https://github.com/opencharly/plugin-group.git
+	branch = main
+[submodule "plugin-harness-kind"]
+	path = plugin-harness-kind
+	url = https://github.com/opencharly/plugin-harness-kind.git
+	branch = main
+[submodule "plugin-helm"]
+	path = plugin-helm
+	url = https://github.com/opencharly/plugin-helm.git
+	branch = main
+[submodule "plugin-http"]
+	path = plugin-http
+	url = https://github.com/opencharly/plugin-http.git
+	branch = main
+[submodule "plugin-init"]
+	path = plugin-init
+	url = https://github.com/opencharly/plugin-init.git
+	branch = main
+[submodule "plugin-installstep"]
+	path = plugin-installstep
+	url = https://github.com/opencharly/plugin-installstep.git
+	branch = main
+[submodule "plugin-interface"]
+	path = plugin-interface
+	url = https://github.com/opencharly/plugin-interface.git
+	branch = main
+[submodule "plugin-k8sgen"]
+	path = plugin-k8sgen
+	url = https://github.com/opencharly/plugin-k8sgen.git
+	branch = main
+[submodule "plugin-kernel-param"]
+	path = plugin-kernel-param
+	url = https://github.com/opencharly/plugin-kernel-param.git
+	branch = main
+[submodule "plugin-kube"]
+	path = plugin-kube
+	url = https://github.com/opencharly/plugin-kube.git
+	branch = main
+[submodule "plugin-loader"]
+	path = plugin-loader
+	url = https://github.com/opencharly/plugin-loader.git
+	branch = main
+[submodule "plugin-marketplace"]
+	path = plugin-marketplace
+	url = https://github.com/opencharly/plugin-marketplace.git
+	branch = main
+[submodule "plugin-matching"]
+	path = plugin-matching
+	url = https://github.com/opencharly/plugin-matching.git
+	branch = main
+[submodule "plugin-mcp"]
+	path = plugin-mcp
+	url = https://github.com/opencharly/plugin-mcp.git
+	branch = main
+[submodule "plugin-migrate"]
+	path = plugin-migrate
+	url = https://github.com/opencharly/plugin-migrate.git
+	branch = main
+[submodule "plugin-mount"]
+	path = plugin-mount
+	url = https://github.com/opencharly/plugin-mount.git
+	branch = main
+[submodule "plugin-oci"]
+	path = plugin-oci
+	url = https://github.com/opencharly/plugin-oci.git
+	branch = main
+[submodule "plugin-ollama"]
+	path = plugin-ollama
+	url = https://github.com/opencharly/plugin-ollama.git
+	branch = main
+[submodule "plugin-package"]
+	path = plugin-package
+	url = https://github.com/opencharly/plugin-package.git
+	branch = main
+[submodule "plugin-pod"]
+	path = plugin-pod
+	url = https://github.com/opencharly/plugin-pod.git
+	branch = main
+[submodule "plugin-port"]
+	path = plugin-port
+	url = https://github.com/opencharly/plugin-port.git
+	branch = main
+[submodule "plugin-preempt"]
+	path = plugin-preempt
+	url = https://github.com/opencharly/plugin-preempt.git
+	branch = main
+[submodule "plugin-process"]
+	path = plugin-process
+	url = https://github.com/opencharly/plugin-process.git
+	branch = main
+[submodule "plugin-record"]
+	path = plugin-record
+	url = https://github.com/opencharly/plugin-record.git
+	branch = main
+[submodule "plugin-refs"]
+	path = plugin-refs
+	url = https://github.com/opencharly/plugin-refs.git
+	branch = main
+[submodule "plugin-resource"]
+	path = plugin-resource
+	url = https://github.com/opencharly/plugin-resource.git
+	branch = main
+[submodule "plugin-secrets"]
+	path = plugin-secrets
+	url = https://github.com/opencharly/plugin-secrets.git
+	branch = main
+[submodule "plugin-service"]
+	path = plugin-service
+	url = https://github.com/opencharly/plugin-service.git
+	branch = main
+[submodule "plugin-settings"]
+	path = plugin-settings
+	url = https://github.com/opencharly/plugin-settings.git
+	branch = main
+[submodule "plugin-sidecar"]
+	path = plugin-sidecar
+	url = https://github.com/opencharly/plugin-sidecar.git
+	branch = main
+[submodule "plugin-spice"]
+	path = plugin-spice
+	url = https://github.com/opencharly/plugin-spice.git
+	branch = main
+[submodule "plugin-ssh"]
+	path = plugin-ssh
+	url = https://github.com/opencharly/plugin-ssh.git
+	branch = main
+[submodule "plugin-status"]
+	path = plugin-status
+	url = https://github.com/opencharly/plugin-status.git
+	branch = main
+[submodule "plugin-substrate"]
+	path = plugin-substrate
+	url = https://github.com/opencharly/plugin-substrate.git
+	branch = main
+[submodule "plugin-tmux"]
+	path = plugin-tmux
+	url = https://github.com/opencharly/plugin-tmux.git
+	branch = main
+[submodule "plugin-tunnel"]
+	path = plugin-tunnel
+	url = https://github.com/opencharly/plugin-tunnel.git
+	branch = main
+[submodule "plugin-udev"]
+	path = plugin-udev
+	url = https://github.com/opencharly/plugin-udev.git
+	branch = main
+[submodule "plugin-unix-group"]
+	path = plugin-unix-group
+	url = https://github.com/opencharly/plugin-unix-group.git
+	branch = main
+[submodule "plugin-user"]
+	path = plugin-user
+	url = https://github.com/opencharly/plugin-user.git
+	branch = main
+[submodule "plugin-vm"]
+	path = plugin-vm
+	url = https://github.com/opencharly/plugin-vm.git
+	branch = main
+[submodule "plugin-vnc"]
+	path = plugin-vnc
+	url = https://github.com/opencharly/plugin-vnc.git
+	branch = main
+[submodule "plugin-wl"]
+	path = plugin-wl
+	url = https://github.com/opencharly/plugin-wl.git
+	branch = main
