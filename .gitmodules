@@ -848,3 +848,36 @@
 	path = layer-wl-tools
 	url = https://github.com/opencharly/layer-wl-tools.git
 	branch = main
+[submodule "layer-direnv"]
+	path = layer-direnv
+	url = https://github.com/opencharly/layer-direnv.git
+[submodule "layer-debug-tools"]
+	path = layer-debug-tools
+	url = https://github.com/opencharly/layer-debug-tools.git
+[submodule "layer-desktop-fonts"]
+	path = layer-desktop-fonts
+	url = https://github.com/opencharly/layer-desktop-fonts.git
+[submodule "layer-desktop-media"]
+	path = layer-desktop-media
+	url = https://github.com/opencharly/layer-desktop-media.git
+[submodule "layer-dev-tools"]
+	path = layer-dev-tools
+	url = https://github.com/opencharly/layer-dev-tools.git
+[submodule "layer-devops-tools"]
+	path = layer-devops-tools
+	url = https://github.com/opencharly/layer-devops-tools.git
+[submodule "layer-workspace-mount"]
+	path = layer-workspace-mount
+	url = https://github.com/opencharly/layer-workspace-mount.git
+[submodule "layer-xdg-portal"]
+	path = layer-xdg-portal
+	url = https://github.com/opencharly/layer-xdg-portal.git
+[submodule "layer-xterm"]
+	path = layer-xterm
+	url = https://github.com/opencharly/layer-xterm.git
+[submodule "layer-xurl"]
+	path = layer-xurl
+	url = https://github.com/opencharly/layer-xurl.git
+[submodule "layer-yay"]
+	path = layer-yay
+	url = https://github.com/opencharly/layer-yay.git
