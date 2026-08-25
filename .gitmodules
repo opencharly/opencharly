@@ -892,3 +892,119 @@
 	path = layer-yay
 	url = https://github.com/opencharly/layer-yay.git
 	branch = main
+[submodule "layer-agent-forwarding"]
+	path = layer-agent-forwarding
+	url = https://github.com/opencharly/layer-agent-forwarding.git
+	branch = main
+[submodule "layer-agentteams"]
+	path = layer-agentteams
+	url = https://github.com/opencharly/layer-agentteams.git
+	branch = main
+[submodule "pod-agentteams-manager"]
+	path = pod-agentteams-manager
+	url = https://github.com/opencharly/pod-agentteams-manager.git
+	branch = main
+[submodule "pod-agentteams-worker"]
+	path = pod-agentteams-worker
+	url = https://github.com/opencharly/pod-agentteams-worker.git
+	branch = main
+[submodule "pod-airflow"]
+	path = pod-airflow
+	url = https://github.com/opencharly/pod-airflow.git
+	branch = main
+[submodule "layer-android-sdk"]
+	path = layer-android-sdk
+	url = https://github.com/opencharly/layer-android-sdk.git
+	branch = main
+[submodule "layer-cachyos-extras"]
+	path = layer-cachyos-extras
+	url = https://github.com/opencharly/layer-cachyos-extras.git
+	branch = main
+[submodule "layer-charly-comfyui"]
+	path = layer-charly-comfyui
+	url = https://github.com/opencharly/layer-charly-comfyui.git
+	branch = main
+[submodule "layer-charly-infrastructure"]
+	path = layer-charly-infrastructure
+	url = https://github.com/opencharly/layer-charly-infrastructure.git
+	branch = main
+[submodule "layer-charly-ollama"]
+	path = layer-charly-ollama
+	url = https://github.com/opencharly/layer-charly-ollama.git
+	branch = main
+[submodule "pod-check-redis-init-layer"]
+	path = pod-check-redis-init-layer
+	url = https://github.com/opencharly/pod-check-redis-init-layer.git
+	branch = main
+[submodule "pod-cloud-init"]
+	path = pod-cloud-init
+	url = https://github.com/opencharly/pod-cloud-init.git
+	branch = main
+[submodule "layer-fonts-extended"]
+	path = layer-fonts-extended
+	url = https://github.com/opencharly/layer-fonts-extended.git
+	branch = main
+[submodule "layer-google-cloud-npm"]
+	path = layer-google-cloud-npm
+	url = https://github.com/opencharly/layer-google-cloud-npm.git
+	branch = main
+[submodule "layer-himalaya"]
+	path = layer-himalaya
+	url = https://github.com/opencharly/layer-himalaya.git
+	branch = main
+[submodule "pod-immich"]
+	path = pod-immich
+	url = https://github.com/opencharly/pod-immich.git
+	branch = main
+[submodule "pod-jupyter"]
+	path = pod-jupyter
+	url = https://github.com/opencharly/pod-jupyter.git
+	branch = main
+[submodule "vm-k3s-agent"]
+	path = vm-k3s-agent
+	url = https://github.com/opencharly/vm-k3s-agent.git
+	branch = main
+[submodule "vm-k3s-server"]
+	path = vm-k3s-server
+	url = https://github.com/opencharly/vm-k3s-server.git
+	branch = main
+[submodule "pod-kde-desktop"]
+	path = pod-kde-desktop
+	url = https://github.com/opencharly/pod-kde-desktop.git
+	branch = main
+[submodule "pod-kde-selkies"]
+	path = pod-kde-selkies
+	url = https://github.com/opencharly/pod-kde-selkies.git
+	branch = main
+[submodule "layer-language-runtimes"]
+	path = layer-language-runtimes
+	url = https://github.com/opencharly/layer-language-runtimes.git
+	branch = main
+[submodule "layer-ollama-cuda"]
+	path = layer-ollama-cuda
+	url = https://github.com/opencharly/layer-ollama-cuda.git
+	branch = main
+[submodule "layer-ollama-rocm"]
+	path = layer-ollama-rocm
+	url = https://github.com/opencharly/layer-ollama-rocm.git
+	branch = main
+[submodule "layer-python-ml"]
+	path = layer-python-ml
+	url = https://github.com/opencharly/layer-python-ml.git
+	branch = main
+[submodule "pod-selkies-core"]
+	path = pod-selkies-core
+	url = https://github.com/opencharly/pod-selkies-core.git
+	branch = main
+[submodule "layer-tailscale-up"]
+	path = layer-tailscale-up
+	url = https://github.com/opencharly/layer-tailscale-up.git
+	branch = main
+[submodule "pod-unsloth-studio"]
+	path = pod-unsloth-studio
+	url = https://github.com/opencharly/pod-unsloth-studio.git
+	branch = main
+[submodule "pod-waybar-labwc"]
+	path = pod-waybar-labwc
+	url = https://github.com/opencharly/pod-waybar-labwc.git
+	branch = main
