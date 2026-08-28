@@ -12,20 +12,20 @@ below is in place at the umbrella root; the shared files are diff-checked by
 
 | Layer | charly/ (source) | umbrella (twin) | Shared? |
 |---|---|---|---|
-| Instructions | `AGENTS.md` + `CLAUDE.md` | `AGENTS.md` + `CLAUDE.md` (umbrella rulebook, not a copy) | fork |
+| Instructions | `AGENTS.md` + `CLAUDE.md` (two files, kept in sync by hand) | `AGENTS.md` only — `CLAUDE.md` is a **symlink** to it (one rulebook, no copy to drift) | fork |
 | Skills | the opencharly/marketplace repo (each harness loads it natively: Claude Code marketplace, pi `git:` package, kimi plugin, Codex catalog) | same marketplace (no local links) | marketplace shared |
 | Pi | `.pi/settings.json` (same 6 packages) | `.pi/settings.json` | identical packages |
 | Pi extension | `.pi/extensions/charly-gates.ts` | `.pi/extensions/umbrella-gates.ts` | fork (no worktrees, no Go gates) |
 | Pi prompts | `cutover, pr-body, rulebook, skill, subagent-review, subagent-verify` | `sync, pr-body, rulebook, skill, subagent-review, subagent-verify` | fork |
 | Pi subagents | `.pi/subagents/charly-agents.json` | `.pi/subagents/umbrella-agents.json` | fork |
 | Claude hooks | `.claude/hooks/{pre-commit-gate.sh,pre-push-gate.sh,gitcmd.py,gate_test.py}` | same paths | identical (diff-checked) |
-| Claude settings | `.claude/settings.json` (full plugin list) | `.claude/settings.json` (internals + automation subset) | fork |
+| Claude settings | `.claude/settings.json` (full plugin list; **no `hooks` block** — the gates are unwired there) | `.claude/settings.json` (internals + automation subset, **plus the `PreToolUse`/`Bash` `hooks` block** wiring both gate scripts) | fork |
 | Claude workflows | `.claude/workflows/{verify-status,triage-check-failure,audit-deploy-configs,verify-beds}.js` | `.claude/workflows/{verify-status,triage-check-failure}.js` | fork |
 | opencode | `opencode.json` + `.opencode/plugin/charly-gates.ts` + `.opencode/agent/pr-validator.md` | `opencode.json` + `.opencode/plugin/umbrella-gates.ts` + `.opencode/agent/pr-validator.md` | fork |
 | reasonix | `reasonix.toml` + `.reasonix/settings.json` | `reasonix.toml` + `.reasonix/settings.json` | settings identical; toml fork |
 
-Shared-by-design files are enforced by `scripts/check-harness-parity.sh`
-(`task harness`).
+Shared-by-design files are enforced by `scripts/check-harness-parity.sh` — on every
+commit via `hooks/pre-commit`, and on demand via `task harness`.
 
 Goal: the umbrella repo gets the same AI and harness configuration and
 instructions as `charly/` — same harnesses (pi, Claude Code, opencode,
@@ -83,10 +83,14 @@ command strings).
    smaller and pi re-injects context.
 2. Add `CLAUDE.md` as the mirrored copy (per charly convention of keeping
    both in sync) — or make AGENTS.md canonical and CLAUDE.md a pointer.
-   Pick one; decision recorded.
+   Pick one; decision recorded. **DECIDED: pointer.** The hand-kept copy
+   drifted (stale rule 3, rule 6, R0, hooks doctrine and PR-body rule, and
+   missing the whole *Command hygiene* section), so `CLAUDE.md` is now a
+   symlink to `AGENTS.md` — one rulebook, no copy to drift (R3/R5).
 3. Add rule 8 to `AGENTS.md`: "Harness config lives at the root —
-   `.pi/ .claude/ .agents/ opencode.json reasonix.toml` — mirror charly's,
-   never fork them silently."
+   `.pi/ .claude/ .opencode/ .reasonix/ opencode.json reasonix.toml` — mirror
+   charly's, never fork them silently." (`.agents/` was dropped from the rule
+   when the skills farm was deleted in the marketplace cutover.)
 
 ### Phase 2 — Skills (root, committed)
 
@@ -130,7 +134,8 @@ command strings).
     gate_test.py}`: copy as-is (mechanics-agnostic); wire gate_test.py into
     `scripts/`.
 14. `.claude/workflows/`: adapt `verify-status.js`/`triage-check-failure.js`
-    to umbrella CI (`verify.yml`, `sync.yml`).
+    to the umbrella gate. (`verify.yml` has since been deleted; the surviving
+    workflow is `sync.yml`, and the gate runs in `hooks/pre-commit`.)
 
 ### Phase 5 — opencode + reasonix
 

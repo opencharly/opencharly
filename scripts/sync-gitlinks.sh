@@ -17,23 +17,10 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-# charly-path → umbrella-path for the repos charly itself pins
-# NOTE: spec and sdk are intentionally ABSENT — charly no longer carries a gitlink
-# for either (both resolve from the Go proxy at pinned go.mod requires; the spec
-# de-submodule cutover, charly#371, and the sdk de-submodule cutover mirroring it).
-# NOTE: docs is also ABSENT — the docs de-submodule cutover made the docs repo
-# standalone (it pins charly in ITS .gitmodules); the umbrella pins docs to its own
-# default branch like every other repo. NOTE: plugins is ABSENT too — the marketplace
-# de-submodule cutover moved the corpus to the standalone opencharly/marketplace repo
-# (charly carries no plugins gitlink anymore), so the umbrella pins marketplace to its
-# own default branch like every other repo.
-declare -A CHARLY_PINNED=(
-  [box/arch]=distro-arch
-  [box/cachyos]=distro-cachyos
-  [box/debian]=distro-debian
-  [box/fedora]=distro-fedora
-  [box/ubuntu]=distro-ubuntu
-)
+# The charly-pinned set, and why sdk/spec/docs/plugins are absent from it, are
+# documented once in the sourced library.
+# shellcheck source=scripts/lib/policy-b.sh
+source "$ROOT/scripts/lib/policy-b.sh"
 
 submodule_url() { git config -f .gitmodules --get "submodule.$1.url"; }
 submodule_branch() { git config -f .gitmodules --get "submodule.$1.branch"; }

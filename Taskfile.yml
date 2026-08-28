@@ -23,8 +23,14 @@ tasks:
     cmds:
       - bash scripts/sync-gitlinks.sh
 
+  hooks:
+    desc: Install the pre-commit gate for this clone (policy B + harness syntax + parity)
+    cmds:
+      - git config core.hooksPath hooks
+      - echo "core.hooksPath = $(git config --get core.hooksPath) — hooks/pre-commit is live"
+
   verify:
-    desc: Run the CI gate locally (pins + harness syntax)
+    desc: Run the FULL pinning gate on demand (every pin, incl. the 344-remote branch audit)
     cmds:
       - bash scripts/verify-pins.sh
       - node --disable-warning=ExperimentalWarning scripts/check-umbrella-gates-syntax.mjs

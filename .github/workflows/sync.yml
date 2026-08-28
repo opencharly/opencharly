@@ -19,7 +19,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          submodules: recursive
+          submodules: true
 
       - name: Bump pins
         run: bash scripts/sync-gitlinks.sh

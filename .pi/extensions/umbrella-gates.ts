@@ -85,7 +85,8 @@ rewrite, hook bypass, or direct push to \`main\`. Run submodule git through
 \`git -C <path>\` from the umbrella root. Never edit inside a submodule.
 
 ### R7 — Prove the Gate, Not the Plan
-Run \`task verify\` (the CI gate) on the final tree and retain the output.
+Run \`task verify\` (the full pinning gate — local and on demand; there is no CI
+gate) on the final tree and retain the output.
 
 ### R10 — Fresh Disposable Proof
 Verify only the final committed tree, never an edited state.
@@ -221,21 +222,36 @@ export default function (pi: ExtensionAPI) {
       const gitKeywords = ["git", "push", "commit", "branch", "pr", "pull request", "merge", "sync", "gitlink", "pin"];
       const hasGit = lowerTriggers.some((t) => gitKeywords.some((g) => t.includes(g)));
       if (hasGit) {
-        matchedPaths.add("charly-internals--git-workflow");
+        matchedPaths.add("charly-internals:git-workflow");
+      }
+
+      // Resolve plugin name -> marketplace source dir from the marketplace manifest.
+      // The `.agents/skills/` symlink farm was deleted in the marketplace cutover;
+      // the corpus lives in the `marketplace/` submodule (HARNESS-PARITY.md).
+      const marketplaceRoot = join(ctx.cwd, "marketplace");
+      const pluginSources = new Map<string, string>();
+      try {
+        const manifest = JSON.parse(
+          await readFile(join(marketplaceRoot, ".claude-plugin", "marketplace.json"), "utf8"),
+        );
+        for (const plugin of manifest.plugins ?? []) {
+          pluginSources.set(plugin.name, String(plugin.source).replace(/^\.\//, ""));
+        }
+      } catch {
+        // manifest unreadable — fall back to the `charly-<dir>` naming convention below
       }
 
       // Read each matching SKILL.md
       const results: string[] = [];
       for (const skillPath of matchedPaths) {
-        // Convert dispatcher paths (e.g. /charly-internals:git-workflow) to
-        // filesystem paths (e.g. .agents/skills/charly-internals--git-workflow/SKILL.md)
-        const skillDir = skillPath
-          .replace(/^\//, "")           // Remove leading /
-          .replace(/:/g, "--");          // Convert : to -- (filesystem convention)
-        const globalPath = join(ctx.cwd, ".agents", "skills", skillDir, "SKILL.md");
+        // Convert dispatcher paths (e.g. /charly-internals:git-workflow) to marketplace
+        // paths (e.g. marketplace/internals/skills/git-workflow/SKILL.md)
+        const [plugin, skill] = skillPath.replace(/^\//, "").split(":");
+        const sourceDir = pluginSources.get(plugin) ?? plugin.replace(/^charly-/, "");
+        const globalPath = join(marketplaceRoot, sourceDir, "skills", skill, "SKILL.md");
         try {
           const skillContent = await readFile(globalPath, "utf8");
-          results.push(`=== ${skillDir}/SKILL.md ===\n${skillContent}`);
+          results.push(`=== ${plugin}:${skill}/SKILL.md ===\n${skillContent}`);
         } catch {
           results.push(`[SKILL NOT FOUND: ${skillPath} — tried ${globalPath}]`);
         }
