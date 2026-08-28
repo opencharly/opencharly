@@ -26,6 +26,7 @@
  */
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { StringEnum } from "@earendil-works/pi-ai";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { Type } from "typebox";
@@ -154,7 +155,7 @@ export default function (pi: ExtensionAPI) {
     parameters: Type.Object({
       repo: Type.String({ description: "Repo in owner/name form, e.g. opencharly/charly" }),
       pr: Type.Number({ description: "Pull request number" }),
-      mode: Type.Optional(Type.StringEnum(["check", "watch"] as const), {
+      mode: Type.Optional(StringEnum(["check", "watch"] as const), {
         description: "check = one-shot status (default); watch = poll until the validator concludes",
       }),
       timeoutSeconds: Type.Optional(Type.Number({ description: "Watch timeout in seconds (default 1800, max 3600)" })),
