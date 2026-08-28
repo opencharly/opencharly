@@ -1,10 +1,11 @@
 # ORG-WIDE PR-VALIDATOR DISPATCHER — installed in every opencharly repo.
-# The umbrella twin of charly/.github/workflows/pr-validator.yml; the only
-# difference is the CI gate waited on (charly: `go`, umbrella: `verify`).
+# The umbrella twin of charly/.github/workflows/pr-validator.yml. Charly waits on
+# its `go` CI gate; the umbrella has no CI gate of its own — the verify workflow
+# was deleted after an audit found its assertions were satisfied by the checkout
+# itself, and the ones a commit can violate now run in hooks/pre-commit.
 #
 # Dispatches to the reusable org-wide workflow at opencharly/.github.
-# GitHub branch protection waits for all required checks (verify + validate);
-# native auto-merge handles the gate ordering — no wait-ci job needed.
+# `validate` is the only required check; native auto-merge handles the ordering.
 name: charly/pr-validator
 
 on:

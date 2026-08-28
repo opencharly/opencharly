@@ -24,9 +24,8 @@ below is in place at the umbrella root; the shared files are diff-checked by
 | opencode | `opencode.json` + `.opencode/plugin/charly-gates.ts` + `.opencode/agent/pr-validator.md` | `opencode.json` + `.opencode/plugin/umbrella-gates.ts` + `.opencode/agent/pr-validator.md` | fork |
 | reasonix | `reasonix.toml` + `.reasonix/settings.json` | `reasonix.toml` + `.reasonix/settings.json` | settings identical; toml fork |
 
-Shared-by-design files are enforced by `scripts/check-harness-parity.sh`
-(`task harness` locally, and the *Run harness parity gate* step in
-`.github/workflows/verify.yml` on every push and PR).
+Shared-by-design files are enforced by `scripts/check-harness-parity.sh` — on every
+commit via `hooks/pre-commit`, and on demand via `task harness`.
 
 Goal: the umbrella repo gets the same AI and harness configuration and
 instructions as `charly/` — same harnesses (pi, Claude Code, opencode,
@@ -135,7 +134,8 @@ command strings).
     gate_test.py}`: copy as-is (mechanics-agnostic); wire gate_test.py into
     `scripts/`.
 14. `.claude/workflows/`: adapt `verify-status.js`/`triage-check-failure.js`
-    to umbrella CI (`verify.yml`, `sync.yml`).
+    to the umbrella gate. (`verify.yml` has since been deleted; the surviving
+    workflow is `sync.yml`, and the gate runs in `hooks/pre-commit`.)
 
 ### Phase 5 — opencode + reasonix
 

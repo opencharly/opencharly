@@ -70,9 +70,11 @@ The daily `sync` workflow runs `scripts/sync-gitlinks.sh`, opens a `chore: sync
 gitlinks` PR when anything moved, and the org-wide validation chain lands it:
 `charly/pr-validator` runs the fresh AI validator (`pi-review-action`) and
 enables native auto-merge on PASS; `tag-on-merge` tags the merged snapshot —
-same discipline as charly. `verify.yml` runs on every push/PR and
-enforces the three invariants (branch == real default, pins reachable + clean, policy B
-equality).
+same discipline as charly. There is no CI gate: an audit found the verify
+workflow's assertions were either created by `actions/checkout` itself or already
+enforced by their consumer, so it was deleted. The assertions a commit can actually
+violate — policy B, the pi-extension parse, harness parity — run in `hooks/pre-commit`
+(`task hooks` to install); the full pinning audit stays available as `task verify`.
 
 ## House rules
 
@@ -102,7 +104,8 @@ Shared gate scripts are diff-checked by `scripts/check-harness-parity.sh`.
 ```
 task map      # list every submodule with its pin and sync state
 task sync     # run scripts/sync-gitlinks.sh (preview a pin bump)
-task verify   # run scripts/verify-pins.sh (the CI gate, locally)
+task hooks    # install hooks/pre-commit for this clone (do this once)
+task verify   # run scripts/verify-pins.sh (the full pinning audit, on demand)
 task harness  # run scripts/check-harness-parity.sh (harness config vs charly/)
 ```
 

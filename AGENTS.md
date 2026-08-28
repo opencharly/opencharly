@@ -76,8 +76,10 @@ load ALL their skills before doing anything.
 - **R5 — Delete legacy completely.** A cutover removes the old path in the same PR.
 - **R6 — Git safety.** `git status` before destructive actions. No force-push, no
   hook bypass (`--no-verify` / `core.hooksPath`), no direct push to `main`.
-- **R7 — Prove the gate, not the plan.** Run `task verify` (the CI gate) on the
-  final tree and paste the output. A green `git status` proves nothing.
+- **R7 — Prove the gate, not the plan.** Run `task verify` (the full pinning gate,
+  local and on demand — there is no CI gate) on the final tree and paste the
+  output. A green `git status` proves nothing. Install the per-commit gate once
+  per clone with `task hooks`.
 - **R10 — Fresh disposable proof.** Verify from the final committed tree, never
   from an edited state.
 

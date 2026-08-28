@@ -12,8 +12,8 @@
  * This check runs Node's own TypeScript type-stripping pass over the file and
  * fails when it does not parse. Verified: it THROWS on the pre-fix file
  * ("Expected ';', got 'ident'") and passes on the fixed tree. Wired into
- * `task verify` and .github/workflows/verify.yml so the repo's gate fails on a
- * regression of this defect.
+ * `task verify` and hooks/pre-commit so the repo's gate fails on a regression of
+ * this defect.
  *
  * Requires Node >= 22.6 (module.stripTypeScriptTypes).
  *

@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# pre-commit — the umbrella's real gate.
+#
+# Activated per clone with `task hooks` (`git config core.hooksPath hooks`). This is
+# repo configuration, not the `git -c core.hooksPath=… commit` bypass that
+# .claude/hooks/gitcmd.py blocks (AGENTS.md R6).
+#
+# Runs ONLY the assertions a commit can actually violate, and only cheap ones — a
+# pre-commit hook that takes minutes gets bypassed, which is worse than no hook:
+#
+#   1. policy B          — distro-* gitlinks must equal charly's box/* gitlinks
+#   2. gates syntax      — .pi/extensions/umbrella-gates.ts must parse (a syntax
+#                          error silently disables pi's git gates; shipped once, PR #7)
+#   3. harness parity    — the 5 files that are byte-identical to charly's by design
+#
+# Deliberately NOT here (see `task verify`): the 344 `git ls-remote` default-branch
+# audit — it reads remote state no commit can change, and sync-gitlinks.sh, its only
+# consumer, fails on its own if a branch= is stale — and the whole-tree cleanliness
+# assertions, which are about the checkout rather than the diff.
+set -euo pipefail
+
+ROOT="$(git rev-parse --show-toplevel)"
+cd "$ROOT"
+
+echo "pre-commit: running the umbrella gate…"
+
+bash "$ROOT/scripts/check-policy-b.sh"
+node --disable-warning=ExperimentalWarning "$ROOT/scripts/check-umbrella-gates-syntax.mjs"
+bash "$ROOT/scripts/check-harness-parity.sh"
+
+echo "pre-commit: OK"

@@ -85,7 +85,8 @@ rewrite, hook bypass, or direct push to \`main\`. Run submodule git through
 \`git -C <path>\` from the umbrella root. Never edit inside a submodule.
 
 ### R7 — Prove the Gate, Not the Plan
-Run \`task verify\` (the CI gate) on the final tree and retain the output.
+Run \`task verify\` (the full pinning gate — local and on demand; there is no CI
+gate) on the final tree and retain the output.
 
 ### R10 — Fresh Disposable Proof
 Verify only the final committed tree, never an edited state.

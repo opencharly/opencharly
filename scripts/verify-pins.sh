@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
-# verify-pins.sh — the umbrella's pinning gate (runs in CI, safe locally).
-# Assumes a fresh `git clone --recurse-submodules` (actions/checkout guarantees it).
+# verify-pins.sh — the umbrella's full pinning gate, run on demand via `task verify`.
+# Not a CI gate: the verify workflow was deleted once its assertions were audited
+# (see the PR that removed it). The cheap, PR-violable subset — policy B, the pi
+# extension parse, harness parity — runs on every commit from hooks/pre-commit;
+# THIS script keeps the whole-tree assertions, which are what catch a
+# half-initialized or drifted local checkout.
 # Enforces the README's three invariants:
 #   1. every .gitmodules branch = the repo's real default branch
 #   2. every submodule is clean and checked out at its recorded gitlink
@@ -23,14 +27,6 @@ fail() { echo "FAIL: $*" >&2; exit 1; }
 submodule_url() { git config -f .gitmodules --get "submodule.$1.url"; }
 submodule_branch() { git config -f .gitmodules --get "submodule.$1.branch"; }
 
-declare -A CHARLY_PINNED=(
-  [box/arch]=distro-arch
-  [box/cachyos]=distro-cachyos
-  [box/debian]=distro-debian
-  [box/fedora]=distro-fedora
-  [box/ubuntu]=distro-ubuntu
-)
-
 mapfile -t MODULES < <(git config -f .gitmodules --get-regexp '^submodule\..*\.path$' | awk '{print $2}')
 [ "${#MODULES[@]}" -ge 20 ] || fail "suspiciously few submodules (${#MODULES[@]})"
 
@@ -51,14 +47,8 @@ for path in "${MODULES[@]}"; do
   [ "$gitlink" = "$head" ] || fail "$path: checked-out HEAD $head != gitlink $gitlink"
 done
 
-# policy B: umbrella pins must equal charly's own pins
-for cpath in "${!CHARLY_PINNED[@]}"; do
-  upath="${CHARLY_PINNED[$cpath]}"
-  cp="$(git -C charly ls-tree HEAD "$cpath" | awk '{print $3}')"
-  up="$(git ls-files -s "$upath" | awk '{print $2}')"
-  [ -n "$cp" ] || fail "charly has no gitlink at $cpath"
-  [ "$cp" = "$up" ] || fail "policy B: $upath ($up) != charly's $cpath ($cp)"
-done
+# policy B: umbrella pins must equal charly's own pins (one canonical impl, R3)
+bash "$ROOT/scripts/check-policy-b.sh"
 
 # charly's own nested submodules must be initialized at their gitlinks
 # (docs' nested charly pin is NOT checked here — the docs repo owns its content;
