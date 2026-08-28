@@ -6,7 +6,7 @@
       "context": "fresh",
       "tools": "read,grep,find,ls,bash,edit,write,gh_pr_status",
       "subagentOnlyExtensions": [
-        "/home/atrawog/Sync/Atrapub/coder/pi/opencharly/.pi/extensions/github-pr-status.ts"
+        "./extensions/github-pr-status.ts"
       ]
     },
     "worker": {
@@ -15,7 +15,7 @@
       "context": "fork",
       "tools": "read,grep,find,ls,bash,edit,write,gh_pr_status",
       "subagentOnlyExtensions": [
-        "/home/atrawog/Sync/Atrapub/coder/pi/opencharly/.pi/extensions/github-pr-status.ts"
+        "./extensions/github-pr-status.ts"
       ]
     },
     "validator": {
