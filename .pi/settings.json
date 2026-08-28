@@ -1,6 +1,7 @@
 {
   "extensions": [
-    "./extensions/umbrella-gates.ts"
+    "./extensions/umbrella-gates.ts",
+    "./extensions/github-pr-status.ts"
   ],
   "packages": [
     "git:github.com/opencharly/marketplace",
