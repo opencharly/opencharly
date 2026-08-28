@@ -1,16 +1,13 @@
 {
-  "enabledPlugins": {
-    "charly-internals@charly-plugins": true,
-    "charly-automation@charly-plugins": true,
-    "claude-md-management@claude-plugins-official": true
-  },
-  "extraKnownMarketplaces": {
-    "charly-plugins": {
-      "source": {
-        "source": "github",
-        "repo": "opencharly/marketplace"
-      }
-    }
+  "includeCoAuthoredBy": false,
+  "permissions": {
+    "allow": [
+      "Bash(git -C *)",
+      "Bash(task *)",
+      "Bash(bash scripts/*)",
+      "Bash(gh pr merge:*)",
+      "Bash(gh api --method POST repos/opencharly:*)"
+    ]
   },
   "hooks": {
     "PreToolUse": [
@@ -31,14 +28,42 @@
       }
     ]
   },
-  "includeCoAuthoredBy": false,
-  "permissions": {
-    "allow": [
-      "Bash(git -C *)",
-      "Bash(task *)",
-      "Bash(bash scripts/*)",
-      "Bash(gh pr merge:*)",
-      "Bash(gh api --method POST repos/opencharly:*)"
-    ]
+  "enabledPlugins": {
+    "charly-internals@charly-plugins": true,
+    "charly-automation@charly-plugins": true,
+    "claude-md-management@claude-plugins-official": true,
+    "charly-agentteams@charly-plugins": true,
+    "charly-build@charly-plugins": true,
+    "charly-check@charly-plugins": true,
+    "charly-coder@charly-plugins": true,
+    "charly-comfyui@charly-plugins": true,
+    "charly-core@charly-plugins": true,
+    "charly-distros@charly-plugins": true,
+    "charly-filebrowser@charly-plugins": true,
+    "charly-hermes@charly-plugins": true,
+    "charly-image@charly-plugins": true,
+    "charly-immich@charly-plugins": true,
+    "charly-infrastructure@charly-plugins": true,
+    "charly-jupyter@charly-plugins": true,
+    "charly-kubernetes@charly-plugins": true,
+    "charly-languages@charly-plugins": true,
+    "charly-local@charly-plugins": true,
+    "charly-ollama@charly-plugins": true,
+    "charly-openclaw@charly-plugins": true,
+    "charly-openwebui@charly-plugins": true,
+    "charly-pod@charly-plugins": true,
+    "charly-selkies@charly-plugins": true,
+    "charly-tools@charly-plugins": true,
+    "charly-versa@charly-plugins": true,
+    "charly-vm@charly-plugins": true,
+    "gopls-lsp@claude-plugins-official": true
+  },
+  "extraKnownMarketplaces": {
+    "charly-plugins": {
+      "source": {
+        "source": "github",
+        "repo": "opencharly/marketplace"
+      }
+    }
   }
 }
