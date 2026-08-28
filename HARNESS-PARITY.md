@@ -84,10 +84,14 @@ command strings).
    smaller and pi re-injects context.
 2. Add `CLAUDE.md` as the mirrored copy (per charly convention of keeping
    both in sync) — or make AGENTS.md canonical and CLAUDE.md a pointer.
-   Pick one; decision recorded.
+   Pick one; decision recorded. **DECIDED: pointer.** The hand-kept copy
+   drifted (stale rule 3, rule 6, R0, hooks doctrine and PR-body rule, and
+   missing the whole *Command hygiene* section), so `CLAUDE.md` is now a
+   symlink to `AGENTS.md` — one rulebook, no copy to drift (R3/R5).
 3. Add rule 8 to `AGENTS.md`: "Harness config lives at the root —
-   `.pi/ .claude/ .agents/ opencode.json reasonix.toml` — mirror charly's,
-   never fork them silently."
+   `.pi/ .claude/ .opencode/ .reasonix/ opencode.json reasonix.toml` — mirror
+   charly's, never fork them silently." (`.agents/` was dropped from the rule
+   when the skills farm was deleted in the marketplace cutover.)
 
 ### Phase 2 — Skills (root, committed)
 
