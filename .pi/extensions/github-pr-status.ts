@@ -55,13 +55,13 @@ interface PRInfo {
 
 async function getPR(repo: string, number: number): Promise<PRInfo> {
   const p = await ghJson(["pr", "view", String(number), "--repo", repo, "--json",
-    "state,headRefOid,mergeableState,title"]);
+    "state,headRefOid,mergeStateStatus,title"]);
   return {
     repo,
     number,
     state: p.state,
     headSha: p.headRefOid,
-    mergeableState: p.mergeableState ?? "unknown",
+    mergeableState: p.mergeStateStatus ?? "unknown",
     title: p.title ?? "",
   };
 }
@@ -94,9 +94,12 @@ async function failingStep(repo: string, runId: string): Promise<string> {
 /** The latest validator verdict comment (PASS/BLOCK/unknown). */
 async function latestVerdict(repo: string, number: number): Promise<string> {
   try {
-    const comments = await ghJson(["api", `repos/${repo}/issues/${number}/comments?per_page=5`,
-      "--jq", ".[].body"]);
-    const texts: string[] = Array.isArray(comments) ? comments : [comments];
+    // NO --jq here: ghJson does JSON.parse on stdout, and `--jq ".[].body"`
+    // emits raw unquoted markdown (not valid JSON), which would always throw
+    // and leave the verdict permanently "unknown". Fetch the JSON array and
+    // scan the bodies in JS instead.
+    const comments = await ghJson(["api", `repos/${repo}/issues/${number}/comments?per_page=5`]);
+    const texts: string[] = Array.isArray(comments) ? comments.map((c: any) => c.body ?? "") : [];
     for (let i = texts.length - 1; i >= 0; i--) {
       const m = texts[i].match(/Verdict:\s*(PASS|BLOCK)/);
       if (m) return m[1];
