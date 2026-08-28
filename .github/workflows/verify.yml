@@ -30,3 +30,6 @@ jobs:
 
       - name: Run harness syntax gate
         run: node --disable-warning=ExperimentalWarning scripts/check-umbrella-gates-syntax.mjs
+
+      - name: Run harness parity gate
+        run: bash scripts/check-harness-parity.sh

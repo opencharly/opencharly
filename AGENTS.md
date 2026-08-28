@@ -1,8 +1,11 @@
 # AGENTS.md — rules for agent workers in the umbrella
 
-The umbrella is a *view* of the org: 22 submodules at the root, each a real repo owned
-elsewhere. Short rulebook — every rule exists because breaking it corrupts someone
-else's repo.
+> The single rulebook for every harness. `CLAUDE.md` is a **symlink to this file**
+> (Claude Code reads that name), so there is no copy to keep in sync — edit here.
+
+The umbrella is a *view* of the org: 344 submodules at the root, each a real repo
+owned elsewhere. Short rulebook — every rule exists because breaking it corrupts
+someone else's repo.
 
 ## Rulebook
 
@@ -32,7 +35,7 @@ else's repo.
    first — its rulebook applies inside it. Charly's R0–R10 rulebook lives in
    `charly/AGENTS.md`; this file owns only the umbrella's policy.
 8. **Harness config parity:** the harness layers at the root (`.pi/`, `.claude/`,
-   `.agents/`, `.opencode/`, `.reasonix/`, `opencode.json`, `reasonix.toml`) mirror
+   `.opencode/`, `.reasonix/`, `opencode.json`, `reasonix.toml`) mirror
    charly's. Keep them in sync (`scripts/check-harness-parity.sh`); never fork them
    silently. The gate scripts guard mechanics only; policy is judged by the
    `pr-validator` at merge.
@@ -133,7 +136,7 @@ These are enforced by the fresh `charly/pr-validator` at merge (rule A1).
 Deterministic git-workflow mechanics — bypass flags, force-push, direct-main push,
 untokenizable commands — are enforced by hooks: `.claude/hooks/pre-commit-gate.sh`
 + `pre-push-gate.sh`, wired into pi via `.pi/extensions/umbrella-gates.ts`, into
-Claude Code via `.reasonix/settings.json`-style PreToolUse hooks, into reasonix via
+Claude Code via `.claude/settings.json` PreToolUse hooks, into reasonix via
 `.reasonix/settings.json`, and into opencode via `.opencode/plugin/umbrella-gates.ts`.
 Attribution, change class, and rulebook compliance are judged once by the fresh
 `pr-validator` at merge — never by the gates.

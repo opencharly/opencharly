@@ -6,7 +6,6 @@ allow = [
     # Submodule and pinning discovery
     "Bash(git -C $PWD submodule status 2>/dev/null)",
     "Bash(cd $PWD && git config -f .gitmodules --get-regexp '^submodule\..*\.path$')",
-    "Bash(cd $PWD && cat .agents/skills/.charly-profile.json | python3 -c \"import json,sys; d=json.load(sys.stdin); print(json.dumps(list(d.keys())[:5], indent=2)); print('...'); print('total entries:', len(d))\" 2>/dev/null || echo \"parse failed\")",
     # Umbrella verbs (parity with Claude Code + Kimi + opencode)
     "Bash(task sync:*)",
     "Bash(task verify:*)",

@@ -8,3 +8,6 @@
 
 # Pi project-local package installs (generated on startup from .pi/settings.json)
 .pi/npm/
+
+# Claude Code runtime lock (session-local, never committed)
+.claude/scheduled_tasks.lock
