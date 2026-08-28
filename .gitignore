@@ -9,5 +9,8 @@
 # Pi project-local package installs (generated on startup from .pi/settings.json)
 .pi/npm/
 
+# Pi marketplace cache (cloned skill/marketplace repos, generated on startup)
+.pi/git/
+
 # Claude Code runtime lock (session-local, never committed)
 .claude/scheduled_tasks.lock
