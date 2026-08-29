@@ -1,6 +1,7 @@
 # Candy De-Submodule Cutover — Plan, Open PRs, Todo
 
-**Status:** In progress (Phase 2 — plugin candies). Last updated 2026-08-25.
+**Status:** `charly/candy/` is EMPTY and the directory is gone (`charly#457`, 2026-08-29).
+Last updated 2026-08-29.
 
 **Phase 1 FULLY LANDED (2026-08-25):** all 213 config-only candies moved to standalone repos in batches 2.1-2.8 (umbrella#22/23/24/25 + charly#403/404/405/406 MERGED). Batches 2.1-2.8 all landed; the repo-wide sweep gate (charly/refs_sweep_test.go, landed in charly#405) is the one canonical R10 gate. Junk repo opencharly/heroic-heroic to delete (operator).
 
@@ -16,15 +17,40 @@ old `candy/` path by accident.
 - Every candy repo gets a proper kind prefix from the charly kind vocabulary:
   `layer-`, `box-`, `pod-`, `vm-`, `plugin-` (e.g. `layer-ripgrep`,
   `pod-dbus`, `plugin-generate-packages`).
-- The `charly` meta-candy stays in the main repo.
-- `generate-packages` merges into `plugin-generate-packages`.
+- The `charly` meta-candy is **`layer-charly`**. It no longer stays in the main repo:
+  `charly/candy/charly` was the last directory in `candy/`, nothing referenced it by name,
+  and the distro boxes pin `layer-charly` instead. What charly kept is its own native-package
+  metadata, which is packaging DATA rather than a deployable candy and now lives at
+  `packaging/charly.yml` — still published as the `charly-candy-charly.yml` release asset the
+  six per-distro package repos consume (`charly#457`).
+- `generate-packages` is served by the standalone `plugin-generate-packages`. charly keeps a
+  thin re-export **shim** at `tools/generate-packages/` — NOT under `candy/` — because that is
+  what makes `charly generate-packages` resolvable from a checkout. It cannot simply be
+  deleted: a remote candy ref does not register a command word (measured — a project pinning
+  only the plugin exits 80), and making it do so would put a network fetch in CLI startup
+  (`charly#455`).
 
 ## Standalone candy repo layout
 
 - Manifest (`charly.yml`) at the repo root.
 - `.gitmodules` pins `charly` (the repo's own build toolchain).
 - Deploy gate: `charly box validate` (the repo's CI).
-- Initial commit lands directly on `main` + a CalVer tag (fresh-repo bootstrap).
+- Bootstrap, in this order — the first three are NOT optional, each fails differently:
+  1. `gh repo create`, then establish `main` through the **contents API** (a README stub).
+     Pushing `main` directly is blocked by the pre-push gate and must not be bypassed.
+  2. `allow_auto_merge: true` — off by default; without it the validator PASSes and its
+     final step dies with GraphQL `Pull request is in unstable status`.
+  3. Install the three dispatchers (`deploy`, `pr-validator`, `tag-on-merge`) on `main`
+     **via the contents API, before the first PR**. `tag-on-merge` fires on `workflow_run`
+     of the validator, and `workflow_run` only fires for workflows already on the default
+     branch — so the PR that *installs* the dispatcher can never be tagged by it. Symptom:
+     the PR merges, no tag appears, and `tag-on-merge` shows no runs at all. This matters
+     because the marketplace refs list pins repos **by tag**.
+  4. Apply the org `main branch protection` ruleset (required check `validate / validate`).
+  5. Land the content by PR like any other change.
+
+  Repos already merged untagged are backfilled add-only:
+  `gh api repos/opencharly/<r>/git/refs -X POST -f ref=refs/tags/v<CalVer> -f sha=<main HEAD>`.
 
 ## Remote-ref resolution
 
