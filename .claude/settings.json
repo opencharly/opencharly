@@ -1,16 +1,13 @@
 {
-  "enabledPlugins": {
-    "charly-internals@charly-plugins": true,
-    "charly-automation@charly-plugins": true,
-    "claude-md-management@claude-plugins-official": true
-  },
-  "extraKnownMarketplaces": {
-    "charly-plugins": {
-      "source": {
-        "source": "github",
-        "repo": "opencharly/marketplace"
-      }
-    }
+  "includeCoAuthoredBy": false,
+  "permissions": {
+    "allow": [
+      "Bash(git -C *)",
+      "Bash(task *)",
+      "Bash(bash scripts/*)",
+      "Bash(gh pr merge:*)",
+      "Bash(gh api --method POST repos/opencharly:*)"
+    ]
   },
   "hooks": {
     "PreToolUse": [
@@ -31,14 +28,18 @@
       }
     ]
   },
-  "includeCoAuthoredBy": false,
-  "permissions": {
-    "allow": [
-      "Bash(git -C *)",
-      "Bash(task *)",
-      "Bash(bash scripts/*)",
-      "Bash(gh pr merge:*)",
-      "Bash(gh api --method POST repos/opencharly:*)"
-    ]
+  "enabledPlugins": {
+    "charly-internals@charly-plugins": true,
+    "charly-automation@charly-plugins": true,
+    "claude-md-management@claude-plugins-official": true,
+    "gopls-lsp@claude-plugins-official": true
+  },
+  "extraKnownMarketplaces": {
+    "charly-plugins": {
+      "source": {
+        "source": "github",
+        "repo": "opencharly/marketplace"
+      }
+    }
   }
 }
