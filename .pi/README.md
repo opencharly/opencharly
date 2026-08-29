@@ -34,6 +34,7 @@ startup after the project is trusted):
 | `pi-web-access` | 0.27.0 | Web search, content extraction, and video understanding (`web_search`, `source_check`, `fetch_content`). |
 | `pi-fabric` | 0.70.0 | Programmable tool/agent runtime (`fabric_exec`). |
 | `pi-claude-marketplace` | 0.18.0 | Bridges Claude plugin marketplaces into pi; `/claude:plugin` command + `.pi/claude-plugins.json` desired state. |
+| `pi-web-ui` | 0.50.0 | Browser cockpit for pi (`/webui` command — chat UI, files, terminal, model management). |
 | `pi-goal` | 0.1.7 | Persistent autonomous goals (`/goal` command, `create_goal` tool, `pi-goal-writer` skill). |
 
 Versions are pinned for reproducibility; `pi update --extensions` skips pinned

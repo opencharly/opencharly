@@ -13,6 +13,7 @@
     "npm:pi-web-access@0.27.0",
     "npm:pi-fabric@0.70.0",
     "npm:pi-claude-marketplace@0.18.0",
+    "npm:pi-web-ui@0.50.0",
     "git:github.com/Michaelliv/pi-goal@v0.1.7"
   ]
 }
