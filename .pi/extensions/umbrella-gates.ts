@@ -54,67 +54,82 @@ const GATE_SCRIPTS = [
   ".claude/hooks/pre-push-gate.sh",
 ];
 
-/** The condensed umbrella rules injected every turn. */
+/** Operating-principles + tool-usage complement injected every turn.
+ *  Complements AGENTS.md (the authoritative rulebook, auto-loaded into
+ *  context): references rules by name/section/skill, never re-states them,
+ *  so it cannot drift from AGENTS.md. */
 function buildRulesBlock(): string {
-  return `## Umbrella Engineering Rules
+  return `## Operating principles
 
-### R0 — Skills First
-Before the first tool call of every task, use \`umbrella_load_skills\` to load the
-SKILL.md files whose trigger column matches the task. The dispatcher table is in
-AGENTS.md. Load ALL matching skills before acting.
+- **AGENTS.md is the authoritative rulebook.** Always follow the rules in
+  AGENTS.md when writing or modifying new code, and always prioritize a clean
+  architecture and fully tested and deduplicated code over anything else.
+- **All decisions come from AGENTS.md.** When a choice is ambiguous, resolve it
+  from AGENTS.md (and the skills it dispatches to) — never from habit,
+  convenience, or an unstated assumption. If AGENTS.md does not answer, the
+  decision is a blocker to surface, not a guess to make.
+- **Goal-driven autonomous completion.** At the start of a task, write and
+  activate a goal via \`create_goal\` (pi-goal) with clear success criteria,
+  verification steps, and constraints — then loop autonomously until the goal
+  is met. The goal is the completion contract: keep working through the todo
+  list and sub-tasks without stopping to ask for permission at each step.
+- **Completion is defined, not felt.** A task is finished ONLY when (a) every
+  todo and sub-task is done and verified, OR (b) the agent encounters an issue
+  that cannot be fixed solely from AGENTS.md — in which case stop and surface
+  the blocker with the exact AGENTS.md gap. Never stop early because the work
+  "seems done" or a step "looks optional".
+- **Skills first (R0).** Before the first tool call of a task, load the
+  dispatcher-selected skills via \`umbrella_load_skills\` (the dispatcher table
+  is in AGENTS.md). Key skills: \`git-workflow\` (PR landing, pinning, sync),
+  \`strict-policy\` (R1–R5 discipline), \`root-cause-analyzer\` (RCA every
+  anomaly), \`agents\` (sub-agents, validator sessions).
+- **RCA every anomaly (R1) — enforced, no exceptions.** Any failure, warning,
+  or doc-vs-reality divergence gets root-cause analysis before remediation —
+  never "pre-existing" / "out of scope" / "follow-up PR". An issue is not
+  "handled" until its root cause is identified and fixed (or explicitly
+  allowlisted with evidence). Load the \`root-cause-analyzer\` skill and follow
+  its process.
+- **Spike on a check bed — never guess.** Any uncertainty about behavior,
+  assumptions, or a fix's effect is settled by running a spike on a disposable
+  check bed (the \`charly check\` beds) and verifying on a live system — never
+  by blind or unverified guesses. If a claim cannot be proven live, it is not
+  a claim yet: mark it as unverified and prove it before relying on it.
+- **Prove the gate (R7).** Run \`task verify\` on the final tree and paste the
+  output; a green \`git status\` proves nothing. Attribution tiers in AGENTS.md
+  define what each confidence level requires.
+- **Validator verdicts.** Read every validator BLOCK in full and fix ALL
+  listed issues before the next push (see the \`git-workflow\` skill). A partial
+  fix is a defective cycle.
+- **Command hygiene.** Follow AGENTS.md's command-hygiene rules: bound output
+  (\`grep -m N\`, redirect to file), never re-issue the same diagnostic in a
+  loop, delegate heavy exploration to subagents.
 
-### R1 — RCA Every Anomaly
-Every failure, warning, or doc-vs-reality divergence triggers the
-root-cause-analyzer process before any remediation. No "pre-existing",
-"out of scope", or "follow-up PR" classifications.
+## Tool usage — use the full surface
 
-### R3 — No Duplication
-One canonical implementation owns each behavior (the scripts and harness
-configs own theirs; never re-implement policy in prose).
-
-### R4 — No Workarounds
-No sleeps, blind retries, hand-pinned gitlinks, or manual CI fixes. A changed
-pin is a sync (\`task sync\` + PR), not a hand-pin.
-
-### R5 — Delete Legacy Completely
-A cutover removes the old path in the same PR.
-
-### R6 — Git Safety
-Check \`git status\` before destructive actions. No force-push, pushed-history
-rewrite, hook bypass, or direct push to \`main\`. Run submodule git through
-\`git -C <path>\` from the umbrella root. Never edit inside a submodule.
-
-### R7 — Prove the Gate, Not the Plan
-Run \`task verify\` (the full pinning gate — local and on demand; there is no CI
-gate) on the final tree and retain the output.
-
-### R10 — Fresh Disposable Proof
-Verify only the final committed tree, never an edited state.
-
-### PR Body Requirements
-Every PR body must contain:
-1. **## Summary** — what changed and why
-2. **## How tested** — pasted command + output for every verification step
-3. **## Rulebook compliance** — table with every applicable umbrella rule
-4. **## Change Classification** — change class, verification gate, attribution tier
-5. **The PR body IS the changelog** — the tag-on-merge workflow writes it
-   to \`CHANGELOG/<calver>.md\` at merge time
-6. ***Assisted-by: <Harness> <Provider Full Model Name> (<confidence>)*** — italicized
-   footer in the EXACT form, e.g. \`*Assisted-by: pi openrouter/deepseek/deepseek-v4-flash-0731 (fully tested and validated)*\` (rule A1)
-
-### Attribution Tiers
-| Confidence | Required proof |
-|---|---|
-| \`fully tested and validated\` | \`task verify\` passed on the final tree; changed paths executed live |
-| \`analysed on a live system\` | Changed runtime path ran live with retained output; full gate did not pass |
-| \`documentation reviewed\` | Docs-only change class (forbidden if pins/scripts changed) |
-| \`syntax check only\` | Dry-run only — do not commit |
-| \`theoretical suggestion\` | No validation — never ship |
-
-### Validator Verdict Discipline
-Every validator BLOCK must be read in full and ALL listed issues fixed before
-the next push. A partial fix that addresses only one of several findings is a
-defective cycle.`;
+- \`todo\` — for ANY multi-step task (3+ steps): create tasks, mark
+  in_progress before starting, complete immediately when done. Never batch
+  completions. The todo list is the task's progress contract — keep it
+  accurate until the goal is complete.
+- \`create_goal\` / \`update_goal\` / \`get_goal\` (pi-goal) — write and activate
+  the task goal at the start (success criteria, verification, constraints),
+  update it as the task evolves, and check it before declaring completion.
+  This is what enables fully automatic loop completion.
+- \`subagent\` — delegate exploration, verification, and long-running
+  investigation to keep the main context clean. Use \`subagent_wait\` to
+  collect results.
+- \`gh_pr_status\` — the PR verification primitive: \`check\` before
+  opening/updating a PR, \`watch\` after pushing (its completion IS the wake).
+  Never guess a validator verdict.
+- \`umbrella_load_skills\` — R0: load the dispatcher-selected skills before the
+  first tool call.
+- \`memory_*\` — persist decisions, preferences, and session results
+  (memory_write); search before re-deriving (memory_search).
+- \`web_search\` / \`fetch_content\` (pi-web-access), \`fabric_exec\` (pi-fabric),
+  \`create_goal\` (pi-goal), \`mcp.*\` — available; use when the task calls for
+  them.
+- \`charly check\` beds — the disposable live-verification primitive: run a
+  spike on a check bed to settle any uncertainty about behavior or a fix's
+  effect before relying on it (see the \`check\` and \`disposable\` skills).`;
 }
 
 /** Parse the skill dispatcher table from AGENTS.md content. */
