@@ -57,3 +57,4 @@ by the extension.
 Pi asks before trusting a project that contains project-local resources (like
 this `.pi/`). Trust it once with `/trust` (interactive) or `--approve`/`-a`
 (non-interactive) so the extension loads.
+# umbrella pin sync: charly + distro pins (Policy B)
