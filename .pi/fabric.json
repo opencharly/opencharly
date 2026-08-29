@@ -1,0 +1,30 @@
+{
+  "configVersion": 3,
+  "capture": {
+    "keepVisible": [
+      "fabric_exec",
+      "todo",
+      "create_goal",
+      "get_goal",
+      "update_goal",
+      "subagent",
+      "subagent_wait",
+      "gh_pr_status",
+      "umbrella_load_skills",
+      "memory_read",
+      "memory_search",
+      "memory_write",
+      "memory_forget",
+      "memory_restore",
+      "memory_status",
+      "scratchpad",
+      "web_search",
+      "fetch_content",
+      "team_spawn",
+      "team_shutdown",
+      "teamstatus",
+      "teamsend",
+      "teamlog"
+    ]
+  }
+}

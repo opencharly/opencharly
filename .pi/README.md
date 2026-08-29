@@ -14,6 +14,7 @@ harnesses get from their own plugin systems: a **hooks system**.
 | Path | Purpose |
 |---|---|
 | `settings.json` | Registers the project extension and the project pi packages. |
+| `fabric.json` | pi-fabric config: `capture.keepVisible` re-exposes the system-prompt-advertised extension tools (`todo`, `create_goal`/`get_goal`/`update_goal`, `subagent`/`subagent_wait`, `gh_pr_status`, `umbrella_load_skills`, `memory_*`, `scratchpad`, `web_search`/`fetch_content`, `team_*`) as bare-name callable tools in full-code mode — without it, fabric hides captured extension tools from the model's active set and bare-name calls fail with "Tool not found". |
 | `extensions/umbrella-gates.ts` | Pi's equivalent of the `.reasonix`/kimi `PreToolUse(Bash)` wiring of `.claude/hooks/pre-commit-gate.sh` + `pre-push-gate.sh`. Intercepts every `bash` tool call and blocks commands the gates reject (force-push, direct push to `main`, `--no-verify` commit bypass, untokenizable commits). Also injects the umbrella rulebook into the system prompt every turn and provides `umbrella_load_skills`. |
 | `prompts/` | Slash prompts: `sync` (gitlink sync flow), `pr-body`, `rulebook`, `skill`, `subagent-review`, `subagent-verify`. |
 | `subagents/umbrella-agents.json` | reviewer / worker / validator sub-agents, scoped to the umbrella's policies. |
