@@ -1512,3 +1512,11 @@
 	path = plugin-wl
 	url = https://github.com/opencharly/plugin-wl.git
 	branch = main
+[submodule "layer-punktfunk"]
+	path = layer-punktfunk
+	url = https://github.com/opencharly/layer-punktfunk.git
+	branch = main
+[submodule "plugin-punktfunk"]
+	path = plugin-punktfunk
+	url = https://github.com/opencharly/plugin-punktfunk.git
+	branch = main
