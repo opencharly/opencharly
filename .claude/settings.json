@@ -32,7 +32,15 @@
     "charly-internals@charly-plugins": true,
     "charly-automation@charly-plugins": true,
     "claude-md-management@claude-plugins-official": true,
-    "gopls-lsp@claude-plugins-official": true
+    "gopls-lsp@claude-plugins-official": true,
+    "charly-image@charly-plugins": true,
+    "charly-pod@charly-plugins": true,
+    "charly-vm@charly-plugins": true,
+    "charly-kubernetes@charly-plugins": true,
+    "charly-local@charly-plugins": true,
+    "charly-build@charly-plugins": true,
+    "charly-check@charly-plugins": true,
+    "charly-core@charly-plugins": true
   },
   "extraKnownMarketplaces": {
     "charly-plugins": {
