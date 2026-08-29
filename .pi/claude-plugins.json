@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "marketplaces": {
+    "charly-plugins": {
+      "source": "opencharly/marketplace"
+    },
+    "claude-plugins-official": {
+      "source": "anthropics/claude-plugins-official"
+    }
+  },
+  "plugins": {
+    "charly-internals@charly-plugins": {},
+    "charly-automation@charly-plugins": {},
+    "claude-md-management@claude-plugins-official": {},
+    "charly-image@charly-plugins": {},
+    "charly-pod@charly-plugins": {},
+    "charly-vm@charly-plugins": {},
+    "charly-kubernetes@charly-plugins": {},
+    "charly-local@charly-plugins": {},
+    "charly-build@charly-plugins": {},
+    "charly-check@charly-plugins": {},
+    "charly-core@charly-plugins": {}
+  }
+}
