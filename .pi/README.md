@@ -59,3 +59,4 @@ this `.pi/`). Trust it once with `/trust` (interactive) or `--approve`/`-a`
 (non-interactive) so the extension loads.
 # umbrella pin sync: charly + distro pins (Policy B)
 # pin sync accounting: see the PR body
+# distro-fedora mirror: Policy B holds
