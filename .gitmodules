@@ -1527,3 +1527,4 @@
 [submodule "plugin-mise"]
 	path = plugin-mise
 	url = https://github.com/opencharly/plugin-mise.git
+	branch = main
