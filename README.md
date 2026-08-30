@@ -40,6 +40,8 @@ needed for a read-only checkout.
 | `plugin-generate-packages/` | [opencharly/plugin-generate-packages](https://github.com/opencharly/plugin-generate-packages) | nFPM packaging plugin |
 | `pi-review-action/` | [opencharly/pi-review-action](https://github.com/opencharly/pi-review-action) | org-wide PR-review GitHub Action |
 | `pixelflux/` | [opencharly/pixelflux](https://github.com/opencharly/pixelflux) | patched wl-screenshot lib for selkies desktops — **default branch `av1`** |
+| `gst-wayland-display/` | [opencharly/gst-wayland-display](https://github.com/opencharly/gst-wayland-display) | fork of the GStreamer Wayland-compositor source (`waylanddisplaysrc`) that cstream nests Hyprland into — **default branch `stable`** |
+| `charly-streamer/` | [opencharly/charly-streamer](https://github.com/opencharly/charly-streamer) | cstream product code: the Rust streamer + session leader, the Go gateway + broker |
 
 Not a submodule: [opencharly/.github](https://github.com/opencharly/.github) — the
 org-wide community-health defaults. Every org repo inherits them automatically, and
