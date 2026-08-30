@@ -27,3 +27,22 @@ living documents, not static references. The running system is ground truth, nev
 - **The umbrella's own harness docs** (`.pi/`, `.claude/`, `.opencode/`, `.reasonix/`,
   `opencode.json`, `reasonix.toml`) mirror charly's — keep them in parity
   (`scripts/check-harness-parity.sh`), and keep their claims true to the code they wire.
+
+
+# Loop-fix discipline (RCA'd 2026-08-30)
+
+The "output token limit" rejection is a MODEL OUTPUT-CAP failure, not a tool
+failure. When a tool call is rejected with "the response hit the output token
+limit, so its arguments may be truncated", the response was truncated because
+it exceeded the model's output cap — retrying the same call regenerates the
+same oversized response and loops forever.
+
+- **NEVER re-issue a tool call that was rejected with the output-token-limit
+  error.** The loop-guard extension blocks such retries; the correct response
+  to the block is to change approach, not to retry.
+- **Keep every tool call SHORT** (single bounded command; prefer pi.grep /
+  pi.read over long bash strings) and every response minimal.
+- **Delegate heavy exploration to subagents** — they return only concise
+  verdicts, keeping the main context small so responses stay under the cap.
+- **On any output-token-limit failure, change approach immediately**: split
+  the work into smaller steps, shorten the command, or delegate.
