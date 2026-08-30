@@ -2,8 +2,8 @@
   "extensions": [
     "./extensions/umbrella-gates.ts",
     "./extensions/github-pr-status.ts",
-    "./extensions/loop-guard.ts",
-    "./extensions/umbrella-verify.ts"
+    "./extensions/umbrella-verify.ts",
+    "./extensions/loop-protection.ts"
   ],
   "subagents": {
     "agentOverrides": {
