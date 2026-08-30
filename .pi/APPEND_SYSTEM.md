@@ -107,3 +107,32 @@ A loop is in progress when ANY of these is true:
   pi.read over long bash strings) and every response minimal.
 - **Produce the deliverable.** If the data is already in context or on disk,
   stop re-reading it and write the plan/PR/verdict the task asked for.
+
+
+# Root cause: output-cap config mismatch (RCA'd 2026-08-30)
+
+The truncation that drives the loops above has a ROOT CAUSE, not just a
+repeat point: the session's generation config requested more output than the
+model can produce.
+
+- `deepseek-v4-flash:0731` (ollama-cloud) has a REAL output cap of
+  `maxTokens: 32768` (models-store.json catalog; `reasoning: true`).
+- `~/.pi/agent/models.json` had overridden it to `65536` — the harness
+  sent `max_tokens=65536`, the provider stopped at 32768 with
+  `finish_reason="length"`, and the harness failed every tool call in the
+  length-stopped message ("Re-issue the tool call with complete arguments").
+- `defaultThinkingLevel: "high"` made it inevitable: high reasoning on a
+  32K output budget leaves too little for tool-call arguments, so any long
+  call in a large response hits the cap.
+
+**The config contract (root-cause fix, applied 2026-08-30):**
+- `maxTokens` MUST equal the model's real output cap (32768 for
+  `deepseek-v4-flash:0731`) — never more. Over-requesting guarantees a
+  "length" stop on any large response.
+- The thinking level MUST be compatible with the output budget: `low` (or
+  `off`) for a 32K-cap model. High thinking on a small budget is the
+  truncation trigger.
+- Keep tool calls SHORT so a single response fits within the real cap.
+- If a genuinely large output budget is needed, use a model that has one
+  (e.g. untagged `deepseek-v4-flash`, maxTokens 1048576) — not the
+  constrained `:0731` tag.
