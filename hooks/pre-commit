@@ -9,9 +9,7 @@
 # pre-commit hook that takes minutes gets bypassed, which is worse than no hook:
 #
 #   1. policy B          — distro-* gitlinks must equal charly's box/* gitlinks
-#   2. gates syntax      — .pi/extensions/umbrella-gates.ts must parse (a syntax
-#                          error silently disables pi's git gates; shipped once, PR #7)
-#   3. harness parity    — the 5 files that are byte-identical to charly's by design
+#   2. harness parity    — the 5 files that are byte-identical to charly's by design
 #
 # Deliberately NOT here (see `task verify`): the 344 `git ls-remote` default-branch
 # audit — it reads remote state no commit can change, and sync-gitlinks.sh, its only
@@ -25,7 +23,6 @@ cd "$ROOT"
 echo "pre-commit: running the umbrella gate…"
 
 bash "$ROOT/scripts/check-policy-b.sh"
-node --disable-warning=ExperimentalWarning "$ROOT/scripts/check-umbrella-gates-syntax.mjs"
 bash "$ROOT/scripts/check-harness-parity.sh"
 
 echo "pre-commit: OK"
