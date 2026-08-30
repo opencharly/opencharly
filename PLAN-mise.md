@@ -284,3 +284,4 @@ Each PR: feat/ branch, R10-gated, PR-only landing, validator PASS before the nex
 - §5.2: tarball URL uses `x64`/`arm64` (ARCH mapping needed); `strip_components: 1`; **config must land at `/etc/mise/config.toml`** (not /etc/mise.toml); `mise x` needs `--`.
 - §6: detection vocabulary = **embedded `builder:` map in `charly/charly/charly.yml`** (charly repo change), NOT spec CUE; spec change is the two Go maps in `externalized_builders.go`; plugin must be pinned in the project `add_candy:` closure.
 - §11: add the charly embedded-vocabulary step (4b) to the landing order.
+# mise support
