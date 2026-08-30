@@ -1520,3 +1520,7 @@
 	path = plugin-punktfunk
 	url = https://github.com/opencharly/plugin-punktfunk.git
 	branch = main
+[submodule "layer-punktfunk-client"]
+	path = layer-punktfunk-client
+	url = https://github.com/opencharly/layer-punktfunk-client.git
+	branch = main
