@@ -30,6 +30,10 @@
 	path = distro-fedora
 	url = https://github.com/opencharly/distro-fedora.git
 	branch = main
+[submodule "distro-omarchy"]
+	path = distro-omarchy
+	url = https://github.com/opencharly/distro-omarchy.git
+	branch = main
 [submodule "distro-ubuntu"]
 	path = distro-ubuntu
 	url = https://github.com/opencharly/distro-ubuntu.git
@@ -1523,4 +1527,8 @@
 [submodule "layer-punktfunk-client"]
 	path = layer-punktfunk-client
 	url = https://github.com/opencharly/layer-punktfunk-client.git
+	branch = main
+[submodule "plugin-mise"]
+	path = plugin-mise
+	url = https://github.com/opencharly/plugin-mise.git
 	branch = main
