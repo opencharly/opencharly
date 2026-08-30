@@ -29,6 +29,48 @@ living documents, not static references. The running system is ground truth, nev
   (`scripts/check-harness-parity.sh`), and keep their claims true to the code they wire.
 
 
+# Tool-usage discipline (RCA'd 2026-08-30, from live failures)
+
+## subagent — verify the child can actually execute BEFORE delegating
+
+- **Check the agent roster first** (`subagent` with `action: "list"`). Only
+  executable, non-disabled agents exist; a guessed name (e.g. "explorer") fails
+  the run. Builtin agents: delegate, gpt-pro, oracle, researcher, reviewer,
+  scout, worker.
+- **A child without tools cannot execute.** A workflowScript child that resolves
+  with an empty tool set burns its whole turn probing tool names and returns
+  nothing. Before delegating execution work, confirm the child's resolved
+  `tools` include the primitives the task needs (read/grep/find/ls/bash/edit/
+  write/gh_pr_status). Pass an explicit `config` (object or JSON string) with
+  the tool allowlist when the agent default is not guaranteed.
+- **Long-running beds/waits belong to a child, not the parent.** The parent
+  plans, decides, and lands; a child polls the log and returns a concise
+  verdict. Never poll a bed from the parent loop.
+- **Use `async: true` + `subagent_wait` for run-to-completion.** A detached
+  async run wakes the session on completion; `subagent_wait({id})` blocks a
+  run-to-completion turn. Do not sleep-poll.
+
+## todo — the progress contract
+
+- Create a todo list for ANY multi-step task (3+ steps) and keep it accurate
+  until the goal is complete.
+- Mark a task `in_progress` BEFORE starting it and `completed` IMMEDIATELY
+  when done — never batch completions, never leave a task in_progress while
+  moving on.
+- A task stays in_progress if tests fail, the implementation is partial, or
+  an error is unresolved; create a new task for the blocker instead.
+
+## fabric_exec — short calls, no retries
+
+- Keep every tool call SHORT (single bounded command; prefer pi.grep /
+  pi.read over long bash strings) and every response minimal.
+- On an output-token-limit failure NEVER retry the same call — change
+  approach (split, shorten, delegate). The loop-guard extension blocks
+  identical retries; trust the block.
+- Batch only independent, bounded work; keep search→read and edit→verify
+  sequential when the output determines the next action.
+
+
 # Loop-fix discipline (RCA'd 2026-08-30)
 
 The "output token limit" rejection is a MODEL OUTPUT-CAP failure, not a tool
