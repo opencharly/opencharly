@@ -1,7 +1,8 @@
 {
   "extensions": [
     "./extensions/umbrella-gates.ts",
-    "./extensions/github-pr-status.ts"
+    "./extensions/github-pr-status.ts",
+    "./extensions/loop-guard.ts"
   ],
   "packages": [
     "npm:pi-mcp-adapter@2.31.0",
