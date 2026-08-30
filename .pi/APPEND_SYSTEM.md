@@ -71,7 +71,7 @@ living documents, not static references. The running system is ground truth, nev
   sequential when the output determines the next action.
 
 
-# Loop-fix discipline (RCA'd 2026-08-30)
+# Loop-fix discipline (RCA'd 2026-08-30, two incidents)
 
 The "output token limit" rejection is a MODEL OUTPUT-CAP failure, not a tool
 failure. When a tool call is rejected with "the response hit the output token
@@ -79,12 +79,31 @@ limit, so its arguments may be truncated", the response was truncated because
 it exceeded the model's output cap — retrying the same call regenerates the
 same oversized response and loops forever.
 
+## Autodetect the loop — three signals
+
+A loop is in progress when ANY of these is true:
+
+1. **Repeated output-token-limit rejections** — a tool call rejected with
+   "the response hit the output token limit" (the loop-guard extension blocks
+   the exact re-issue; trust the block).
+2. **Repeated identical tool calls** — the same tool + same arguments issued
+   3+ times (the loop-guard extension blocks the repeat; trust the block).
+3. **Re-reading the same data** — re-running the same diagnostic (e.g. the
+   same `sed`/`grep`/`pi.read` on the same file ranges) instead of
+   producing the deliverable. This is the behavioral-rut loop: each response
+   is truncated, the model "recovers" context by re-running the same call,
+   and the deliverable never gets written.
+
+## Break the loop — the mandatory response
+
 - **NEVER re-issue a tool call that was rejected with the output-token-limit
   error.** The loop-guard extension blocks such retries; the correct response
   to the block is to change approach, not to retry.
+- **On ANY loop signal, change approach immediately**: split the work into
+  smaller steps, shorten the command, or — the default for exploration —
+  **delegate to a subagent** that returns only a concise verdict, keeping the
+  main context small so responses stay under the cap.
 - **Keep every tool call SHORT** (single bounded command; prefer pi.grep /
   pi.read over long bash strings) and every response minimal.
-- **Delegate heavy exploration to subagents** — they return only concise
-  verdicts, keeping the main context small so responses stay under the cap.
-- **On any output-token-limit failure, change approach immediately**: split
-  the work into smaller steps, shorten the command, or delegate.
+- **Produce the deliverable.** If the data is already in context or on disk,
+  stop re-reading it and write the plan/PR/verdict the task asked for.
