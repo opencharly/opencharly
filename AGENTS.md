@@ -137,8 +137,7 @@ These are enforced by the fresh `charly/pr-validator` at merge (rule A1).
 
 Deterministic git-workflow mechanics — bypass flags, force-push, direct-main push,
 untokenizable commands — are enforced by hooks: `.claude/hooks/pre-commit-gate.sh`
-+ `pre-push-gate.sh`, wired into pi via `.pi/extensions/umbrella-gates.ts`, into
-Claude Code via `.claude/settings.json` PreToolUse hooks, into reasonix via
++ `pre-push-gate.sh`, wired into Claude Code via `.claude/settings.json` PreToolUse hooks, into reasonix via
 `.reasonix/settings.json`, and into opencode via `.opencode/plugin/umbrella-gates.ts`.
 Attribution, change class, and rulebook compliance are judged once by the fresh
 `pr-validator` at merge — never by the gates.

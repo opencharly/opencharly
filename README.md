@@ -93,7 +93,7 @@ violate — policy B, the pi-extension parse, harness parity — run in `hooks/p
 ## AI & harness parity
 
 This repo runs the same agent harness config and discipline as `charly/` — pi
-(`.pi/`, same packages + `umbrella-gates.ts`), Claude Code (`.claude/`), opencode
+(`.pi/`, same packages), Claude Code (`.claude/`), opencode
 (`opencode.json`), reasonix (`reasonix.toml`), and skills (the marketplace repo —
 each harness loads it natively). See `HARNESS-PARITY.md` for the full map.
 `AGENTS.md`/`CLAUDE.md` own the umbrella rulebook; `charly/AGENTS.md` owns charly's.

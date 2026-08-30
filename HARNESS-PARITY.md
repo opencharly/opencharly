@@ -15,9 +15,6 @@ below is in place at the umbrella root; the shared files are diff-checked by
 | Instructions | `AGENTS.md` + `CLAUDE.md` (two files, kept in sync by hand) | `AGENTS.md` only — `CLAUDE.md` is a **symlink** to it (one rulebook, no copy to drift) | fork |
 | Skills | the opencharly/marketplace repo (each harness loads it natively: Claude Code marketplace, pi `git:` package, kimi plugin, Codex catalog) | same marketplace (no local links) | marketplace shared |
 | Pi | `.pi/settings.json` (same 6 packages) | `.pi/settings.json` | identical packages |
-| Pi extension | `.pi/extensions/charly-gates.ts` | `.pi/extensions/umbrella-gates.ts` | fork (no worktrees, no Go gates) |
-| Pi prompts | `cutover, pr-body, rulebook, skill, subagent-review, subagent-verify` | `sync, pr-body, rulebook, skill, subagent-review, subagent-verify` | fork |
-| Pi subagents | `.pi/subagents/charly-agents.json` | `.pi/subagents/umbrella-agents.json` | fork |
 | Claude hooks | `.claude/hooks/{pre-commit-gate.sh,pre-push-gate.sh,gitcmd.py,gate_test.py}` | same paths | identical (diff-checked) |
 | Claude settings | `.claude/settings.json` (full plugin list; **no `hooks` block** — the gates are unwired there) | `.claude/settings.json` (internals + automation subset, **plus the `PreToolUse`/`Bash` `hooks` block** wiring both gate scripts) | fork |
 | Claude workflows | `.claude/workflows/{verify-status,triage-check-failure,audit-deploy-configs,verify-beds}.js` | `.claude/workflows/{verify-status,triage-check-failure}.js` | fork |
@@ -106,6 +103,11 @@ command strings).
    not a symlink; regenerate from plugin metadata, don't copy charly's).
 
 ### Phase 3 — Pi harness (root, committed)
+
+> **Superseded 2026-08-30:** the umbrella pi harness was slimmed to packages only —
+> the gates extension, prompts, and subagents were removed (config simplification).
+> The git-level gates (`hooks/pre-commit`, `.claude/hooks/*`) remain the enforcement
+> surface; pi no longer wires them.
 
 7. `.pi/settings.json`: identical package pin list (pi-mcp-adapter,
    pi-subagents, plan-mode, rpiv-todo, pi-memory, pi-ollama-cloud) +
