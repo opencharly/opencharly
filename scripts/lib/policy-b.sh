@@ -16,5 +16,6 @@ declare -A CHARLY_PINNED=(
   [box/cachyos]=distro-cachyos
   [box/debian]=distro-debian
   [box/fedora]=distro-fedora
+  [box/omarchy]=distro-omarchy
   [box/ubuntu]=distro-ubuntu
 )

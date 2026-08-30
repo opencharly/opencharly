@@ -30,6 +30,10 @@
 	path = distro-fedora
 	url = https://github.com/opencharly/distro-fedora.git
 	branch = main
+[submodule "distro-omarchy"]
+	path = distro-omarchy
+	url = https://github.com/opencharly/distro-omarchy.git
+	branch = main
 [submodule "distro-ubuntu"]
 	path = distro-ubuntu
 	url = https://github.com/opencharly/distro-ubuntu.git
