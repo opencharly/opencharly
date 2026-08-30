@@ -1524,3 +1524,6 @@
 	path = plugin-punktfunk
 	url = https://github.com/opencharly/plugin-punktfunk.git
 	branch = main
+[submodule "plugin-mise"]
+	path = plugin-mise
+	url = https://github.com/opencharly/plugin-mise.git
