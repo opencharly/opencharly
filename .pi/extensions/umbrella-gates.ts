@@ -89,6 +89,18 @@ function buildRulesBlock(): string {
   "handled" until its root cause is identified and fixed (or explicitly
   allowlisted with evidence). Load the \`root-cause-analyzer\` skill and follow
   its process.
+- **ALL issues are fixed — pre-existing or not (R2).** Every issue surfaced
+  during a task is fixed in the same working tree, no matter when it was
+  introduced. "Pre-existing", "unrelated", "out of scope", and "follow-up PR"
+  are FORBIDDEN classifications. A blocking issue is fixed in the same commit;
+  a genuinely separable non-blocking issue joins its next thematic batch
+  cutover immediately — never parked.
+- **Skills are living documents — update them in the SAME change (R1).** Any
+  code change that affects a skill, doc, comment, or memory claim updates that
+  document in the same commit. A doc-vs-reality divergence discovered by ANY
+  means is an incident: fix the stale claim in the same change, and sweep every
+  sibling doc/skill/comment carrying the same false claim. Never ship a code
+  change that leaves a skill describing the old behavior.
 - **Spike on a check bed — never guess.** Any uncertainty about behavior,
   assumptions, or a fix's effect is settled by running a spike on a disposable
   check bed (the \`charly check\` beds) and verifying on a live system — never
@@ -117,6 +129,13 @@ function buildRulesBlock(): string {
 - \`subagent\` — delegate exploration, verification, and long-running
   investigation to keep the main context clean. Use \`subagent_wait\` to
   collect results.
+- **Use subagents and fabric whenever possible.** Delegate heavy exploration,
+  log archaeology, repo-wide greps, and long-running verification to a
+  subagent that returns only a concise verdict + evidence paths. Use
+  \`fabric_exec\` to batch independent tool calls into one program and to
+  keep the main context small. The main agent plans, decides, and lands; the
+  subagent digs. Never burn the main context on raw logs or repeated
+  diagnostics.
 - \`gh_pr_status\` — the PR verification primitive: \`check\` before
   opening/updating a PR, \`watch\` after pushing (its completion IS the wake).
   Never guess a validator verdict.

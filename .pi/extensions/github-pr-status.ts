@@ -98,10 +98,16 @@ async function latestVerdict(repo: string, number: number): Promise<string> {
     // emits raw unquoted markdown (not valid JSON), which would always throw
     // and leave the verdict permanently "unknown". Fetch the JSON array and
     // scan the bodies in JS instead.
-    const comments = await ghJson(["api", `repos/${repo}/issues/${number}/comments?per_page=5`]);
+    // The issue-comments API returns ascending by default and IGNORES
+    // direction=desc, so per_page=5 alone would fetch the OLDEST 5 comments
+    // and scan backward through them — reporting a stale BLOCK verdict even
+    // when the latest verdict is PASS. Fetch a full page and scan the LAST 5.
+    const comments = await ghJson(["api", `repos/${repo}/issues/${number}/comments?per_page=100`]);
     const texts: string[] = Array.isArray(comments) ? comments.map((c: any) => c.body ?? "") : [];
-    for (let i = texts.length - 1; i >= 0; i--) {
-      const m = texts[i].match(/Verdict:\s*(PASS|BLOCK)/);
+    // Scan the NEWEST 5 comments (the tail of the ascending page) backward.
+    const tail = texts.slice(-5);
+    for (let i = tail.length - 1; i >= 0; i--) {
+      const m = tail[i].match(/Verdict:\s*(PASS|BLOCK)/);
       if (m) return m[1];
     }
     return "no-verdict-yet";

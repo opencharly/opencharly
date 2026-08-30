@@ -16,8 +16,9 @@ harnesses get from their own plugin systems: a **hooks system**.
 | `settings.json` | Registers the project extension and the project pi packages. |
 | `fabric.json` | pi-fabric config: `capture.keepVisible` re-exposes the system-prompt-advertised extension tools (`todo`, `create_goal`/`get_goal`/`update_goal`, `subagent`/`subagent_wait`, `gh_pr_status`, `umbrella_load_skills`, `memory_*`, `scratchpad`, `web_search`/`fetch_content`, `team_*`) as bare-name callable tools in full-code mode — without it, fabric hides captured extension tools from the model's active set and bare-name calls fail with "Tool not found". |
 | `extensions/umbrella-gates.ts` | Pi's equivalent of the `.reasonix`/kimi `PreToolUse(Bash)` wiring of `.claude/hooks/pre-commit-gate.sh` + `pre-push-gate.sh`. Intercepts every `bash` tool call and blocks commands the gates reject (force-push, direct push to `main`, `--no-verify` commit bypass, untokenizable commits). Also injects the umbrella rulebook into the system prompt every turn and provides `umbrella_load_skills`. |
+| `extensions/umbrella-verify.ts` | Charly-specific verification tools: `umbrella_verify` (the R7 pinning gate, `task verify`) and `umbrella_sync_status` (`task map` pin/sync state) — thin wrappers over the canonical scripts with bounded, structured output. |
 | `prompts/` | Slash prompts: `sync` (gitlink sync flow), `pr-body`, `rulebook`, `skill`, `subagent-review`, `subagent-verify`. |
-| `subagents/umbrella-agents.json` | reviewer / worker / validator sub-agents, scoped to the umbrella's policies. |
+| `agents/` | Project sub-agents (markdown, the pi-subagents format): `reviewer` / `worker` / `validator` scoped to the umbrella's policies, plus the pi-claude-marketplace agents. Custom agents declare NO `tools` field so children inherit the full default tool set (the `--tools` allowlist path drops core tools in children — RCA'd 2026-08-30). |
 
 ## Project packages
 
@@ -27,15 +28,15 @@ startup after the project is trusted):
 | Package | Version | Purpose |
 |---|---|---|
 | `pi-mcp-adapter` | 2.31.0 | MCP (Model Context Protocol) adapter extension for Pi. |
-| `pi-subagents` | 0.51.0 | Single-agent delegation and scripted multi-agent workflows. |
-| `@narumitw/pi-plan-mode` | 0.49.3 | Codex-like read-only `/plan` collaboration mode. |
-| `@juicesharp/rpiv-todo` | 2.6.2 | A todo list for the model, rendered as a live overlay that survives `/reload` and compaction. |
+| `pi-subagents` | 0.60.0 | Single-agent delegation and scripted multi-agent workflows. |
+| `@narumitw/pi-plan-mode` | 0.56.0 | Codex-like read-only `/plan` collaboration mode. |
+| `@juicesharp/rpiv-todo` | 2.8.0 | A todo list for the model, rendered as a live overlay that survives `/reload` and compaction. |
 | `pi-memory` | 0.4.2 | Memory with qmd-powered semantic search across daily logs, long-term memory, and scratchpad. |
 | `pi-ollama-cloud` | 0.9.0 | Ollama Cloud provider plugin (also installed at the user level). |
 | `pi-web-access` | 0.27.0 | Web search, content extraction, and video understanding (`web_search`, `source_check`, `fetch_content`). |
 | `pi-fabric` | 0.70.0 | Programmable tool/agent runtime (`fabric_exec`). |
-| `pi-claude-marketplace` | 0.18.0 | Bridges Claude plugin marketplaces into pi; `/claude:plugin` command + `.pi/claude-plugins.json` desired state. |
-| `pi-web-ui` | 0.50.0 | Browser cockpit for pi (`/webui` command — chat UI, files, terminal, model management). |
+| `pi-claude-marketplace` | 0.18.1 | Bridges Claude plugin marketplaces into pi; `/claude:plugin` command + `.pi/claude-plugins.json` desired state. |
+| `pi-web-ui` | 0.54.0 | Browser cockpit for pi (`/webui` command — chat UI, files, terminal, model management). |
 | `pi-goal` | 0.1.7 | Persistent autonomous goals (`/goal` command, `create_goal` tool, `pi-goal-writer` skill). |
 
 Versions are pinned for reproducibility; `pi update --extensions` skips pinned

@@ -2,19 +2,40 @@
   "extensions": [
     "./extensions/umbrella-gates.ts",
     "./extensions/github-pr-status.ts",
-    "./extensions/loop-guard.ts"
+    "./extensions/loop-guard.ts",
+    "./extensions/umbrella-verify.ts"
   ],
+  "subagents": {
+    "agentOverrides": {
+      "reviewer": {
+        "description": "Umbrella code reviewer — policy B pin equality, clean submodules, merged-ref-only pins",
+        "systemPromptMode": "replace",
+        "defaultContext": "fresh",
+        "tools": "inherit",
+        "subagentOnlyExtensions": ["./.pi/extensions/github-pr-status.ts"],
+        "systemPrompt": "You are a thorough code reviewer for the OpenCharly umbrella repo. Review the provided code, diff, or plan for correctness against the umbrella rulebook (AGENTS.md): policy B pin equality (distro-* must equal charly's own gitlinks; sdk/spec/docs/marketplace follow their own default-branch HEAD), clean submodules, only merged refs pinned, no edits inside submodules, rulebook-compliance table complete, attribution tier matching evidence. Return concise evidence-backed findings with file/line references. Do not modify files unless explicitly asked. Never suggest workarounds.\n\nTool discipline (RCA'd 2026-08-30): verify your tool set FIRST — if you have no execution tools, report the blocker immediately instead of probing tool names. Keep every tool call SHORT. On an output-token-limit failure NEVER retry the same call — change approach."
+      },
+      "worker": {
+        "description": "Umbrella implementation worker — verify-pins gate, no scope creep",
+        "systemPromptMode": "replace",
+        "defaultContext": "fork",
+        "tools": "inherit",
+        "subagentOnlyExtensions": ["./.pi/extensions/github-pr-status.ts"],
+        "systemPrompt": "You are an implementation worker for the OpenCharly umbrella repo. Implement the assigned task following the umbrella rulebook (AGENTS.md). Load relevant skills before starting (umbrella_load_skills). Run the changed path live: bash scripts/verify-pins.sh must pass on the final tree. Do not change scope or defer work.\n\nTool discipline (RCA'd 2026-08-30): verify your tool set FIRST — if you have no execution tools (no bash/pi.bash/fabric_exec), report the blocker immediately instead of probing tool names for turns. Keep every tool call SHORT (single bounded command; prefer pi.grep/pi.read over long bash strings). On an output-token-limit failure NEVER retry the same call — change approach. Return a concise verdict + evidence paths, never raw logs."
+      }
+    }
+  },
   "packages": [
     "npm:pi-mcp-adapter@2.31.0",
-    "npm:pi-subagents@0.51.0",
-    "npm:@narumitw/pi-plan-mode@0.49.3",
-    "npm:@juicesharp/rpiv-todo@2.6.2",
+    "npm:pi-subagents@0.60.0",
+    "npm:@narumitw/pi-plan-mode@0.56.0",
+    "npm:@juicesharp/rpiv-todo@2.8.0",
     "npm:pi-memory@0.4.2",
     "npm:pi-ollama-cloud@0.9.0",
     "npm:pi-web-access@0.27.0",
     "npm:pi-fabric@0.70.0",
-    "npm:pi-claude-marketplace@0.18.0",
-    "npm:pi-web-ui@0.50.0",
+    "npm:pi-claude-marketplace@0.18.1",
+    "npm:pi-web-ui@0.54.0",
     "git:github.com/Michaelliv/pi-goal@v0.1.7",
     "git:github.com/giladbarnea/pi-simple-team@v1.0.9"
   ]
