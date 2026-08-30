@@ -1532,3 +1532,31 @@
 	path = plugin-mise
 	url = https://github.com/opencharly/plugin-mise.git
 	branch = main
+[submodule "gst-wayland-display"]
+	path = gst-wayland-display
+	url = https://github.com/opencharly/gst-wayland-display.git
+	branch = stable
+[submodule "charly-streamer"]
+	path = charly-streamer
+	url = https://github.com/opencharly/charly-streamer.git
+	branch = main
+[submodule "plugin-cstream"]
+	path = plugin-cstream
+	url = https://github.com/opencharly/plugin-cstream.git
+	branch = main
+[submodule "layer-gst-wayland-display"]
+	path = layer-gst-wayland-display
+	url = https://github.com/opencharly/layer-gst-wayland-display.git
+	branch = main
+[submodule "pod-cstream"]
+	path = pod-cstream
+	url = https://github.com/opencharly/pod-cstream.git
+	branch = main
+[submodule "pod-hyprland"]
+	path = pod-hyprland
+	url = https://github.com/opencharly/pod-hyprland.git
+	branch = main
+[submodule "layer-cstream-desktop"]
+	path = layer-cstream-desktop
+	url = https://github.com/opencharly/layer-cstream-desktop.git
+	branch = main
