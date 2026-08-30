@@ -139,3 +139,20 @@ against the provider (not guessed from catalog values):
 - Keep tool calls SHORT and delegate heavy exploration to subagents, so a
   single response stays within the 65536 budget. This is the only lever that
   prevents truncation without reducing the model's capability.
+
+**Verified semantics (pi -p probes, 2026-08-30):**
+- `max_tokens` is the TOTAL cap (thinking + answer), not the answer budget.
+  Proven: `maxTokens=49152` truncated at exactly 49152 output tokens;
+  `maxTokens=65536` truncated at exactly 65536. Setting it lower gives
+  LESS total room — truncation happens sooner, not later. (The
+  "maxTokens = 65536 - thinking" formula would only be correct for
+  Anthropic-style providers where max_tokens is the answer budget and
+  thinking is additional; ollama-cloud's openai-completions adapter sends
+  max_tokens as the total.)
+- The thinking budget (16384 for high) is NOT hard-enforced by the provider:
+  a probe generated ~60K thinking against the 16384 budget, leaving ~5K for
+  the answer. The harness's `resolveClampedThinkingBudget` clamps thinking
+  to leave only 1024 answer tokens — insufficient for tool calls. This is
+  the harness design gap.
+- Practical consequence: with high thinking, the answer room is ~5K tokens
+  (~20K chars). Tool calls must stay under that, or the response truncates.
