@@ -29,6 +29,7 @@ living documents, not static references. The running system is ground truth, nev
   (`scripts/check-harness-parity.sh`), and keep their claims true to the code they wire.
 
 
+<<<<<<< HEAD
 # Tool-usage discipline (RCA'd 2026-08-30, from live failures)
 
 ## subagent — verify the child can actually execute BEFORE delegating
@@ -71,6 +72,8 @@ living documents, not static references. The running system is ground truth, nev
   sequential when the output determines the next action.
 
 
+=======
+>>>>>>> origin/main
 # Loop-fix discipline (RCA'd 2026-08-30)
 
 The "output token limit" rejection is a MODEL OUTPUT-CAP failure, not a tool
