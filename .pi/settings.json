@@ -1,4 +1,7 @@
 {
+  "extensions": [
+    "./extensions/github-pr-status.ts"
+  ],
   "packages": [
     "npm:pi-mcp-adapter@2.31.0",
     "npm:pi-subagents@0.60.0",
