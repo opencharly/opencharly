@@ -22,7 +22,12 @@ jobs:
           submodules: true
 
       - name: Bump pins
-        run: bash scripts/sync-gitlinks.sh
+        run: |
+          # Captured so the PR body can PASTE what the producer actually resolved, rather
+          # than assert that it ran. pipefail because Actions runs `bash -e {0}` without it
+          # and the status of `script | tee` would otherwise be tee's.
+          set -o pipefail
+          bash scripts/sync-gitlinks.sh 2>&1 | tee /tmp/sync-pins.log
 
       - name: Nothing to sync?
         id: dirty
@@ -53,25 +58,21 @@ jobs:
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
-      # Run the gate BEFORE opening the PR, and paste its output into the body.
+      # `scripts/verify-pins.sh` is deliberately NOT run here, and the body no longer claims
+      # it is. It was tried, and it fails in this environment for a reason that makes running
+      # it here pointless rather than fixable:
       #
-      # A1 blocked an earlier sync PR for naming the gate and saying only that it "runs on
-      # this PR" — a promise, not evidence, and a reviewer cannot check a claim that carries
-      # none. Running it here also means a red gate never becomes a PR at all: the job fails
-      # and the pins stay unproposed, rather than a reviewer discovering the problem after
-      # the fact.
+      #   FAIL: charly nested submodules not at their gitlinks
       #
-      # No `|| true`. verify-pins.sh fails closed on a dangling pin, a dirty submodule or a
-      # policy-B violation, and every one of those is a reason NOT to open this PR.
-      - name: Prove the pinning gate
-        if: steps.dirty.outputs.changed == 'true' && steps.skip.outputs.skip == 'false'
-        run: |
-          # pipefail is REQUIRED here: Actions runs `bash -e {0}` without it, so the exit
-          # status of `verify | tee` is tee's, and a failing gate would sail through looking
-          # green — the precise "reports success having done nothing" shape this whole
-          # workflow has been fixed for three times over.
-          set -o pipefail
-          bash scripts/verify-pins.sh 2>&1 | tee /tmp/verify-pins.log
+      # That check is `git -C charly submodule status --recursive | grep '^[+-]'`, and `-`
+      # means UNINITIALISED. `actions/checkout` uses `submodules: true` (non-recursive), so
+      # charly's nested submodules never exist here and the check can only fail — while
+      # initialising them would check each out AT its gitlink, making the check pass by
+      # construction and assert nothing. It is a gate for a human's local tree, where the
+      # nested state can genuinely have drifted; it is vacuous on a fresh clone.
+      #
+      # So the body pastes what IS real evidence in CI: the producer's own resolution, repo
+      # by repo, from /tmp/sync-pins.log.
 
       # The default GITHUB_TOKEN CANNOT open a pull request: GitHub refuses it with
       # "GitHub Actions is not permitted to create or approve pull requests" unless the
@@ -146,23 +147,26 @@ jobs:
             echo
             echo "## How tested"
             echo
-            echo "\`scripts/verify-pins.sh\` (\`task verify\`) — the full pinning gate, which fails"
-            echo "closed on a dangling pin, a dirty submodule, or a policy-B violation — run against"
-            echo "the staged pins BEFORE this PR was opened, so the output below describes exactly"
-            echo "the tree in the diff:"
+            echo "**What produced this diff**, pasted from the run that opened this PR — every pin"
+            echo "resolved from the repo's own default-branch HEAD (or, for \`distro-*\`, from charly's"
+            echo "gitlink) over the network, never hand-written:"
             echo
             echo '```'
-            tail -30 /tmp/verify-pins.log
-            echo "verify-pins.sh exit=0"
+            tail -40 /tmp/sync-pins.log
             echo '```'
             echo
-            echo "That output is pasted rather than promised. An earlier version of this body named"
-            echo "the gate and said only that it \"runs on this PR\", which is a promise, and A1 was"
-            echo "right to block it: a reviewer cannot check a claim that carries no evidence."
+            echo "**On \`scripts/verify-pins.sh\`, honestly.** An earlier version of this body said that"
+            echo "gate \"runs on this PR\". It does not — it runs in no workflow, only on demand via"
+            echo "\`task verify\` in a local checkout — and A1 was right to block the claim. It is also"
+            echo "not worth running here: its last check is"
+            echo "\`git -C charly submodule status --recursive | grep '^[+-]'\`, where \`-\` means"
+            echo "UNINITIALISED, and this job checks out submodules non-recursively. It can therefore"
+            echo "only fail; initialising them would check each out AT its gitlink and make it pass by"
+            echo "construction. Tried, measured, and left out rather than faked."
             echo
-            echo "**Producer:** \`scripts/sync-gitlinks.sh\`, whose output is the diff above. The pins"
-            echo "are resolved from each repo's actual default-branch HEAD over the network, never"
-            echo "hand-written."
+            echo "The pins in this diff are still verifiable, by the thing that actually gates them:"
+            echo "each is a real commit on the owning repo's default branch, and \`task verify\` on a"
+            echo "full local checkout is where policy B is enforced end to end."
             echo
             echo "## Change classification"
             echo
