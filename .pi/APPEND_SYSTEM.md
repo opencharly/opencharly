@@ -28,3 +28,29 @@ The parent plans, decides, and lands. Children dig, run, and prove. These are NO
 - **A child's failure/verdict still triggers R1 in the parent**: RCA before acting on delegated output; never resubmit identical diagnostics.
 - **Verify before delegating** (repeat of the rule above, because it is the most common delegation failure): check the child's resolved tool set first — a child without bash/edit/write cannot run a bed or land a fix.
 - Prefer `workflowScript` (runs.all / runs.lanes / runs.host) for structured multi-child work; a single `subagent` call for one child. Keep one writer per cwd/worktree.
+
+# Don't pile up unfinished work — close loops before opening new ones
+
+Every open unit of work (a PR awaiting a validator, a bed run in flight, a fix
+started, a finding recorded) must reach a terminal state before new work starts:
+- Check EVERY open PR's validator status with gh_pr_status on every touch and
+  fix any BLOCK immediately — never let blocked PRs accumulate while starting
+  new changes.
+- Finish a started fix (evidence, PR, re-verify) before opening the next one.
+- Before finalizing a PR, ALWAYS catch up with upstream main: git fetch origin
+  main + diff against CURRENT origin/main — never against the snapshot you
+  branched from (a stale base produces no-op/duplicate PRs and wasted validator
+  rounds).
+- A background run (bed, watch) is owned until its verdict is recorded; check it
+  to completion before declaring progress.
+
+# Charly validation status — use the charly_status tool, via a subagent
+
+extensions.charly_status is the sanctioned surface for status of charly
+check beds, image builds, and VM starts — the gh_pr_status analogue:
+- NEVER answer "is the bed running / did the image build / did the VM start"
+  with ad-hoc ps, tail .check/..., podman images, or virsh domstate shell
+  commands (R4). Use charly_status.
+- charly_status check = one-shot structured status; charly_status watch <bed> =
+  poll until the bed concludes — run watch in a BACKGROUND SUBAGENT
+  (check-bed-runner / deploy-verifier / worker); its completion IS the wake.
