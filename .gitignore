@@ -22,3 +22,7 @@
 
 # Claude Code runtime lock (session-local, never committed)
 .claude/scheduled_tasks.lock
+
+# plans — working docs, never committed; directory kept via .gitkeep
+plan/*
+!plan/.gitkeep
