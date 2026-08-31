@@ -18,14 +18,25 @@ The org-wide `charly/pr-validator` verdicts land on GitHub Actions, which has NO
 - Long-running waits belong to a child, not the parent. Use `async: true` + `subagent_wait`; never sleep-poll.
 - Keep tool calls short; on an output-token-limit failure NEVER retry the same call — change approach.
 
+# Delegation discipline — heavy work goes to children, ALWAYS
+
+The parent plans, decides, and lands. Children dig, run, and prove. These are NOT optional when the work matches:
+
+- **Long-running or heavy commands NEVER run in the parent's foreground bash.** This includes `charly check run <bed>` (image builds + pod deploys can take 10-40+ min), full `task verify`/test suites, regeneration runs (`marketplace generate`, `docs generate`), log archaeology, repo-wide greps, and any build loop. Delegate them to a child (or `runs.host` for a single operator-owned command) and let the child return a concise verdict + evidence paths.
+- **Bed runs use the executor agents**: drive `charly check run <bed>` from a child with verified tools (read/grep/find/ls/bash/edit/write), capture the run logs, and return the step matrix (passed/failed/skipped) for the parent's ledger — never block the parent on the bed itself.
+- **fabric_exec is the batch surface**: batch independent `pi.*` calls into ONE fabric_exec program (`Promise.all` for parallel work, sequential awaits for ordered work); never one tool call per fabric_exec. Coalesce edits on one file into one `pi.edit({edits:[...]})`.
+- **A child's failure/verdict still triggers R1 in the parent**: RCA before acting on delegated output; never resubmit identical diagnostics.
+- **Verify before delegating** (repeat of the rule above, because it is the most common delegation failure): check the child's resolved tool set first — a child without bash/edit/write cannot run a bed or land a fix.
+- Prefer `workflowScript` (runs.all / runs.lanes / runs.host) for structured multi-child work; a single `subagent` call for one child. Keep one writer per cwd/worktree.
+
 # Goal completion discipline — merged-upstream and finished todos are MANDATORY parts of every goal
 
 A goal is NOT complete when its artifacts are validator-green, its PRs are "ready",
 or its findings are recorded:
 - **Merged-upstream check is mandatory.** Every goal that opens or updates PRs must
   include driving them to MERGED as part of its objective: once the org validator
-  PASSES, arm the repo's own native auto-merge (`gh pr merge --auto --squash` after
-  `gh pr update-branch` for any BEHIND PR) and let GitHub merge — never self-merge,
+  PASSES, arm the repo's own native auto-merge (gh pr merge --auto --squash after
+  gh pr update-branch for any BEHIND PR) and let GitHub merge — never self-merge,
   but never declare completion while any of the goal's PRs is still open. The
   completion audit must list each PR and its merged state.
 - **Todo completion is mandatory.** Where a todo list is used, every item must be
