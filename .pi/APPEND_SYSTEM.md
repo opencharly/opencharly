@@ -18,16 +18,27 @@ The org-wide `charly/pr-validator` verdicts land on GitHub Actions, which has NO
 - Long-running waits belong to a child, not the parent. Use `async: true` + `subagent_wait`; never sleep-poll.
 - Keep tool calls short; on an output-token-limit failure NEVER retry the same call — change approach.
 
+# Delegation discipline — heavy work goes to children, ALWAYS
+
+The parent plans, decides, and lands. Children dig, run, and prove. These are NOT optional when the work matches:
+
+- **Long-running or heavy commands NEVER run in the parent's foreground bash.** This includes `charly check run <bed>` (image builds + pod deploys can take 10-40+ min), full `task verify`/test suites, regeneration runs (`marketplace generate`, `docs generate`), log archaeology, repo-wide greps, and any build loop. Delegate them to a child (or `runs.host` for a single operator-owned command) and let the child return a concise verdict + evidence paths.
+- **Bed runs use the executor agents**: drive `charly check run <bed>` from a child with verified tools (read/grep/find/ls/bash/edit/write), capture the run logs, and return the step matrix (passed/failed/skipped) for the parent's ledger — never block the parent on the bed itself.
+- **fabric_exec is the batch surface**: batch independent `pi.*` calls into ONE fabric_exec program (`Promise.all` for parallel work, sequential awaits for ordered work); never one tool call per fabric_exec. Coalesce edits on one file into one `pi.edit({edits:[...]})`.
+- **A child's failure/verdict still triggers R1 in the parent**: RCA before acting on delegated output; never resubmit identical diagnostics.
+- **Verify before delegating** (repeat of the rule above, because it is the most common delegation failure): check the child's resolved tool set first — a child without bash/edit/write cannot run a bed or land a fix.
+- Prefer `workflowScript` (runs.all / runs.lanes / runs.host) for structured multi-child work; a single `subagent` call for one child. Keep one writer per cwd/worktree.
+
 # Don't pile up unfinished work — close loops before opening new ones
 
 Every open unit of work (a PR awaiting a validator, a bed run in flight, a fix
 started, a finding recorded) must reach a terminal state before new work starts:
-- Check EVERY open PR's validator status with `gh_pr_status` on every touch and
+- Check EVERY open PR's validator status with gh_pr_status on every touch and
   fix any BLOCK immediately — never let blocked PRs accumulate while starting
   new changes.
 - Finish a started fix (evidence, PR, re-verify) before opening the next one.
-- Before finalizing a PR, ALWAYS catch up with upstream main: `git fetch origin
-  main` + diff against CURRENT origin/main — never against the snapshot you
+- Before finalizing a PR, ALWAYS catch up with upstream main: git fetch origin
+  main + diff against CURRENT origin/main — never against the snapshot you
   branched from (a stale base produces no-op/duplicate PRs and wasted validator
   rounds).
 - A background run (bed, watch) is owned until its verdict is recorded; check it
@@ -35,17 +46,11 @@ started, a finding recorded) must reach a terminal state before new work starts:
 
 # Charly validation status — use the charly_status tool, via a subagent
 
-`extensions.charly_status` is the sanctioned surface for status of charly
-check beds, image builds, and VM starts — the gh_pr_status analogue for charly
-validation:
+extensions.charly_status is the sanctioned surface for status of charly
+check beds, image builds, and VM starts — the gh_pr_status analogue:
 - NEVER answer "is the bed running / did the image build / did the VM start"
-  with ad-hoc `ps`, `tail .check/...`, `podman images`, or `virsh domstate`
-  shell commands (R4 — arcane and error-prone). Use `charly_status`.
-- `charly_status` `check` = one-shot structured status (bed state/phases/step
-  matrix/verdict; image local presence; VM domain state).
-- `charly_status` `watch <bed>` = poll until the bed run concludes — run it in a
-  BACKGROUND SUBAGENT (check-bed-runner / deploy-verifier / worker) the way
-  `gh_pr_status watch` is run; its completion IS the wake. Never sleep-poll in
-  the parent.
-- Running a bed is `charly check run <bed>` via a subagent; stopping is
-  `charly check stop <bed>` (clears the stale lock) — also via a subagent.
+  with ad-hoc ps, tail .check/..., podman images, or virsh domstate shell
+  commands (R4). Use charly_status.
+- charly_status check = one-shot structured status; charly_status watch <bed> =
+  poll until the bed concludes — run watch in a BACKGROUND SUBAGENT
+  (check-bed-runner / deploy-verifier / worker); its completion IS the wake.
