@@ -1560,3 +1560,7 @@
 	path = layer-cstream-desktop
 	url = https://github.com/opencharly/layer-cstream-desktop.git
 	branch = main
+[submodule "plugin-quickshell"]
+	path = plugin-quickshell
+	url = https://github.com/opencharly/plugin-quickshell.git
+	branch = main
