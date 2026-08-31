@@ -17,3 +17,25 @@ The org-wide `charly/pr-validator` verdicts land on GitHub Actions, which has NO
 - Verify a child can execute BEFORE delegating: confirm the child's resolved tools include what the task needs (read/grep/find/ls/bash/edit/write/gh_pr_status). A child without tools burns its whole turn probing tool names — report the blocker instead.
 - Long-running waits belong to a child, not the parent. Use `async: true` + `subagent_wait`; never sleep-poll.
 - Keep tool calls short; on an output-token-limit failure NEVER retry the same call — change approach.
+
+# Goal completion discipline — merged-upstream and finished todos are MANDATORY parts of every goal
+
+A goal is NOT complete when its artifacts are validator-green, its PRs are "ready",
+or its findings are recorded:
+- **Merged-upstream check is mandatory.** Every goal that opens or updates PRs must
+  include driving them to MERGED as part of its objective: once the org validator
+  PASSES, arm the repo's own native auto-merge (`gh pr merge --auto --squash` after
+  `gh pr update-branch` for any BEHIND PR) and let GitHub merge — never self-merge,
+  but never declare completion while any of the goal's PRs is still open. The
+  completion audit must list each PR and its merged state.
+- **Todo completion is mandatory.** Where a todo list is used, every item must be
+  completed (or explicitly deleted-with-reason) before completion is declared;
+  an in_progress/pending item means the goal is not done.
+- **Goals are living contracts — update them when new issues surface.** When work
+  encounters a NEW issue (a validator BLOCK, a merge/arming failure, a new
+  divergence, a follow-up batch, a merge that did not happen), the goal objective
+  must be REGULARLY UPDATED to fold that issue in — on discovery, not at the end.
+  Never silently drop discovered work into an unnamed "follow-up", and never treat
+  a recorded residual as a reason to stop work that is still actionable. Only
+  genuinely external/operator-owned dependencies (documented with the exact
+  repo + the required human action) may be parked.
