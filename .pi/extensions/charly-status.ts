@@ -66,9 +66,30 @@ function phaseSummary(logText: string): { phase: string; verdict: string; detail
   return out;
 }
 
+
+/** Locate the .check/<bed> tree for a bed: explicit projectDir > cwd > the
+ * umbrella's known box-project roots (charly/box/*). The bed runs under its
+ * owning project dir, so the DEFAULT cwd almost never holds it — the search is
+ * what makes the tool usable without the caller knowing the layout (R4). */
+async function locateBedCheck(projectDir: string | undefined, bed: string): Promise<string | null> {
+  const cwd = projectDir && projectDir !== "" ? projectDir : process.cwd();
+  const candidates: string[] = [join(cwd, ".check", bed)];
+  try {
+    const boxRoots = await readdir(join(cwd, "charly", "box"));
+    for (const d of boxRoots) candidates.push(join(cwd, "charly", "box", d, ".check", bed));
+  } catch {}
+  for (const c of candidates) {
+    try {
+      await stat(c);
+      return c;
+    } catch {}
+  }
+  return null;
+}
+
 /** The bed report: state + phases + step matrix, from charly's OWN .check tree. */
 async function bedStatus(projectDir: string, bed: string): Promise<string> {
-  const checkDir = join(projectDir, ".check", bed);
+  const checkDir = (await locateBedCheck(projectDir || undefined, bed)) || join(process.cwd(), ".check", bed);
   const run = await newestRunDir(checkDir);
   const locked = await bedLocked(checkDir);
   if (!run) {
