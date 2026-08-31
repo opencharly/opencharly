@@ -26,8 +26,14 @@ jobs:
 
       - name: Nothing to sync?
         id: dirty
+        # Compare against HEAD, not the index. `git diff` alone diffs the WORKTREE
+        # against the INDEX, and scripts/sync-gitlinks.sh `git add`s every gitlink it
+        # bumps — so a sync that changed something left nothing UNSTAGED and this gate
+        # read changed=false every time. The workflow therefore ran green and opened no
+        # PR while pins drifted, which is why every landed sync has been hand-made.
+        # `git diff --quiet HEAD` sees staged and unstaged alike.
         run: |
-          if git diff --quiet; then
+          if git diff --quiet HEAD; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
