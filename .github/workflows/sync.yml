@@ -53,10 +53,45 @@ jobs:
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
+      # The default GITHUB_TOKEN CANNOT open a pull request: GitHub refuses it with
+      # "GitHub Actions is not permitted to create or approve pull requests" unless the
+      # org/repo toggle `can_approve_pull_request_reviews` is on — and that toggle also
+      # lets any workflow APPROVE pull requests, which against this org's auto-merge-on-PASS
+      # flow is a review-bypass surface. marketplace's refresh.yml says so in as many words:
+      # "Do NOT 'fix' it by enabling can_approve_pull_request_reviews".
+      #
+      # So mint a short-lived GitHub App token instead, exactly as refresh.yml already does —
+      # same SHA-pinned action, same org secrets, same fallback.
+      - name: Create bot token (GitHub App)
+        id: bot-token-app
+        if: steps.dirty.outputs.changed == 'true' && steps.skip.outputs.skip == 'false'
+        continue-on-error: true
+        uses: actions/create-github-app-token@d72941d797fd3113feb6b93fd0dec494b13a2547
+        with:
+          app-id: ${{ secrets.CHARLY_AUTO_MERGE_APP_ID }}
+          private-key: ${{ secrets.CHARLY_AUTO_MERGE_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+
+      - name: Use fallback bot token
+        id: bot-token-pat
+        if: steps.dirty.outputs.changed == 'true' && steps.skip.outputs.skip == 'false'
+        run: echo "token=${{ secrets.CHARLY_BOT_TOKEN }}" >> "$GITHUB_OUTPUT"
+
+      - name: Require a bot token
+        if: steps.dirty.outputs.changed == 'true' && steps.skip.outputs.skip == 'false'
+        env:
+          APP_TOKEN: ${{ steps.bot-token-app.outputs.token }}
+          ALT_TOKEN: ${{ steps.bot-token-pat.outputs.token }}
+        run: |
+          if [ -z "$APP_TOKEN" ] && [ -z "$ALT_TOKEN" ]; then
+            echo "::error::No bot token configured: set org secrets CHARLY_AUTO_MERGE_APP_ID + CHARLY_AUTO_MERGE_PRIVATE_KEY (GitHub App), or CHARLY_BOT_TOKEN."
+            exit 2
+          fi
+
       - name: Open sync PR
         if: steps.dirty.outputs.changed == 'true' && steps.skip.outputs.skip == 'false'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.bot-token-app.outputs.token || steps.bot-token-pat.outputs.token }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
