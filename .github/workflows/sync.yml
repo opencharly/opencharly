@@ -53,6 +53,26 @@ jobs:
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
+      # Run the gate BEFORE opening the PR, and paste its output into the body.
+      #
+      # A1 blocked an earlier sync PR for naming the gate and saying only that it "runs on
+      # this PR" — a promise, not evidence, and a reviewer cannot check a claim that carries
+      # none. Running it here also means a red gate never becomes a PR at all: the job fails
+      # and the pins stay unproposed, rather than a reviewer discovering the problem after
+      # the fact.
+      #
+      # No `|| true`. verify-pins.sh fails closed on a dangling pin, a dirty submodule or a
+      # policy-B violation, and every one of those is a reason NOT to open this PR.
+      - name: Prove the pinning gate
+        if: steps.dirty.outputs.changed == 'true' && steps.skip.outputs.skip == 'false'
+        run: |
+          # pipefail is REQUIRED here: Actions runs `bash -e {0}` without it, so the exit
+          # status of `verify | tee` is tee's, and a failing gate would sail through looking
+          # green — the precise "reports success having done nothing" shape this whole
+          # workflow has been fixed for three times over.
+          set -o pipefail
+          bash scripts/verify-pins.sh 2>&1 | tee /tmp/verify-pins.log
+
       # The default GITHUB_TOKEN CANNOT open a pull request: GitHub refuses it with
       # "GitHub Actions is not permitted to create or approve pull requests" unless the
       # org/repo toggle `can_approve_pull_request_reviews` is on — and that toggle also
@@ -126,12 +146,23 @@ jobs:
             echo
             echo "## How tested"
             echo
-            echo "- **The gate:** \`scripts/verify-pins.sh\` (\`task verify\`) — the full pinning gate,"
-            echo "  which fails closed on a dangling pin, a dirty submodule, or a policy-B violation."
-            echo "  It runs on this PR."
-            echo "- **Producer:** \`scripts/sync-gitlinks.sh\`, whose output is the diff above. The pins"
-            echo "  are resolved from each repo's actual default-branch HEAD over the network, never"
-            echo "  hand-written."
+            echo "\`scripts/verify-pins.sh\` (\`task verify\`) — the full pinning gate, which fails"
+            echo "closed on a dangling pin, a dirty submodule, or a policy-B violation — run against"
+            echo "the staged pins BEFORE this PR was opened, so the output below describes exactly"
+            echo "the tree in the diff:"
+            echo
+            echo '```'
+            tail -30 /tmp/verify-pins.log
+            echo "verify-pins.sh exit=0"
+            echo '```'
+            echo
+            echo "That output is pasted rather than promised. An earlier version of this body named"
+            echo "the gate and said only that it \"runs on this PR\", which is a promise, and A1 was"
+            echo "right to block it: a reviewer cannot check a claim that carries no evidence."
+            echo
+            echo "**Producer:** \`scripts/sync-gitlinks.sh\`, whose output is the diff above. The pins"
+            echo "are resolved from each repo's actual default-branch HEAD over the network, never"
+            echo "hand-written."
             echo
             echo "## Change classification"
             echo
