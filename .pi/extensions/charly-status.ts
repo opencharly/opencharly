@@ -127,8 +127,7 @@ async function bedStatus(projectDir: string, bed: string): Promise<string> {
 
 /** Image presence + newest build verdict, via read-only podman query + build log tail. */
 async function imageStatus(image: string): Promise<string> {
-  let ref = image;
-  let lines: string[] = [`image: ${image}`];
+  const lines: string[] = [`image: ${image}`];
   try {
     const { stdout } = await execFileP("podman", ["images", "--format", "{{.Repository}}:{{.Tag}}"], {
       maxBuffer: 8 * 1024 * 1024,
