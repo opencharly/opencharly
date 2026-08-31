@@ -62,7 +62,14 @@ load ALL their skills before doing anything.
 | Agent control plane (`charly agent`, sessions, MCP routing) | `/charly-automation:agent` |
 | Host command aliases / wrapper scripts | `/charly-automation:alias` |
 | Pinning / gitlink policy / `task sync` / `task verify` / `scripts/sync-gitlinks.sh` / `scripts/verify-pins.sh` | `/charly-internals:git-workflow` |
+| R10 beds / check verdicts (`charly check run <bed>`, `.check/<bed>/<calver>/summary.yml`, deploy verification) | `/charly-internals:agents` (check-bed-runner / deploy-verifier) |
+| Docs / marketplace regeneration (`docs generate`, `marketplace generate`, pin bumps, corpus drift) | `/charly-build:docs` |
+| Skill maintenance / marketplace corpus authoring | `/charly-internals:skills` |
 <!-- END GENERATED SKILL DISPATCHER -->
+
+Load a skill's SKILL.md by path ONLY when its trigger matches — never pre-load,
+never load-all. The available-skills index lists every skill; the dispatcher is
+the routing.
 
 ## Engineering rules (umbrella-scaled)
 
@@ -99,10 +106,6 @@ context-waste failure; the following rules are mandatory:
   through the response.
 - **Bound every command's output.** If a command can print more than a screen,
   cap it (`-m`, `-n`, `--max-count`, `tail -c`), or redirect to a file.
-- **Prefer subagents for exploration.** Long-running or output-heavy investigation
-  (log archaeology, repo-wide greps, build/validator loops) should be delegated to
-  a subagent that returns only a concise verdict + evidence paths, keeping the main
-  context clean. The main agent plans, decides, and lands; the subagent digs.
 - **Never re-issue the same diagnostic command in a loop.** If a command's output
   was truncated or the answer is not visible, change the approach (file + bounded
   read, or a subagent) — repeating the identical command is the failure mode, not
