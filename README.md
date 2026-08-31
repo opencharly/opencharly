@@ -42,11 +42,15 @@ needed for a read-only checkout.
 | `pixelflux/` | [opencharly/pixelflux](https://github.com/opencharly/pixelflux) | patched wl-screenshot lib for selkies desktops — **default branch `av1`** |
 | `gst-wayland-display/` | [opencharly/gst-wayland-display](https://github.com/opencharly/gst-wayland-display) | fork of the GStreamer Wayland-compositor source (`waylanddisplaysrc`) that cstream nests Hyprland into — **default branch `stable`** |
 | `charly-streamer/` | [opencharly/charly-streamer](https://github.com/opencharly/charly-streamer) | cstream product code: the Rust streamer + session leader, the Go gateway + broker |
+| `dotgithub/` | [opencharly/.github](https://github.com/opencharly/.github) | org-wide community-health defaults + the reusable validation/merge workflows (pinned at `dotgithub`, not `.github`, so this repo keeps its own CI dispatchers) |
 
-Not a submodule: [opencharly/.github](https://github.com/opencharly/.github) — the
-org-wide community-health defaults. Every org repo inherits them automatically, and
-this repo needs its own `.github/workflows/` for CI, so the `.github` path is not
-occupied by a submodule.
+[opencharly/.github](https://github.com/opencharly/.github) is pinned as the
+`dotgithub/` submodule — the org-wide community-health defaults and the reusable
+validation workflows every org repo inherits (including the `charly/pr-validator`
+gate and `tag-on-merge` this repo runs). The path is `dotgithub`, not `.github`,
+because this repo needs its own `.github/workflows/` for its CI dispatchers; the
+submodule URL is `https://github.com/opencharly/.github.git` like every other
+gitlink.
 
 ## Pinning — the umbrella tracks charly's graph
 
