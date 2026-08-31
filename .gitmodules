@@ -1568,3 +1568,127 @@
 	path = plugin-cardwire
 	url = https://github.com/opencharly/plugin-cardwire.git
 	branch = main
+[submodule "layer-charly"]
+	path = layer-charly
+	url = https://github.com/opencharly/layer-charly.git
+	branch = main
+[submodule "layer-charly-build"]
+	path = layer-charly-build
+	url = https://github.com/opencharly/layer-charly-build.git
+	branch = main
+[submodule "layer-charly-check"]
+	path = layer-charly-check
+	url = https://github.com/opencharly/layer-charly-check.git
+	branch = main
+[submodule "layer-charly-image"]
+	path = layer-charly-image
+	url = https://github.com/opencharly/layer-charly-image.git
+	branch = main
+[submodule "layer-charly-immich"]
+	path = layer-charly-immich
+	url = https://github.com/opencharly/layer-charly-immich.git
+	branch = main
+[submodule "layer-charly-internals"]
+	path = layer-charly-internals
+	url = https://github.com/opencharly/layer-charly-internals.git
+	branch = main
+[submodule "layer-charly-internals-extra"]
+	path = layer-charly-internals-extra
+	url = https://github.com/opencharly/layer-charly-internals-extra.git
+	branch = main
+[submodule "layer-charly-kubernetes"]
+	path = layer-charly-kubernetes
+	url = https://github.com/opencharly/layer-charly-kubernetes.git
+	branch = main
+[submodule "layer-check-local-layer"]
+	path = layer-check-local-layer
+	url = https://github.com/opencharly/layer-check-local-layer.git
+	branch = main
+[submodule "layer-check-stack-layer"]
+	path = layer-check-stack-layer
+	url = https://github.com/opencharly/layer-check-stack-layer.git
+	branch = main
+[submodule "layer-examplestep-consumer"]
+	path = layer-examplestep-consumer
+	url = https://github.com/opencharly/layer-examplestep-consumer.git
+	branch = main
+[submodule "layer-examplestep-deploy-consumer"]
+	path = layer-examplestep-deploy-consumer
+	url = https://github.com/opencharly/layer-examplestep-deploy-consumer.git
+	branch = main
+[submodule "layer-omarchy-base"]
+	path = layer-omarchy-base
+	url = https://github.com/opencharly/layer-omarchy-base.git
+	branch = main
+[submodule "layer-omarchy-boot"]
+	path = layer-omarchy-boot
+	url = https://github.com/opencharly/layer-omarchy-boot.git
+	branch = main
+[submodule "layer-omarchy-desktop-apps"]
+	path = layer-omarchy-desktop-apps
+	url = https://github.com/opencharly/layer-omarchy-desktop-apps.git
+	branch = main
+[submodule "layer-omarchy-dev"]
+	path = layer-omarchy-dev
+	url = https://github.com/opencharly/layer-omarchy-dev.git
+	branch = main
+[submodule "layer-omarchy-fonts"]
+	path = layer-omarchy-fonts
+	url = https://github.com/opencharly/layer-omarchy-fonts.git
+	branch = main
+[submodule "layer-omarchy-gpu-nvidia"]
+	path = layer-omarchy-gpu-nvidia
+	url = https://github.com/opencharly/layer-omarchy-gpu-nvidia.git
+	branch = main
+[submodule "layer-omarchy-hardware"]
+	path = layer-omarchy-hardware
+	url = https://github.com/opencharly/layer-omarchy-hardware.git
+	branch = main
+[submodule "layer-omarchy-hyprland"]
+	path = layer-omarchy-hyprland
+	url = https://github.com/opencharly/layer-omarchy-hyprland.git
+	branch = main
+[submodule "layer-omarchy-media"]
+	path = layer-omarchy-media
+	url = https://github.com/opencharly/layer-omarchy-media.git
+	branch = main
+[submodule "layer-omarchy-network"]
+	path = layer-omarchy-network
+	url = https://github.com/opencharly/layer-omarchy-network.git
+	branch = main
+[submodule "layer-omarchy-shell"]
+	path = layer-omarchy-shell
+	url = https://github.com/opencharly/layer-omarchy-shell.git
+	branch = main
+[submodule "layer-omarchy-terminal"]
+	path = layer-omarchy-terminal
+	url = https://github.com/opencharly/layer-omarchy-terminal.git
+	branch = main
+[submodule "layer-omarchy-themes"]
+	path = layer-omarchy-themes
+	url = https://github.com/opencharly/layer-omarchy-themes.git
+	branch = main
+[submodule "layer-stepkind-build-consumer"]
+	path = layer-stepkind-build-consumer
+	url = https://github.com/opencharly/layer-stepkind-build-consumer.git
+	branch = main
+[submodule "plugin-boot-kind"]
+	path = plugin-boot-kind
+	url = https://github.com/opencharly/plugin-boot-kind.git
+	branch = main
+[submodule "plugin-desktop-kind"]
+	path = plugin-desktop-kind
+	url = https://github.com/opencharly/plugin-desktop-kind.git
+	branch = main
+[submodule "plugin-quickshell"]
+	path = plugin-quickshell
+	url = https://github.com/opencharly/plugin-quickshell.git
+	branch = main
+[submodule "plugin-unit"]
+	path = plugin-unit
+	url = https://github.com/opencharly/plugin-unit.git
+	branch = main
+[submodule "pod-charly-mcp"]
+	path = pod-charly-mcp
+	url = https://github.com/opencharly/pod-charly-mcp.git
+	branch = main
