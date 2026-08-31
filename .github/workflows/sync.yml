@@ -53,18 +53,110 @@ jobs:
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
+      # The default GITHUB_TOKEN CANNOT open a pull request: GitHub refuses it with
+      # "GitHub Actions is not permitted to create or approve pull requests" unless the
+      # org/repo toggle `can_approve_pull_request_reviews` is on — and that toggle also
+      # lets any workflow APPROVE pull requests, which against this org's auto-merge-on-PASS
+      # flow is a review-bypass surface. marketplace's refresh.yml says so in as many words:
+      # "Do NOT 'fix' it by enabling can_approve_pull_request_reviews".
+      #
+      # So mint a short-lived GitHub App token instead, exactly as refresh.yml already does —
+      # same SHA-pinned action, same org secrets, same fallback.
+      - name: Create bot token (GitHub App)
+        id: bot-token-app
+        if: steps.dirty.outputs.changed == 'true' && steps.skip.outputs.skip == 'false'
+        continue-on-error: true
+        uses: actions/create-github-app-token@d72941d797fd3113feb6b93fd0dec494b13a2547
+        with:
+          app-id: ${{ secrets.CHARLY_AUTO_MERGE_APP_ID }}
+          private-key: ${{ secrets.CHARLY_AUTO_MERGE_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+
+      - name: Use fallback bot token
+        id: bot-token-pat
+        if: steps.dirty.outputs.changed == 'true' && steps.skip.outputs.skip == 'false'
+        run: echo "token=${{ secrets.CHARLY_BOT_TOKEN }}" >> "$GITHUB_OUTPUT"
+
+      - name: Require a bot token
+        if: steps.dirty.outputs.changed == 'true' && steps.skip.outputs.skip == 'false'
+        env:
+          APP_TOKEN: ${{ steps.bot-token-app.outputs.token }}
+          ALT_TOKEN: ${{ steps.bot-token-pat.outputs.token }}
+        run: |
+          if [ -z "$APP_TOKEN" ] && [ -z "$ALT_TOKEN" ]; then
+            echo "::error::No bot token configured: set org secrets CHARLY_AUTO_MERGE_APP_ID + CHARLY_AUTO_MERGE_PRIVATE_KEY (GitHub App), or CHARLY_BOT_TOKEN."
+            exit 2
+          fi
+
       - name: Open sync PR
         if: steps.dirty.outputs.changed == 'true' && steps.skip.outputs.skip == 'false'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.bot-token-app.outputs.token || steps.bot-token-pat.outputs.token }}
         run: |
+          # Capture the moved gitlinks BEFORE committing — the body must name every one of
+          # them. A one-line body cannot pass rule A1 ("every diff item accounted for"), and
+          # a sync that moves 79 submodules is exactly where a count says nothing: that is
+          # what BLOCKED the first PR this workflow ever managed to open.
+          # `git add -A` is kept even though sync-gitlinks.sh already stages each bumped
+          # gitlink: dropping it would silently narrow what the sync commits to whatever the
+          # script happened to stage. Capture AFTER it, so the list is what actually commits.
+          git add -A
+          MOVED=$(git diff --cached --name-only)
+          COUNT=$(printf '%s\n' "$MOVED" | grep -c . || echo 0)
+
+          {
+            echo "## Summary"
+            echo
+            echo "Automated gitlink sync: every umbrella submodule pin advanced to what **policy B**"
+            echo "requires — \`charly\` to its own default-branch HEAD, \`distro-*\` to exactly the commits"
+            echo "charly's own gitlinks pin, everything else to its own default branch."
+            echo
+            echo "**${COUNT}** gitlink(s) moved."
+            echo
+            echo "## Every changed path, named"
+            echo
+            echo '```'
+            printf '%s\n' "$MOVED"
+            echo '```'
+            echo
+            echo "Each entry is a **submodule pointer**, not file content: the umbrella records which"
+            echo "commit of each repo the snapshot means. The content behind every one of them was"
+            echo "reviewed and gated by that repo's own \`pr-validator\` before it was tagged. This PR"
+            echo "cannot review it and does not restate it."
+            echo
+            echo "## How tested"
+            echo
+            echo "- **The gate:** \`scripts/verify-pins.sh\` (\`task verify\`) — the full pinning gate,"
+            echo "  which fails closed on a dangling pin, a dirty submodule, or a policy-B violation."
+            echo "  It runs on this PR."
+            echo "- **Producer:** \`scripts/sync-gitlinks.sh\`, whose output is the diff above. The pins"
+            echo "  are resolved from each repo's actual default-branch HEAD over the network, never"
+            echo "  hand-written."
+            echo
+            echo "## Change classification"
+            echo
+            echo "- **Change class:** gitlink-only. No file content, no workflow, no script, no Go."
+            echo "- **Breaking change + rollback:** none — a revert restores the previous snapshot."
+            echo
+            echo "---"
+            echo
+            echo "## Authorship"
+            echo
+            echo "**No \`Assisted-by:\` footer, deliberately.** Rule A1 requires that line on an"
+            echo "*AI-authored* body. This body is emitted by a fixed block in"
+            echo "\`.github/workflows/sync.yml\` with no model in the loop, so there is no harness and no"
+            echo "provider model to name; inventing one to satisfy the pattern would be the false claim"
+            echo "the rule exists to prevent."
+            echo
+            echo "Generated by: \`.github/workflows/sync.yml\` (deterministic; no model)."
+          } > /tmp/sync-body.md
+
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git checkout -b "sync/$(date -u +%Y%m%d-%H%M%S)"
-          git add -A
           git commit -m "chore: sync gitlinks"
           git push -u origin HEAD
           gh label create auto-merge --force 2>/dev/null || true
           gh pr create --title "chore: sync gitlinks" \
-            --body "Automated sync of all umbrella submodule pins to policy B (charly's default-branch HEAD + charly's own gitlinks + per-repo default branches)." \
+            --body-file /tmp/sync-body.md \
             --label auto-merge
