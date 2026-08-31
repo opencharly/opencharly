@@ -1560,3 +1560,11 @@
 	path = layer-cstream-desktop
 	url = https://github.com/opencharly/layer-cstream-desktop.git
 	branch = main
+[submodule "plugin-bpf"]
+	path = plugin-bpf
+	url = https://github.com/opencharly/plugin-bpf.git
+	branch = main
+[submodule "plugin-cardwire"]
+	path = plugin-cardwire
+	url = https://github.com/opencharly/plugin-cardwire.git
+	branch = main
