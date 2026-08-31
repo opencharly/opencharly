@@ -13,6 +13,7 @@
     "npm:pi-fabric@0.70.0",
     "npm:pi-claude-marketplace@0.18.1",
     "git:github.com/Michaelliv/pi-goal@v0.1.7",
-    "git:github.com/giladbarnea/pi-simple-team@v1.0.9"
+    "git:github.com/giladbarnea/pi-simple-team@v1.0.9",
+    "npm:pi-lsp@0.1.7"
   ]
 }
