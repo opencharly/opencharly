@@ -20,7 +20,9 @@ fail() { echo "FAIL: $*" >&2; exit 1; }
 
 for cpath in "${!CHARLY_PINNED[@]}"; do
   upath="${CHARLY_PINNED[$cpath]}"
-  cp="$(git -C charly ls-tree HEAD "$cpath" | awk '{print $3}')"
+  # git exports GIT_DIR to hooks in linked worktrees, which hijacks
+  # discovery of charly's own .git; clear it for the nested call only.
+  cp="$(env -u GIT_DIR -u GIT_WORK_TREE git -C charly ls-tree HEAD "$cpath" | awk '{print $3}')"
   up="$(git ls-files -s "$upath" | awk '{print $2}')"
   [ -n "$cp" ] || fail "charly has no gitlink at $cpath"
   [ -n "$up" ] || fail "umbrella has no gitlink at $upath"
