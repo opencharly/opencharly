@@ -29,6 +29,23 @@ submodule_branch() { git config -f .gitmodules --get "submodule.$1.branch"; }
 pin() {
   local path="$1" ref="$2"
   git -C "$path" fetch --quiet origin
+  # A `distro-*` ref is an arbitrary COMMIT — whatever charly's gitlink records — not a
+  # branch tip. Submodule clones in CI are SHALLOW (actions/checkout fetches them at
+  # depth 1), and `fetch origin` brings only tips, so that commit is usually absent and
+  # `switch` then dies with
+  #
+  #   fatal: unable to read tree (677dbbe038f2daba286dee1d00112a38547bfc6f)
+  #
+  # which names a TREE and is really a missing COMMIT — the message sends you looking at
+  # the wrong object. Reproduced exactly outside CI: shallow-clone distro-cachyos, then
+  # switch to charly's gitlink. Fetching the SHA explicitly makes it present and the
+  # switch succeeds.
+  #
+  # Guarded by cat-file so the common case (a branch ref, already fetched above) costs
+  # nothing, and so a repo whose server refuses SHA fetches still gets the plain path.
+  if ! git -C "$path" cat-file -e "${ref}^{commit}" 2>/dev/null; then
+    git -C "$path" fetch --quiet origin "$ref"
+  fi
   git -C "$path" switch --quiet --detach "$ref"
   git add "$path"
   echo "  $path -> $(git -C "$path" rev-parse --short HEAD)"
