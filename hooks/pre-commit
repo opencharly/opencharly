@@ -11,8 +11,8 @@
 #   1. policy B          — distro-* gitlinks must equal charly's box/* gitlinks
 #   2. harness parity    — the 5 files that are byte-identical to charly's by design
 #
-# Deliberately NOT here (see `task verify`): the 344 `git ls-remote` default-branch
-# audit — it reads remote state no commit can change, and sync-gitlinks.sh, its only
+# Deliberately NOT here (see `task verify`): the per-submodule `git ls-remote`
+# default-branch audit — it reads remote state no commit can change, and sync-gitlinks.sh, its only
 # consumer, fails on its own if a branch= is stale — and the whole-tree cleanliness
 # assertions, which are about the checkout rather than the diff.
 set -euo pipefail
