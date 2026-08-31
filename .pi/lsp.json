@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "servers": [
+    {
+      "id": "gopls",
+      "enabled": true,
+      "include": ["**/*.go"],
+      "exclude": ["**/node_modules/**", "**/.git/**"],
+      "rootMarkers": ["go.mod", "go.work"],
+      "bin": "gopls",
+      "args": [],
+      "cwd": "{root}",
+      "languageIdByExtension": { ".go": "go" },
+      "startupTimeoutMs": 45000,
+      "diagnosticsWaitMs": 1500,
+      "initializationOptions": {},
+      "settings": {}
+    },
+    {
+      "id": "yaml",
+      "enabled": true,
+      "include": ["**/*.yaml", "**/*.yml"],
+      "exclude": ["**/node_modules/**", "**/.git/**"],
+      "rootMarkers": ["charly.yml", ".git"],
+      "bin": "yaml-language-server",
+      "args": ["--stdio"],
+      "cwd": "{root}",
+      "languageIdByExtension": { ".yaml": "yaml", ".yml": "yaml" },
+      "startupTimeoutMs": 45000,
+      "diagnosticsWaitMs": 1500,
+      "initializationOptions": {},
+      "settings": {}
+    }
+  ]
+}
