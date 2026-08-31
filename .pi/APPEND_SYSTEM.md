@@ -14,8 +14,6 @@ The org-wide `charly/pr-validator` verdicts land on GitHub Actions, which has NO
 
 # Tool-usage discipline (RCA'd 2026-08-30)
 
-# Tool-usage discipline (RCA'd 2026-08-30)
-
 - Verify a child can execute BEFORE delegating: confirm the child's resolved tools include what the task needs (read/grep/find/ls/bash/edit/write/gh_pr_status). A child without tools burns its whole turn probing tool names — report the blocker instead.
 - Long-running waits belong to a child, not the parent. Use `async: true` + `subagent_wait`; never sleep-poll.
 - Keep tool calls short; on an output-token-limit failure NEVER retry the same call — change approach.
