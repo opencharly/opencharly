@@ -3,7 +3,7 @@
 > The single rulebook for every harness. `CLAUDE.md` is a **symlink to this file**
 > (Claude Code reads that name), so there is no copy to keep in sync — edit here.
 
-The umbrella is a *view* of the org: 344 submodules at the root, each a real repo
+The umbrella is a *view* of the org: 389 submodules at the root, each a real repo
 owned elsewhere. Short rulebook — every rule exists because breaking it corrupts
 someone else's repo.
 
@@ -43,14 +43,14 @@ someone else's repo.
 ## R0. Skills first
 
 Before the first tool call of a task, load every skill the dispatcher below selects
-(via `umbrella_load_skills` in pi, or by reading the skill from the opencharly/marketplace
-repo — the standalone marketplace: Claude Code loads it as the `charly-plugins` marketplace,
-pi as the `git:github.com/opencharly/marketplace` package, kimi as a plugin).
+by reading its SKILL.md from the opencharly/marketplace repo — the standalone marketplace:
+Claude Code loads it as the `charly-plugins` marketplace, pi as the
+`git:github.com/opencharly/marketplace` package, kimi as a plugin.
 
 ### Skill Dispatcher
 
 Consult this table BEFORE the first tool call of every task. When several rows match,
-load ALL their skills before doing anything.
+load every skill those rows select before doing anything — never the whole index.
 
 <!-- BEGIN GENERATED SKILL DISPATCHER -->
 | Trigger (what the user said or you're about to do) | Skill to load |
