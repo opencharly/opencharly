@@ -19,6 +19,7 @@
     "charly-local@charly-plugins": {},
     "charly-build@charly-plugins": {},
     "charly-check@charly-plugins": {},
-    "charly-core@charly-plugins": {}
+    "charly-core@charly-plugins": {},
+    "charly-distros@charly-plugins": {}
   }
 }
