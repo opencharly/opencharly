@@ -1,0 +1,9 @@
+{
+  "enabled": true,
+  "visionModel": "ollama-cloud/qwen3.5:397b",
+  "autoHandoff": true,
+  "handoffModels": [],
+  "cacheMax": 50,
+  "maxDescriptionLines": 0,
+  "maxTokens": null
+}
