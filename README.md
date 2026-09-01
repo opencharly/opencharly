@@ -140,6 +140,16 @@ and intentionally not a submodule.
 | `layer-omarchy-themes/` | [opencharly/layer-omarchy-themes](https://github.com/opencharly/layer-omarchy-themes) | Omarchy's 22 themes and the theme-token renderers |
 
 
+### Omarchy evaluation
+
+2 repos — the omarchy PR evaluation beds and their run artifacts.
+
+| path | repo | role |
+|---|---|---|
+| `eval-omarchy/` | [opencharly/eval-omarchy](https://github.com/opencharly/eval-omarchy) | omarchy PR evaluation: check beds + eval results |
+| `omarchy-eval-artifacts/` | [opencharly/omarchy-eval-artifacts](https://github.com/opencharly/omarchy-eval-artifacts) | omarchy PR evaluation artifacts (screenshots, GIFs, run logs) |
+
+
 ### Check & fixture layers
 
 15 repos — check-bed and plugin fixture layers.
