@@ -1692,3 +1692,11 @@
 	path = pod-charly-mcp
 	url = https://github.com/opencharly/pod-charly-mcp.git
 	branch = main
+[submodule "eval-omarchy"]
+	path = eval-omarchy
+	url = https://github.com/opencharly/eval-omarchy.git
+	branch = main
+[submodule "omarchy-eval-artifacts"]
+	path = omarchy-eval-artifacts
+	url = https://github.com/opencharly/omarchy-eval-artifacts.git
+	branch = runs
