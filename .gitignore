@@ -16,6 +16,7 @@
 .pi/pi-claude-marketplace/
 .pi/agents/
 .pi/claude-plugins.local.json
+.pi/mcp.json
 
 # pi-fabric runtime data (mcp cache, mesh state)
 .pi/fabric/
