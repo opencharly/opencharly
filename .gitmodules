@@ -1700,3 +1700,12 @@
 	path = omarchy-eval-artifacts
 	url = https://github.com/opencharly/omarchy-eval-artifacts.git
 	branch = runs
+[submodule "plugin-herdr"]
+	path = plugin-herdr
+	url = https://github.com/opencharly/plugin-herdr.git
+[submodule "plugin-omarchy"]
+	path = plugin-omarchy
+	url = https://github.com/opencharly/plugin-omarchy.git
+[submodule "pod-herdr"]
+	path = pod-herdr
+	url = https://github.com/opencharly/pod-herdr.git
