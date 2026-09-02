@@ -1,7 +1,7 @@
 # OpenCharly — umbrella
 
 **One clone of the whole org.** `opencharly/opencharly` is an org-level umbrella repo:
-every OpenCharly repo (389 today) is pinned here as a git submodule ("gitlink", in the
+every OpenCharly repo (394 today) is pinned here as a git submodule ("gitlink", in the
 org's vocabulary), flat at the root — submodule path == repo name, except the one
 alias below. `charly` is the product repo and the single source of truth; this
 umbrella is a *view* of the org, not a new home for anything.
@@ -320,7 +320,7 @@ and intentionally not a submodule.
 
 ### Plugins
 
-101 repos — charly plug-ins (verb/substrate providers).
+103 repos — charly plug-ins (verb/substrate providers).
 
 | path | repo | role |
 |---|---|---|
@@ -382,6 +382,7 @@ and intentionally not a submodule.
 | `plugin-group/` | [opencharly/plugin-group](https://github.com/opencharly/plugin-group) | charly plugin |
 | `plugin-harness-kind/` | [opencharly/plugin-harness-kind](https://github.com/opencharly/plugin-harness-kind) | charly plugin |
 | `plugin-helm/` | [opencharly/plugin-helm](https://github.com/opencharly/plugin-helm) | charly plugin |
+| `plugin-herdr/` | [opencharly/plugin-herdr](https://github.com/opencharly/plugin-herdr) | charly plugin: command:herdr + verb:herdr — control a Herdr terminal-multiplexer session over its NDJSON socket API |
 | `plugin-http/` | [opencharly/plugin-http](https://github.com/opencharly/plugin-http) | charly plugin |
 | `plugin-init/` | [opencharly/plugin-init](https://github.com/opencharly/plugin-init) | charly plugin |
 | `plugin-installstep/` | [opencharly/plugin-installstep](https://github.com/opencharly/plugin-installstep) | charly plugin |
@@ -398,6 +399,7 @@ and intentionally not a submodule.
 | `plugin-mount/` | [opencharly/plugin-mount](https://github.com/opencharly/plugin-mount) | charly plugin |
 | `plugin-oci/` | [opencharly/plugin-oci](https://github.com/opencharly/plugin-oci) | charly plugin |
 | `plugin-ollama/` | [opencharly/plugin-ollama](https://github.com/opencharly/plugin-ollama) | charly plugin |
+| `plugin-omarchy/` | [opencharly/plugin-omarchy](https://github.com/opencharly/plugin-omarchy) | charly plugin: the omarchy CLI surface as a check verb |
 | `plugin-package/` | [opencharly/plugin-package](https://github.com/opencharly/plugin-package) | charly plugin |
 | `plugin-pod/` | [opencharly/plugin-pod](https://github.com/opencharly/plugin-pod) | charly plugin |
 | `plugin-port/` | [opencharly/plugin-port](https://github.com/opencharly/plugin-port) | charly plugin |
@@ -429,7 +431,7 @@ and intentionally not a submodule.
 
 ### Pods
 
-72 repos — pod/deployment bundles.
+73 repos — pod/deployment bundles.
 
 | path | repo | role |
 |---|---|---|
@@ -461,6 +463,7 @@ and intentionally not a submodule.
 | `pod-dsh/` | [opencharly/pod-dsh](https://github.com/opencharly/pod-dsh) | pod / deployment bundle |
 | `pod-filebrowser/` | [opencharly/pod-filebrowser](https://github.com/opencharly/pod-filebrowser) | pod / deployment bundle |
 | `pod-github-runner/` | [opencharly/pod-github-runner](https://github.com/opencharly/pod-github-runner) | pod / deployment bundle |
+| `pod-herdr/` | [opencharly/pod-herdr](https://github.com/opencharly/pod-herdr) | pod / deployment bundle — the herdr stack box + check-herdr-pod R10 bed |
 | `pod-hermes/` | [opencharly/pod-hermes](https://github.com/opencharly/pod-hermes) | pod / deployment bundle |
 | `pod-hermes-full/` | [opencharly/pod-hermes-full](https://github.com/opencharly/pod-hermes-full) | pod / deployment bundle |
 | `pod-hyprland/` | [opencharly/pod-hyprland](https://github.com/opencharly/pod-hyprland) | charly candy: Hyprland as a nested compositor inside charly-streamer's Wayland parent |
