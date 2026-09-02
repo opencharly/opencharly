@@ -21,6 +21,32 @@ Your context is the scarce resource. Three tools keep it small:
   output inside the program. Keep tool calls short; on an output-token-limit
   failure NEVER retry the same call — change approach.
 
+# Tool primacy — if a tool exists, ALWAYS use it, never hand-roll a command
+
+The tool catalog is the contract: when a tool covers the job, the hand-rolled
+equivalent is forbidden (R4). Reach for skills (pi-subagents, fabric-exec,
+mcp-scripting SKILL.md) and `tools.describe` for detail; never guess arguments.
+
+| For this … | use … | never hand-roll … |
+|---|---|---|
+| PR / validator status | `gh_pr_status` — check on every PR touch; `watch` in a background child | `gh api`, ad-hoc queries |
+| Bed / image / VM status | `charly_status` — `watch` in an executor child | `ps`, `podman images`, `virsh` |
+| Files, search, listing | `pi.read` / `pi.grep` / `pi.find` / `pi.ls` | `cat`, `grep -R`, shell loops |
+| Edits and writes | `pi.edit` / `pi.write` | `sed -i`, `echo >>`, heredocs |
+| Multi-step task state | `todo` | re-reading files and history |
+| Persist and recall | `memory_write` (long_term = durable facts, daily = session notes) / `memory_search` / `scratchpad` | chat-only memory |
+| Web research and fetching | `web_search` (`queries`) / `fetch_content` / `source_check` | `curl`, scraping |
+| Heavy, long, or noisy work | `subagent` (workflowScript / runs.host) | parent foreground bash |
+| Images and screenshots | `vision_ask` | guessing pixels from logs |
+| Symbol facts (Go, TS) | `lsp_definition` / `lsp_references` / `lsp_diagnostics` | hand-grep of symbol tables |
+| Unknown tool shape | `tools.describe` / `tools.list({search})` | guessed arguments |
+| MCP servers | only via `mcp.*` after `mcp.$servers` lists one | assuming a server exists (.pi/mcp.json is empty here) |
+
+Bash is the fallback ONLY where no tool covers the job — and R1 RCA still
+applies to its failures. Fabric internals (`schema.*`, `state.*`, `mesh.*`,
+`components.*`, `compact.*`) are left alone unless schema mode or an explicit
+instruction invokes them.
+
 # PR validation status — check EVERY PR with the gh_pr_status tool
 
 The org-wide `charly/pr-validator` verdicts land on GitHub Actions — no path into a pi session, the validator does NOT wake the agent. For EVERY PR you open, update, or wait on:
