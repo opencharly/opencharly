@@ -1703,9 +1703,12 @@
 [submodule "plugin-herdr"]
 	path = plugin-herdr
 	url = https://github.com/opencharly/plugin-herdr.git
+	branch = main
 [submodule "plugin-omarchy"]
 	path = plugin-omarchy
 	url = https://github.com/opencharly/plugin-omarchy.git
+	branch = main
 [submodule "pod-herdr"]
 	path = pod-herdr
 	url = https://github.com/opencharly/pod-herdr.git
+	branch = main
