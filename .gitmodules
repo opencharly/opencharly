@@ -1712,3 +1712,7 @@
 	path = pod-herdr
 	url = https://github.com/opencharly/pod-herdr.git
 	branch = main
+[submodule "plugin-openclaw"]
+	path = plugin-openclaw
+	url = https://github.com/opencharly/plugin-openclaw.git
+	branch = main
