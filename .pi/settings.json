@@ -15,6 +15,13 @@
     "git:github.com/opencharly/pi-claude-marketplace@v0.18.1",
     "git:github.com/opencharly/pi-goal@v0.2.1",
     "git:github.com/opencharly/pi-simple-team@v1.0.9",
-    "git:github.com/opencharly/pi-lsp@v0.1.7"
-  ]
+    "git:github.com/opencharly/pi-lsp@v0.1.7",
+    "npm:pi-web-ui@0.54.0"
+  ],
+  "theme": "dark",
+  "compaction": {
+    "enabled": true,
+    "reserveTokens": 65536,
+    "keepRecentTokens": 20000
+  }
 }
