@@ -14,7 +14,7 @@ below is in place at the umbrella root; the shared files are diff-checked by
 |---|---|---|---|
 | Instructions | `AGENTS.md` + `CLAUDE.md` (two files, kept in sync by hand) | `AGENTS.md` only — `CLAUDE.md` is a **symlink** to it (one rulebook, no copy to drift) | fork |
 | Skills | the opencharly/marketplace repo (each harness loads it natively: Claude Code marketplace, pi `git:` package, kimi plugin, Codex catalog) | same marketplace (no local links) | marketplace shared |
-| Pi | `.pi/settings.json` (same 6 packages) | `.pi/settings.json` | identical packages |
+| Pi | charly: `.pi/settings.json` (7 packages, npm-sourced) | umbrella: `.pi/settings.json` (11 packages, all `git:` refs into org-owned `opencharly/pi-*` forks/mirrors) | fork |
 | Claude hooks | `.claude/hooks/{pre-commit-gate.sh,pre-push-gate.sh,gitcmd.py,gate_test.py}` | same paths | identical (diff-checked) |
 | Claude settings | `.claude/settings.json` (full plugin list; **no `hooks` block** — the gates are unwired there) | `.claude/settings.json` (curated 14-plugin subset — charly development + omarchy evaluation only, zero MCP-server plugins; **plus the `PreToolUse`/`Bash` `hooks` block** wiring both gate scripts) | fork |
 | Claude workflows | `.claude/workflows/{verify-status,triage-check-failure,audit-deploy-configs,verify-beds}.js` | `.claude/workflows/{verify-status,triage-check-failure}.js` | fork |
@@ -36,7 +36,7 @@ root).
 |---|---|---|
 | Instructions | `AGENTS.md` (32KB, R0–R10 rulebook) + `CLAUDE.md` mirror | `AGENTS.md` (1.6KB, 7 rules) — expand, **not verbatim copy** |
 | Skills | the marketplace corpus (loaded natively by every harness from the standalone opencharly/marketplace repo) | none |
-| Pi | `.pi/settings.json` (6 packages + gates extension), `extensions/charly-gates.ts` (477L), 6 prompts, `subagents/charly-agents.json`, `README.md` | none |
+| Pi | charly: `.pi/settings.json` (7 packages + gates extension), `extensions/charly-gates.ts` (477L), 6 prompts, `subagents/charly-agents.json`, `README.md` | umbrella: `.pi/settings.json` (11 packages, all `git:` refs into org-owned `opencharly/pi-*` forks/mirrors) + 3 local extensions |
 | Claude Code | `.claude/settings.json`, `.claude/hooks/` (2 gate `.sh` + `gitcmd.py` + tests), `.claude/workflows/` | none |
 | opencode | `opencode.json` + `.opencode/plugin/charly-gates.ts` | none |
 | reasonix/kimi | `reasonix.toml`, `.reasonix/settings.json` | none |
@@ -109,9 +109,11 @@ command strings).
 > The git-level gates (`hooks/pre-commit`, `.claude/hooks/*`) remain the enforcement
 > surface; pi no longer wires them.
 
-7. `.pi/settings.json`: identical package pin list (pi-mcp-adapter,
-   pi-subagents, plan-mode, rpiv-todo, pi-memory, pi-ollama-cloud) +
-   `./extensions/umbrella-gates.ts`.
+7. `.pi/settings.json`: umbrella loads 11 packages, all `git:` refs into
+   org-owned `opencharly/pi-*` forks/mirrors (pi-mcp-adapter, pi-subagents,
+   rpiv-todo, pi-memory, pi-ollama-cloud, pi-web-access, pi-fabric,
+   pi-claude-marketplace, pi-goal, pi-simple-team, pi-lsp) + 3 local
+   extensions. charly keeps its own npm-sourced list (diverged by design).
 8. `.pi/extensions/umbrella-gates.ts`: fork `charly-gates.ts` — keep
    tool_call interception running the gate scripts; drop
    `charly_worktree_create/remove`; keep the before-agent-start rules
