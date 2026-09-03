@@ -11,13 +11,15 @@
 # Usage: scripts/sync-pi-forks.sh   (requires gh auth + git credential helper)
 set -euo pipefail
 
+# Only the 8 real forks go through gh repo sync. The 3 vendored mirrors
+# (pi-fabric, rpiv-todo, pi-lsp) are NOT forks — gh repo sync fails on them —
+# and are re-vendored manually on version bump (see the header comment).
 PAIRS=(
   "pi-mcp-adapter:nicobailon/pi-mcp-adapter"
   "pi-subagents:nicobailon/pi-subagents"
   "pi-memory:jayzeng/pi-memory"
   "pi-ollama-cloud:fgrehm/pi-ollama-cloud"
   "pi-web-access:nicobailon/pi-web-access"
-  "pi-fabric:monotykamary/pi-fabric"
   "pi-claude-marketplace:acolomba/pi-claude-marketplace"
   "pi-goal:Michaelliv/pi-goal"
   "pi-simple-team:giladbarnea/pi-simple-team"
