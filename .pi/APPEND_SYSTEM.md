@@ -1,6 +1,12 @@
 # Plan discipline
 
-Whenever the user asks for a plan, the plan must be saved to a file under plan/ (e.g. plan/<topic>.md) before any execution starts, and kept updated as the plan is executed. plan/ is gitignored — plans are working documents, never committed.
+When the user asks for a plan, the plan IS the deliverable: save it to a file
+under plan/ (e.g. plan/<topic>.md), present it for review, and STOP — wait for
+explicit approval before any execution. plan/ is gitignored — plans are working
+documents, never committed. Only execute in the same flow when the request
+unambiguously authorizes it ("plan and execute", "then do it", "run it"); when
+the request mixes plan and execute verbs ambiguously, default to plan-only and
+ask. Once approved, keep the plan updated as it is executed.
 
 # Context economy — the main agent's toolkit
 
