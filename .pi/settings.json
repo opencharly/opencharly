@@ -5,16 +5,16 @@
     "./extensions/vision.ts"
   ],
   "packages": [
-    "npm:pi-mcp-adapter@2.31.0",
-    "npm:pi-subagents@0.60.0",
-    "npm:@juicesharp/rpiv-todo@2.8.0",
-    "npm:pi-memory@0.4.2",
-    "npm:pi-ollama-cloud@0.9.0",
-    "npm:pi-web-access@0.27.0",
-    "npm:pi-fabric@0.70.0",
-    "npm:pi-claude-marketplace@0.18.1",
-    "git:github.com/Michaelliv/pi-goal@v0.1.7",
-    "git:github.com/giladbarnea/pi-simple-team@v1.0.9",
-    "npm:pi-lsp@0.1.7"
+    "git:github.com/opencharly/pi-mcp-adapter@v2.31.0",
+    "git:github.com/opencharly/pi-subagents@v0.60.0",
+    "git:github.com/opencharly/rpiv-todo@v2.8.0",
+    "git:github.com/opencharly/pi-memory@v0.4.2",
+    "git:github.com/opencharly/pi-ollama-cloud@v0.9.0",
+    "git:github.com/opencharly/pi-web-access@v0.27.0",
+    "git:github.com/opencharly/pi-fabric@v0.70.0",
+    "git:github.com/opencharly/pi-claude-marketplace@v0.18.1",
+    "git:github.com/opencharly/pi-goal@v0.1.7",
+    "git:github.com/opencharly/pi-simple-team@v1.0.9",
+    "git:github.com/opencharly/pi-lsp@v0.1.7"
   ]
 }
