@@ -13,7 +13,7 @@
     "git:github.com/opencharly/pi-web-access@v0.27.0",
     "git:github.com/opencharly/pi-fabric@v0.70.0",
     "git:github.com/opencharly/pi-claude-marketplace@v0.18.1",
-    "git:github.com/opencharly/pi-goal@v0.2.0",
+    "git:github.com/opencharly/pi-goal@v0.2.1",
     "git:github.com/opencharly/pi-simple-team@v1.0.9",
     "git:github.com/opencharly/pi-lsp@v0.1.7"
   ]
