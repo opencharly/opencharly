@@ -5,7 +5,7 @@
     "./extensions/vision.ts"
   ],
   "packages": [
-    "git:github.com/opencharly/pi-asciinema@v2026.247.0912",
+    "git:github.com/opencharly/pi-asciinema@v2026.247.1038",
     "git:github.com/opencharly/pi-mcp-adapter@v2.31.0",
     "git:github.com/opencharly/pi-subagents@v0.60.0",
     "git:github.com/opencharly/rpiv-todo@v2.8.0",
