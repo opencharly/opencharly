@@ -1716,3 +1716,15 @@
 	path = plugin-openclaw
 	url = https://github.com/opencharly/plugin-openclaw.git
 	branch = main
+[submodule "layer-crabbox"]
+	path = layer-crabbox
+	url = https://github.com/opencharly/layer-crabbox.git
+	branch = main
+[submodule "plugin-crabbox"]
+	path = plugin-crabbox
+	url = https://github.com/opencharly/plugin-crabbox.git
+	branch = main
+[submodule "pod-crabbox"]
+	path = pod-crabbox
+	url = https://github.com/opencharly/pod-crabbox.git
+	branch = main
