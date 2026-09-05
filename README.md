@@ -175,7 +175,7 @@ and intentionally not a submodule.
 
 ### Other layers
 
-137 repos.
+138 repos.
 
 | path | repo | role |
 |---|---|---|
@@ -200,6 +200,7 @@ and intentionally not a submodule.
 | `layer-clawhub/` | [opencharly/layer-clawhub](https://github.com/opencharly/layer-clawhub) | image layer / candy |
 | `layer-codex/` | [opencharly/layer-codex](https://github.com/opencharly/layer-codex) | image layer / candy |
 | `layer-container-nesting/` | [opencharly/layer-container-nesting](https://github.com/opencharly/layer-container-nesting) | image layer / candy |
+| `layer-crabbox/` | [opencharly/layer-crabbox](https://github.com/opencharly/layer-crabbox) | image layer / candy |
 | `layer-cstream-desktop/` | [opencharly/layer-cstream-desktop](https://github.com/opencharly/layer-cstream-desktop) | charly metalayer: the full cstream streaming desktop — pod-cstream + pod-hyprland + fixings |
 | `layer-cuda/` | [opencharly/layer-cuda](https://github.com/opencharly/layer-cuda) | charly candy: layer-cuda (standalone repo of the candy de-submodule cutover) |
 | `layer-cue/` | [opencharly/layer-cue](https://github.com/opencharly/layer-cue) | image layer / candy |
@@ -320,7 +321,7 @@ and intentionally not a submodule.
 
 ### Plugins
 
-103 repos — charly plug-ins (verb/substrate providers).
+106 repos — charly plug-ins (verb/substrate providers).
 
 | path | repo | role |
 |---|---|---|
@@ -344,11 +345,13 @@ and intentionally not a submodule.
 | `plugin-candy/` | [opencharly/plugin-candy](https://github.com/opencharly/plugin-candy) | charly plugin |
 | `plugin-candy-kind/` | [opencharly/plugin-candy-kind](https://github.com/opencharly/plugin-candy-kind) | charly plugin |
 | `plugin-cardwire/` | [opencharly/plugin-cardwire](https://github.com/opencharly/plugin-cardwire) | charly plugin: cardwire (eBPF LSM GPU manager) — install + command:cardwire CLI |
+| `plugin-cache/` | [opencharly/plugin-cache](https://github.com/opencharly/plugin-cache) | charly plugin: the `charly cache status|clear|refresh|bypass` command — the git-ref cache operator surface |
 | `plugin-cdp/` | [opencharly/plugin-cdp](https://github.com/opencharly/plugin-cdp) | charly plugin |
 | `plugin-check/` | [opencharly/plugin-check](https://github.com/opencharly/plugin-check) | charly plugin |
 | `plugin-clean/` | [opencharly/plugin-clean](https://github.com/opencharly/plugin-clean) | charly plugin |
 | `plugin-cmd/` | [opencharly/plugin-cmd](https://github.com/opencharly/plugin-cmd) | charly plugin |
 | `plugin-command/` | [opencharly/plugin-command](https://github.com/opencharly/plugin-command) | charly plugin |
+| `plugin-crabbox/` | [opencharly/plugin-crabbox](https://github.com/opencharly/plugin-crabbox) | charly plugin |
 | `plugin-cstream/` | [opencharly/plugin-cstream](https://github.com/opencharly/plugin-cstream) | charly plugin serving the cstream: check verb — session/login/frame/stats probes for charly-streamer deployme… |
 | `plugin-dbus/` | [opencharly/plugin-dbus](https://github.com/opencharly/plugin-dbus) | charly plugin |
 | `plugin-deploy-local/` | [opencharly/plugin-deploy-local](https://github.com/opencharly/plugin-deploy-local) | charly plugin |
@@ -399,6 +402,7 @@ and intentionally not a submodule.
 | `plugin-mount/` | [opencharly/plugin-mount](https://github.com/opencharly/plugin-mount) | charly plugin |
 | `plugin-oci/` | [opencharly/plugin-oci](https://github.com/opencharly/plugin-oci) | charly plugin |
 | `plugin-ollama/` | [opencharly/plugin-ollama](https://github.com/opencharly/plugin-ollama) | charly plugin |
+| `plugin-openclaw/` | [opencharly/plugin-openclaw](https://github.com/opencharly/plugin-openclaw) | charly plugin |
 | `plugin-omarchy/` | [opencharly/plugin-omarchy](https://github.com/opencharly/plugin-omarchy) | charly plugin: the omarchy CLI surface as a check verb |
 | `plugin-package/` | [opencharly/plugin-package](https://github.com/opencharly/plugin-package) | charly plugin |
 | `plugin-pod/` | [opencharly/plugin-pod](https://github.com/opencharly/plugin-pod) | charly plugin |
@@ -431,7 +435,7 @@ and intentionally not a submodule.
 
 ### Pods
 
-73 repos — pod/deployment bundles.
+74 repos — pod/deployment bundles.
 
 | path | repo | role |
 |---|---|---|
@@ -458,6 +462,7 @@ and intentionally not a submodule.
 | `pod-chrome-headless/` | [opencharly/pod-chrome-headless](https://github.com/opencharly/pod-chrome-headless) | pod / deployment bundle |
 | `pod-cloud-init/` | [opencharly/pod-cloud-init](https://github.com/opencharly/pod-cloud-init) | pod / deployment bundle |
 | `pod-comfyui/` | [opencharly/pod-comfyui](https://github.com/opencharly/pod-comfyui) | pod / deployment bundle |
+| `pod-crabbox/` | [opencharly/pod-crabbox](https://github.com/opencharly/pod-crabbox) | pod / deployment bundle |
 | `pod-cstream/` | [opencharly/pod-cstream](https://github.com/opencharly/pod-cstream) | charly candy: the charly-streamer transport spine — streamer/gateway/broker/leader services, PAM stack, PipeW… |
 | `pod-dbus/` | [opencharly/pod-dbus](https://github.com/opencharly/pod-dbus) | charly candy: pod-dbus (standalone repo of the candy de-submodule cutover) |
 | `pod-dsh/` | [opencharly/pod-dsh](https://github.com/opencharly/pod-dsh) | pod / deployment bundle |
