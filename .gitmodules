@@ -1216,6 +1216,10 @@
 	path = plugin-candy-kind
 	url = https://github.com/opencharly/plugin-candy-kind.git
 	branch = main
+[submodule "plugin-cache"]
+	path = plugin-cache
+	url = https://github.com/opencharly/plugin-cache.git
+	branch = main
 [submodule "plugin-cdp"]
 	path = plugin-cdp
 	url = https://github.com/opencharly/plugin-cdp.git
