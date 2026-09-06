@@ -182,7 +182,7 @@ export default function (pi: ExtensionAPI) {
         const fail = run?.conclusion === "failure" ? await failingStep(repo, run.databaseId) : "";
         // Concluded states: the run concluded, OR the PR merged/closed, OR no PR.
         const concluded =
-          pr.state !== "open" || (run?.conclusion === "success" || run?.conclusion === "failure");
+          pr.state.toLowerCase() !== "open" || (run?.conclusion === "success" || run?.conclusion === "failure");
         return { text: formatCheck(pr, run, verdict, fail), concluded };
       };
 
