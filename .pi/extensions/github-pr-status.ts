@@ -175,23 +175,27 @@ export default function (pi: ExtensionAPI) {
       const number = params.pr as number;
       const mode = (params.mode as string | undefined) ?? "check";
 
-      const poll = async (): Promise<string> => {
+      const poll = async (): Promise<{ text: string; checkConcluded: boolean; watchDone: boolean }> => {
         const pr = await getPR(repo, number);
         const run = await validatorRunOnHead(repo, pr.headSha);
         const verdict = await latestVerdict(repo, number);
         const fail = run?.conclusion === "failure" ? await failingStep(repo, run.databaseId) : "";
-        // Concluded states: the run concluded, OR the PR merged/closed, OR no PR.
-        const concluded =
+        // checkConcluded: the run concluded OR the PR merged/closed/vanished (one-shot semantics).
+        const checkConcluded =
           pr.state !== "open" || (run?.conclusion === "success" || run?.conclusion === "failure");
-        return { text: formatCheck(pr, run, verdict, fail), concluded };
+        // watchDone: for watch, a FAILED run (BLOCK) or a merged/closed PR is terminal —
+        // but a PASS on an open PR keeps polling until the armed auto-merge completes,
+        // so `watch` truly wakes on the merge (the #38 lesson: PASS != merged).
+        const watchDone = pr.state !== "open" || run?.conclusion === "failure";
+        return { text: formatCheck(pr, run, verdict, fail), checkConcluded, watchDone };
       };
 
       const first = await poll();
-      if (mode === "check" || first.concluded) {
+      if (mode === "check" || first.checkConcluded) {
         return { content: [{ type: "text", text: first.text }], details: {} };
       }
 
-      // watch: poll until concluded or timeout
+      // watch: poll until watchDone (merge/close or a failed validator run) or timeout.
       const interval = (params.intervalSeconds as number | undefined) ?? 60;
       const timeout = Math.min((params.timeoutSeconds as number | undefined) ?? 1800, 3600);
       const deadline = Date.now() + timeout * 1000;
@@ -203,7 +207,7 @@ export default function (pi: ExtensionAPI) {
         await new Promise((r) => setTimeout(r, Math.min(interval, Math.max(1, deadline - Date.now())) * 1000));
         const snap = await poll();
         last = snap.text;
-        if (snap.concluded) {
+        if (snap.watchDone) {
           return { content: [{ type: "text", text: last + "\n\n(concluded)" }], details: {} };
         }
       }
