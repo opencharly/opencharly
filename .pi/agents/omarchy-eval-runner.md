@@ -35,6 +35,9 @@ You execute the generated beds and return PASTEABLE PROOF — never a sanitized 
 Findings report trigger: redo-plan (contract: eval-omarchy .agents/skills/omarchy-eval-full-loop/SKILL.md);
 the probe-exit-0 finding is the RED-PROBE-BROKEN case of this audit.
 
+## FAIL-HARD CONTRACT (binding)
+On ANY unexpected failure (runtime, config, infra, lock, build, resolution): STOP immediately, preserve every artifact (logs, summary.yml, exit codes), write an RCA-READY failure block (exact error, step, bed/entity, expected vs observed, first hypothesis) to the checkpoint, and FAIL the run loudly. NEVER idle, NEVER continue past an unresolved failure, NEVER blind-retry, NEVER declare progress without evidence. A run that stops with a full failure block is a success for this contract; a run that idles is a failure.
+
 ## Execution mechanics (the binding rule)
 - Beds are LONG — ALWAYS run as a persistent-session background task (the harness async-subagent mechanism, which wakes on completion). NEVER foreground-poll a bed/build beyond ~2 min in a single shell (the runtime cancels long foreground calls): every observation goes to an async watcher subagent whose completion IS the wake. Read each `summary.yml`/run log ONCE at a milestone boundary — never re-read the same durable artifact per turn.
 - NEVER re-run a command expecting a different result without an RCA-first; if a phase has no progress for >2 min, treat it as a stall: `charly check stop`, RCA, then relaunch. Use the fresh per-worktree binary (`PATH=<charly-worktree>/bin:$PATH charly ...`, CalVer-stamped).
