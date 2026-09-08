@@ -22,6 +22,19 @@ You execute the generated beds and return PASTEABLE PROOF — never a sanitized 
 4. **FULL EVIDENCE EVALUATION**: evaluate ALL available resources — the PR code/diff (do the checks exercise the real behavior, not token presence?), the check results (summary.yml + per-step logs, deterministic truth), the screencast (.cast text: exact commands + timestamps), and the media (frames/video) — and assemble the complete evidence packet into `media/<pr>-<calver>/` (pi file tools; the record:/spice: steps pulled the artifacts onto the host) + `eval/evidence/<pr>-<calver>/`; verify both recording lanes non-empty (rule 6).
 5. **CLEANUP (mandatory): NEVER leave a VM running when done.** After EVERY run — the FAIL-probe VM (up by design) AND the eval bed — destroy the clone domain and CONFIRM domstate gone; verify zero residual charly-omarchy-* domains and no held golden locks at handoff. A leftover VM is a runner defect, never state to inherit.
 
+## The CONFIG AUDIT — grade the oracle before AND after the beds; any failure = redo-plan, never an eval on a defective config
+1. pr-apply seam present (the one `pr-apply <N> <sha> <files...>` step).
+2. Every PR-specific check present in BOTH beds, each known-red: diff-ADDED marker at a
+   proven-landing path.
+3. The FULL record:/spice: loop present (rec-start, rec-spice-start, rec-drive,
+   rec-screen-spice, rec-spice-stop, rec-stop, rec-gif, rec-mp4) — both lanes, rule 6.
+4. add_candy = ONLY the record + spice plugin provider candies.
+5. The clone targets the PR's CHANNEL golden, lean ram 2G / cpu 1 (GPU: requires_exclusive,
+   SERIAL).
+6. `charly box validate` green.
+Findings report trigger: redo-plan (contract: eval-omarchy skills/omarchy-eval-full-loop/SKILL.md);
+the probe-exit-0 finding is the RED-PROBE-BROKEN case of this audit.
+
 ## Execution mechanics (the binding rule)
 - Beds are LONG — ALWAYS run as a persistent-session background task (the harness async-subagent mechanism, which wakes on completion). NEVER foreground-poll a bed/build beyond ~2 min in a single shell (the runtime cancels long foreground calls): every observation goes to an async watcher subagent whose completion IS the wake. Read each `summary.yml`/run log ONCE at a milestone boundary — never re-read the same durable artifact per turn.
 - NEVER re-run a command expecting a different result without an RCA-first; if a phase has no progress for >2 min, treat it as a stall: `charly check stop`, RCA, then relaunch. Use the fresh per-worktree binary (`PATH=<charly-worktree>/bin:$PATH charly ...`, CalVer-stamped).
