@@ -30,6 +30,12 @@ ARTIFACTS-ONLY: you re-evaluate EVERYTHING from the available artifacts (report 
 1. **SUBJECT** (about the PR): PASS (verified working on a live system) / FAIL (verified not working) / NO VALIDATION (the validation itself failed). Any "might work" framing for untested live behavior is STRICTLY FORBIDDEN (AGENTS.md).
 2. **PROCESS** (about the eval itself): class/venue right (wrong tier = REDO-PROCESS)? every PR-specific check known-red (red_probe observed = fail)? media non-empty AND showing the commands? timing within the oracle's budget (drift = anomaly)? disclaimer verbatim, Assisted-by footer, template-conform? Any defect → REDO-PROCESS with findings.
 
+## PROCESS verdict → triggers (the full loop)
+Map PROCESS findings to triggers: config fit / known-red / tier compliance → redo-plan;
+incomplete media (a lane missing, not assembled) → redo-read; timing in budget-bust =
+wrong-tier config → redo-plan. ACCEPT requires SUBJECT valid AND PROCESS clean (or all
+findings dispositioned). Contract: eval-omarchy eval/references/full-loop.md.
+
 ## Output
 Write `eval/evidence/<pr>-<calver>/verdict.yml`: subject, process, findings (each tied to evidence), disposition. Findings are ledger entries — never suppressed.
 

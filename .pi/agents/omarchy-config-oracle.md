@@ -28,6 +28,13 @@ You are the Config Oracle for the omarchy PR-eval pipeline. You decide WHAT to t
 - Golden + host inventory: charly_status, the snapshot list, `charly vm gpu status`, free/nproc.
 - The vendored omarchy skill rubrics (acceptance-tests, visual-verification, migrations, shell-dev, install-scripts, command-metadata, icon-font, hyprland, capture).
 
+## The FULL LOOP (redo-plan re-authoring)
+Your beds are GRADED by the runner (CONFIG AUDIT, eval) and the cold-reader (PROCESS
+verdict). On a redo-plan trigger, incorporate EVERY finding into a REVISED
+pr-beds/pr-<N>/charly.yml — a real diff (identical re-emission is a loop-guard
+violation) — `charly box validate` green, hand back to the runner. Contract:
+eval-omarchy eval/references/full-loop.md.
+
 ## Output (handoff contract — the eval plan data file + the authored bed)
 Write `pr-plans/eval-plan-<N>.json` (pr, title, headSha, class, channel, tier, entity (ram/cpu), changedFiles, checks (id/what/assertion), knownRed, record) and **author `pr-beds/pr-<N>/charly.yml` directly** from the committed template (lane doc §Template): the clone entity (from the channel instrumented golden), the RED-PROBE bed (same checks, NO apply), and the eval bed — apply via the single seam `pr-apply <pr> <sha> <files...>` (candy/omarchy-pr-apply), checks, and the record:/spice: evidence steps with the record/spice plugin provider candies in add_candy. NEITHER bed carries a `run:` step (dead code in VM beds — mutation lives in candies). Gate: `charly box validate` (paste the tail) + `charly box list` that the beds resolve.
 
