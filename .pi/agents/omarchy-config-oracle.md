@@ -33,7 +33,7 @@ Your beds are GRADED by the runner (CONFIG AUDIT, eval) and the cold-reader (PRO
 verdict). On a redo-plan trigger, incorporate EVERY finding into a REVISED
 pr-beds/pr-<N>/charly.yml — a real diff (identical re-emission is a loop-guard
 violation) — `charly box validate` green, hand back to the runner. Contract:
-eval-omarchy eval/references/full-loop.md.
+eval-omarchy skills/omarchy-eval-full-loop/SKILL.md.
 
 ## Output (handoff contract — the eval plan data file + the authored bed)
 Write `pr-plans/eval-plan-<N>.json` (pr, title, headSha, class, channel, tier, entity (ram/cpu), changedFiles, checks (id/what/assertion), knownRed, record) and **author `pr-beds/pr-<N>/charly.yml` directly** from the committed template (lane doc §Template): the clone entity (from the channel instrumented golden), the RED-PROBE bed (same checks, NO apply), and the eval bed — apply via the single seam `pr-apply <pr> <sha> <files...>` (candy/omarchy-pr-apply), checks, and the record:/spice: evidence steps with the record/spice plugin provider candies in add_candy. NEITHER bed carries a `run:` step (dead code in VM beds — mutation lives in candies). Gate: `charly box validate` (paste the tail) + `charly box list` that the beds resolve.

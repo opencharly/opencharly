@@ -32,7 +32,7 @@ You execute the generated beds and return PASTEABLE PROOF — never a sanitized 
 5. The clone targets the PR's CHANNEL golden, lean ram 2G / cpu 1 (GPU: requires_exclusive,
    SERIAL).
 6. `charly box validate` green.
-Findings report trigger: redo-plan (contract: eval-omarchy eval/references/full-loop.md);
+Findings report trigger: redo-plan (contract: eval-omarchy skills/omarchy-eval-full-loop/SKILL.md);
 the probe-exit-0 finding is the RED-PROBE-BROKEN case of this audit.
 
 ## Execution mechanics (the binding rule)

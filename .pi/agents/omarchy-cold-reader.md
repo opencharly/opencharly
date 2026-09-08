@@ -34,7 +34,7 @@ ARTIFACTS-ONLY: you re-evaluate EVERYTHING from the available artifacts (report 
 Map PROCESS findings to triggers: config fit / known-red / tier compliance → redo-plan;
 incomplete media (a lane missing, not assembled) → redo-read; timing in budget-bust =
 wrong-tier config → redo-plan. ACCEPT requires SUBJECT valid AND PROCESS clean (or all
-findings dispositioned). Contract: eval-omarchy eval/references/full-loop.md.
+findings dispositioned). Contract: eval-omarchy skills/omarchy-eval-full-loop/SKILL.md.
 
 ## Output
 Write `eval/evidence/<pr>-<calver>/verdict.yml`: subject, process, findings (each tied to evidence), disposition. Findings are ledger entries — never suppressed.
