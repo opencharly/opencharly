@@ -26,7 +26,6 @@ concurrency:
 permissions:
   contents: write
   pull-requests: write
-  actions: write   # REQUIRED for the concurrency cancel-in-progress dedupe
 
 jobs:
   validate:
