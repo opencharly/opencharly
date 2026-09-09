@@ -37,8 +37,8 @@ and intentionally not a submodule.
 
 | path | repo | role |
 |---|---|---|
-| `charly/` | [opencharly/charly](https://github.com/opencharly/charly) | The wonky DevOps orchestrator for you and your agents. |
-| `docs/` | [opencharly/docs](https://github.com/opencharly/docs) | Documentation site for OpenCharly — the wonky DevOps orchestrator, its candies, and its plugins. Published at opencharly.ai. |
+| `charly/` | [opencharly/charly](https://github.com/opencharly/charly) | The wonky DevOps tool for you and your agents. |
+| `docs/` | [opencharly/docs](https://github.com/opencharly/docs) | Documentation site for OpenCharly — the wonky DevOps tool, its candies, and its plugins. Published at opencharly.ai. |
 | `marketplace/` | [opencharly/marketplace](https://github.com/opencharly/marketplace) | OpenCharly plugins — Claude Code skills, agents, and workflows for the charly CLI |
 | `sdk/` | [opencharly/sdk](https://github.com/opencharly/sdk) | OpenCharly plugin SDK + contract repo |
 | `spec/` | [opencharly/spec](https://github.com/opencharly/spec) | OpenCharly wire/IR contract module: spec + proto (generated from CUE schema). The dedicated contract every pl… |
