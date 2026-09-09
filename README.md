@@ -1,7 +1,7 @@
 # OpenCharly — umbrella
 
 **One clone of the whole org.** `opencharly/opencharly` is an org-level umbrella repo:
-every OpenCharly repo (394 today) is pinned here as a git submodule ("gitlink", in the
+every OpenCharly repo (400 today) is pinned here as a git submodule ("gitlink", in the
 org's vocabulary), flat at the root — submodule path == repo name, except the one
 alias below. `charly` is the product repo and the single source of truth; this
 umbrella is a *view* of the org, not a new home for anything.
@@ -37,8 +37,8 @@ and intentionally not a submodule.
 
 | path | repo | role |
 |---|---|---|
-| `charly/` | [opencharly/charly](https://github.com/opencharly/charly) | The open infrastructure compiler — for you and your agents. |
-| `docs/` | [opencharly/docs](https://github.com/opencharly/docs) | Documentation site for OpenCharly — the candy factory for you and your agents. Published at opencharly.ai. |
+| `charly/` | [opencharly/charly](https://github.com/opencharly/charly) | The agentic config orchestrator — everything is a plugin, nothing is mandatory. |
+| `docs/` | [opencharly/docs](https://github.com/opencharly/docs) | Documentation site for OpenCharly — the agentic config orchestrator, its candies, and its plugins. Published at opencharly.ai. |
 | `marketplace/` | [opencharly/marketplace](https://github.com/opencharly/marketplace) | OpenCharly plugins — Claude Code skills, agents, and workflows for the charly CLI |
 | `sdk/` | [opencharly/sdk](https://github.com/opencharly/sdk) | OpenCharly plugin SDK + contract repo |
 | `spec/` | [opencharly/spec](https://github.com/opencharly/spec) | OpenCharly wire/IR contract module: spec + proto (generated from CUE schema). The dedicated contract every pl… |
@@ -85,7 +85,7 @@ and intentionally not a submodule.
 | `charly-streamer/` | [opencharly/charly-streamer](https://github.com/opencharly/charly-streamer) | charly-streamer (cstream) — Hyprland desktops streamed to a browser over WebRTC: Rust streamer + leader, Go g… |
 | `dotgithub/` | [opencharly/.github](https://github.com/opencharly/.github) | OpenCharly org-wide community-health defaults (PR template, etc.) — single source inherited by every repo wit… |
 | `gst-wayland-display/` | [opencharly/gst-wayland-display](https://github.com/opencharly/gst-wayland-display) | A micro Wayland compositor that can be used as a Gstreamer plugin |
-| `pi-review-action/` | [opencharly/pi-review-action](https://github.com/opencharly/pi-review-action) | OpenCharly's org-wide PR-review GitHub Action: runs a fresh independent AI validator with read-only GitHub to… |
+| `pi-review-action/` | [opencharly/pi-review-action](https://github.com/opencharly/pi-review-action) | Archived — the org PR-review gate now runs the charly engine (opencharly/action-review) |
 | `pixelflux/` | [opencharly/pixelflux](https://github.com/opencharly/pixelflux) | Patched pixelflux wl-screenshot/record library for OpenCharly selkies desktops (migrated from overthinkos) |
 
 
@@ -548,7 +548,7 @@ rename keeps working.
 
 The daily `sync` workflow runs `scripts/sync-gitlinks.sh`, opens a `chore: sync
 gitlinks` PR when anything moved, and the org-wide validation chain lands it:
-`charly/pr-validator` runs the fresh AI validator (`pi-review-action`) and
+`charly/pr-validator` runs the charly review engine (`opencharly/action-review`) and
 enables native auto-merge on PASS; `tag-on-merge` tags the merged snapshot —
 same discipline as charly. There is no CI gate: an audit found the verify
 workflow's assertions were either created by `actions/checkout` itself or already
