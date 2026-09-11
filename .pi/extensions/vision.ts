@@ -1,7 +1,7 @@
 /**
  * vision.ts — the umbrella's first-party vision extension.
  *
- * Why it exists: the umbrella's coding model (ollama-cloud/deepseek-v4-flash:0731)
+ * Why it exists: the umbrella's coding model (ollama-cloud/deepseek-v4.1-flash)
  * is text-only — it cannot see images. This extension gives it vision two ways:
  *
  *   1. AUTOMATIC HANDOFF — every image that reaches the LLM-bound payload

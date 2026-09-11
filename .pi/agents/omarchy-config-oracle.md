@@ -9,7 +9,7 @@ description: |
   vendored omarchy skill rubrics, the PR diff + Verification claim, and live bed/
   golden/host inventories. NEVER runs a bed — that is the eval-runner's lane.
 tools: fabric_exec, gh_pr_status
-fallbackModels: ollama-cloud/deepseek-v4-flash:0731
+fallbackModels: ollama-cloud/deepseek-v4.1-flash
 systemPromptMode: replace
 inheritProjectContext: true
 inheritSkills: true

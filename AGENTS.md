@@ -122,7 +122,7 @@ Every PR body must contain:
    to `CHANGELOG/<calver>.md` at merge time; no separate CHANGELOG section
    or file is needed
 6. ***Assisted-by: <Harness> <Provider Full Model Name> (<confidence>)*** — italicized
-   footer in the exact form, e.g. `*Assisted-by: pi openrouter/deepseek/deepseek-v4-flash-0731 (fully tested and validated)*`
+   footer in the exact form, e.g. `*Assisted-by: pi ollama-cloud/deepseek-v4.1-flash (fully tested and validated)*`
 
 These are enforced by the fresh `charly/pr-validator` at merge (rule A1).
 
