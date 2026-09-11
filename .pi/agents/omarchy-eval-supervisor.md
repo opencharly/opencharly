@@ -8,7 +8,7 @@ description: |
   state machine TRIAGE → PLAN → RED-PROBE → EVAL → EVIDENCE → COLD-READ →
   ACCEPT/REPORT, with setup-update + full re-run on REDO-PROCESS.
 tools: fabric_exec, subagent, charly_status, gh_pr_status, subagent_wait
-fallbackModels: ollama-cloud/deepseek-v4-flash:0731
+fallbackModels: ollama-cloud/deepseek-v4.1-flash
 systemPromptMode: replace
 inheritProjectContext: true
 inheritSkills: true

@@ -7,7 +7,7 @@ description: |
   verbatim verdict (decoded exit code, summary.yml, per-step logs, per-phase timing
   ledger rows), pulls media, and recovers orphans. NEVER edits source.
 tools: fabric_exec, charly_status, gh_pr_status, subagent, subagent_wait
-fallbackModels: ollama-cloud/deepseek-v4-flash:0731
+fallbackModels: ollama-cloud/deepseek-v4.1-flash
 systemPromptMode: replace
 inheritProjectContext: true
 inheritSkills: true

@@ -2,7 +2,7 @@
 name: worker
 description: Implementation agent (project override): pi core tools via fabric_exec, PR status checking via gh_pr_status, for OpenCharly development work.
 tools: charly_status, fabric_exec, subagent_wait, gh_pr_status
-fallbackModels: ollama-cloud/deepseek-v4-flash:0731
+fallbackModels: ollama-cloud/deepseek-v4.1-flash
 systemPromptMode: replace
 inheritProjectContext: true
 inheritSkills: true

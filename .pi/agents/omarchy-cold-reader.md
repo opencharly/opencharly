@@ -8,7 +8,7 @@ description: |
   Emits dual verdicts: SUBJECT (PASS/FAIL/NO VALIDATION) and PROCESS (config fit,
   known-red, tier compliance, media quality, timing in budget) with findings.
 tools: fabric_exec
-fallbackModels: ollama-cloud/deepseek-v4-flash:0731
+fallbackModels: ollama-cloud/deepseek-v4.1-flash
 systemPromptMode: replace
 inheritProjectContext: true
 inheritSkills: true
