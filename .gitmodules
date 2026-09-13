@@ -1352,10 +1352,6 @@
 	path = plugin-gpu
 	url = https://github.com/opencharly/plugin-gpu.git
 	branch = main
-[submodule "plugin-group"]
-	path = plugin-group
-	url = https://github.com/opencharly/plugin-group.git
-	branch = main
 [submodule "plugin-harness-kind"]
 	path = plugin-harness-kind
 	url = https://github.com/opencharly/plugin-harness-kind.git
