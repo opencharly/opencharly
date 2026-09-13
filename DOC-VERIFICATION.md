@@ -208,28 +208,27 @@ the published page is fine). Mechanism claims in the foundations check out (`fiv
 `AGENTS.md` ↔ umbrella `AGENTS.md` restating R1–R10; `charly/{AGENTS,CLAUDE}.md` are a sanctioned
 mirror. Dispatcher tables are sanctioned mirrors.
 
-## 8. Escalation register (R2 genuine crossroads — need operator direction)
+## 8. Escalation register (all resolved)
 
 | # | Crossroad | Why it is not auto-resolved |
 |---|---|---|
 | E1 | **RESOLVED by RCA probe.** The explicit `layer-supervisord` in `distro-fedora/box/tutorial-shell/charly.yml` is REQUIRED; the box's own description/comments claiming "the INIT is deliberately absent … charly adds that init's own candy automatically" are **stale**. | Evidence: `charly box generate` on a fixture composing `pod-sshd` without a supervisord candy emits `warning: box … resolves init "supervisord", which depends on the "supervisord" candy, but no candy of that name is in this project's scanned set — nothing was injected … Reference the candy directly in the box's candy: list`. Fix = correct the distro-fedora box description/comments (source) + README/concepts prose; no operator ruling needed. |
-| E2 | The vocabulary term for "the set of deploys charly manages" after the `fleet → deploy` retirement: is the concept still named, or merged into `deploy`? Affects README's two "deploy" rows and concepts/00's removed `fleet` term. | Vocabulary design choice; the CHANGELOG confirms the rename but not whether a distinct term survives. |
-| E3 | `KERNEL_MANIFEST.md` self-describes as a W5 draft while the CI-enforcing test already exists (D29). | Requires deciding whether the file is superseded (delete) or kept as the manifest (refresh line refs). |
+| E2 | **RESOLVED.** `fleet` was retired in the CLI (`fleet → deploy`); the `fleet` term/vocabulary rows now read `deploy` (docs#119). | No operator ruling was needed. |
+| E3 | **RESOLVED.** `KERNEL_MANIFEST.md` and its gate test were deleted; the boundary law is enforced by `import_purity_test.go` (charly#604). | No operator ruling was needed. |
 
-## 9. Remediation cutover plan
+## 9. Remediation plan (executed; landing log in §11)
 
-Docs-only change class → non-runtime standards, **no bed**. Two repos, two PRs (one cutover each),
-per the cross-repo order (producer `charly` → consumer `docs`):
+The original plan was a two-repo cutover; execution split it by owning repo (the `box/*/README.md`
+files live in the `distro-*` submodules, each of which required its own PR):
 
-1. **charly PR (`feat/docs-truth`)** — README D1–D9/D15/D16/D18; rulebooks D24–D28 + mirror P1;
-   `charly/charly/CLAUDE.md` D25; box READMEs D30–D34; `.pi` D35; `PROGRAM` D24/D36; KERNEL_MANIFEST
-   (per E3). R5 claim-keyed sweep for each corrected claim across the repo.
-2. **docs PR** — hand-authored pages D11–D23; `docs/README.md`/`CLAUDE.md` D10/D28; regenerate
-   `index.md`/`vision.md`/`grievances.md`/`liberation.md`/`reference/**`/`recipes/**` from the merged
-   charly and bump the CI-time charly commit in `deploy.yml`.
-3. **Validation** — pr-validator on each; `charly/pr-validator` gate.
-
-E1–E3 block only the specific lines they touch; the rest of the cutover is unambiguous.
+1. **charly PR** (`feat/docs-truth`, #604) — README D1–D9/D15/D16/D18; rulebooks D24–D28 + mirror P1;
+   `charly/charly/CLAUDE.md` D25; `.pi` reverted; `PROGRAM` D24/D36; KERNEL_MANIFEST retired (E3). R5 sweeps.
+2. **docs PR** (`feat/retire-fleet`, #119) — hand-authored pages D11–D23; `docs/README.md`/`CLAUDE.md`
+   D10/D28; the generated half regenerated at the pinned charly (deploy drift cleared).
+3. **six distro PRs** (`feat/docs-refs`) — D30–D34 (`arch#36`, `cachyos#88`, `debian#22`, `fedora#52`,
+   `omarchy#50`, `ubuntu#22`).
+4. **distro-fedora** `feat/tutorial-shell-desc` (#51) — D14/E1 source fix.
+5. **Validation** — every PR passed `charly/pr-validator`; charly#604 additionally ran the R10 bed.
 
 ## 10. Reproduction
 
