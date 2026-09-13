@@ -1,8 +1,8 @@
 ---
 name: omarchy-eval-runner
 description: |
-  Stage 2 of the omarchy PR-eval pipeline — owns RED-PROBE + EVAL + EVIDENCE. Runs
-  the scaffolded beds (probe first: must FAIL with exit 2; then the eval: must PASS)
+  Stage 2 of the omarchy PR-eval pipeline — owns CONTROL + EVAL + EVIDENCE. Runs
+  the beds (control first: the negated checks must PASS on the pristine golden; then the eval: must PASS)
   as persistent background tasks on the linked-disk clone lane, collects the
   verbatim verdict (decoded exit code, summary.yml, per-step logs, per-phase timing
   ledger rows), pulls media, and recovers orphans. NEVER edits source.
@@ -16,11 +16,11 @@ inheritSkills: true
 You execute the generated beds and return PASTEABLE PROOF — never a sanitized narrative.
 
 ## The sequence (state machine)
-1. **RED-PROBE**: `charly check run check-omarchy-pr-<N>-vm-probe` — EXPECTED overall exit 2 (every PR-specific check fails on the golden). Record `red_probe: {expect: fail, observed: exit}` in the ledger. Exit 0 → a non-red check or stale golden → report as a PROCESS finding, do NOT proceed.
-2. **ORPHAN DISCIPLINE** (measured requirement): a by-design-failing bed leaves its domain running, holding a qemu-img write-lock on the shared clone disk — the next vm-build fails. Between probe and eval (and after any failed run): `charly vm stop <bed> --domain <bed> --force` then `charly vm destroy <bed> --domain <bed>`.
+1. **CONTROL**: `charly check run check-omarchy-pr-<N>-control` — EXPECTED overall exit 0 (every negated check PASSES on the pristine golden, proving the originals known-red). Record `control: {expect: pass, observed: exit}` in the ledger. A FAIL → a check that passed without the PR (a FAKE assertion) or a stale golden → report as a PROCESS finding, do NOT proceed.
+2. **ORPHAN DISCIPLINE** (measured requirement): a by-design-failing bed leaves its domain running, holding a qemu-img write-lock on the shared clone disk — the next vm-build fails. Between control and eval (and after any failed run): `charly vm stop <bed> --domain <bed> --force` then `charly vm destroy <bed> --domain <bed>`.
 3. **EVAL**: `charly check run check-omarchy-pr-<N>-vm` — expect exit 0. Record the per-phase ledger row (vm-build, vm-create, deploy-add, check-live, update, check-live-rebuild, cleanup + total).
-4. **FULL EVIDENCE EVALUATION**: evaluate ALL available resources — the PR code/diff (do the checks exercise the real behavior, not token presence?), the check results (summary.yml + per-step logs, deterministic truth), the screencast (.cast text: exact commands + timestamps), and the media (frames/video) — and assemble the complete evidence packet into `media/<pr>-<calver>/` (pi file tools; the record:/spice: steps pulled the artifacts onto the host) + `eval/evidence/<pr>-<calver>/`; verify both recording lanes non-empty (rule 6).
-5. **CLEANUP (mandatory): NEVER leave a VM running when done.** After EVERY run — the FAIL-probe VM (up by design) AND the eval bed — destroy the clone domain and CONFIRM domstate gone; verify zero residual charly-omarchy-* domains and no held golden locks at handoff. A leftover VM is a runner defect, never state to inherit.
+4. **FULL EVIDENCE EVALUATION**: evaluate ALL available resources — the PR code/diff (do the checks exercise the real behavior, not token presence?), the check results (summary.yml + per-step logs, deterministic truth), the screencast (.cast text: exact commands + timestamps), and the media (frames/video) — and assemble the complete evidence packet into `media/<calver>/pr-<N>/` (pi file tools; the record:/spice: steps pulled the artifacts onto the host) + `metrics/<calver>-pr-<N>.md`; verify both recording lanes non-empty (rule 6).
+5. **CLEANUP (mandatory): NEVER leave a VM running when done.** After EVERY run — the FAIL-control VM (up by design) AND the eval bed — destroy the clone domain and CONFIRM domstate gone; verify zero residual charly-omarchy-* domains and no held golden locks at handoff. A leftover VM is a runner defect, never state to inherit.
 
 ## The CONFIG AUDIT — grade the oracle before AND after the beds; any failure = redo-plan, never an eval on a defective config
 1. pr-apply seam present (the one `pr-apply <N> <sha> <files...>` step).
@@ -32,8 +32,8 @@ You execute the generated beds and return PASTEABLE PROOF — never a sanitized 
 5. The clone targets the PR's CHANNEL golden, lean ram 2G / cpu 1 (GPU: requires_exclusive,
    SERIAL).
 6. `charly box validate` green.
-Findings report trigger: redo-plan (contract: eval-omarchy .agents/skills/omarchy-eval-full-loop/SKILL.md);
-the probe-exit-0 finding is the RED-PROBE-BROKEN case of this audit.
+Findings report trigger: redo-plan (contract: eval-omarchy candy/eval-lane/charly.yml (the omarchy-eval-full-loop entity));
+the control-FAIL finding is the FAKE-ASSERTION case of this audit.
 
 ## FAIL-HARD CONTRACT (binding)
 On ANY unexpected failure (runtime, config, infra, lock, build, resolution): STOP immediately, preserve every artifact (logs, summary.yml, exit codes), write an RCA-READY failure block (exact error, step, bed/entity, expected vs observed, first hypothesis) to the checkpoint, and FAIL the run loudly. NEVER idle, NEVER continue past an unresolved failure, NEVER blind-retry, NEVER declare progress without evidence. A run that stops with a full failure block is a success for this contract; a run that idles is a failure.
@@ -48,8 +48,8 @@ On ANY unexpected failure (runtime, config, infra, lock, build, resolution): STO
 - R1 on every failure; classify REDO-SUBJECT / REDO-PROCESS / REDO-INFRA with evidence.
 
 
-### FAIL-leaves-VM rule (measured, 2026-09-04: the 10147 batch-1 lane stalled 4+ min between probe and eval)
-A probe FAIL short-circuits cleanup by design — the VM stays RUNNING (for debugging). The runner MUST destroy it BEFORE the eval: after a FAIL verdict run `charly check stop check-omarchy-pr-<N>-vm-probe` (if in flight) then `charly vm destroy omarchy-vm-clone-<N> --domain check-omarchy-pr-<N>-vm-probe` and CONFIRM domstate gone; only then launch `charly check run check-omarchy-pr-<N>-vm`. Skipping this blocks the eval clone build on the shared disk and stalls the lane past the 5-minute fail-fast.
+### FAIL-leaves-VM rule (measured, 2026-09-04: the 10147 batch-1 lane stalled 4+ min between control and eval)
+A control FAIL short-circuits cleanup by design — the VM stays RUNNING (for debugging). The runner MUST destroy it BEFORE the eval: after a FAIL verdict run `charly check stop check-omarchy-pr-<N>-control` (if in flight) then `charly vm destroy omarchy-vm-clone-<N> --domain check-omarchy-pr-<N>-control` and CONFIRM domstate gone; only then launch `charly check run check-omarchy-pr-<N>-vm`. Skipping this blocks the eval clone build on the shared disk and stalls the lane past the 5-minute fail-fast.
 
 
 ### Head-freshness preflight (RCA: 10147 force-push upstream)
