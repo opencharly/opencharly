@@ -1,6 +1,6 @@
 # DOC-VERIFICATION.md — paragraph-level audit of charly's hand-authored docs
 
-Status: **in progress (Batch 1 — README — complete; Batches 2–5 pending, method below)**
+Status: **complete — Batches 1–5 verified; all nine resulting PRs merged (§11).**
 Audit date: 2026-09-13
 Method owner: this document. Every verdict below is evidence-backed; unproven claims are marked
 `UNVERIFIED`, never guessed.
@@ -90,7 +90,7 @@ Verdicts: **VERIFIED / DIVERGENCE / UNVERIFIED**.
 | README:57-59 | LLVM heritage (one IR, many backends) | C8 | install-plan | read | VERIFIED (intent) | — |
 | README:61-63 | `candy:` is a real keyword and `candy/` a real directory | C2 | corpus | grep | VERIFIED (generic) | e.g. `plugin-mcp/candy/plugin-mcp/`; note charly repo itself vendors none |
 | README:84 | install link `https://opencharly.ai/start/install/` | C7 | docs tree | ls | VERIFIED | `docs/.../start/install.md` |
-| README:89-101 | `charly --repo opencharly/charly box list boxes` prints `agentteams … arch.arch …` | C1/C4 | pinned binary | live run | **UNVERIFIED** | run fetched 217 repos then hit the 200s timeout; needs a warm-cache rerun |
+| README:89-101 | `charly --repo opencharly/charly box list boxes` prints `agentteams … arch.arch …` | C1/C4 | pinned binary | live run (warm cache) | VERIFIED | output begins `agentteams [testing]` / `agentteams-manager [testing]` / `agentteams-worker [testing]` / `alpine-repo-box [testing]` / `arch.arch [testing]` (129 boxes) — matches the README |
 | README:106-112 | clone + `task build:binary` + `./bin/charly box build`; own binary per checkout | C1/C3 | `taskfiles/Build.yml` | read | VERIFIED | sanctioned "work on charly itself" exception |
 | README:118 | "This is `box/fedora/box/tutorial-shell/charly.yml`, from `opencharly/distro-fedora`" | C4/C5 | corpus | read | DIVERGENCE (path) | charly-relative path is `charly/box/fedora/box/…`; in the distro repo it is `box/tutorial-shell/charly.yml` |
 | README:120-137 | tutorial-shell snippet (refs, plan) | C2/C4 | `distro-fedora/box/tutorial-shell/charly.yml` | diff | **DIVERGENCE** | real refs are `layer-supervisord:v2026.240.0121`, `layer-ripgrep:v2026.235.1653`, `pod-sshd:v2026.239.1637`; full description/comments/plan differ |
@@ -120,9 +120,12 @@ Verdicts: **VERIFIED / DIVERGENCE / UNVERIFIED**.
 All divergences below share one root mechanism: the docs predate **three cutovers** — the **candy
 de-submodule cutover** (candies moved from `opencharly/charly/candy/*` to standalone
 `layer-*`/`pod-*`/`plugin-*` repos), the **group-kind unroll** (`charly migrate`
-`unroll-group-deploy`), and the **CI-time charly pin** replacing the docs submodule. They are
-**doc-stale**, not product defects: the resolver behaves correctly (it errors on the nonexistent
-path), and the canonical entities all exist. No product fix is warranted by these findings.
+`unroll-group-deploy`), and the **CI-time charly pin** replacing the docs submodule. Each is
+dispositioned per **R2**, never blanket-classified: the README/rulebook/page corrections landed in
+the merged PRs (§11); the product-adjacent items were fixed by aligning the docs to **correct**
+product behaviour (D19: an external `base:` emits no distro packages, so the guide adds `distro:`;
+D21: `pkg` is not a command, so the page drops it); the one remaining product change — retiring the
+`group` provider — is the named batch `feat/retire-group-kind`.
 
 | # | Doc | Expected (canonical) | Actual (doc) | Class | Owner repo | Proposed fix |
 |---|---|---|---|---|---|---|
@@ -142,7 +145,7 @@ path), and the canonical entities all exist. No product fix is warranted by thes
 | Claim | Surfaces | Class | Canonical owner | Action |
 |---|---|---|---|---|
 | The full term glossary | `charly/README.md:331-367` **and** `docs/.../concepts/00-vocabulary.md` | DUPLICATE (both hand-authored) | `concepts/00-vocabulary.md` (it states "Each term below is defined once, here. Every other page … links back rather than redefining") | README should summarise + link, not restate; the duplicate `deploy` row (D7) is a symptom |
-| Vendor/repo pin tables | README + box READMEs + skills | PROJECTION/MIRROR | generated docs / skills | not a violation (generated), except where a box README restates a distro-skill claim (Batch 3 pending) |
+| Vendor/repo pin tables | README + box READMEs + skills | PROJECTION/MIRROR | generated docs / skills | not a violation (generated), except where a box README restated a distro-skill claim — cured in the merged distro PRs (§11). |
 | Rulebook dispatcher tables | `charly/AGENTS.md` **and** `charly/CLAUDE.md` | MIRROR (sanctioned; must stay equivalent) | both root rulebooks | parity-check, never delete (Batch 3) |
 
 ## 7. Batches 2–5 findings (all verified, read-only)
@@ -231,13 +234,12 @@ E1–E3 block only the specific lines they touch; the rest of the cutover is una
 ## 10. Reproduction
 
 ```bash
-cd /home/atrawog/Sync/Atrapub/oo/opencoder/opencharly
-./charly/bin/charly version                              # 2026.254.0903
-./charly/bin/charly box generate -C /tmp/reftest         # D1 → remote candy … not found
-./charly/bin/charly --repo opencharly/charly mcp serve   # D5 → unexpected argument mcp
-./charly/bin/charly --repo opencharly/plugin-mcp mcp serve --help   # → Usage: mcp serve
-./charly/bin/charly fleet add x                          # D7/D11 → "fleet" command is retired … use deploy
-git -C charly diff --stat d507ca5a..origin/main -- README.md   # empty: audit target is current
+charly version                                            # 2026.254.0903 (pinned worktree build)
+charly box generate -C /tmp/reftest                       # D1 → remote candy … not found
+charly --repo opencharly/charly mcp serve                 # D5 → unexpected argument mcp
+charly --repo opencharly/plugin-mcp mcp serve --help      # → Usage: mcp serve
+charly fleet add x                                        # D11 → the "fleet" command is retired … use deploy
+charly --repo opencharly/charly box list boxes | head -5  # → agentteams/agentteams-manager/agentteams-worker/alpine-repo-box/arch.arch [testing]
 ```
 
 ## 11. Landing log (this run)
