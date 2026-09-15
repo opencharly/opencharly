@@ -147,12 +147,24 @@ jobs:
             echo
             echo "## How tested"
             echo
-            echo "**What produced this diff**, pasted from the run that opened this PR — every pin"
-            echo "resolved from the repo's own default-branch HEAD (or, for \`distro-*\`, from charly's"
-            echo "gitlink) over the network, never hand-written:"
+            echo "**What produced this diff**, pasted from the run that opened this PR — the producer's"
+            echo "own resolution for EXACTLY the moved pins, filtered from /tmp/sync-pins.log by the"
+            echo "moved-path set. (\`tail -40\` was the former form and is structurally unable to name"
+            echo "them: the log holds ~400 pin lines in one pass, so its last 40 are the"
+            echo "alphabetically-last slice — disjoint from the moved set in general. R2: the defect"
+            echo "surfaced by this very PR is fixed HERE, not parked.)"
             echo
             echo '```'
-            tail -40 /tmp/sync-pins.log
+            # Filter the producer log to the moved paths. The log line per pin is
+            # "  <path> -> <shortsha>"; match the exact fixed string "  <path> -> " so a
+            # prefix repo cannot match a longer sibling (e.g. plugin-vm vs plugin-vmx).
+            # Every moved path MUST appear; a missing line is a real defect (a pin moved
+            # without the producer having resolved it).
+            printf '%s\n' "$MOVED" | while IFS= read -r p; do
+              [ -n "$p" ] || continue
+              grep -m1 -F "  ${p} -> " /tmp/sync-pins.log \
+                || echo "  ${p} -> (MISSING from producer log — investigate)"
+            done
             echo '```'
             echo
             echo "**On \`scripts/verify-pins.sh\`, honestly.** An earlier version of this body said that"
