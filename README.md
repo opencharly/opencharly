@@ -382,7 +382,6 @@ and intentionally not a submodule.
 | `plugin-file/` | [opencharly/plugin-file](https://github.com/opencharly/plugin-file) | charly plugin |
 | `plugin-fleet/` | [opencharly/plugin-fleet](https://github.com/opencharly/plugin-fleet) | charly plugin |
 | `plugin-gpu/` | [opencharly/plugin-gpu](https://github.com/opencharly/plugin-gpu) | charly plugin |
-| `plugin-group/` | [opencharly/plugin-group](https://github.com/opencharly/plugin-group) | charly plugin |
 | `plugin-harness-kind/` | [opencharly/plugin-harness-kind](https://github.com/opencharly/plugin-harness-kind) | charly plugin |
 | `plugin-helm/` | [opencharly/plugin-helm](https://github.com/opencharly/plugin-helm) | charly plugin |
 | `plugin-herdr/` | [opencharly/plugin-herdr](https://github.com/opencharly/plugin-herdr) | charly plugin: command:herdr + verb:herdr — control a Herdr terminal-multiplexer session over its NDJSON socket API |
