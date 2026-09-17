@@ -342,10 +342,10 @@ and intentionally not a submodule.
 | `plugin-builder-cargo/` | [opencharly/plugin-builder-cargo](https://github.com/opencharly/plugin-builder-cargo) | charly plugin |
 | `plugin-builder-npm/` | [opencharly/plugin-builder-npm](https://github.com/opencharly/plugin-builder-npm) | charly plugin |
 | `plugin-builder-pixi/` | [opencharly/plugin-builder-pixi](https://github.com/opencharly/plugin-builder-pixi) | charly plugin |
+| `plugin-cache/` | [opencharly/plugin-cache](https://github.com/opencharly/plugin-cache) | charly plugin: the `charly cache status|clear|refresh|bypass` command — the git-ref cache operator surface |
 | `plugin-candy/` | [opencharly/plugin-candy](https://github.com/opencharly/plugin-candy) | charly plugin |
 | `plugin-candy-kind/` | [opencharly/plugin-candy-kind](https://github.com/opencharly/plugin-candy-kind) | charly plugin |
 | `plugin-cardwire/` | [opencharly/plugin-cardwire](https://github.com/opencharly/plugin-cardwire) | charly plugin: cardwire (eBPF LSM GPU manager) — install + command:cardwire CLI |
-| `plugin-cache/` | [opencharly/plugin-cache](https://github.com/opencharly/plugin-cache) | charly plugin: the `charly cache status|clear|refresh|bypass` command — the git-ref cache operator surface |
 | `plugin-cdp/` | [opencharly/plugin-cdp](https://github.com/opencharly/plugin-cdp) | charly plugin |
 | `plugin-check/` | [opencharly/plugin-check](https://github.com/opencharly/plugin-check) | charly plugin |
 | `plugin-clean/` | [opencharly/plugin-clean](https://github.com/opencharly/plugin-clean) | charly plugin |
@@ -403,8 +403,8 @@ and intentionally not a submodule.
 | `plugin-mount/` | [opencharly/plugin-mount](https://github.com/opencharly/plugin-mount) | charly plugin |
 | `plugin-oci/` | [opencharly/plugin-oci](https://github.com/opencharly/plugin-oci) | charly plugin |
 | `plugin-ollama/` | [opencharly/plugin-ollama](https://github.com/opencharly/plugin-ollama) | charly plugin |
-| `plugin-openclaw/` | [opencharly/plugin-openclaw](https://github.com/opencharly/plugin-openclaw) | charly plugin |
 | `plugin-omarchy/` | [opencharly/plugin-omarchy](https://github.com/opencharly/plugin-omarchy) | charly plugin: the omarchy CLI surface as a check verb |
+| `plugin-openclaw/` | [opencharly/plugin-openclaw](https://github.com/opencharly/plugin-openclaw) | charly plugin |
 | `plugin-package/` | [opencharly/plugin-package](https://github.com/opencharly/plugin-package) | charly plugin |
 | `plugin-pipeline/` | [opencharly/plugin-pipeline](https://github.com/opencharly/plugin-pipeline) | charly plugin: the generic agent/workflow engine — the bare agent runtime, the plan executor, the `kind:pipeline` entity |
 | `plugin-pod/` | [opencharly/plugin-pod](https://github.com/opencharly/plugin-pod) | charly plugin |
