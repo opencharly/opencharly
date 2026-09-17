@@ -1740,3 +1740,7 @@
 	path = plugin-review
 	url = https://github.com/opencharly/plugin-review.git
 	branch = main
+[submodule "plugin-jetkvm"]
+	path = plugin-jetkvm
+	url = https://github.com/opencharly/plugin-jetkvm.git
+	branch = main

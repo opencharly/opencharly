@@ -389,6 +389,7 @@ and intentionally not a submodule.
 | `plugin-init/` | [opencharly/plugin-init](https://github.com/opencharly/plugin-init) | charly plugin |
 | `plugin-installstep/` | [opencharly/plugin-installstep](https://github.com/opencharly/plugin-installstep) | charly plugin |
 | `plugin-interface/` | [opencharly/plugin-interface](https://github.com/opencharly/plugin-interface) | charly plugin |
+| `plugin-jetkvm/` | [opencharly/plugin-jetkvm](https://github.com/opencharly/plugin-jetkvm) | charly plugin: the `jetkvm:` IP-KVM verb — drive a JetKVM device (WebRTC/JSON-RPC/HID) from a charly plan without a browser |
 | `plugin-k8sgen/` | [opencharly/plugin-k8sgen](https://github.com/opencharly/plugin-k8sgen) | charly plugin |
 | `plugin-kernel-param/` | [opencharly/plugin-kernel-param](https://github.com/opencharly/plugin-kernel-param) | charly plugin |
 | `plugin-kube/` | [opencharly/plugin-kube](https://github.com/opencharly/plugin-kube) | charly plugin |
