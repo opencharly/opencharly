@@ -1,9 +1,9 @@
 # AGENTS.md — rules for agent workers in the umbrella
 
-> The single rulebook for every harness. `CLAUDE.md` is a **symlink to this file**
-> (Claude Code reads that name), so there is no copy to keep in sync — edit here.
+> The single, harness-neutral rulebook. Every harness reads this file (directly or
+> through a symlink alias), so there is no second copy to keep in sync — edit here.
 
-The umbrella is a *view* of the org: 389 submodules at the root, each a real repo
+The umbrella is a *view* of the org: ~400 submodules at the root, each a real repo
 owned elsewhere. Short rulebook — every rule exists because breaking it corrupts
 someone else's repo.
 
@@ -21,8 +21,8 @@ someone else's repo.
    pinned go.mod requires — no workspace members). Go forbids nested workspace files. No
    `go.work` at the umbrella root —
    all Go builds happen inside `charly/`.
-4. **No worktrees inside submodules.** The `.claude/worktrees/` pattern belongs to the
-   `charly` checkout, not here.
+4. **No worktrees inside submodules.** The per-session linked-worktree pattern belongs
+   to the `charly` checkout, not here.
 5. **Pin discipline:** only pin merged refs (default branches or gitlinks charly
    records). Never a PR branch. `verify` treats dangling pins as failures.
 6. **Policy B is the contract:** `distro-*` must equal charly's own gitlinks
@@ -31,45 +31,85 @@ someone else's repo.
    plugins corpus moved to the standalone `opencharly/marketplace` repo — which IS a
    submodule here, pinned to its own default-branch HEAD like `docs`). If charly's
    pinning changed, the fix is a sync (`task sync` + PR), not a hand-pin.
-7. When a task touches a subrepo, read that subrepo's own `AGENTS.md`/`CLAUDE.md`
-   first — its rulebook applies inside it. Charly's R0–R10 rulebook lives in
+7. When a task touches a subrepo, read that subrepo's own rulebook (`AGENTS.md`)
+   first — its policy applies inside it. Charly's R0–R10 rulebook lives in
    `charly/AGENTS.md`; this file owns only the umbrella's policy.
-8. **Harness config parity:** the harness layers at the root (`.pi/`, `.claude/`,
-   `.opencode/`, `.reasonix/`, `opencode.json`, `reasonix.toml`) mirror
-   charly's. Keep them in sync (`scripts/check-harness-parity.sh`); never fork them
+8. **Harness config parity:** the harness configuration at the root (agent
+   instruction files, hook scripts, and per-harness config) mirrors the source
+   repo's. Keep it in sync (`scripts/check-harness-parity.sh`); never fork it
    silently. The gate scripts guard mechanics only; policy is judged by the
    `pr-validator` at merge.
 
 ## R0. Skills first
 
 Before the first tool call of a task, load every skill the dispatcher below selects
-by reading its SKILL.md from the opencharly/marketplace repo — the standalone marketplace:
-Claude Code loads it as the `charly-plugins` marketplace, pi as the
-`git:github.com/opencharly/marketplace` package, kimi as a plugin.
+by reading its SKILL.md from the opencharly/marketplace repo — the standalone marketplace.
+Every harness loads that repo natively; a skill is addressed by its canonical
+`/charly-<family>:<skill>` reference, and each harness resolves it per its own
+conventions (a harness that cannot parse the namespaced form reads the corresponding
+`<family>/skills/<skill>/SKILL.md` by path). Load every matching row before acting —
+a tool action before R0 admission is a violation.
 
 ### Skill Dispatcher
 
 Consult this table BEFORE the first tool call of every task. When several rows match,
 load every skill those rows select before doing anything — never the whole index.
 
-<!-- BEGIN GENERATED SKILL DISPATCHER -->
+The table is a **hand-curated umbrella-relevant subset** of the marketplace
+corpus's generated dispatcher (`marketplace/DISPATCHER.md`, emitted by
+`charly marketplace generate` from each skill entity's `triggers:` — 70 rows
+corpus-wide). It is hand-authored prose, NOT a generated artifact, so it lives
+outside any generated markers; `scripts/sync-dispatcher.sh` can splice the full
+generated fragment in its place when a consumer pins the fragment (see the script
+header). To add a row, edit here and keep the refs resolving.
+
 | Trigger (what the user said or you're about to do) | Skill to load |
 |---|---|
 | Git/`gh` workflow — `feat/` branch, commit, PR-only landing (NO direct push to main), branch protection, the `pr-validator` merge/tag, sync-to-upstream | `/charly-internals:git-workflow` |
+| Pinning / gitlink policy / `task sync` / `task verify` / `scripts/sync-gitlinks.sh` / `scripts/verify-pins.sh` | `/charly-internals:git-workflow` |
 | Engineering-discipline triggers (failure surfaced / dup pattern / ad-hoc fix tempting / "out of scope" framing) | `/charly-internals:strict-policy` |
 | R1 — every failure, warning, or doc-vs-reality divergence before any remediation | `/charly-internals:root-cause-analyzer` |
 | Sub-agents, fresh validator sessions, "which primitive drives verification?" | `/charly-internals:agents` |
-| Agent control plane (`charly agent`, sessions, MCP routing) | `/charly-automation:agent` |
+| R10 beds / check verdicts (`charly check run <bed>`, `.check/<bed>/<calver>/summary.yml`, deploy verification) | `/charly-check:check` |
+| Agent control plane (`charly agent`, sessions, `charly tui`, MCP routing) | `/charly-automation:agent` |
 | Host command aliases / wrapper scripts | `/charly-automation:alias` |
-| Pinning / gitlink policy / `task sync` / `task verify` / `scripts/sync-gitlinks.sh` / `scripts/verify-pins.sh` | `/charly-internals:git-workflow` |
-| R10 beds / check verdicts (`charly check run <bed>`, `.check/<bed>/<calver>/summary.yml`, deploy verification) | `/charly-internals:agents` (check-bed-runner / deploy-verifier) |
+| Container lifecycle / deploy / status / config (`charly config`, `charly status`, `charly start/stop/remove`) | `/charly-core:charly-config` |
+| Health / dependency / hardware diagnosis (`charly doctor`) | `/charly-core:charly-doctor` |
+| Secrets / Secret Service / `.secrets` / credential management | `/charly-build:secrets` |
+| Box / candy authoring (`charly.yml`, composition, build targets) | `/charly-image:image` |
+| Candy (layer) authoring — plan steps, services, packages | `/charly-image:layer` |
 | Docs / marketplace regeneration (`docs generate`, `marketplace generate`, pin bumps, corpus drift) | `/charly-build:docs` |
+| Marketplace corpus generation / refs-list / per-harness vendoring | `/charly-internals:marketplace` |
 | Skill maintenance / marketplace corpus authoring | `/charly-internals:skills` |
-<!-- END GENERATED SKILL DISPATCHER -->
+| Hard-cutover / rename sweeps (remove legacy in the same phase) | `/charly-internals:cutover-policy` |
+| `disposable: true` authorization / autonomous destroy+rebuild | `/charly-internals:disposable` |
+| Plugin authoring (a candy with a `plugin:` block, providers, CUE schema) | `/charly-internals:plugin` |
+| OCI labels / capabilities contract | `/charly-internals:capabilities` |
+
 
 Load a skill's SKILL.md by path ONLY when its trigger matches — never pre-load,
 never load-all. The available-skills index lists every skill; the dispatcher is
 the routing.
+
+## Charly CLI discipline
+
+- **The `charly` CLI (or its owning skill's documented procedure) is the ONLY
+  operational interface for charly-managed resources.** Containers, pods, VMs,
+  deploys, checks, secrets, image builds, and lifecycle state are driven through
+  `charly` — never through `podman`/`docker`/`systemctl`/raw shell, and never by a
+  hand-rolled substitute script.
+- **ALWAYS load the dispatcher-selected skill before the first tool call; NEVER
+  skip R0.** A tool action before R0 admission is a violation. A harness that
+  cannot load a skill reads the matching `<family>/skills/<skill>/SKILL.md` — it
+  does not proceed without the procedure.
+- **A missing verb or owning skill is a product defect, not permission to work
+  around it.** RCA it (R1) and fix the capability in its owning repo; an ad-hoc
+  skip, inline command, or local script substitute is forbidden (R4). If the fix is
+  genuinely out of scope, stop and ask the operator.
+- **Umbrella-native mechanics are the sanctioned path for umbrella work:** `task
+  sync`, `task verify`, `task harness`, `bash scripts/*`, and submodule git through
+  `git -C <absolute-path>` (rule 2). These are the umbrella's own commands, not
+  ad-hoc substitutes.
 
 ## Engineering rules (umbrella-scaled)
 
@@ -79,7 +119,9 @@ the routing.
 - **R3 — No duplication.** One canonical implementation per behavior (the scripts
   and harness configs own their behavior; don't re-implement policy).
 - **R4 — No workarounds.** No sleeps, blind retries, hand-pinned gitlinks (that's a
-  sync, not a pin), or manual fixes to CI.
+  sync, not a pin), or manual fixes to CI. Never work around a missing `charly`
+  verb or owning skill with an ad-hoc command or substitute script — RCA it and
+  fix the capability in its owning repo (see **Charly CLI discipline**).
 - **R5 — Delete legacy completely.** A cutover removes the old path in the same PR.
 - **R6 — Git safety.** `git status` before destructive actions. No force-push, no
   hook bypass (`--no-verify` / `core.hooksPath`), no direct push to `main`.
@@ -92,7 +134,7 @@ the routing.
 
 ## Command hygiene & context discipline
 
-The harness executes commands with **SIGPIPE ignored**, so `grep <pattern> <huge-file> | head -N`
+Commands run with **SIGPIPE ignored**, so `grep <pattern> <huge-file> | head -N`
 does NOT kill grep when head exits — grep keeps writing to the closed pipe and prints
 `grep: write error: Broken pipe` per failed write, flooding output with hundreds of
 identical lines and truncating the response. This is a recurring, self-inflicted
@@ -122,7 +164,7 @@ Every PR body must contain:
    to `CHANGELOG/<calver>.md` at merge time; no separate CHANGELOG section
    or file is needed
 6. ***Assisted-by: <Harness> <Provider Full Model Name> (<confidence>)*** — italicized
-   footer in the exact form, e.g. `*Assisted-by: pi ollama-cloud/deepseek-v4.1-flash (fully tested and validated)*`
+   footer in the exact form, e.g. `*Assisted-by: <Harness> <Provider Full Model Name> (fully tested and validated)*`
 
 These are enforced by the fresh `charly/pr-validator` at merge (rule A1).
 
@@ -139,11 +181,10 @@ These are enforced by the fresh `charly/pr-validator` at merge (rule A1).
 ## Hooks doctrine
 
 Deterministic git-workflow mechanics — bypass flags, force-push, direct-main push,
-untokenizable commands — are enforced by hooks: `.claude/hooks/pre-commit-gate.sh`
-+ `pre-push-gate.sh`, wired into Claude Code via `.claude/settings.json` PreToolUse hooks, into reasonix via
-`.reasonix/settings.json`, and into opencode via `.opencode/plugin/umbrella-gates.ts`.
-Attribution, change class, and rulebook compliance are judged once by the fresh
-`pr-validator` at merge — never by the gates.
+untokenizable commands — are enforced by the root hooks (`.claude/hooks/pre-commit-gate.sh`
++ `pre-push-gate.sh`) through each harness's own wiring. Attribution, change class, and
+rulebook compliance are judged once by the fresh `pr-validator` at merge — never by the
+gates.
 
 Reference: `README.md` (pinning policy), `HARNESS-PARITY.md` (config map),
 `.github/workflows/` (CI contract).

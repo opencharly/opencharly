@@ -29,6 +29,14 @@ jobs:
           set -o pipefail
           bash scripts/sync-gitlinks.sh 2>&1 | tee /tmp/sync-pins.log
 
+      - name: Splice the generated R0 dispatcher (opt-in)
+        # The marketplace corpus is the single source of the generated dispatcher
+        # table. This step is a NO-OP while AGENTS.md keeps its hand-curated table
+        # outside the generated markers; it splices the fragment only once AGENTS.md
+        # carries `BEGIN/END GENERATED SKILL DISPATCHER` AND the pinned marketplace
+        # ships `DISPATCHER.md`. (Both are needed — see scripts/sync-dispatcher.sh.)
+        run: bash scripts/sync-dispatcher.sh
+
       - name: Nothing to sync?
         id: dirty
         # Compare against HEAD, not the index. `git diff` alone diffs the WORKTREE

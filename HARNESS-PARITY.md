@@ -18,11 +18,21 @@ below is in place at the umbrella root; the shared files are diff-checked by
 | Claude hooks | `.claude/hooks/{pre-commit-gate.sh,pre-push-gate.sh,gitcmd.py,gate_test.py}` | same paths | identical (diff-checked) |
 | Claude settings | `.claude/settings.json` (full plugin list; **no `hooks` block** — the gates are unwired there) | `.claude/settings.json` (curated 14-plugin subset — charly development + omarchy evaluation only, zero MCP-server plugins; **plus the `PreToolUse`/`Bash` `hooks` block** wiring both gate scripts) | fork |
 | Claude workflows | `.claude/workflows/{verify-status,triage-check-failure,audit-deploy-configs,verify-beds}.js` | `.claude/workflows/{verify-status,triage-check-failure}.js` | fork |
-| opencode | `opencode.json` + `.opencode/plugin/charly-gates.ts` + `.opencode/agent/pr-validator.md` | `opencode.json` + `.opencode/plugin/umbrella-gates.ts` + `.opencode/agent/pr-validator.md` | fork |
+| opencode | `opencode.json` + `.opencode/plugin/charly-gates.ts` + `.opencode/agent/pr-validator.md` | `opencode.json` (skills.paths=[marketplace], instructions=[.opencode/instructions.md], references.marketplace, permission.skill allow-list) + `.opencode/instructions.md` (namespaced-ref → bare-name mapping) + `.opencode/plugin/umbrella-gates.ts` + `.opencode/agent/pr-validator.md` | fork |
 | reasonix | `reasonix.toml` + `.reasonix/settings.json` | `reasonix.toml` + `.reasonix/settings.json` | settings identical; toml fork |
 
 Shared-by-design files are enforced by `scripts/check-harness-parity.sh` — on every
 commit via `hooks/pre-commit`, and on demand via `task harness`.
+
+### opencode skill addressing
+
+`AGENTS.md` addresses skills by the canonical `/charly-<family>:<skill>`
+reference. opencode's `skill` tool accepts only the **bare frontmatter `name`**
+(`^[a-z0-9]+(-[a-z0-9]+)*$` — no `:` or `/`). The mapping lives in
+`.opencode/instructions.md` (wired via `opencode.json` `instructions[]`), so the
+rulebook stays harness-neutral while opencode resolves refs deterministically.
+`marketplace` is loaded through `skills.paths` and also exposed as a `references`
+entry for the direct-path fallback.
 
 Goal: the umbrella repo gets the same AI and harness configuration and
 instructions as `charly/` — same harnesses (pi, Claude Code, opencode,

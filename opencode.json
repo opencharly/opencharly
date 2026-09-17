@@ -1,9 +1,37 @@
 {
   "$schema": "https://opencode.ai/config.json",
+  "instructions": [".opencode/instructions.md"],
   "skills": {
     "paths": ["marketplace"]
   },
+  "references": {
+    "marketplace": {
+      "path": "marketplace",
+      "description": "The OpenCharly skill corpus. Read a skill's procedure at marketplace/<family>/skills/<skill>/SKILL.md (the harness-neutral fallback when the skill tool does not expose it)."
+    }
+  },
   "permission": {
+    "skill": {
+      "git-workflow": "allow",
+      "strict-policy": "allow",
+      "root-cause-analyzer": "allow",
+      "agents": "allow",
+      "check": "allow",
+      "agent": "allow",
+      "alias": "allow",
+      "charly-config": "allow",
+      "charly-doctor": "allow",
+      "secrets": "allow",
+      "image": "allow",
+      "layer": "allow",
+      "docs": "allow",
+      "marketplace": "allow",
+      "skills": "allow",
+      "cutover-policy": "allow",
+      "disposable": "allow",
+      "plugin": "allow",
+      "capabilities": "allow"
+    },
     "bash": {
       "task sync *": "allow",
       "task verify *": "allow",
