@@ -1,7 +1,7 @@
 # OpenCharly — umbrella
 
 **One clone of the whole org.** `opencharly/opencharly` is an org-level umbrella repo:
-every OpenCharly repo (400 today) is pinned here as a git submodule ("gitlink", in the
+every OpenCharly repo (402 today) is pinned here as a git submodule ("gitlink", in the
 org's vocabulary), flat at the root — submodule path == repo name, except the one
 alias below. `charly` is the product repo and the single source of truth; this
 umbrella is a *view* of the org, not a new home for anything.
@@ -321,7 +321,7 @@ and intentionally not a submodule.
 
 ### Plugins
 
-106 repos — charly plug-ins (verb/substrate providers).
+109 repos — charly plug-ins (verb/substrate providers).
 
 | path | repo | role |
 |---|---|---|
@@ -342,10 +342,10 @@ and intentionally not a submodule.
 | `plugin-builder-cargo/` | [opencharly/plugin-builder-cargo](https://github.com/opencharly/plugin-builder-cargo) | charly plugin |
 | `plugin-builder-npm/` | [opencharly/plugin-builder-npm](https://github.com/opencharly/plugin-builder-npm) | charly plugin |
 | `plugin-builder-pixi/` | [opencharly/plugin-builder-pixi](https://github.com/opencharly/plugin-builder-pixi) | charly plugin |
+| `plugin-cache/` | [opencharly/plugin-cache](https://github.com/opencharly/plugin-cache) | charly plugin: the `charly cache status|clear|refresh|bypass` command — the git-ref cache operator surface |
 | `plugin-candy/` | [opencharly/plugin-candy](https://github.com/opencharly/plugin-candy) | charly plugin |
 | `plugin-candy-kind/` | [opencharly/plugin-candy-kind](https://github.com/opencharly/plugin-candy-kind) | charly plugin |
 | `plugin-cardwire/` | [opencharly/plugin-cardwire](https://github.com/opencharly/plugin-cardwire) | charly plugin: cardwire (eBPF LSM GPU manager) — install + command:cardwire CLI |
-| `plugin-cache/` | [opencharly/plugin-cache](https://github.com/opencharly/plugin-cache) | charly plugin: the `charly cache status|clear|refresh|bypass` command — the git-ref cache operator surface |
 | `plugin-cdp/` | [opencharly/plugin-cdp](https://github.com/opencharly/plugin-cdp) | charly plugin |
 | `plugin-check/` | [opencharly/plugin-check](https://github.com/opencharly/plugin-check) | charly plugin |
 | `plugin-clean/` | [opencharly/plugin-clean](https://github.com/opencharly/plugin-clean) | charly plugin |
@@ -389,6 +389,7 @@ and intentionally not a submodule.
 | `plugin-init/` | [opencharly/plugin-init](https://github.com/opencharly/plugin-init) | charly plugin |
 | `plugin-installstep/` | [opencharly/plugin-installstep](https://github.com/opencharly/plugin-installstep) | charly plugin |
 | `plugin-interface/` | [opencharly/plugin-interface](https://github.com/opencharly/plugin-interface) | charly plugin |
+| `plugin-jetkvm/` | [opencharly/plugin-jetkvm](https://github.com/opencharly/plugin-jetkvm) | charly plugin: the `jetkvm:` IP-KVM verb — drive a JetKVM device (WebRTC/JSON-RPC/HID) from a charly plan without a browser |
 | `plugin-k8sgen/` | [opencharly/plugin-k8sgen](https://github.com/opencharly/plugin-k8sgen) | charly plugin |
 | `plugin-kernel-param/` | [opencharly/plugin-kernel-param](https://github.com/opencharly/plugin-kernel-param) | charly plugin |
 | `plugin-kube/` | [opencharly/plugin-kube](https://github.com/opencharly/plugin-kube) | charly plugin |
@@ -396,14 +397,16 @@ and intentionally not a submodule.
 | `plugin-marketplace/` | [opencharly/plugin-marketplace](https://github.com/opencharly/plugin-marketplace) | charly plugin |
 | `plugin-matching/` | [opencharly/plugin-matching](https://github.com/opencharly/plugin-matching) | charly plugin |
 | `plugin-mcp/` | [opencharly/plugin-mcp](https://github.com/opencharly/plugin-mcp) | charly plugin |
+| `plugin-media/` | [opencharly/plugin-media](https://github.com/opencharly/plugin-media) | charly plugin: the `transcode` pipeline verb — host-side MJPEG → H.264 MP4 transcoding |
 | `plugin-migrate/` | [opencharly/plugin-migrate](https://github.com/opencharly/plugin-migrate) | charly plugin |
 | `plugin-mise/` | [opencharly/plugin-mise](https://github.com/opencharly/plugin-mise) | charly plugin: builder:mise + verb:mise — full mise (jdx/mise) support |
 | `plugin-mount/` | [opencharly/plugin-mount](https://github.com/opencharly/plugin-mount) | charly plugin |
 | `plugin-oci/` | [opencharly/plugin-oci](https://github.com/opencharly/plugin-oci) | charly plugin |
 | `plugin-ollama/` | [opencharly/plugin-ollama](https://github.com/opencharly/plugin-ollama) | charly plugin |
-| `plugin-openclaw/` | [opencharly/plugin-openclaw](https://github.com/opencharly/plugin-openclaw) | charly plugin |
 | `plugin-omarchy/` | [opencharly/plugin-omarchy](https://github.com/opencharly/plugin-omarchy) | charly plugin: the omarchy CLI surface as a check verb |
+| `plugin-openclaw/` | [opencharly/plugin-openclaw](https://github.com/opencharly/plugin-openclaw) | charly plugin |
 | `plugin-package/` | [opencharly/plugin-package](https://github.com/opencharly/plugin-package) | charly plugin |
+| `plugin-pipeline/` | [opencharly/plugin-pipeline](https://github.com/opencharly/plugin-pipeline) | charly plugin: the generic agent/workflow engine — the bare agent runtime, the plan executor, the `kind:pipeline` entity |
 | `plugin-pod/` | [opencharly/plugin-pod](https://github.com/opencharly/plugin-pod) | charly plugin |
 | `plugin-port/` | [opencharly/plugin-port](https://github.com/opencharly/plugin-port) | charly plugin |
 | `plugin-preempt/` | [opencharly/plugin-preempt](https://github.com/opencharly/plugin-preempt) | charly plugin |
@@ -413,6 +416,7 @@ and intentionally not a submodule.
 | `plugin-record/` | [opencharly/plugin-record](https://github.com/opencharly/plugin-record) | charly plugin |
 | `plugin-refs/` | [opencharly/plugin-refs](https://github.com/opencharly/plugin-refs) | charly plugin |
 | `plugin-resource/` | [opencharly/plugin-resource](https://github.com/opencharly/plugin-resource) | charly plugin |
+| `plugin-review/` | [opencharly/plugin-review](https://github.com/opencharly/plugin-review) | charly plugin: read-only GitHub PR review — deterministic `verb:pr` tools + `command:review` |
 | `plugin-secrets/` | [opencharly/plugin-secrets](https://github.com/opencharly/plugin-secrets) | charly plugin |
 | `plugin-service/` | [opencharly/plugin-service](https://github.com/opencharly/plugin-service) | charly plugin |
 | `plugin-settings/` | [opencharly/plugin-settings](https://github.com/opencharly/plugin-settings) | charly plugin |
