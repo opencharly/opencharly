@@ -1,7 +1,7 @@
 # OpenCharly — umbrella
 
 **One clone of the whole org.** `opencharly/opencharly` is an org-level umbrella repo:
-every OpenCharly repo (400 today) is pinned here as a git submodule ("gitlink", in the
+every OpenCharly repo (402 today) is pinned here as a git submodule ("gitlink", in the
 org's vocabulary), flat at the root — submodule path == repo name, except the one
 alias below. `charly` is the product repo and the single source of truth; this
 umbrella is a *view* of the org, not a new home for anything.
@@ -321,7 +321,7 @@ and intentionally not a submodule.
 
 ### Plugins
 
-106 repos — charly plug-ins (verb/substrate providers).
+109 repos — charly plug-ins (verb/substrate providers).
 
 | path | repo | role |
 |---|---|---|
@@ -397,6 +397,7 @@ and intentionally not a submodule.
 | `plugin-marketplace/` | [opencharly/plugin-marketplace](https://github.com/opencharly/plugin-marketplace) | charly plugin |
 | `plugin-matching/` | [opencharly/plugin-matching](https://github.com/opencharly/plugin-matching) | charly plugin |
 | `plugin-mcp/` | [opencharly/plugin-mcp](https://github.com/opencharly/plugin-mcp) | charly plugin |
+| `plugin-media/` | [opencharly/plugin-media](https://github.com/opencharly/plugin-media) | charly plugin: the `transcode` pipeline verb — host-side MJPEG → H.264 MP4 transcoding |
 | `plugin-migrate/` | [opencharly/plugin-migrate](https://github.com/opencharly/plugin-migrate) | charly plugin |
 | `plugin-mise/` | [opencharly/plugin-mise](https://github.com/opencharly/plugin-mise) | charly plugin: builder:mise + verb:mise — full mise (jdx/mise) support |
 | `plugin-mount/` | [opencharly/plugin-mount](https://github.com/opencharly/plugin-mount) | charly plugin |
@@ -405,6 +406,7 @@ and intentionally not a submodule.
 | `plugin-openclaw/` | [opencharly/plugin-openclaw](https://github.com/opencharly/plugin-openclaw) | charly plugin |
 | `plugin-omarchy/` | [opencharly/plugin-omarchy](https://github.com/opencharly/plugin-omarchy) | charly plugin: the omarchy CLI surface as a check verb |
 | `plugin-package/` | [opencharly/plugin-package](https://github.com/opencharly/plugin-package) | charly plugin |
+| `plugin-pipeline/` | [opencharly/plugin-pipeline](https://github.com/opencharly/plugin-pipeline) | charly plugin: the generic agent/workflow engine — the bare agent runtime, the plan executor, the `kind:pipeline` entity |
 | `plugin-pod/` | [opencharly/plugin-pod](https://github.com/opencharly/plugin-pod) | charly plugin |
 | `plugin-port/` | [opencharly/plugin-port](https://github.com/opencharly/plugin-port) | charly plugin |
 | `plugin-preempt/` | [opencharly/plugin-preempt](https://github.com/opencharly/plugin-preempt) | charly plugin |
@@ -414,6 +416,7 @@ and intentionally not a submodule.
 | `plugin-record/` | [opencharly/plugin-record](https://github.com/opencharly/plugin-record) | charly plugin |
 | `plugin-refs/` | [opencharly/plugin-refs](https://github.com/opencharly/plugin-refs) | charly plugin |
 | `plugin-resource/` | [opencharly/plugin-resource](https://github.com/opencharly/plugin-resource) | charly plugin |
+| `plugin-review/` | [opencharly/plugin-review](https://github.com/opencharly/plugin-review) | charly plugin: read-only GitHub PR review — deterministic `verb:pr` tools + `command:review` |
 | `plugin-secrets/` | [opencharly/plugin-secrets](https://github.com/opencharly/plugin-secrets) | charly plugin |
 | `plugin-service/` | [opencharly/plugin-service](https://github.com/opencharly/plugin-service) | charly plugin |
 | `plugin-settings/` | [opencharly/plugin-settings](https://github.com/opencharly/plugin-settings) | charly plugin |
