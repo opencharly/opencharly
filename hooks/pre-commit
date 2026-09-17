@@ -10,6 +10,8 @@
 #
 #   1. policy B          — distro-* gitlinks must equal charly's box/* gitlinks
 #   2. harness parity    — the 5 files that are byte-identical to charly's by design
+#   3. dispatcher sync   — AGENTS.md's generated dispatcher matches the pinned
+#                          marketplace fragment (no-op when the pin predates it)
 #
 # Deliberately NOT here (see `task verify`): the per-submodule `git ls-remote`
 # default-branch audit — it reads remote state no commit can change, and sync-gitlinks.sh, its only
@@ -24,5 +26,6 @@ echo "pre-commit: running the umbrella gate…"
 
 bash "$ROOT/scripts/check-policy-b.sh"
 bash "$ROOT/scripts/check-harness-parity.sh"
+bash "$ROOT/scripts/sync-dispatcher.sh" --check
 
 echo "pre-commit: OK"

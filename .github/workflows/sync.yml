@@ -29,6 +29,13 @@ jobs:
           set -o pipefail
           bash scripts/sync-gitlinks.sh 2>&1 | tee /tmp/sync-pins.log
 
+      - name: Splice the generated R0 dispatcher
+        # The marketplace corpus is the single source of the dispatcher table; after the
+        # pin bump the newly-fetched marketplace may carry a newer DISPATCHER.md. Splicing
+        # here keeps AGENTS.md's routing in lockstep with the pinned corpus (no-op when the
+        # marketplace pin predates the emitter, or when the table is already current).
+        run: bash scripts/sync-dispatcher.sh
+
       - name: Nothing to sync?
         id: dirty
         # Compare against HEAD, not the index. `git diff` alone diffs the WORKTREE
