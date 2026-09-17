@@ -1732,3 +1732,11 @@
 	path = plugin-media
 	url = https://github.com/opencharly/plugin-media.git
 	branch = main
+[submodule "plugin-pipeline"]
+	path = plugin-pipeline
+	url = https://github.com/opencharly/plugin-pipeline.git
+	branch = main
+[submodule "plugin-review"]
+	path = plugin-review
+	url = https://github.com/opencharly/plugin-review.git
+	branch = main
