@@ -206,11 +206,11 @@ jobs:
             echo
             echo "## Attribution"
             echo
-            echo "This body is emitted by a fixed block in \`.github/workflows/sync.yml\` with no model"
-            echo "in the loop — the harness is the GitHub Actions runner and there is no provider model"
-            echo "to name, so the <Provider Full Model Name> field is explicitly \`N/A\` (never omitted)."
+            echo "This body is emitted by the fixed, model-free \`printf/echo\` block in"
+            echo "\`.github/workflows/sync.yml\` (visible in this workflow's committed source). The"
+            echo "runtime identity is the GitHub Actions runner itself."
             echo
-            echo "*Assisted-by: GitHub Actions N/A (fully tested and validated)*"
+            echo "*Assisted-by: GitHub Actions ubuntu-latest (fully tested and validated)*"
           } > /tmp/sync-body.md
 
           git config user.name "github-actions[bot]"
