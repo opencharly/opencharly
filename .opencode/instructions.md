@@ -26,7 +26,7 @@ Examples:
 
 - `/charly-internals:git-workflow` → `skill({ name: "git-workflow" })`
 - `/charly-check:check` → `skill({ name: "check" })`
-- `/charly-core:charly-status` → `skill({ name: "charly-status" })`
+- `/charly-core:charly-config` → `skill({ name: "charly-config" })`
 
 If a skill is not exposed as a tool entry, read its procedure directly at
 `marketplace/<family>/skills/<skill>/SKILL.md` (the same fallback every harness
