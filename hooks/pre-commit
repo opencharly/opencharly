@@ -26,6 +26,7 @@ echo "pre-commit: running the umbrella gate…"
 
 bash "$ROOT/scripts/check-policy-b.sh"
 bash "$ROOT/scripts/check-harness-parity.sh"
+bash "$ROOT/scripts/sync-dispatcher.sh" --self-test
 bash "$ROOT/scripts/sync-dispatcher.sh" --check
 
 echo "pre-commit: OK"

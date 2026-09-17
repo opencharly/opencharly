@@ -3,7 +3,7 @@
 > The single, harness-neutral rulebook. Every harness reads this file (directly or
 > through a symlink alias), so there is no second copy to keep in sync — edit here.
 
-The umbrella is a *view* of the org: 389 submodules at the root, each a real repo
+The umbrella is a *view* of the org: ~400 submodules at the root, each a real repo
 owned elsewhere. Short rulebook — every rule exists because breaking it corrupts
 someone else's repo.
 
@@ -55,7 +55,14 @@ a tool action before R0 admission is a violation.
 Consult this table BEFORE the first tool call of every task. When several rows match,
 load every skill those rows select before doing anything — never the whole index.
 
-<!-- BEGIN GENERATED SKILL DISPATCHER -->
+The table is a **hand-curated umbrella-relevant subset** of the marketplace
+corpus's generated dispatcher (`marketplace/DISPATCHER.md`, emitted by
+`charly marketplace generate` from each skill entity's `triggers:` — 70 rows
+corpus-wide). It is hand-authored prose, NOT a generated artifact, so it lives
+outside any generated markers; `scripts/sync-dispatcher.sh` can splice the full
+generated fragment in its place when a consumer pins the fragment (see the script
+header). To add a row, edit here and keep the refs resolving.
+
 | Trigger (what the user said or you're about to do) | Skill to load |
 |---|---|
 | Git/`gh` workflow — `feat/` branch, commit, PR-only landing (NO direct push to main), branch protection, the `pr-validator` merge/tag, sync-to-upstream | `/charly-internals:git-workflow` |
@@ -78,7 +85,7 @@ load every skill those rows select before doing anything — never the whole ind
 | `disposable: true` authorization / autonomous destroy+rebuild | `/charly-internals:disposable` |
 | Plugin authoring (a candy with a `plugin:` block, providers, CUE schema) | `/charly-internals:plugin` |
 | OCI labels / capabilities contract | `/charly-internals:capabilities` |
-<!-- END GENERATED SKILL DISPATCHER -->
+
 
 Load a skill's SKILL.md by path ONLY when its trigger matches — never pre-load,
 never load-all. The available-skills index lists every skill; the dispatcher is
