@@ -57,11 +57,12 @@ load every skill those rows select before doing anything — never the whole ind
 
 The table is a **hand-curated umbrella-relevant subset** of the marketplace
 corpus's generated dispatcher (`marketplace/DISPATCHER.md`, emitted by
-`charly marketplace generate` from each skill entity's `triggers:` — 70 rows
-corpus-wide). It is hand-authored prose, NOT a generated artifact, so it lives
-outside any generated markers; `scripts/sync-dispatcher.sh` can splice the full
-generated fragment in its place when a consumer pins the fragment (see the script
-header). To add a row, edit here and keep the refs resolving.
+`charly marketplace generate` from each skill entity's `triggers:` — one row per
+trigger, the full set in that file, which is the authority). It is hand-authored
+prose, NOT a generated artifact, so it lives outside any generated markers;
+`scripts/sync-dispatcher.sh` can splice the full generated fragment in its place
+when a consumer pins the fragment (see the script header). To add a row, edit
+here and keep the refs resolving.
 
 | Trigger (what the user said or you're about to do) | Skill to load |
 |---|---|
