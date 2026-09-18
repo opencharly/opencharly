@@ -54,6 +54,10 @@
 	path = charly-fedora
 	url = https://github.com/opencharly/charly-fedora.git
 	branch = main
+[submodule "charly-jetkvm"]
+	path = charly-jetkvm
+	url = https://github.com/opencharly/charly-jetkvm.git
+	branch = main
 [submodule "charly-openwrt"]
 	path = charly-openwrt
 	url = https://github.com/opencharly/charly-openwrt.git
