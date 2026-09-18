@@ -1,7 +1,7 @@
 # OpenCharly — umbrella
 
 **One clone of the whole org.** `opencharly/opencharly` is an org-level umbrella repo:
-every OpenCharly repo (402 today) is pinned here as a git submodule ("gitlink", in the
+every OpenCharly repo (403 today) is pinned here as a git submodule ("gitlink", in the
 org's vocabulary), flat at the root — submodule path == repo name, except the one
 alias below. `charly` is the product repo and the single source of truth; this
 umbrella is a *view* of the org, not a new home for anything.
@@ -78,10 +78,11 @@ and intentionally not a submodule.
 
 ### Product & tooling
 
-5 repos — streamer product, org action, and third-party pins.
+6 repos — streamer product, appliance provisioning, org action, and third-party pins.
 
 | path | repo | role |
 |---|---|---|
+| `charly-jetkvm/` | [opencharly/charly-jetkvm](https://github.com/opencharly/charly-jetkvm) | Provision the appliance-resident `charly` on a JetKVM (armv7) — install the published release binary + welded plugins over ssh and verify it runs project-less |
 | `charly-streamer/` | [opencharly/charly-streamer](https://github.com/opencharly/charly-streamer) | charly-streamer (cstream) — Hyprland desktops streamed to a browser over WebRTC: Rust streamer + leader, Go g… |
 | `dotgithub/` | [opencharly/.github](https://github.com/opencharly/.github) | OpenCharly org-wide community-health defaults (PR template, etc.) — single source inherited by every repo wit… |
 | `gst-wayland-display/` | [opencharly/gst-wayland-display](https://github.com/opencharly/gst-wayland-display) | A micro Wayland compositor that can be used as a Gstreamer plugin |

@@ -1744,3 +1744,7 @@
 	path = plugin-jetkvm
 	url = https://github.com/opencharly/plugin-jetkvm.git
 	branch = main
+[submodule "charly-jetkvm"]
+	path = charly-jetkvm
+	url = https://github.com/opencharly/charly-jetkvm.git
+	branch = main
