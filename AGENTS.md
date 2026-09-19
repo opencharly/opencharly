@@ -39,6 +39,18 @@ someone else's repo.
    repo's. Keep it in sync (`scripts/check-harness-parity.sh`); never fork it
    silently. The gate scripts guard mechanics only; policy is judged by the
    `pr-validator` at merge.
+9. **Session-scoped ownership — never touch another session's files.** The
+   changes you make belong to YOUR session: a file you did not author in this
+   session, a branch you did not create, and a PR you did not open are another
+   session's work. Never edit, revert, reformat, stage, or commit them — not
+   even to "clean up" or unblock your own work. A submodule left dirty or on a
+   branch by another session stays exactly as found. If a file you do not own
+   blocks you, do NOT touch it: communicate the need to that session through a
+   **PR comment** on the PR that owns the file (or open an issue naming it), and
+   stop and ask the operator if it remains blocked. Your own edits are committed
+   in your session — leave no uncommitted file of your authorship behind (an
+   untracked scratchpad is the one exception, and it is cleaned up before you
+   finish).
 
 ## R0. Skills first
 
