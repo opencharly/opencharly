@@ -2,10 +2,30 @@
   "$schema": "https://opencode.ai/config.json",
   "instructions": [".opencode/instructions.md"],
   "compaction": {
-    "reserved": 100000
+    "auto": true,
+    "prune": true,
+    "reserved": 393216
   },
   "skills": {
     "paths": ["marketplace"]
+  },
+  "lsp": true,
+  "provider": {
+    "ollama-cloud": {
+      "models": {
+        "deepseek-v4.1-flash": {
+          "limit": {
+            "context": 1048576,
+            "input": 1048576,
+            "output": 384000
+          },
+          "options": {
+            "max_tokens": 384000,
+            "reasoningEffort": "high"
+          }
+        }
+      }
+    }
   },
   "references": {
     "marketplace": {
