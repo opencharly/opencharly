@@ -13,6 +13,8 @@
 #   3. dispatcher splice — self-test the sync-dispatcher splice logic on a fixture
 #                          (the live `--check` is wired only when AGENTS.md carries
 #                          the generated markers; see scripts/sync-dispatcher.sh)
+#   4. pin evidence     — self-test the sync PR body's per-pin evidence logic
+#                          (classify + coverage branch; see scripts/sync-pin-evidence.sh)
 #
 # Deliberately NOT here (see `task verify`): the per-submodule `git ls-remote`
 # default-branch audit — it reads remote state no commit can change, and sync-gitlinks.sh, its only
@@ -28,5 +30,6 @@ echo "pre-commit: running the umbrella gate…"
 bash "$ROOT/scripts/check-policy-b.sh"
 bash "$ROOT/scripts/check-harness-parity.sh"
 bash "$ROOT/scripts/sync-dispatcher.sh" --self-test
+bash "$ROOT/scripts/sync-pin-evidence.sh" --self-test
 
 echo "pre-commit: OK"
