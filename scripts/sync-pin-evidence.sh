@@ -60,7 +60,12 @@ staged_gitlink() {
   # this runs from a hook (the self-test), GIT_DIR/GIT_INDEX_FILE name the CALLING
   # repo and would override -C (measured: it corrupted the umbrella's config).
   unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES
-  sha=$(git -C "$root" rev-parse ":$p" 2>/dev/null)
+  # `--verify --quiet` is the load-bearing fix (measured): bare `git rev-parse
+  # ":$p"` ECHOES the literal `:<path>` token on failure and exits non-zero, so
+  # `-n "$sha"` passed and the HEAD fallback below never ran for an unstaged path.
+  # `--verify --quiet` prints nothing and exits 1; `|| true` keeps that non-zero
+  # from aborting under `set -e` in any caller that inherits errexit.
+  sha=$(git -C "$root" rev-parse --verify --quiet ":$p" || true)
   [ -n "$sha" ] || sha=$(git -C "$root" ls-tree HEAD -- "$p" 2>/dev/null | awk '{print $3}')
   printf '%s' "$sha"
 }
@@ -112,7 +117,27 @@ if [ "${1:-}" = "--self-test" ]; then
   [ "$got" = "2222222222222222222222222222222222222222" ] \
     || fail "staged_gitlink read '$got', want the STAGED index pin (2222…), not HEAD/working-tree"
 
-  echo "sync-pin-evidence: self-test OK (per-pin classification both ways; coverage both directions; staged-gitlink reads the index)"
+  # staged_gitlink: a path ABSENT from the index must fall back to HEAD — and must
+  # NOT abort the script under `set -e` (a bare `sha=$(git rev-parse …)` whose
+  # substitution fails would exit here before the fallback could run).
+  got=$(staged_gitlink "$tmp" absent-path) || fail "staged_gitlink aborted on an unstaged path (the set -e / fallback defect)"
+  [ -z "$got" ] \
+    || fail "staged_gitlink on an absent path read '$got', want empty (no index entry, no HEAD entry)"
+  # A path that IS in HEAD but NOT in the index: stage new, commit, then delete the
+  # index entry while HEAD keeps the old pin — the fallback must return HEAD's pin.
+  fixture2() (
+    unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES
+    cd "$tmp"
+    git update-index --add --cacheinfo 160000,3333333333333333333333333333333333333333,sub2
+    git commit -qm two
+    git update-index --force-remove sub2
+  )
+  fixture2 >/dev/null
+  got=$(staged_gitlink "$tmp" sub2)
+  [ "$got" = "3333333333333333333333333333333333333333" ] \
+    || fail "staged_gitlink fallback read '$got', want HEAD's 3333… for an unstaged path"
+
+  echo "sync-pin-evidence: self-test OK (per-pin classification both ways; coverage both directions; staged-gitlink reads the index + falls back to HEAD)"
   exit 0
 fi
 
@@ -124,7 +149,7 @@ MOVED="$(cat)"
 DISTRO_MOVED=0
 
 echo "**Default-branch HEAD, per moved pin.** For each moved path: the STAGED"
-echo "GITLINK this PR records (\`git rev-parse :<path>\` from the index) beside the owning"
+echo "GITLINK this PR records (\`git rev-parse --verify --quiet :<path>\` from the index, \`git ls-tree HEAD\` fallback) beside the owning"
 echo "remote default-branch HEAD (\`git ls-remote <url> HEAD\`). \`charly\` and every"
 echo "non-\`distro-*\` repo must be EQUAL; a \`distro-*\` pin tracks charly's own gitlink"
 echo "and is proven by policy B, so it is marked \`charly-pinned\` and not required"
