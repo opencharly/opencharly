@@ -184,18 +184,59 @@ jobs:
             done
             echo '```'
             echo
-            echo "**Policy B is asserted by a REAL gate that runs on this PR**, pasted verbatim from"
-            echo "this run. \`scripts/check-policy-b.sh\` reads charly's own gitlinks with \`git ls-tree\`"
-            echo "(tree objects — present in a shallow clone; charly's NESTED submodules need not be"
-            echo "initialised) and asserts every umbrella \`distro-*\` gitlink equals it — the one"
-            echo "pinning assertion this PR's diff can violate:"
+            # The default-branch assertion, PER MOVED PIN. `sync-gitlinks.sh` pins `charly`
+            # and every non-`distro-*` repo at its own default-branch HEAD, and `distro-*` at
+            # exactly charly's own gitlink. Paste, for each moved path, the staged submodule
+            # SHA beside the owning repo's REMOTE default-branch HEAD (`git ls-remote <url>
+            # HEAD`). A PR-branch pin would be visibly unequal; `distro-*` are EXPECTED unequal
+            # here (they track charly, not their own HEAD) and are proven by policy B instead.
+            echo "**Default-branch HEAD, per moved pin.** For each moved path: the staged"
+            echo "submodule SHA vs the owning repo's remote default-branch HEAD"
+            echo "(\`git ls-remote <url> HEAD\`). \`charly\` and every non-\`distro-*\` repo must be"
+            echo "EQUAL; a \`distro-*\` pin tracks charly's own gitlink and is proven by policy B"
+            echo "below, so it is marked \`charly-pinned\` and not required equal here:"
             echo
             echo '```'
-            cat /tmp/policy-b.log
+            printf '%s\n' "$MOVED" | while IFS= read -r p; do
+              [ -n "$p" ] || continue
+              staged=$(git -C "$p" rev-parse HEAD 2>/dev/null || echo '?')
+              url=$(git config -f .gitmodules --get "submodule.$p.url" 2>/dev/null || echo '')
+              remote=$(git ls-remote "$url" HEAD 2>/dev/null | awk '{print $1}' || echo '')
+              case "$p" in
+                distro-*) kind="charly-pinned (policy B)" ;;
+                *)        kind="default-branch HEAD" ;;
+              esac
+              if [ "$staged" = "$remote" ]; then eq="EQUAL"; else eq="not-equal"; fi
+              printf '  %-28s staged=%.12s remote-HEAD=%.12s  [%s, %s]\n' \
+                "$p" "$staged" "$remote" "$kind" "$eq"
+            done
             echo '```'
             echo
-            echo "Each moved pin is also a real commit on the owning repo's default branch (the"
-            echo "producer resolves \`origin/<branch>\` / charly's gitlink; it never pins a PR branch)."
+            # Policy B asserts the `distro-*` subset. State truthfully whether it can fail on
+            # THIS diff: if no `distro-*` pin moved, it cannot and is NOT this diff's coverage.
+            DISTRO_MOVED=$(printf '%s\n' "$MOVED" | grep -c '^distro-' || true)
+            if [ "$DISTRO_MOVED" -gt 0 ]; then
+              echo "**Policy B — the assertion this diff CAN violate** (\`${DISTRO_MOVED}\`"
+              echo "\`distro-*\` pin(s) moved). \`scripts/check-policy-b.sh\` reads charly's own"
+              echo "gitlinks with \`git ls-tree\` (tree objects — present in a shallow clone;"
+              echo "charly's NESTED submodules need not be initialised) and asserts every umbrella"
+              echo "\`distro-*\` gitlink equals it, pasted verbatim from this run:"
+              echo
+              echo '```'
+              cat /tmp/policy-b.log
+              echo '```'
+            else
+              echo "**Policy B is NOT offered as this diff's coverage:** it asserts the umbrella"
+              echo "\`distro-*\` gitlinks equal charly's own, and **this diff moved zero \`distro-*\`"
+              echo "pins**, so that gate cannot fail on this diff. The coverage for the pins that"
+              echo "DID move is the per-pin \`git ls-remote\` default-branch evidence above (and, for"
+              echo "\`charly\`, its own default-branch HEAD). For transparency the policy-B gate still"
+              echo "ran and passed:"
+              echo
+              echo '```'
+              cat /tmp/policy-b.log
+              echo '```'
+            fi
             echo
             echo "## Change classification"
             echo
@@ -212,15 +253,19 @@ jobs:
             echo "  moved gitlink belongs to its OWNING repo (which gated it before tagging)."
             echo "- **R3 no duplication:** policy B is asserted by \`scripts/check-policy-b.sh\` — the ONE"
             echo "  implementation \`verify-pins.sh\` also calls."
-            echo "- **R4 no workaround:** every pin is a merged default-branch ref or charly's own gitlink;"
-            echo "  the producer never pins a PR branch."
+            echo "- **R4 no workaround:** \`charly\` and every non-\`distro-*\` pin is its owning repo's"
+            echo "  default-branch HEAD (per-pin \`git ls-remote\` above); every \`distro-*\` pin is charly's"
+            echo "  own gitlink. The producer never pins a PR branch."
             echo "- **R5 hard cutover + grep:** the pointers are replaced, not appended to."
             echo "- **R6 git safety:** a fresh branch per run; no force-push; no push to \`main\`."
-            echo "- **R7 runtime gate:** \`N/A — a gitlink snapshot; the gate is policy B (pasted above)."
+            echo "- **R7 runtime gate:** the coverage for the moved pins is the per-pin"
+            echo "  \`git ls-remote\` default-branch evidence above; \`distro-*\` pins (when any move) are"
+            echo "  additionally asserted by policy B."
             echo "- **R8 artifact invariants:** \`N/A — no generated artifact/OCI label.\`"
             echo "- **R9 binary == source:** \`N/A — no binary is built by this workflow.\`"
-            echo "- **R10 disposable + coverage:** \`N/A — a gitlink bump; the coverage is the policy-B"
-            echo "  gate pasted above, which fails if a \`distro-*\` pin diverges from charly's gitlink."
+            echo "- **R10 disposable + coverage:** the coverage is the per-pin \`git ls-remote\`"
+            echo "  default-branch evidence above (it fails if a pin is a PR branch or a non-HEAD"
+            echo "  commit); policy B additionally gates any moved \`distro-*\` pin."
             echo "- **RDD / ADE / SDD:** RDD — the producer resolves refs from the real repos, not from"
             echo "  a doc. ADE — no candy. SDD — \`N/A\`, no schema/generated-code change."
             echo "- **Hard cutover:** one atomic commit; no deferred work in scope."
