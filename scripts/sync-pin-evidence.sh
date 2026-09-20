@@ -48,6 +48,23 @@ coverage_note() {
   fi
 }
 
+# staged_gitlink <root> <path> — the gitlink this PR RECORDS for <path>. It reads the
+# INDEX (`:<path>`), because the body is generated AFTER `git add -A` and BEFORE the
+# commit: HEAD still points at the previous snapshot, so `HEAD:<path>` would name the
+# OLD pin. Falls back to HEAD only when the path is not staged (already committed).
+# The submodule's WORKING-TREE HEAD is NEVER read: it can be uninitialised or on
+# another commit and would turn a correct pin into a false not-equal.
+staged_gitlink() {
+  local root="$1" p="$2" sha
+  # Scrub git's hook-exported repo vars so `-C "$root"` truly targets $root: when
+  # this runs from a hook (the self-test), GIT_DIR/GIT_INDEX_FILE name the CALLING
+  # repo and would override -C (measured: it corrupted the umbrella's config).
+  unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES
+  sha=$(git -C "$root" rev-parse ":$p" 2>/dev/null)
+  [ -n "$sha" ] || sha=$(git -C "$root" ls-tree HEAD -- "$p" 2>/dev/null | awk '{print $3}')
+  printf '%s' "$sha"
+}
+
 if [ "${1:-}" = "--self-test" ]; then
   fail() { echo "FAIL: sync-pin-evidence self-test: $*" >&2; exit 1; }
 
@@ -70,7 +87,32 @@ if [ "${1:-}" = "--self-test" ]; then
   [ "$(coverage_note 0)" = "POLICY_B_NOT_COVERAGE" ] || fail "0 distro moved should NOT offer policy B"
   [ "$(coverage_note 2)" = "POLICY_B_IS_COVERAGE" ] || fail ">0 distro moved should offer policy B"
 
-  echo "sync-pin-evidence: self-test OK (per-pin classification both ways; coverage both directions)"
+  # staged_gitlink: a REAL fixture repo where the STAGED pin differs from both the
+  # HEAD pin and any submodule working-tree state — so reading the working tree (or
+  # HEAD before the staged bump) FAILS this arm.
+  #
+  # CRITICAL: git exports GIT_DIR / GIT_INDEX_FILE / GIT_WORK_TREE to hook
+  # processes, and `-C "$tmp"` does NOT override them — so a bare `git -C "$tmp"
+  # …` here would write into the CALLING repo (measured: it set core.bare=true,
+  # user.*, and a stray `sub` gitlink in the umbrella). Run the fixture ops in a
+  # subshell with those variables scrubbed, so the fixture is fully isolated.
+  tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
+  fixture() (
+    unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES
+    cd "$tmp"
+    git init -q
+    git config user.email t@t; git config user.name t
+    git update-index --add --cacheinfo 160000,1111111111111111111111111111111111111111,sub
+    git commit -qm one
+    # stage a NEW gitlink, leaving HEAD at the old one:
+    git update-index --add --cacheinfo 160000,2222222222222222222222222222222222222222,sub
+  )
+  fixture >/dev/null
+  got=$(staged_gitlink "$tmp" sub)
+  [ "$got" = "2222222222222222222222222222222222222222" ] \
+    || fail "staged_gitlink read '$got', want the STAGED index pin (2222…), not HEAD/working-tree"
+
+  echo "sync-pin-evidence: self-test OK (per-pin classification both ways; coverage both directions; staged-gitlink reads the index)"
   exit 0
 fi
 
@@ -82,7 +124,7 @@ MOVED="$(cat)"
 DISTRO_MOVED=0
 
 echo "**Default-branch HEAD, per moved pin.** For each moved path: the STAGED"
-echo "GITLINK this PR records (\`git ls-tree HEAD -- <path>\`) beside the owning repo's"
+echo "GITLINK this PR records (\`git rev-parse :<path>\` from the index) beside the owning"
 echo "remote default-branch HEAD (\`git ls-remote <url> HEAD\`). \`charly\` and every"
 echo "non-\`distro-*\` repo must be EQUAL; a \`distro-*\` pin tracks charly's own gitlink"
 echo "and is proven by policy B, so it is marked \`charly-pinned\` and not required"
@@ -91,8 +133,7 @@ echo
 echo '```'
 while IFS= read -r p; do
   [ -n "$p" ] || continue
-  staged=$(git ls-tree HEAD -- "$p" 2>/dev/null | awk '{print $3}')
-  [ -n "$staged" ] || staged=$(git rev-parse ":$p" 2>/dev/null || echo '?')
+  staged=$(staged_gitlink "$ROOT" "$p")
   url=$(git config -f .gitmodules --get "submodule.$p.url" 2>/dev/null || echo '')
   remote=$(git ls-remote "$url" HEAD 2>/dev/null | awk '{print $1}' || echo '')
   case "$p" in distro-*) DISTRO_MOVED=$((DISTRO_MOVED + 1)) ;; esac
