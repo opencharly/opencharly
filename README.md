@@ -1,7 +1,7 @@
 # OpenCharly — umbrella
 
 **One clone of the whole org.** `opencharly/opencharly` is an org-level umbrella repo:
-every OpenCharly repo (403 today) is pinned here as a git submodule ("gitlink", in the
+every OpenCharly repo (406 today) is pinned here as a git submodule ("gitlink", in the
 org's vocabulary), flat at the root — submodule path == repo name, except the one
 alias below. `charly` is the product repo and the single source of truth; this
 umbrella is a *view* of the org, not a new home for anything.
@@ -176,7 +176,7 @@ and intentionally not a submodule.
 
 ### Other layers
 
-138 repos.
+139 repos.
 
 | path | repo | role |
 |---|---|---|
@@ -276,6 +276,7 @@ and intentionally not a submodule.
 | `layer-punktfunk-client/` | [opencharly/layer-punktfunk-client](https://github.com/opencharly/layer-punktfunk-client) | The punktfunk streaming CLIENT — punktfunk-client and its headless punktfunk CLI, installed from unom's signe… |
 | `layer-python/` | [opencharly/layer-python](https://github.com/opencharly/layer-python) | charly candy: layer-python (standalone repo of the candy de-submodule cutover) |
 | `layer-python-ml/` | [opencharly/layer-python-ml](https://github.com/opencharly/layer-python-ml) | image layer / candy |
+| `layer-qdrant/` | [opencharly/layer-qdrant](https://github.com/opencharly/layer-qdrant) | charly candy: the Qdrant vector-search service layer — pinned static-musl binary, supervisord REST 6333 + gRPC 6334, `~/.qdrant` volume, admin API-key auth from the credential store |
 | `layer-ripgrep/` | [opencharly/layer-ripgrep](https://github.com/opencharly/layer-ripgrep) | charly candy: ripgrep (standalone repo of the candy de-submodule cutover) |
 | `layer-rocm/` | [opencharly/layer-rocm](https://github.com/opencharly/layer-rocm) | image layer / candy |
 | `layer-rpmfusion/` | [opencharly/layer-rpmfusion](https://github.com/opencharly/layer-rpmfusion) | image layer / candy |
@@ -322,7 +323,7 @@ and intentionally not a submodule.
 
 ### Plugins
 
-109 repos — charly plug-ins (verb/substrate providers).
+110 repos — charly plug-ins (verb/substrate providers).
 
 | path | repo | role |
 |---|---|---|
@@ -413,6 +414,7 @@ and intentionally not a submodule.
 | `plugin-preempt/` | [opencharly/plugin-preempt](https://github.com/opencharly/plugin-preempt) | charly plugin |
 | `plugin-process/` | [opencharly/plugin-process](https://github.com/opencharly/plugin-process) | charly plugin |
 | `plugin-punktfunk/` | [opencharly/plugin-punktfunk](https://github.com/opencharly/plugin-punktfunk) | OUT-OF-TREE charly plugin serving the punktfunk: check verb — probe and manage a punktfunk streaming host ove… |
+| `plugin-qdrant/` | [opencharly/plugin-qdrant](https://github.com/opencharly/plugin-qdrant) | OUT-OF-TREE charly plugin serving the `qdrant:` check verb + the `charly qdrant` CLI, driving the official Go client (gRPC 6334) |
 | `plugin-quickshell/` | [opencharly/plugin-quickshell](https://github.com/opencharly/plugin-quickshell) | The quickshell: check verb — IPC against any Quickshell desktop shell |
 | `plugin-record/` | [opencharly/plugin-record](https://github.com/opencharly/plugin-record) | charly plugin |
 | `plugin-refs/` | [opencharly/plugin-refs](https://github.com/opencharly/plugin-refs) | charly plugin |
@@ -439,7 +441,7 @@ and intentionally not a submodule.
 
 ### Pods
 
-74 repos — pod/deployment bundles.
+75 repos — pod/deployment bundles.
 
 | path | repo | role |
 |---|---|---|
@@ -496,6 +498,7 @@ and intentionally not a submodule.
 | `pod-pipewire/` | [opencharly/pod-pipewire](https://github.com/opencharly/pod-pipewire) | charly candy: pod-pipewire (standalone repo of the candy de-submodule cutover) |
 | `pod-pmtiles-viewer/` | [opencharly/pod-pmtiles-viewer](https://github.com/opencharly/pod-pmtiles-viewer) | pod / deployment bundle |
 | `pod-postgresql/` | [opencharly/pod-postgresql](https://github.com/opencharly/pod-postgresql) | pod / deployment bundle |
+| `pod-qdrant/` | [opencharly/pod-qdrant](https://github.com/opencharly/pod-qdrant) | pod / deployment bundle — the qdrant box + check-qdrant-pod R10 bed |
 | `pod-qemu-guest-agent/` | [opencharly/pod-qemu-guest-agent](https://github.com/opencharly/pod-qemu-guest-agent) | pod / deployment bundle |
 | `pod-redis/` | [opencharly/pod-redis](https://github.com/opencharly/pod-redis) | pod / deployment bundle |
 | `pod-redis-client-layer/` | [opencharly/pod-redis-client-layer](https://github.com/opencharly/pod-redis-client-layer) | pod / deployment bundle |
