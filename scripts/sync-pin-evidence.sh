@@ -25,9 +25,12 @@
 # the org-wide ruleset cutover) overflows it and `gh pr create` fails with
 # "Body is too long". The per-pin evidence table is the largest section, so it is
 # emitted up to SYNC_EVIDENCE_MAX_BYTES (default 40000) and then truncated with an
-# explicit elision notice naming the count and the run artifact that carries the full
-# table. The "Every changed path, named" list (the A1 accounting) lives in the workflow
-# body OUTSIDE this script and is never truncated, so every moved pin is still named.
+# explicit elision notice naming shown/total. Two things keep A1 accounting complete
+# despite the bound: the workflow's "Every changed path, named" list is itself bounded
+# to SYNC_PATH_LIST_MAX and carries a `(first N of M …)` hint naming the TRUE total, and
+# the workflow writes the RENDERED rows of this table (not just an unrendered log) plus
+# the moved-path list into the `sync-evidence` run artifact the body links to — so every
+# moved pin is named (in the body's count) and every elided row is retrievable (artifact).
 
 SYNC_EVIDENCE_MAX_BYTES="${SYNC_EVIDENCE_MAX_BYTES:-40000}"
 set -euo pipefail
@@ -188,10 +191,10 @@ POLICY_B_LOG="${2:?usage: sync-pin-evidence.sh <root> <policy-b-log>}"
 cd "$ROOT"
 
 MOVED="$(cat)"
-MOVED_COUNT=$(printf '%s\n' "$MOVED" | grep -c . || echo 0)
+MOVED_COUNT=$(printf '%s\n' "$MOVED" | grep -c . || true); MOVED_COUNT=${MOVED_COUNT:-0}
 # Count distro-* over ALL moved paths (path prefix only — no network), so policy-B
 # coverage is decided from the full diff, never from the truncated emission window.
-DISTRO_MOVED=$(printf '%s\n' "$MOVED" | grep -c '^distro-' || echo 0)
+DISTRO_MOVED=$(printf '%s\n' "$MOVED" | grep -c '^distro-' || true); DISTRO_MOVED=${DISTRO_MOVED:-0}
 
 echo "**Default-branch HEAD, per moved pin.** For each moved path: the STAGED"
 echo "GITLINK this PR records (\`git rev-parse --verify --quiet :<path>\` from the index, \`git ls-tree HEAD\` fallback) beside the owning"
@@ -214,6 +217,16 @@ while IFS= read -r p; do
 done <<< "$MOVED"
 bounded_rows "$SYNC_EVIDENCE_MAX_BYTES" "$MOVED_COUNT" < "$ROWS_FILE"
 echo '```'
+# When the caller asks, persist the FULL rendered table so the elision notice's promise
+# ("the remaining N are in the sync-evidence run artifact") is TRUE — the artifact gets
+# the rendered rows, not just an unrendered producer log.
+if [ -n "${SYNC_EVIDENCE_OUT:-}" ]; then
+  {
+    echo
+    echo "== per-pin evidence table (full, all ${MOVED_COUNT} rows) =="
+    cat "$ROWS_FILE"
+  } >> "$SYNC_EVIDENCE_OUT"
+fi
 echo
 if [ "$(coverage_note "$DISTRO_MOVED")" = "POLICY_B_IS_COVERAGE" ]; then
   echo "**Policy B — the assertion this diff CAN violate** (\`${DISTRO_MOVED}\`"
