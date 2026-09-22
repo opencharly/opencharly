@@ -19,6 +19,17 @@
 #   (default) <root> <policy-b-log>   read MOVED (one path per line) from stdin; print
 #                                     the evidence section (table + coverage framing).
 #   --self-test                       exercise pin_row + coverage_note on fixtures.
+#
+# SIZE BOUND (a GitHub platform limit, not a preference). A sync PR body is capped by
+# GitHub at 65536 characters; a sync that moves hundreds of pins (measured: 393 after
+# the org-wide ruleset cutover) overflows it and `gh pr create` fails with
+# "Body is too long". The per-pin evidence table is the largest section, so it is
+# emitted up to SYNC_EVIDENCE_MAX_BYTES (default 40000) and then truncated with an
+# explicit elision notice naming the count and the run artifact that carries the full
+# table. The "Every changed path, named" list (the A1 accounting) lives in the workflow
+# body OUTSIDE this script and is never truncated, so every moved pin is still named.
+
+SYNC_EVIDENCE_MAX_BYTES="${SYNC_EVIDENCE_MAX_BYTES:-40000}"
 set -euo pipefail
 
 KIND_DISTRO="charly-pinned (policy B)"
@@ -45,6 +56,26 @@ coverage_note() {
     echo "POLICY_B_IS_COVERAGE"
   else
     echo "POLICY_B_NOT_COVERAGE"
+  fi
+}
+
+# bounded_rows <budget_bytes> <total_count> — read candidate rows (one per line, each
+# already rendered) from stdin and print them until adding the next would exceed
+# <budget_bytes>, always emitting AT LEAST the first row. When truncation occurs, print a
+# final elision line naming shown/total. ONE implementation the live path and the
+# self-test both call — this is the 65536-char body-cap guard.
+bounded_rows() {
+  local budget="$1" total="$2" bytes=0 rows=0 truncated=0 line bytes_line
+  while IFS= read -r line; do
+    bytes_line=$(( ${#line} + 1 ))
+    if [ "$rows" -gt 0 ] && [ $((bytes + bytes_line)) -gt "$budget" ]; then
+      truncated=1; break
+    fi
+    printf '%s\n' "$line"
+    bytes=$((bytes + bytes_line)); rows=$((rows + 1))
+  done
+  if [ "$truncated" -eq 1 ]; then
+    echo "  … $rows of $total rows shown; the remaining $((total - rows)) are in the 'sync-evidence' run artifact"
   fi
 }
 
@@ -92,6 +123,17 @@ if [ "${1:-}" = "--self-test" ]; then
   [ "$(coverage_note 0)" = "POLICY_B_NOT_COVERAGE" ] || fail "0 distro moved should NOT offer policy B"
   [ "$(coverage_note 2)" = "POLICY_B_IS_COVERAGE" ] || fail ">0 distro moved should offer policy B"
 
+  # bounded_rows: the 65536-char body-cap guard. A generous budget emits every row and
+  # NO elision notice; a tiny budget emits at least ONE row plus an elision naming
+  # shown/total (so a huge sync can never overflow the body nor emit an empty fence).
+  rows_all=$(printf 'r1\nr2\nr3\n' | bounded_rows 1000 3)
+  [ "$(printf '%s\n' "$rows_all" | grep -c .)" = "3" ] || fail "generous budget must emit all 3 rows"
+  printf '%s\n' "$rows_all" | grep -q 'elided\|rows shown' && fail "generous budget must not emit an elision notice"
+  rows_cap=$(printf 'aaaaaaa\nbbbbbbb\nccccccc\nddddddd\n' | bounded_rows 10 4)
+  echo "$rows_cap" | grep -q '^aaaaaaa$' || fail "bounded_rows must emit at least the first row at a tiny budget"
+  echo "$rows_cap" | grep -q 'rows shown' || fail "bounded_rows must emit an elision notice when truncating"
+  echo "$rows_cap" | grep -q '3 rows shown\|1 of 4 rows shown\|1 of 4' || fail "elision notice must name shown/total"
+
   # staged_gitlink: a REAL fixture repo where the STAGED pin differs from both the
   # HEAD pin and any submodule working-tree state — so reading the working tree (or
   # HEAD before the staged bump) FAILS this arm.
@@ -137,7 +179,7 @@ if [ "${1:-}" = "--self-test" ]; then
   [ "$got" = "3333333333333333333333333333333333333333" ] \
     || fail "staged_gitlink fallback read '$got', want HEAD's 3333… for an unstaged path"
 
-  echo "sync-pin-evidence: self-test OK (per-pin classification both ways; coverage both directions; staged-gitlink reads the index + falls back to HEAD)"
+  echo "sync-pin-evidence: self-test OK (per-pin classification both ways; coverage both directions; bounded_rows emits all under budget and >=1 + elision notice over budget; staged-gitlink reads the index + falls back to HEAD)"
   exit 0
 fi
 
@@ -146,7 +188,10 @@ POLICY_B_LOG="${2:?usage: sync-pin-evidence.sh <root> <policy-b-log>}"
 cd "$ROOT"
 
 MOVED="$(cat)"
-DISTRO_MOVED=0
+MOVED_COUNT=$(printf '%s\n' "$MOVED" | grep -c . || echo 0)
+# Count distro-* over ALL moved paths (path prefix only — no network), so policy-B
+# coverage is decided from the full diff, never from the truncated emission window.
+DISTRO_MOVED=$(printf '%s\n' "$MOVED" | grep -c '^distro-' || echo 0)
 
 echo "**Default-branch HEAD, per moved pin.** For each moved path: the STAGED"
 echo "GITLINK this PR records (\`git rev-parse --verify --quiet :<path>\` from the index, \`git ls-tree HEAD\` fallback) beside the owning"
@@ -156,14 +201,18 @@ echo "and is proven by policy B, so it is marked \`charly-pinned\` and not requi
 echo "equal here:"
 echo
 echo '```'
+# Render every row to a temp file, THEN bound — never pipe the producer into the bounder.
+# This environment ignores SIGPIPE, so an early-exiting bounder would leave the producer
+# writing to a closed pipe; under `set -o pipefail` those failed writes would abort the
+# script. A file sidesteps that entirely (only a few hundred rows).
+ROWS_FILE="$(mktemp)"; trap 'rm -f "$ROWS_FILE"' EXIT
 while IFS= read -r p; do
   [ -n "$p" ] || continue
-  staged=$(staged_gitlink "$ROOT" "$p")
-  url=$(git config -f .gitmodules --get "submodule.$p.url" 2>/dev/null || echo '')
-  remote=$(git ls-remote "$url" HEAD 2>/dev/null | awk '{print $1}' || echo '')
-  case "$p" in distro-*) DISTRO_MOVED=$((DISTRO_MOVED + 1)) ;; esac
-  pin_row "$p" "$staged" "$remote"
+  pin_row "$p" "$(staged_gitlink "$ROOT" "$p")" \
+    "$(git ls-remote "$(git config -f .gitmodules --get "submodule.$p.url" 2>/dev/null || echo '')" HEAD 2>/dev/null | awk '{print $1}' || echo '')" \
+    >> "$ROWS_FILE"
 done <<< "$MOVED"
+bounded_rows "$SYNC_EVIDENCE_MAX_BYTES" "$MOVED_COUNT" < "$ROWS_FILE"
 echo '```'
 echo
 if [ "$(coverage_note "$DISTRO_MOVED")" = "POLICY_B_IS_COVERAGE" ]; then
