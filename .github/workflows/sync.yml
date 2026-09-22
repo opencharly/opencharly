@@ -142,103 +142,14 @@ jobs:
           # script happened to stage. Capture AFTER it, so the list is what actually commits.
           git add -A
           MOVED=$(git diff --cached --name-only)
-          COUNT=$(printf '%s\n' "$MOVED" | grep -c . || echo 0)
-
-          {
-            echo "## Summary"
-            echo
-            echo "Automated gitlink sync: every umbrella submodule pin advanced to what **policy B**"
-            echo "requires — \`charly\` to its own default-branch HEAD, \`distro-*\` to exactly the commits"
-            echo "charly's own gitlinks pin, everything else to its own default branch."
-            echo
-            echo "**${COUNT}** gitlink(s) moved."
-            echo
-            echo "## Every changed path, named"
-            echo
-            echo '```'
-            printf '%s\n' "$MOVED"
-            echo '```'
-            echo
-            echo "Each entry is a **submodule pointer**, not file content: the umbrella records which"
-            echo "commit of each repo the snapshot means. The content behind every one of them was"
-            echo "reviewed and gated by that repo's own \`pr-validator\` before it was tagged. This PR"
-            echo "cannot review it and does not restate it."
-            echo
-            echo "## How tested"
-            echo
-            echo "**What produced this diff**, pasted from the run that opened this PR — the producer's"
-            echo "own resolution for EXACTLY the moved pins, filtered from /tmp/sync-pins.log by the"
-            echo "moved-path set. (The log holds ~400 pin lines in one pass, so a fixed slice of it"
-            echo "cannot name the moved set in general; the filter matches each moved path exactly.)"
-            echo
-            echo '```'
-            # Filter the producer log to the moved paths. The log line per pin is
-            # "  <path> -> <shortsha>"; match the exact fixed string "  <path> -> " so a
-            # prefix repo cannot match a longer sibling (e.g. plugin-vm vs plugin-vmx).
-            # Every moved path MUST appear; a missing line is a real defect (a pin moved
-            # without the producer having resolved it).
-            printf '%s\n' "$MOVED" | while IFS= read -r p; do
-              [ -n "$p" ] || continue
-              grep -m1 -F "  ${p} -> " /tmp/sync-pins.log \
-                || echo "  ${p} -> (MISSING from producer log — investigate)"
-            done
-            echo '```'
-            echo
-            # The default-branch assertion, PER MOVED PIN. `sync-gitlinks.sh` pins `charly`
-            # and every non-`distro-*` repo at its own default-branch HEAD, and `distro-*` at
-            # exactly charly's own gitlink. Paste, for each moved path, the staged submodule
-            # SHA beside the owning repo's REMOTE default-branch HEAD (`git ls-remote <url>
-            # HEAD`). A PR-branch pin would be visibly unequal; `distro-*` are EXPECTED unequal
-            # here (they track charly, not their own HEAD) and are proven by policy B instead.
-            # The pin-evidence section (per-pin staged-gitlink vs remote default-branch
-            # HEAD, and the truthful policy-B coverage framing) lives in a TESTABLE,
-            # committed script — `scripts/sync-pin-evidence.sh` — whose `--self-test`
-            # the pre-commit gate runs, so this logic has in-tree coverage.
-            printf '%s\n' "$MOVED" | bash scripts/sync-pin-evidence.sh "$PWD" /tmp/policy-b.log
-            echo
-            echo "## Change classification"
-            echo
-            echo "- **Change class:** gitlink-only. No file content, no workflow, no script, no Go."
-            echo "- **Breaking change + rollback:** none — a revert restores the previous snapshot."
-            echo
-            echo "## Harness rulebook compliance"
-            echo
-            echo "- **R0 skills:** the sync is owned by \`/charly-internals:git-workflow\`; this PR is"
-            echo "  produced by the workflow that skill describes."
-            echo "- **R1 RCA + zero warnings:** the producer resolves each pin and names any repo it"
-            echo "  cannot resolve rather than guessing; no warning appears in the pasted output."
-            echo "- **R2 no parking:** a defect found in THIS workflow is fixed here; content behind a"
-            echo "  moved gitlink belongs to its OWNING repo (which gated it before tagging)."
-            echo "- **R3 no duplication:** policy B is asserted by \`scripts/check-policy-b.sh\` — the ONE"
-            echo "  implementation \`verify-pins.sh\` also calls."
-            echo "- **R4 no workaround:** \`charly\` and every non-\`distro-*\` pin is its owning repo's"
-            echo "  default-branch HEAD (per-pin \`git ls-remote\` above); every \`distro-*\` pin is charly's"
-            echo "  own gitlink. The producer never pins a PR branch."
-            echo "- **R5 hard cutover + grep:** the pointers are replaced, not appended to."
-            echo "- **R6 git safety:** a fresh branch per run; no force-push; no push to \`main\`."
-            echo "- **R7 runtime gate:** the coverage for the moved pins is the per-pin"
-            echo "  \`git ls-remote\` default-branch evidence above; \`distro-*\` pins (when any move) are"
-            echo "  additionally asserted by policy B."
-            echo "- **R8 artifact invariants:** \`N/A — no generated artifact/OCI label.\`"
-            echo "- **R9 binary == source:** \`N/A — no binary is built by this workflow.\`"
-            echo "- **R10 disposable + coverage:** the coverage is the per-pin \`git ls-remote\`"
-            echo "  default-branch evidence above (it fails if a pin is a PR branch or a non-HEAD"
-            echo "  commit); policy B additionally gates any moved \`distro-*\` pin."
-            echo "- **RDD / ADE / SDD:** RDD — the producer resolves refs from the real repos, not from"
-            echo "  a doc. ADE — no candy. SDD — \`N/A\`, no schema/generated-code change."
-            echo "- **Hard cutover:** one atomic commit; no deferred work in scope."
-            echo "- **Disposable-only autonomy:** \`N/A — no destroy/rebuild.\`"
-            echo
-            echo "---"
-            echo
-            echo "## Attribution"
-            echo
-            echo "This body is emitted by the fixed, model-free \`printf/echo\` block in"
-            echo "\`.github/workflows/sync.yml\` (visible in this workflow's committed source). The"
-            echo "runtime identity is the GitHub Actions runner itself."
-            echo
-            echo "*Assisted-by: GitHub Actions ubuntu-latest (fully tested and validated)*"
-          } > /tmp/sync-body.md
+          printf '%s\n' "$MOVED" > /tmp/sync-moved.txt
+          # Build the body + the sync-evidence artifact in a TESTED, committed script
+          # (scripts/sync-pr-body.sh). Its inline predecessor had no size bound and broke
+          # on a 393-pin sync (GitHub caps a PR body at 65536 chars); the script bounds
+          # every section, hard-guards the cap, and its --self-test (run by the pre-commit
+          # gate) exercises the 393-pin case. The full evidence rides the artifact.
+          bash scripts/sync-pr-body.sh "$PWD" /tmp/sync-moved.txt /tmp/sync-pins.log \
+            /tmp/policy-b.log /tmp/sync-body.md /tmp/sync-evidence.txt
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -249,3 +160,14 @@ jobs:
           gh pr create --title "chore: sync gitlinks" \
             --body-file /tmp/sync-body.md \
             --label auto-merge
+
+      - name: Upload the full sync evidence
+        # The body is byte-bounded for the 65536-char cap, so the FULL moved-path list and
+        # per-pin evidence ride here instead — the PR body links to this artifact, so no
+        # evidence is dropped, only relocated.
+        if: steps.dirty.outputs.changed == 'true' && steps.skip.outputs.skip == 'false'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: sync-evidence
+          path: /tmp/sync-evidence.txt
+          if-no-files-found: warn

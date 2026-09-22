@@ -31,5 +31,6 @@ bash "$ROOT/scripts/check-policy-b.sh"
 bash "$ROOT/scripts/check-harness-parity.sh"
 bash "$ROOT/scripts/sync-dispatcher.sh" --self-test
 bash "$ROOT/scripts/sync-pin-evidence.sh" --self-test
+bash "$ROOT/scripts/sync-pr-body.sh" --self-test
 
 echo "pre-commit: OK"
