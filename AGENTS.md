@@ -142,6 +142,16 @@ the routing.
   local and on demand — there is no CI gate) on the final tree and paste the
   output. A green `git status` proves nothing. Install the per-commit gate once
   per clone with `task hooks`.
+- **Live or skip — never fake a live service.** Any test, harness, or gate that
+  crosses a live-service boundary (a `gh` / GitHub API call, an LLM or provider
+  endpoint, a network or `charly` call) MUST run against the **REAL** service, or
+  **SKIP cleanly** when its credential/endpoint is absent — never a mock, stub,
+  or fake of that boundary. A fake asserts the behaviour the author IMAGINED, not
+  what the service actually does, so it certifies a contract that may not exist
+  and hides a real integration break behind green. Gate the skip on the real
+  credential (`LIVE_*` unset → skip, visibly reported — never a silent pass), and
+  keep pure/deterministic in-repo logic unit-testable normally. Mandate here; the
+  per-surface how-to lives in the owning skill.
 - **R10 — Fresh disposable proof.** Verify from the final committed tree, never
   from an edited state.
 
