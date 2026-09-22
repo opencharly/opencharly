@@ -155,6 +155,10 @@ build_body() {
 if [ "${1:-}" = "--self-test" ]; then
   fail() { echo "FAIL: sync-pr-body self-test: $*" >&2; exit 1; }
   tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
+  # Make the fixture a real git repo: sync-pin-evidence.sh's staged_gitlink()/`git config`
+  # run under `set -e`, and a non-repo would spew `fatal: not a git repository` per row.
+  git -C "$tmp" init -q
+  git -C "$tmp" config user.email t@t; git -C "$tmp" config user.name t
 
   # A LARGE synthetic moved set (393, the real post-cutover count) with long repo names,
   # a producer log line per path, and a policy-B log. The built body MUST stay under the
