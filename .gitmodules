@@ -1748,3 +1748,15 @@
 	path = plugin-jetkvm
 	url = https://github.com/opencharly/plugin-jetkvm.git
 	branch = main
+[submodule "layer-qdrant"]
+	path = layer-qdrant
+	url = https://github.com/opencharly/layer-qdrant.git
+	branch = main
+[submodule "plugin-qdrant"]
+	path = plugin-qdrant
+	url = https://github.com/opencharly/plugin-qdrant.git
+	branch = main
+[submodule "pod-qdrant"]
+	path = pod-qdrant
+	url = https://github.com/opencharly/pod-qdrant.git
+	branch = main
