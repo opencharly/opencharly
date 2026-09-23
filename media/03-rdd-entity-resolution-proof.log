@@ -1,0 +1,20 @@
+plugin plugin-jetkvm: served from /home/atrawog/.cache/charly/plugins/plugin-jetkvm-0337ad96446b5dcc (build stamp 9c56b6b8122d9f08); source /tmp/opencode/jk-spike/candy/plugin-jetkvm
+charly: resolving project (first run — may take a moment)...
+Resolved @github.com/opencharly/plugin-deploy-local -> v2026.242.0527 (latest tag)
+Resolved @github.com/opencharly/plugin-vm -> v2026.266.1235 (latest tag)
+plugin plugin-deploy-local: served from /home/atrawog/.cache/charly/plugins/plugin-deploy-local-cb999434bd120951 (build stamp 53a2829c99019277); source /home/atrawog/.cache/charly/repos/github.com/opencharly/plugin-deploy-local@v2026.242.0527/candy/plugin-deploy-local
+Removed /home/atrawog/.config/containers/systemd/charly-rdd-probe-env.container
+Reloaded systemd user daemon
+charly check run rdd-probe-env: [deploy-add] START (charly deploy add; log: .check/rdd-probe-env/2026.266.1814/deploy-add.log)
+charly check run rdd-probe-env: [deploy-add] PASS after 4.169s (log: .check/rdd-probe-env/2026.266.1814/deploy-add.log)
+charly check run rdd-probe-env: [bring-up-members] START
+charly check run rdd-probe-env: [bring-up-members] PASS after 1ms
+charly check run rdd-probe-env: [check-live] START (charly check live; log: .check/rdd-probe-env/2026.266.1814/check-live.log)
+charly check run rdd-probe-env: [check-live] PASS after 4.959s (log: .check/rdd-probe-env/2026.266.1814/check-live.log)
+charly check run rdd-probe-env: [update] START (charly update; log: .check/rdd-probe-env/2026.266.1814/update.log)
+charly check run rdd-probe-env: [update] PASS after 3.886s (log: .check/rdd-probe-env/2026.266.1814/update.log)
+charly check run rdd-probe-env: [cleanup] START (charly remove; log: .check/rdd-probe-env/2026.266.1814/cleanup.log)
+charly check run rdd-probe-env: [cleanup] PASS after 18.35s (log: .check/rdd-probe-env/2026.266.1814/cleanup.log)
+charly check run rdd-probe-env: [cleanup-members] START
+charly check run rdd-probe-env: [cleanup-members] PASS after 0s
+charly check run rdd-probe-env: PASS (steps=6)

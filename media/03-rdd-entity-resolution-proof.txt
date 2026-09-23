@@ -1,0 +1,21 @@
+cwd=/tmp/opencode/jk-spike
+env CHARLY_BIN=/usr/bin/charly
+env CHARLY_DEPLOY_CONFIG=/tmp/charly-bed-cfg-rdd-probe-env-3055745581/charly.yml
+env CHARLY_PLUGIN=charly-plugin-v1
+env CHARLY_READINESS_ABSOLUTE_CAP=30m0s
+env CHARLY_READINESS_NO_PROGRESS=1m30s
+env CHARLY_READINESS_PER_ATTEMPT=2m0s
+env CHARLY_READINESS_PER_ATTEMPT_HEAVY=15m0s
+env CHARLY_READINESS_POLL_HEAVY=15s
+env CHARLY_READINESS_POLL_LOCAL=250ms
+env CHARLY_READINESS_POLL_REMOTE=3s
+env CHARLY_READINESS_STOP_GRACE=3m0s
+env PWD=/tmp/opencode/jk-spike
+env XDG_RUNTIME_DIR=/run/user/1000
+executor=true err=<nil> broker=1
+load(/tmp/opencode/jk-spike): ok=true err=<nil>
+  pluginkinds=[builder distro init jetkvm local resource]
+  jetkvm-entities=1
+load(/tmp/opencode/jk-spike): ok=true err=<nil>
+  pluginkinds=[builder distro init jetkvm local resource]
+  jetkvm-entities=1
