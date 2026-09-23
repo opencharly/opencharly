@@ -29,3 +29,6 @@
 # plans — working docs, never committed; directory kept via .gitkeep
 plan/*
 !plan/.gitkeep
+
+.claude/worktrees/
+plugin-gh/
