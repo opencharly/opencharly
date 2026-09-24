@@ -18,7 +18,7 @@ below is in place at the umbrella root; the shared files are diff-checked by
 | Claude hooks | `.claude/hooks/{pre-commit-gate.sh,pre-push-gate.sh,gitcmd.py,gate_test.py}` | same paths | identical (diff-checked) |
 | Claude settings | `.claude/settings.json` (full plugin list; **no `hooks` block** — the gates are unwired there) | `.claude/settings.json` (curated 14-plugin subset — charly development + omarchy evaluation only, zero MCP-server plugins; **plus the `PreToolUse`/`Bash` `hooks` block** wiring both gate scripts) | fork |
 | Claude workflows | `.claude/workflows/{verify-status,triage-check-failure,audit-deploy-configs,verify-beds}.js` | `.claude/workflows/{verify-status,triage-check-failure}.js` | fork |
-| opencode | `opencode.json` + `.opencode/plugin/charly-gates.ts` + `.opencode/agent/pr-validator.md` | `opencode.json` (skills.paths=[marketplace], instructions=[.opencode/instructions.md], references.marketplace, permission.skill allow-list) + `.opencode/instructions.md` (namespaced-ref → bare-name mapping) + `.opencode/plugin/umbrella-gates.ts` + `.opencode/agent/pr-validator.md` | fork |
+| opencode | `opencode.json` + `.opencode/plugins/charly-gates.ts` + `.opencode/agent/pr-validator.md` | `opencode.json` (skills.paths=[marketplace], instructions=[.opencode/instructions.md], references.marketplace, permission.skill allow-list) + `.opencode/instructions.md` (namespaced-ref → bare-name mapping) + `.opencode/plugins/umbrella-gates.ts` + `.opencode/agent/pr-validator.md` | fork |
 | reasonix | `reasonix.toml` + `.reasonix/settings.json` | `reasonix.toml` + `.reasonix/settings.json` | settings identical; toml fork |
 
 Shared-by-design files are enforced by `scripts/check-harness-parity.sh` — on every
@@ -48,7 +48,7 @@ root).
 | Skills | the marketplace corpus (loaded natively by every harness from the standalone opencharly/marketplace repo) | none |
 | Pi | charly: `.pi/settings.json` (7 packages + gates extension), `extensions/charly-gates.ts` (477L), 6 prompts, `subagents/charly-agents.json`, `README.md` | umbrella: `.pi/settings.json` (11 packages, all `git:` refs into org-owned `opencharly/pi-*` forks/mirrors) + 3 local extensions |
 | Claude Code | `.claude/settings.json`, `.claude/hooks/` (2 gate `.sh` + `gitcmd.py` + tests), `.claude/workflows/` | none |
-| opencode | `opencode.json` + `.opencode/plugin/charly-gates.ts` | none |
+| opencode | `opencode.json` + `.opencode/plugins/charly-gates.ts` | none |
 | reasonix/kimi | `reasonix.toml`, `.reasonix/settings.json` | none |
 
 Key enabler: both repos load the SAME marketplace — the standalone
@@ -155,7 +155,7 @@ command strings).
 
 15. `opencode.json`: copy; permission allow-list swapped to `task sync`,
     `task verify`, `git -C …`, `gh pr merge`.
-16. `.opencode/plugin/umbrella-gates.ts`: copy of the adapted gates.
+16. `.opencode/plugins/umbrella-gates.ts`: copy of the adapted gates.
 17. `reasonix.toml`: adapted permissions (same as #15; keep `bash = "off"`
     rationale for submodule git ops).
 
