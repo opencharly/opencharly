@@ -57,4 +57,9 @@ dirty="$(git -C charly submodule status --recursive | grep -E '^[+-]' || true)"
 [ -z "$dirty" ] || fail "charly nested submodules not at their gitlinks:
 $dirty"
 
+# the opencode gate plugin is TypeScript, so no Go/parity gate sees it; a
+# V1-contract plugin loads as a WARN-only no-op under opencode >= 2.0 and the
+# git gates stop running. Assert the V2 contract + gate behaviour on every run.
+node "$ROOT/scripts/check-opencode-plugin.mjs"
+
 echo "verify-pins: OK — ${#MODULES[@]} submodules, policy B holds"

@@ -34,6 +34,16 @@ uses). Never proceed without loading the procedure — R0 is mandatory.
 
 ## Gate hooks
 
-`.opencode/plugin/umbrella-gates.ts` runs the root gate scripts
+`.opencode/plugins/umbrella-gates.ts` runs the root gate scripts
 (`.claude/hooks/pre-commit-gate.sh`, `pre-push-gate.sh`) before `git commit` /
-`git push` bash calls and denies the call when a gate blocks.
+`git push` shell calls and denies the call when a gate blocks.
+
+### opencode plugin contract
+
+The plugin follows the opencode **V2** contract: a default export
+`{ id, setup(ctx) }`, with the gate hook registered inside `setup` via
+`ctx.tool.hook("execute.before", …)`. V1's default-exported function returning a
+keyed hook map does **not** load under opencode ≥ 2.0 — the loader logs a WARN and
+keeps starting, so the gates silently stop running. The V2 shell tool is named
+`shell` (V1's `bash`), which the hook matches. `scripts/check-opencode-plugin.mjs`
+guards the contract (run by `hooks/pre-commit` and `task verify`).
