@@ -1,7 +1,7 @@
 # OpenCharly — umbrella
 
 **One clone of the whole org.** `opencharly/opencharly` is an org-level umbrella repo:
-every OpenCharly repo (406 today) is pinned here as a git submodule ("gitlink", in the
+every OpenCharly repo (408 today) is pinned here as a git submodule ("gitlink", in the
 org's vocabulary), flat at the root — submodule path == repo name, except the one
 alias below. `charly` is the product repo and the single source of truth; this
 umbrella is a *view* of the org, not a new home for anything.
@@ -176,7 +176,7 @@ and intentionally not a submodule.
 
 ### Other layers
 
-139 repos.
+140 repos.
 
 | path | repo | role |
 |---|---|---|
@@ -249,6 +249,7 @@ and intentionally not a submodule.
 | `layer-maplibre-versatiles-styler/` | [opencharly/layer-maplibre-versatiles-styler](https://github.com/opencharly/layer-maplibre-versatiles-styler) | image layer / candy |
 | `layer-mcporter/` | [opencharly/layer-mcporter](https://github.com/opencharly/layer-mcporter) | image layer / candy |
 | `layer-nano-pdf/` | [opencharly/layer-nano-pdf](https://github.com/opencharly/layer-nano-pdf) | image layer / candy |
+| `layer-nerdctl/` | [opencharly/layer-nerdctl](https://github.com/opencharly/layer-nerdctl) | image layer / candy: the nerdctl engine stack |
 | `layer-nodejs/` | [opencharly/layer-nodejs](https://github.com/opencharly/layer-nodejs) | charly candy: layer-nodejs (standalone repo of the candy de-submodule cutover) |
 | `layer-notebook-finetuning/` | [opencharly/layer-notebook-finetuning](https://github.com/opencharly/layer-notebook-finetuning) | image layer / candy |
 | `layer-notebook-graph/` | [opencharly/layer-notebook-graph](https://github.com/opencharly/layer-notebook-graph) | image layer / candy |
@@ -323,7 +324,7 @@ and intentionally not a submodule.
 
 ### Plugins
 
-110 repos — charly plug-ins (verb/substrate providers).
+111 repos — charly plug-ins (verb/substrate providers).
 
 | path | repo | role |
 |---|---|---|
@@ -403,6 +404,7 @@ and intentionally not a submodule.
 | `plugin-migrate/` | [opencharly/plugin-migrate](https://github.com/opencharly/plugin-migrate) | charly plugin |
 | `plugin-mise/` | [opencharly/plugin-mise](https://github.com/opencharly/plugin-mise) | charly plugin: builder:mise + verb:mise — full mise (jdx/mise) support |
 | `plugin-mount/` | [opencharly/plugin-mount](https://github.com/opencharly/plugin-mount) | charly plugin |
+| `plugin-nerdctl/` | [opencharly/plugin-nerdctl](https://github.com/opencharly/plugin-nerdctl) | charly plugin: engine:nerdctl — the nerdctl container engine provider |
 | `plugin-oci/` | [opencharly/plugin-oci](https://github.com/opencharly/plugin-oci) | charly plugin |
 | `plugin-ollama/` | [opencharly/plugin-ollama](https://github.com/opencharly/plugin-ollama) | charly plugin |
 | `plugin-omarchy/` | [opencharly/plugin-omarchy](https://github.com/opencharly/plugin-omarchy) | charly plugin: the omarchy CLI surface as a check verb |
