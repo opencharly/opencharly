@@ -1760,3 +1760,11 @@
 	path = pod-qdrant
 	url = https://github.com/opencharly/pod-qdrant.git
 	branch = main
+[submodule "layer-nerdctl"]
+	path = layer-nerdctl
+	url = https://github.com/opencharly/layer-nerdctl.git
+	branch = main
+[submodule "plugin-nerdctl"]
+	path = plugin-nerdctl
+	url = https://github.com/opencharly/plugin-nerdctl.git
+	branch = main
