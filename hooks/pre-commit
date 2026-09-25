@@ -12,8 +12,9 @@
 #                          (`charly task policy-b` → verb:git-submodules verify)
 #   2. harness parity    — the 5 files byte-identical to charly's by design
 #                          (`charly task harness` → verb:file-parity)
-#   3. self-tests        — the committed CI body/pin-evidence builders
-#                          (`charly task self-test`)
+#   3. self-tests        — the committed CI body/pin-evidence builders AND the
+#                          dispatcher splice logic (`charly task self-test`, each
+#                          script's own --self-test)
 #   4. opencode gate     — the TypeScript gate plugin contract
 #
 # Deliberately NOT here (see `charly task verify`): the per-submodule
@@ -22,7 +23,14 @@
 # than the diff.
 set -euo pipefail
 
+# Resolve the root FIRST: git exports GIT_DIR/GIT_INDEX_FILE to hooks so that git
+# commands work regardless of cwd, but those vars LEAK into the subprocesses a hook
+# runs and corrupt nested `git -C <submodule>` operations (they name THIS repo's git
+# dir, not the submodule's). The former scripts scrubbed them internally at each git
+# call; the charly task surface runs git through subprocesses, so scrub them here,
+# once, at the hook boundary — after `rev-parse`, which needs them.
 ROOT="$(git rev-parse --show-toplevel)"
+unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES
 cd "$ROOT"
 
 # The charly binary comes from the `charly/` submodule (build it once per clone with

@@ -1,7 +1,8 @@
 version: 2026.261.1747
-# here is the check-bed ROSTER: declaring which disposable check beds run together
-# as one gate. The beds themselves live in the submodules (charly/, distro-*),
-# reached as namespaces via the local-path import below.
+# The umbrella root project — a view over the org's submodules. It declares the
+# check-bed ROSTER (which disposable beds run together as one gate), reached via the
+# local-path import below, AND the maintenance TASK surface (`charly task <name>`).
+# The beds themselves live in the submodules (charly/, distro-*).
 repo: github.com/opencharly/opencharly
 import:
     # The charly submodule, by LOCAL PATH. Its own entities (the main repo's
@@ -21,12 +22,12 @@ defaults:
     podman_jobs_cap: 8
     keep_check_runs: 3
 # =============================================================================
-# The opencharly umbrella project manifest.
+# The umbrella project manifest — the maintenance TASK surface.
 #
 # The umbrella is a view of the org: ~400 submodules at the root, each a real repo
 # owned elsewhere. It declares NO candies/boxes of its own — only the maintenance
-# TASK surface (`charly task <name>`), which replaced the former Taskfile.yml +
-# taskfiles/ + the human-facing scripts/*.sh.
+# TASK surface (`charly task <name>`), which replaced the former Taskfile.yml + the
+# human-facing scripts/*.sh.
 #
 # Run `charly task list` for the surface. The binary comes from the `charly/`
 # submodule: build it ONCE per clone with `./charly/scripts/bootstrap-charly.sh`
@@ -102,14 +103,15 @@ policy-b:
 # -----------------------------------------------------------------------------
 self-test:
   task:
-    description: Self-test the committed CI body/pin-evidence builders
+    description: Self-test the committed CI body/pin-evidence builders + the dispatcher splice
     dir: .
     plan:
-      - run: self-test sync-pin-evidence + sync-pr-body
+      - run: self-test sync-pin-evidence + sync-pr-body + sync-dispatcher
         command: |
           set -eu
           bash scripts/sync-pin-evidence.sh --self-test
           bash scripts/sync-pr-body.sh --self-test
+          bash scripts/sync-dispatcher.sh --self-test
         context: [deploy]
 
 # -----------------------------------------------------------------------------
@@ -216,40 +218,8 @@ skills:
     description: Splice the generated R0 dispatcher from the pinned marketplace into AGENTS.md
     dir: .
     plan:
-      - check: splice the dispatcher region (no-op until the fragment AND the target markers both exist)
-        command: |
-          set -eu
-          TARGET=AGENTS.md
-          FRAGMENT=marketplace/DISPATCHER.md
-          BEGIN="<!-- BEGIN GENERATED SKILL DISPATCHER -->"
-          END="<!-- END GENERATED SKILL DISPATCHER -->"
-          # The former scripts/sync-dispatcher.sh semantics, inline: a marketpin that
-          # predates the emitter (no fragment) or a hand-curated table (no markers)
-          # is a NO-OP, not a failure.
-          if [ ! -f "$FRAGMENT" ]; then
-            echo "skills: $FRAGMENT absent (marketplace pin predates the emitter) — no-op"
-            exit 0
-          fi
-          if ! grep -qF "$BEGIN" "$TARGET"; then
-            echo "skills: $TARGET has no generated markers (hand-curated table) — no-op"
-            exit 0
-          fi
-          grep -qF "$BEGIN" "$FRAGMENT" && grep -qF "$END" "$FRAGMENT" \
-            || { echo "FAIL: $FRAGMENT lacks the dispatcher markers" >&2; exit 1; }
-          python3 - "$TARGET" "$FRAGMENT" "$BEGIN" "$END" <<'PY'
-          import sys
-          target, fragment, begin, end = sys.argv[1:5]
-          text = open(target).read(); frag = open(fragment).read()
-          if begin not in text or end not in text:
-              sys.exit(f"FAIL: {target} lacks the dispatcher markers")
-          b = frag[frag.index(begin):frag.index(end)+len(end)]
-          head, _, rest = text.partition(begin); _, _, tail = rest.partition(end)
-          new = head + b + tail
-          if new == text:
-              print("skills: dispatcher already current")
-          else:
-              open(target, "w").write(new); print("skills: dispatcher updated from %s" % fragment)
-          PY
+      - run: splice the dispatcher (no-op until the fragment AND target markers exist)
+        command: bash scripts/sync-dispatcher.sh
         context: [deploy]
 
 # -----------------------------------------------------------------------------
