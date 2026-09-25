@@ -21,37 +21,42 @@ jobs:
         with:
           submodules: true
 
+      - name: Build the charly binary (umbrella task surface)
+        # The umbrella's maintenance is `charly task <name>`, served by the `charly/`
+        # submodule's binary. Build it once here (the ONE non-charly entrypoint).
+        run: ./charly/scripts/bootstrap-charly.sh
+
       - name: Bump pins
         run: |
           # Captured so the PR body can PASTE what the producer actually resolved, rather
           # than assert that it ran. pipefail because Actions runs `bash -e {0}` without it
           # and the status of `script | tee` would otherwise be tee's.
           set -o pipefail
-          bash scripts/sync-gitlinks.sh 2>&1 | tee /tmp/sync-pins.log
+          ./charly/bin/charly task sync 2>&1 | tee /tmp/sync-pins.log
 
       - name: Splice the generated R0 dispatcher (opt-in)
         # The marketplace corpus is the single source of the generated dispatcher
-        # table. This step is a NO-OP while AGENTS.md keeps its hand-curated table
-        # outside the generated markers; it splices the fragment only once AGENTS.md
-        # carries `BEGIN/END GENERATED SKILL DISPATCHER` AND the pinned marketplace
-        # ships `DISPATCHER.md`. (Both are needed — see scripts/sync-dispatcher.sh.)
-        run: bash scripts/sync-dispatcher.sh
+        # table. This is a NO-OP while AGENTS.md keeps its hand-curated table outside
+        # the generated markers; it splices the fragment only once AGENTS.md carries
+        # `BEGIN/END GENERATED SKILL DISPATCHER` AND the pinned marketplace ships
+        # `DISPATCHER.md`. (Both are needed — see the `skills` task.)
+        run: ./charly/bin/charly task skills
 
       - name: Verify policy B
         # A REAL gate that runs here, so the body pastes its output instead of asserting
-        # a pin is correct. `scripts/check-policy-b.sh` reads charly's own gitlinks with
+        # a pin is correct. `charly task policy-b` reads charly's own gitlinks with
         # `git ls-tree` (tree objects — present in a shallow clone; charly's NESTED
         # submodules need not be initialised) and asserts every umbrella `distro-*`
         # gitlink equals it. That is exactly the assertion this PR can violate, and it
         # costs milliseconds. `tee` so the body can paste it verbatim.
         run: |
           set -o pipefail
-          bash scripts/check-policy-b.sh 2>&1 | tee /tmp/policy-b.log
+          ./charly/bin/charly task policy-b 2>&1 | tee /tmp/policy-b.log
 
       - name: Nothing to sync?
         id: dirty
         # Compare against HEAD, not the index. `git diff` alone diffs the WORKTREE
-        # against the INDEX, and scripts/sync-gitlinks.sh `git add`s every gitlink it
+        # against the INDEX, and `charly task sync` `git add`s every gitlink it
         # bumps — so a sync that changed something left nothing UNSTAGED and this gate
         # read changed=false every time. The workflow therefore ran green and opened no
         # PR while pins drifted, which is why every landed sync has been hand-made.
@@ -77,7 +82,7 @@ jobs:
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
-      # `scripts/verify-pins.sh` is deliberately NOT run here, and the body no longer claims
+      # `charly task verify` is deliberately NOT run here, and the body no longer claims
       # it is. It was tried, and it fails in this environment for a reason that makes running
       # it here pointless rather than fixable:
       #
@@ -137,7 +142,7 @@ jobs:
           # them. A one-line body cannot pass rule A1 ("every diff item accounted for"), and
           # a sync that moves 79 submodules is exactly where a count says nothing: that is
           # what BLOCKED the first PR this workflow ever managed to open.
-          # `git add -A` is kept even though sync-gitlinks.sh already stages each bumped
+          # `git add -A` is kept even though `charly task sync` already stages each bumped
           # gitlink: dropping it would silently narrow what the sync commits to whatever the
           # script happened to stage. Capture AFTER it, so the list is what actually commits.
           git add -A

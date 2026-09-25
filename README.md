@@ -555,7 +555,7 @@ Every submodule is pinned to a specific commit (a gitlink). The policy (`policy 
 `main` — defaults are resolved via `git ls-remote --symref`, so a future default-branch
 rename keeps working.
 
-The daily `sync` workflow runs `scripts/sync-gitlinks.sh`, opens a `chore: sync
+The daily `sync` workflow runs `charly task sync`, opens a `chore: sync
 gitlinks` PR when anything moved, and the org-wide validation chain lands it:
 `charly/pr-validator` runs the charly review engine (`opencharly/action-review`) and
 enables native auto-merge on PASS; `tag-on-merge` tags the merged snapshot —
@@ -563,7 +563,8 @@ same discipline as charly. There is no CI gate: an audit found the verify
 workflow's assertions were either created by `actions/checkout` itself or already
 enforced by their consumer, so it was deleted. The assertions a commit can actually
 violate — policy B, the pi-extension parse, harness parity — run in `hooks/pre-commit`
-(`task hooks` to install); the full pinning audit stays available as `task verify`.
+(`charly task hooks` to install); the full pinning audit stays available as
+`charly task verify`.
 
 ## House rules
 
@@ -586,17 +587,27 @@ This repo runs the same agent harness config and discipline as `charly/` — pi
 (`opencode.json`), reasonix (`reasonix.toml`), and skills (the marketplace repo —
 each harness loads it natively). See `HARNESS-PARITY.md` for the full map.
 `AGENTS.md`/`CLAUDE.md` own the umbrella rulebook; `charly/AGENTS.md` owns charly's.
-Shared gate scripts are diff-checked by `scripts/check-harness-parity.sh`.
+Shared-by-design harness files are diff-checked by `charly task harness`.
 
 ## Helpers
 
+The umbrella's maintenance is the `charly task` surface, served by the `charly/`
+submodule's binary. Build it once per clone with
+`./charly/scripts/bootstrap-charly.sh` (the ONE non-charly entrypoint), then:
+
 ```
-task map      # list every submodule with its pin and sync state
-task sync     # run scripts/sync-gitlinks.sh (preview a pin bump)
-task hooks    # install hooks/pre-commit for this clone (do this once)
-task verify   # run scripts/verify-pins.sh (the full pinning audit, on demand)
-task harness  # run scripts/check-harness-parity.sh (harness config vs charly/)
+charly task map           # list every submodule with its pin and sync state
+charly task sync          # bump pins per policy B (preview; does not commit)
+charly task hooks         # install hooks/pre-commit for this clone (do this once)
+charly task verify        # the full pinning audit, on demand
+charly task harness       # harness config parity vs charly/
+charly task org-map       # verify the README org-map tables vs .gitmodules
+charly task omarchy-agents # gate the committed omarchy pi agents
+charly task pi-forks      # sync the pi-plugin forks from their upstreams
+charly task skills        # splice the generated R0 dispatcher into AGENTS.md
 ```
+
+`charly task list` enumerates them.
 
 `--depth 1` keeps the clone light (~50 MB of working trees):
 

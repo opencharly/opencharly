@@ -31,7 +31,7 @@ const INVARIANTS = [
   {
     id: 'defaults',
     invariant: 'every .gitmodules branch = the repo real default branch',
-    cmd: 'bash scripts/verify-pins.sh',
+    cmd: './charly/bin/charly task verify',
     proves: 'git ls-remote --symref per submodule URL vs .gitmodules branch=',
   },
   {
@@ -43,7 +43,7 @@ const INVARIANTS = [
   {
     id: 'policy-b',
     invariant: 'policy B: distro-* pins == charly own gitlinks (sdk/spec/docs/marketplace follow their own default-branch HEAD)',
-    cmd: 'bash scripts/verify-pins.sh',
+    cmd: './charly/bin/charly task verify',
     proves: 'ls-tree comparison charly/ vs umbrella/',
   },
   {
@@ -84,7 +84,7 @@ if (requested.length) {
 phase('Discover')
 const discoverPrompt =
   `STRICTLY CONFIRM — never add, never substitute — that these umbrella gate targets exist: ` +
-  `scripts/verify-pins.sh, scripts/sync-gitlinks.sh, and the .gitmodules file with at least 20 submodule entries. ` +
+  `./charly/bin/charly task verify, ./charly/bin/charly task sync, and the .gitmodules file with at least 20 submodule entries. ` +
   `Return ONLY the entries that exist, verbatim, as JSON {targets:[{path}]}. Do NOT run anything.`
 const discovered = await agent(discoverPrompt, { schema: DISCOVER_SCHEMA, label: 'discover-verify-targets', phase: 'Discover' })
 

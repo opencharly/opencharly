@@ -230,7 +230,7 @@ fi
 echo
 if [ "$(coverage_note "$DISTRO_MOVED")" = "POLICY_B_IS_COVERAGE" ]; then
   echo "**Policy B — the assertion this diff CAN violate** (\`${DISTRO_MOVED}\`"
-  echo "\`distro-*\` pin(s) moved). \`scripts/check-policy-b.sh\` reads charly's own"
+  echo "\`distro-*\` pin(s) moved). \`charly task policy-b\` reads charly's own"
   echo "gitlinks with \`git ls-tree\` (tree objects — present in a shallow clone;"
   echo "charly's NESTED submodules need not be initialised) and asserts every umbrella"
   echo "\`distro-*\` gitlink equals it, pasted verbatim from this run:"

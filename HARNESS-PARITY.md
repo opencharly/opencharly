@@ -2,7 +2,7 @@
 
 This document is both the original plan and the living parity map. Every file
 below is in place at the umbrella root; the shared files are diff-checked by
-`scripts/check-harness-parity.sh` (AGENTS.md rule 8).
+`charly task harness` (AGENTS.md rule 8).
 
 > Deviation from the plan: the parity table lives here instead of
 > `docs/harness-parity.md` because `docs/` is a submodule (rule 1 — never edit
@@ -21,8 +21,8 @@ below is in place at the umbrella root; the shared files are diff-checked by
 | opencode | `opencode.json` + `.opencode/plugins/charly-gates.ts` + `.opencode/agent/pr-validator.md` | `opencode.json` (skills.paths=[marketplace], instructions=[.opencode/instructions.md], references.marketplace, permission.skill allow-list) + `.opencode/instructions.md` (namespaced-ref → bare-name mapping) + `.opencode/plugins/umbrella-gates.ts` + `.opencode/agent/pr-validator.md` | fork |
 | reasonix | `reasonix.toml` + `.reasonix/settings.json` | `reasonix.toml` + `.reasonix/settings.json` | settings identical; toml fork |
 
-Shared-by-design files are enforced by `scripts/check-harness-parity.sh` — on every
-commit via `hooks/pre-commit`, and on demand via `task harness`.
+Shared-by-design files are enforced by `charly task harness` — on every
+commit via `hooks/pre-commit`, and on demand via `charly task harness`.
 
 ### opencode skill addressing
 
@@ -75,7 +75,7 @@ command strings).
   (skills-first, RCA, no workarounds, attribution, fresh-validator at
   merge) scoped to gitlink/CI ops.
 - **Policy B is the contract:** the validator subagent re-checks
-  `scripts/verify-pins.sh` invariants, exactly as charly's re-checks its
+  `charly task verify` invariants, exactly as charly's re-checks its
   beds.
 
 ## Phases
@@ -128,11 +128,11 @@ command strings).
    tool_call interception running the gate scripts; drop
    `charly_worktree_create/remove`; keep the before-agent-start rules
    injection, swapped to umbrella rules; optionally add an
-   `umbrella_sync_status` (`task map`) tool.
-9. `.pi/prompts/`: `cutover.md` → `sync.md` (fetch, `task sync`,
-   `task verify`, PR body, no worktrees); `rulebook.md`, `skill.md`,
+   `umbrella_sync_status` (`charly task map`) tool.
+9. `.pi/prompts/`: `cutover.md` → `sync.md` (fetch, `charly task sync`,
+   `charly task verify`, PR body, no worktrees); `rulebook.md`, `skill.md`,
    `subagent-review.md`, `subagent-verify.md` (repoint verify at
-   `scripts/verify-pins.sh`), `pr-body.md` (kept nearly as-is).
+   `charly task verify`), `pr-body.md` (kept nearly as-is).
 10. `.pi/subagents/umbrella-agents.json`: reviewer/worker/validator with
     umbrella policies (policy-B equality, clean checkouts, dangling-pin
     checks, relevant R1–R10 subset).
@@ -153,8 +153,8 @@ command strings).
 
 ### Phase 5 — opencode + reasonix
 
-15. `opencode.json`: copy; permission allow-list swapped to `task sync`,
-    `task verify`, `git -C …`, `gh pr merge`.
+15. `opencode.json`: copy; permission allow-list swapped to `charly task sync`,
+    `charly task verify`, `git -C …`, `gh pr merge`.
 16. `.opencode/plugins/umbrella-gates.ts`: copy of the adapted gates.
 17. `reasonix.toml`: adapted permissions (same as #15; keep `bash = "off"`
     rationale for submodule git ops).
@@ -163,12 +163,12 @@ command strings).
 
 18. Add a "harness parity" section to `README.md` and a
     `docs/harness-parity.md` table mapping each charly/ file to its
-    umbrella twin, plus `scripts/check-harness-parity.sh` that diffs the
+    umbrella twin, plus `charly task harness` that diffs the
     shared gate scripts against charly/ and fails on drift (cheap: the gate
     scripts are identical by design).
-19. Verify: `task verify` still green; fresh `pi` session at the umbrella
+19. Verify: `charly task verify` still green; fresh `pi` session at the umbrella
     root → packages install, gates load, skills discovered, sync flow works
-    end-to-end (dry `task sync` on a fake pin bump).
+    end-to-end (dry `charly task sync` on a fake pin bump).
 20. One PR with all of it, so CI (`verify`) approves it in one shot.
 
 ## Deliberately not copied

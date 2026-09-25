@@ -14,7 +14,7 @@ Method owner: this document. Every verdict below is evidence-backed; unproven cl
 | spec (CUE schema) | `spec/` submodule, `spec/schema/*.cue`; `charly/go.mod` requires `github.com/opencharly/spec v0.2026254.503` |
 | sdk | proxy module `github.com/opencharly/sdk v0.2026254.523` (no submodule) |
 | plugin-docs | `v2026.254.1214` (docs generator) |
-| pinned binary | `charly/bin/charly`, built via the exact `task build:binary` recipe (`pluginsgen` → `go build` with `-X main.BuildCalVer`), `charly version` → `2026.254.0903` |
+| pinned binary | `charly/bin/charly`, built via the exact `scripts/bootstrap-charly.sh` recipe (`pluginsgen` → `go build` with `-X main.BuildCalVer`), `charly version` → `2026.254.0903` |
 
 `pluginsgen` regeneration on this clean tree was a **no-op** (`git status` clean after) — SDD drift gate holds.
 
@@ -91,7 +91,7 @@ Verdicts: **VERIFIED / DIVERGENCE / UNVERIFIED**.
 | README:61-63 | `candy:` is a real keyword and `candy/` a real directory | C2 | corpus | grep | VERIFIED (generic) | e.g. `plugin-mcp/candy/plugin-mcp/`; note charly repo itself vendors none |
 | README:84 | install link `https://opencharly.ai/start/install/` | C7 | docs tree | ls | VERIFIED | `docs/.../start/install.md` |
 | README:89-101 | `charly --repo opencharly/charly box list boxes` prints `agentteams … arch.arch …` | C1/C4 | pinned binary | live run (warm cache) | VERIFIED | output begins `agentteams [testing]` / `agentteams-manager [testing]` / `agentteams-worker [testing]` / `alpine-repo-box [testing]` / `arch.arch [testing]` (129 boxes) — matches the README |
-| README:106-112 | clone + `task build:binary` + `./bin/charly box build`; own binary per checkout | C1/C3 | `taskfiles/Build.yml` | read | VERIFIED | sanctioned "work on charly itself" exception |
+| README:106-112 | clone + `scripts/bootstrap-charly.sh` + `./bin/charly box build`; own binary per checkout | C1/C3 | `scripts/bootstrap-charly.sh` | read | VERIFIED | sanctioned "work on charly itself" exception |
 | README:118 | "This is `box/fedora/box/tutorial-shell/charly.yml`, from `opencharly/distro-fedora`" | C4/C5 | corpus | read | DIVERGENCE (path) | charly-relative path is `charly/box/fedora/box/…`; in the distro repo it is `box/tutorial-shell/charly.yml` |
 | README:120-137 | tutorial-shell snippet (refs, plan) | C2/C4 | `distro-fedora/box/tutorial-shell/charly.yml` | diff | **DIVERGENCE** | real refs are `layer-supervisord:v2026.240.0121`, `layer-ripgrep:v2026.235.1653`, `pod-sshd:v2026.239.1637`; full description/comments/plan differ |
 | README:142-150 | sshd declares a service → charly injects the destination init; box plan checks only composition | C6/C3 | E1 probe; tutorial-shell file | read + live probe | DIVERGENCE (D14, fixed) | the "init is not listed / auto-injected" premise is false (E1); corrected in charly#604 README + distro-fedora#51 |
