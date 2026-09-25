@@ -21,36 +21,87 @@ someone else's repo.
    pinned go.mod requires — no workspace members). Go forbids nested workspace files. No
    `go.work` at the umbrella root —
    all Go builds happen inside `charly/`.
-4. **No worktrees inside submodules.** The per-session linked-worktree pattern belongs
-   to the `charly` checkout, not here.
+4. **Sessions root at the umbrella; edits happen in a session worktree.** A session
+   roots at THIS checkout. Every repository it edits that exists as a submodule here —
+   `charly`, any `plugin-*`, `docs`, `marketplace`, and the `distro-*`/`layer-*`/`pod-*`
+   families — is checked out as that session's own git worktree under the umbrella:
+   `<umbrella>/.worktrees/<slug>/<repo>/`, branched off fresh `origin/main`. The
+   submodule's TRACKED checkout then stays at its gitlink and clean, so `verify` passes.
+   Never edit a submodule's tracked checkout in place. (`sdk` and `spec` are NOT
+   submodules — they resolve from the Go proxy at pinned `go.mod` requires — so a
+   session reaches them through the module cache, never a worktree here; see rule 6.)
+   Full model + concurrency contract: **The development model** below.
 5. **Pin discipline:** only pin merged refs (default branches or gitlinks charly
    records). Never a PR branch. `verify` treats dangling pins as failures.
-6. **Policy B is the contract:** `distro-*` must equal charly's own gitlinks
-   (`sdk`, `spec` and `plugins` are no longer charly-pinned — `sdk` and `spec` resolve from
-   the Go proxy at pinned go.mod requires since their de-submodule cutovers, and the
-   plugins corpus moved to the standalone `opencharly/marketplace` repo — which IS a
-   submodule here, pinned to its own default-branch HEAD like `docs`). If charly's
-   pinning changed, the fix is a sync (`charly task sync` + PR), not a hand-pin.
+6. **Policy B is the contract:** `distro-*` must equal charly's own gitlinks.
+   `sdk` and `spec` are no longer charly-pinned submodules — they resolve from the
+   Go proxy at pinned `go.mod` requires (their de-submodule cutovers). The plugin
+   corpus moved to the standalone `opencharly/marketplace` repo, and `marketplace`,
+   `docs`, and every `plugin-*` repo are submodules pinned to their own
+   default-branch HEAD, like the rest of the org. If charly's pinning changed, the
+   fix is a sync (`./charly/bin/charly task sync` + PR), not a hand-pin.
 7. When a task touches a subrepo, read that subrepo's own rulebook (`AGENTS.md`)
    first — its policy applies inside it. Charly's R0–R10 rulebook lives in
    `charly/AGENTS.md`; this file owns only the umbrella's policy.
-8. **Harness config parity:** the harness configuration at the root (agent
-   instruction files, hook scripts, and per-harness config) mirrors the source
-   repo's. Keep it in sync (`charly task harness`); never fork it
-   silently. The gate scripts guard mechanics only; policy is judged by the
-   `pr-validator` at merge.
+8. **Harness config: a shared core plus deliberate forks.** The harness configuration at
+   the root mirrors the source repo's. Three classes exist and are not the same:
+   - **Identical-by-design** — the byte-identical gate scripts
+     (`.claude/hooks/*.sh`, `gitcmd.py`, `gate_test.py`, `.reasonix/settings.json`),
+     diff-checked against `charly/` by `./charly/bin/charly task harness`; a drift is a
+     failure.
+   - **Umbrella-only** — `hooks/pre-commit` (this repo's own gate, activated per clone with
+     `./charly/bin/charly task hooks`, which sets `core.hooksPath`). It has no `charly/`
+     twin.
+   - **Deliberately-forked** — per-harness settings and workflows (`.claude/settings.json`,
+     `.pi/settings.json`, `.opencode/*`) that adapt the umbrella's reality. These are
+     recorded fork-by-design in `HARNESS-PARITY.md`; they are not silently copied, and
+     they are not a `task harness` diff pair.
+
+   The gate scripts guard mechanics only; policy is judged by the `pr-validator` at merge.
+   The convention is harness-neutral: harness names live in `HARNESS-PARITY.md` and the
+   per-harness config, never in the policy prose of this file.
 9. **Session-scoped ownership — never touch another session's files.** The
    changes you make belong to YOUR session: a file you did not author in this
-   session, a branch you did not create, and a PR you did not open are another
-   session's work. Never edit, revert, reformat, stage, or commit them — not
-   even to "clean up" or unblock your own work. A submodule left dirty or on a
-   branch by another session stays exactly as found. If a file you do not own
-   blocks you, do NOT touch it: communicate the need to that session through a
-   **PR comment** on the PR that owns the file (or open an issue naming it), and
-   stop and ask the operator if it remains blocked. Your own edits are committed
-   in your session — leave no uncommitted file of your authorship behind (an
-   untracked scratchpad is the one exception, and it is cleaned up before you
-   finish).
+   session, a branch you did not create, a worktree (`<umbrella>/.worktrees/<slug>/`)
+   you did not create, and a PR you did not open are another session's work. Never
+   edit, revert, reformat, stage, or commit them — not even to "clean up" or unblock
+   your own work. A submodule left dirty or on a branch by another session stays
+   exactly as found. If a file you do not own blocks you, do NOT touch it:
+   communicate the need to that session through a **PR comment** on the PR that owns
+   the file (or open an issue naming it), and stop and ask the operator if it remains
+   blocked. Your own edits are committed in your session — leave no uncommitted file
+   of your authorship behind (an untracked scratchpad is the one exception, and it is
+   cleaned up before you finish).
+
+## The development model
+
+The umbrella is umbrella-centric and harness-independent. One model serves every
+session on every harness.
+
+- **Root and worktree.** A session roots at the umbrella checkout. For each repository
+  it edits, it creates a linked git worktree under the umbrella:
+  `git -C <repo> worktree add <umbrella>/.worktrees/<slug>/<repo> -b feat/<slug> origin/main`.
+  `<slug>` is stable and unique to the session. The worktree lives OUTSIDE the submodule
+  directory, so the submodule's tracked checkout is never a worktree and is never dirtied.
+- **Two ownership scopes.** *Exclusive to the session:* the worktree
+  (`.worktrees/<slug>/`), the branch and PR, the worktree-local built binary
+  (`.worktrees/<slug>/charly/bin/charly`), and the worktree's generated state
+  (`.build/`, `.check/`, `.opencharly/`). *Safely shared, protected:* the umbrella root
+  and submodule checkouts (read-only during work; written only by `task sync`/`task hooks`),
+  the plugin build cache (`~/.cache/charly/plugins/` — source-keyed path + per-binary
+  flock + atomic rename), the repo cache (`~/.cache/charly/repos`), and the image build
+  store (build-activity flock + per-image lock).
+- **Concurrency rules.** A live run that builds an image passes a session-scoped `--tag`
+  (or relies on a bed's per-run `image_tag`); a live bed is addressed by its per-deploy
+  `bed_domain`. Two sessions never share a tag or a domain. `task sync`/`task verify` are
+  the only writers of gitlinks and run one session at a time.
+- **Landing.** Producer-first: producer PR → merge → tag → consumer pin bump (`task sync`)
+  → umbrella PR. A session never hand-edits a gitlink or `.gitmodules`. Landing is per
+  repo, through a `feat/<slug>` branch, a fresh `pr-validator`, and a squash merge.
+- **Invocation.** Build the binary once per clone with `charly/scripts/bootstrap-charly.sh`
+  (the one non-charly entrypoint — the build that produces the binary cannot itself be a
+  charly task). From the umbrella root, run maintenance as `./charly/bin/charly task <name>`;
+  the bare `charly task` form is valid only when that binary is on `PATH`.
 
 ## R0. Skills first
 
@@ -72,14 +123,14 @@ corpus's generated dispatcher (`marketplace/DISPATCHER.md`, emitted by
 `charly marketplace generate` from each skill entity's `triggers:` — one row per
 trigger, the full set in that file, which is the authority). It is hand-authored
 prose, NOT a generated artifact, so it lives outside any generated markers;
-`charly task skills` can splice the full generated fragment in its place
+`./charly/bin/charly task skills` can splice the full generated fragment in its place
 when a consumer pins the fragment (see the script header). To add a row, edit
 here and keep the refs resolving.
 
 | Trigger (what the user said or you're about to do) | Skill to load |
 |---|---|
 | Git/`gh` workflow — `feat/` branch, commit, PR-only landing (NO direct push to main), branch protection, the `pr-validator` merge/tag, sync-to-upstream | `/charly-internals:git-workflow` |
-| Pinning / gitlink policy / `charly task sync` / `charly task verify` | `/charly-internals:git-workflow` |
+| Pinning / gitlink policy / `./charly/bin/charly task sync` / `verify` | `/charly-internals:git-workflow` |
 | Engineering-discipline triggers (failure surfaced / dup pattern / ad-hoc fix tempting / "out of scope" framing) | `/charly-internals:strict-policy` |
 | R1 — every failure, warning, or doc-vs-reality divergence before any remediation | `/charly-internals:root-cause-analyzer` |
 | Sub-agents, fresh validator sessions, "which primitive drives verification?" | `/charly-internals:agents` |
@@ -120,7 +171,8 @@ the routing.
   skip, inline command, or local script substitute is forbidden (R4). If the fix is
   genuinely out of scope, stop and ask the operator.
 - **Umbrella-native mechanics are the sanctioned path for umbrella work:**
-  `charly task sync`, `charly task verify`, `charly task harness`, `bash
+  `./charly/bin/charly task sync`, `./charly/bin/charly task verify`,
+  `./charly/bin/charly task harness`, `bash
   scripts/*`, and submodule git through
   `git -C <absolute-path>` (rule 2). These are the umbrella's own commands, not
   ad-hoc substitutes.
@@ -139,10 +191,10 @@ the routing.
 - **R5 — Delete legacy completely.** A cutover removes the old path in the same PR.
 - **R6 — Git safety.** `git status` before destructive actions. No force-push, no
   hook bypass (`--no-verify` / `core.hooksPath`), no direct push to `main`.
-- **R7 — Prove the gate, not the plan.** Run `charly task verify` (the full pinning gate,
+- **R7 — Prove the gate, not the plan.** Run `./charly/bin/charly task verify` (the full pinning gate,
   local and on demand — there is no CI gate) on the final tree and paste the
   output. A green `git status` proves nothing. Install the per-commit gate once
-  per clone with `charly task hooks`.
+  per clone with `./charly/bin/charly task hooks`.
 - **Live or skip — never fake a live service.** Any test, harness, or gate that
   crosses a live-service boundary (a `gh` / GitHub API call, an LLM or provider
   endpoint, a network or `charly` call) MUST run against the **REAL** service, or
@@ -196,7 +248,7 @@ These are enforced by the fresh `charly/pr-validator` at merge (rule A1).
 
 | Confidence | Required proof |
 |---|---|
-| `fully tested and validated` | `charly task verify` passed on the final tree, changed paths executed live |
+| `fully tested and validated` | `./charly/bin/charly task verify` passed on the final tree, changed paths executed live |
 | `analysed on a live system` | Changed runtime path ran live with retained output; full gate did not pass |
 | `documentation reviewed` | Docs-only change class (forbidden if pins/scripts changed) |
 | `syntax check only` | Dry-run only — do not commit |
@@ -205,10 +257,11 @@ These are enforced by the fresh `charly/pr-validator` at merge (rule A1).
 ## Hooks doctrine
 
 Deterministic git-workflow mechanics — bypass flags, force-push, direct-main push,
-untokenizable commands — are enforced by the root hooks (`.claude/hooks/pre-commit-gate.sh`
-+ `pre-push-gate.sh`) through each harness's own wiring. Attribution, change class, and
-rulebook compliance are judged once by the fresh `pr-validator` at merge — never by the
-gates.
+untokenizable commands — are enforced by the umbrella's root hooks
+(`hooks/pre-commit`, installed per clone via `./charly/bin/charly task hooks`, which sets
+`core.hooksPath`) together with the byte-identical per-harness gate scripts each harness
+wires (see rule 8). Attribution, change class, and rulebook compliance are judged once by
+the fresh `pr-validator` at merge — never by the gates.
 
 Reference: `README.md` (pinning policy), `HARNESS-PARITY.md` (config map),
 `.github/workflows/` (CI contract).

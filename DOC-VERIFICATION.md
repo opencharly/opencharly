@@ -1,5 +1,11 @@
 # DOC-VERIFICATION.md — paragraph-level audit of charly's hand-authored docs
 
+> **HISTORICAL — do not read the pins below as current.** This is a point-in-time
+> audit (audit date 2026-09-13) of charly's docs at the pinned inputs recorded in
+> §0. The commit hashes, submodule pins, and `go.mod` versions are FROZEN AS OF
+> THAT DATE; the repos have advanced since. Use it for its method and its
+> paragraph-level verdicts, never as a source of current pins.
+
 Status: **complete — Batches 1–5 verified; all nine resulting PRs merged (§11).**
 Audit date: 2026-09-13
 Method owner: this document. Every verdict below is evidence-backed; unproven claims are marked
