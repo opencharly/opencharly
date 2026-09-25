@@ -31,7 +31,7 @@ const REPRO_SCHEMA = {
   type: 'object',
   additionalProperties: false,
   properties: {
-    failingInvariant: { type: 'string', description: 'the exact FAIL: line from verify-pins.sh' },
+    failingInvariant: { type: 'string', description: 'the exact FAIL: line from `charly task verify`' },
     exitCode: { type: 'integer' },
     logTail: { type: 'string' },
     observed: { type: 'string', description: 'the concrete failure symptom' },
@@ -64,7 +64,7 @@ const VERDICT_SCHEMA = {
 phase('Reproduce')
 const repro = await agent(
   `You are a pinning-gate triager. The umbrella pinning gate "${target || './charly/bin/charly task verify'}" failed. ` +
-  `Run it verbosely (bash -x ./charly/bin/charly task verify) and read the FAIL: line. Report the failing invariant, exit code, ` +
+  `Run it verbosely (./charly/bin/charly task verify) and read the FAIL: line. Report the failing invariant, exit code, ` +
   `the tail of the output, and the concrete observed symptom. Do NOT mutate anything, do NOT re-run fixes.`,
   { schema: REPRO_SCHEMA, label: 'reproduce-verify', phase: 'Reproduce' }
 )
@@ -99,7 +99,7 @@ const survivors = judged.filter((h) => h.validated && h.verdict && h.verdict.con
 log(`triage-verify-failure: ${hyps.length} hypotheses, ${survivors.length} survived adversarial cross-check.`)
 
 return {
-  target: target || 'verify-pins',
+  target: target || './charly/bin/charly task verify',
   reproduce,
   survivingRootCauses: survivors.map((h) => ({ theory: h.theory, evidence: h.evidence, proposedFix: h.proposedFix })),
   allHypotheses: judged,

@@ -33,6 +33,34 @@ map:
         context: [deploy]
 
 # -----------------------------------------------------------------------------
+# pins — the ONE policy-B pin operation (the former scripts/lib/policy-b.sh's role:
+# a single canonical definition, not copy-pasted). `policy-b`, `sync` and `verify`
+# are thin wrappers selecting the mode, so the 6-entry map exists exactly once.
+# -----------------------------------------------------------------------------
+pins:
+  task:
+    description: The policy-B pin operation over the distro-* set (mode via param)
+    dir: .
+    params:
+      MODE:
+        description: status|bump|verify (the git-submodules mode)
+        default: verify
+    plan:
+      - run: run git-submodules in the selected mode
+        git-submodules:
+          mode: "${MODE}"
+          pinned_from: charly
+          # umbrella path -> its twin in the pinned charly checkout
+          pin_map:
+            distro-arch: box/arch
+            distro-cachyos: box/cachyos
+            distro-debian: box/debian
+            distro-fedora: box/fedora
+            distro-omarchy: box/omarchy
+            distro-ubuntu: box/ubuntu
+        context: [deploy]
+
+# -----------------------------------------------------------------------------
 # policy-b — the cheap, PR-violable pinning assertion (the pre-commit gate).
 # -----------------------------------------------------------------------------
 policy-b:
@@ -41,16 +69,9 @@ policy-b:
     dir: .
     plan:
       - check: policy B holds
-        git-submodules:
-          mode: verify
-          pinned_from: charly
-          pin_map:
-            distro-arch: box/arch
-            distro-cachyos: box/cachyos
-            distro-debian: box/debian
-            distro-fedora: box/fedora
-            distro-omarchy: box/omarchy
-            distro-ubuntu: box/ubuntu
+        task:
+          task: pins
+          param: [MODE=verify]
         context: [runtime]
 
 # -----------------------------------------------------------------------------
@@ -96,17 +117,9 @@ sync:
     dir: .
     plan:
       - run: bump the pins (charly rolls first, then distro-* from its new gitlinks)
-        git-submodules:
-          mode: bump
-          pinned_from: charly
-          # umbrella path -> its twin in the pinned charly checkout
-          pin_map:
-            distro-arch: box/arch
-            distro-cachyos: box/cachyos
-            distro-debian: box/debian
-            distro-fedora: box/fedora
-            distro-omarchy: box/omarchy
-            distro-ubuntu: box/ubuntu
+        task:
+          task: pins
+          param: [MODE=bump]
         context: [deploy]
 
 # -----------------------------------------------------------------------------
@@ -120,17 +133,9 @@ verify:
     dir: .
     plan:
       - check: policy B — every distro-* gitlink equals charly's own box/* gitlink
-        git-submodules:
-          mode: verify
-          pinned_from: charly
-          # umbrella path -> its twin in the pinned charly checkout
-          pin_map:
-            distro-arch: box/arch
-            distro-cachyos: box/cachyos
-            distro-debian: box/debian
-            distro-fedora: box/fedora
-            distro-omarchy: box/omarchy
-            distro-ubuntu: box/ubuntu
+        task:
+          task: pins
+          param: [MODE=verify]
         context: [runtime]
       - check: every submodule is clean and checked out at its recorded gitlink, and its branch equals the remote default
         # 408 submodules × `git ls-remote` — legitimately minutes, so raise the
@@ -158,6 +163,9 @@ verify:
           [ -z "$dirty" ] || fail "charly nested submodules not at their gitlinks:
           $dirty"
           echo "verify-pins: OK — ${#MODULES[@]} submodules, policy B holds"
+        context: [runtime]
+      - check: the opencode gate plugin contract (the check-opencode-plugin gate the deleted verify-pins.sh ran)
+        command: node scripts/check-opencode-plugin.mjs
         context: [runtime]
 
 # -----------------------------------------------------------------------------
@@ -187,13 +195,40 @@ skills:
     description: Splice the generated R0 dispatcher from the pinned marketplace into AGENTS.md
     dir: .
     plan:
-      - run: splice the dispatcher region (no-op until the markers + fragment exist)
-        splice-region:
-          mode: sync
-          target: AGENTS.md
-          fragment: marketplace/DISPATCHER.md
-          begin: "<!-- BEGIN GENERATED SKILL DISPATCHER -->"
-          end: "<!-- END GENERATED SKILL DISPATCHER -->"
+      - check: splice the dispatcher region (no-op until the fragment AND the target markers both exist)
+        command: |
+          set -eu
+          TARGET=AGENTS.md
+          FRAGMENT=marketplace/DISPATCHER.md
+          BEGIN="<!-- BEGIN GENERATED SKILL DISPATCHER -->"
+          END="<!-- END GENERATED SKILL DISPATCHER -->"
+          # The former scripts/sync-dispatcher.sh semantics, inline: a marketpin that
+          # predates the emitter (no fragment) or a hand-curated table (no markers)
+          # is a NO-OP, not a failure.
+          if [ ! -f "$FRAGMENT" ]; then
+            echo "skills: $FRAGMENT absent (marketplace pin predates the emitter) — no-op"
+            exit 0
+          fi
+          if ! grep -qF "$BEGIN" "$TARGET"; then
+            echo "skills: $TARGET has no generated markers (hand-curated table) — no-op"
+            exit 0
+          fi
+          grep -qF "$BEGIN" "$FRAGMENT" && grep -qF "$END" "$FRAGMENT" \
+            || { echo "FAIL: $FRAGMENT lacks the dispatcher markers" >&2; exit 1; }
+          python3 - "$TARGET" "$FRAGMENT" "$BEGIN" "$END" <<'PY'
+          import sys
+          target, fragment, begin, end = sys.argv[1:5]
+          text = open(target).read(); frag = open(fragment).read()
+          if begin not in text or end not in text:
+              sys.exit(f"FAIL: {target} lacks the dispatcher markers")
+          b = frag[frag.index(begin):frag.index(end)+len(end)]
+          head, _, rest = text.partition(begin); _, _, tail = rest.partition(end)
+          new = head + b + tail
+          if new == text:
+              print("skills: dispatcher already current")
+          else:
+              open(target, "w").write(new); print("skills: dispatcher updated from %s" % fragment)
+          PY
         context: [deploy]
 
 # -----------------------------------------------------------------------------
