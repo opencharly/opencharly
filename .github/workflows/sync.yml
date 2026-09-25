@@ -33,6 +33,16 @@ jobs:
           # and the status of `script | tee` would otherwise be tee's.
           set -o pipefail
           ./charly/bin/charly task sync 2>&1 | tee /tmp/sync-pins.log
+          # NOTE: `charly task sync` (verb:git-submodules bump) does NOT print a per-pin
+          # line. The retired scripts/sync-gitlinks.sh echoed `  <path> -> <sha>` as it
+          # pinned each submodule; the verb returns one summary instead, and
+          # `charly task`'s text reporter drops a passing step's own message, so this
+          # log carries no per-pin resolution. The AUTHORITATIVE per-pin proof is
+          # therefore the index-derived `staged-gitlink` vs remote default-branch HEAD
+          # table that scripts/sync-pin-evidence.sh emits into the body below — never a
+          # parse of this log. Do not re-introduce a grep against a producer-log format
+          # here: that coupling is exactly what silently produced "MISSING from producer
+          # log — investigate" for every pin after the Taskfile→task cutover.
 
       - name: Splice the generated R0 dispatcher (opt-in)
         # The marketplace corpus is the single source of the generated dispatcher
@@ -95,8 +105,9 @@ jobs:
       # construction and assert nothing. It is a gate for a human's local tree, where the
       # nested state can genuinely have drifted; it is vacuous on a fresh clone.
       #
-      # So the body pastes what IS real evidence in CI: the producer's own resolution, repo
-      # by repo, from /tmp/sync-pins.log.
+      # So the body pastes what IS real evidence in CI: the per-pin index-derived
+      # `staged-gitlink` vs remote default-branch HEAD table
+      # (scripts/sync-pin-evidence.sh), plus the producer's raw output verbatim.
 
       # The default GITHUB_TOKEN CANNOT open a pull request: GitHub refuses it with
       # "GitHub Actions is not permitted to create or approve pull requests" unless the
