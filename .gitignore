@@ -43,15 +43,13 @@ plan/*
 #   .build/        — generated Containerfiles from `charly box generate`.
 #   .opencharly/   — deploy-state output from `charly deploy add`.
 #   scratchpad/    — per-session temporary files.
-#   .worktrees/    — per-session linked feature worktrees under the umbrella
-#                    (<umbrella>/.worktrees/<slug>/<repo>/), the harness-neutral
-#                    session model (AGENTS.md "The development model"); the tracked
-#                    submodule checkouts stay clean at their gitlinks.
+#   .claude/worktrees/ — per-session linked feature worktrees (a session's own
+#                    lifecycle; the main tree stays on `main`).
 #   bin/           — a worktree-local built binary.
 .check/
 .build/
 .opencharly/
 scratchpad/
-.worktrees/
+.claude/worktrees/
 bin/
 *.sync-conflict-*
