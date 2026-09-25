@@ -27,6 +27,24 @@ PRODUCER_MAX="${PRODUCER_MAX:-200}"
 GITHUB_BODY_MAX="${GITHUB_BODY_MAX:-65536}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# producer_log_excerpt <max-lines> reads the producer log on stdin and prints at
+# most <max-lines> lines VERBATIM. It deliberately parses NOTHING: the retired
+# scripts/sync-gitlinks.sh emitted `  <path> -> <sha>` per pin and the current
+# `charly task sync` (verb:git-submodules bump) emits a `bumped N submodule
+# pin(s): …` summary, but coupling this builder to either incidental format is
+# what broke after the Taskfile→task cutover — the old per-pin-only grep matched
+# nothing against the new shape and the body read "MISSING from producer log —
+# investigate" for every moved pin (measured). The AUTHORITATIVE per-pin proof is
+# the index-derived table sync-pin-evidence.sh emits below (`staged-gitlink` vs
+# remote default-branch HEAD); this excerpt is only the producer's own raw output,
+# pasted as-is so no form is silently dropped. The bound is applied HERE (via
+# `sed -n`), never by piping into `head` — this harness ignores SIGPIPE, so a
+# caller-side `head` would let an early-exiting reader flood the log with broken-
+# pipe write errors. ONE implementation the live path and the self-test both call.
+producer_log_excerpt() {
+  sed -n "1,${1:-200}p"
+}
+
 # build_body <root> <moved-file> <producer-log> <policy-b-log> <out-body> <out-evidence>
 # Prints nothing; writes both files. The per-pin table is produced by
 # sync-pin-evidence.sh (bounded for the body, full for the artifact via SYNC_EVIDENCE_OUT).
@@ -49,7 +67,7 @@ build_body() {
     printf '%s\n' "$MOVED"
     echo
     echo "== producer resolution (full) =="
-    grep -E '^  .+ -> ' "$producer_log" 2>/dev/null || true
+    producer_log_excerpt 400 < "$producer_log" 2>/dev/null || true
     echo
     echo "== policy B gate output =="
     cat "$policy_b_log" 2>/dev/null || true
@@ -80,17 +98,17 @@ build_body() {
     echo
     echo "## How tested"
     echo
-    echo "**What produced this diff**, pasted from the run that opened this PR — the producer's"
-    echo "own resolution for the moved pins (bounded to the first ${PRODUCER_MAX} for length;"
-    echo "the full log is the \`sync-evidence\` artifact):"
+    echo "**The producer that opened this PR**, pasted verbatim from the sync run"
+    echo "(bounded; the full log is the \`sync-evidence\` artifact). The AUTHORITATIVE"
+    echo "per-pin proof is the \`staged-gitlink\` vs remote default-branch \`HEAD\` table below."
     echo
     echo '```'
-    printf '%s\n' "$MOVED" | head -n "$PRODUCER_MAX" | while IFS= read -r p; do
-      [ -n "$p" ] || continue
-      grep -m1 -F "  ${p} -> " "$producer_log" 2>/dev/null \
-        || echo "  ${p} -> (MISSING from producer log — investigate)"
-    done
-    [ "$COUNT" -gt "$PRODUCER_MAX" ] && echo "  … and $((COUNT - PRODUCER_MAX)) more (full list in the sync-evidence artifact)"
+    # The producer's own output, pasted verbatim — NEVER re-parsed against an
+    # incidental format. Coupling this to a shape is what broke after the
+    # Taskfile→task cutover (the old per-pin-only grep matched nothing against the
+    # `charly task sync` summary and the body read "MISSING … investigate" for every
+    # pin). The producer excerpt is context; the index-derived table is the proof.
+    producer_log_excerpt "$PRODUCER_MAX" < "$producer_log" 2>/dev/null
     echo '```'
     echo
     # The per-pin evidence section (bounded for the body; full table appended to the
@@ -180,18 +198,32 @@ if [ "${1:-}" = "--self-test" ]; then
   grep -q 'per-pin evidence table (full, all 393 rows)' "$tmp/ev" || fail "artifact must carry the FULL rendered table (all 393 rows)"
   [ "$(grep -c 'staged-gitlink=' "$tmp/ev")" -eq 393 ] || fail "artifact table must have exactly 393 rows"
 
-  # Small input: no hint, all rows, same builder.
+  # The producer excerpt is carried VERBATIM for BOTH historical shapes — the
+  # retired scripts/sync-gitlinks.sh per-pin form and the current `charly task sync`
+  # summary. The retired builder grepped ONLY the per-pin form, so against the
+  # current summary it emitted "MISSING from producer log — investigate" for every
+  # pin and the excerpt silently lost the producer's own words (the regression this
+  # arm now fails on).
   { echo p1; echo p2; } > "$moved"; printf '  p1 -> 1\n  p2 -> 2\n' > "$producer"
   build_body "$tmp" "$moved" "$producer" "$pblog" "$tmp/body2" "$tmp/ev2" || fail "small input must build"
   grep -q 'first 200 of' "$tmp/body2" && fail "small input must NOT carry a truncation hint"
   grep -q '^\*\*2\*\* gitlink(s) moved\.' "$tmp/body2" || fail "small body must name the true total (2)"
+  grep -q 'p1 -> 1' "$tmp/body2" || fail "retired per-pin producer form must reach the body verbatim"
+  grep -q 'p2 -> 2' "$tmp/body2" || fail "retired per-pin producer form must reach the body verbatim"
+
+  { echo p3; echo p4; } > "$moved"
+  printf 'task sync: 1 step(s), 0 failed\n  [pass] run — bump the pins\n' > "$producer"
+  printf 'bumped 2 submodule pin(s): p3, p4\n' >> "$producer"
+  build_body "$tmp" "$moved" "$producer" "$pblog" "$tmp/body4" "$tmp/ev4" || fail "task-summary producer must build"
+  grep -q 'bumped 2 submodule pin(s): p3, p4' "$tmp/body4" || fail "task-summary producer form must reach the body verbatim"
+  grep -q 'MISSING from producer log' "$tmp/body4" && fail "the excerpt must never inject a MISSING line — the producer's words are pasted as-is"
 
   # The HARD GUARD: a body over the cap must FAIL LOUD (never silently pass).
   GITHUB_BODY_MAX=100 build_body "$tmp" "$moved" "$producer" "$pblog" "$tmp/body3" "$tmp/ev3" 2>"$tmp/err" \
     && fail "over-cap body must trip the hard guard (non-zero)"
   grep -q '65536\|100' "$tmp/err" || fail "guard must name the offending size/cap on stderr"
 
-  echo "sync-pr-body: self-test OK (393-pin body under the 65536 cap with the true total + hint; artifact carries all rows; small input no hint; over-cap trips the hard guard)"
+  echo "sync-pr-body: self-test OK (393-pin body under the 65536 cap with the true total + hint; artifact carries all rows; small input no hint; the producer excerpt is verbatim for BOTH the retired per-pin and current summary shapes; over-cap trips the hard guard)"
   exit 0
 fi
 
