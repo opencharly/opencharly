@@ -1,30 +1,43 @@
-# AI/harness parity with `charly/` — status: IMPLEMENTED (see commit log)
+# AI/harness parity with `charly/`
 
-This document is both the original plan and the living parity map. Every file
-below is in place at the umbrella root; the shared files are diff-checked by
-`charly task harness` (AGENTS.md rule 8).
+This document is the **living parity map** between the umbrella's harness
+configuration and `charly/`'s. It is not a plan: it describes the current state
+and the two classes of file, so a reader knows what must stay in lockstep and what
+is a deliberate fork.
 
-> Deviation from the plan: the parity table lives here instead of
-> `docs/harness-parity.md` because `docs/` is a submodule (rule 1 — never edit
-> inside a submodule).
+The shared files are diff-checked by `./charly/bin/charly task harness`
+(`AGENTS.md` rule 8).
+
+> The map lives here, not in `docs/harness-parity.md`, because `docs/` is a
+> submodule (rule 1 — never edit inside a submodule).
+
+## Two classes of harness file
+
+1. **Identical-by-design** — the deterministic mechanics. Byte-identical to
+   `charly/`'s and diff-checked by `task harness`; a drift is a failure.
+2. **Deliberately-forked** — per-harness settings and workflows that adapt the
+   umbrella's reality (root-level gitlink pinning, policy B, no Go at the root).
+   Recorded here as fork-by-design; never copied silently.
 
 ## Implemented parity map
 
-| Layer | charly/ (source) | umbrella (twin) | Shared? |
+| Layer | charly/ (source) | umbrella (twin) | Class |
 |---|---|---|---|
-| Instructions | `AGENTS.md` + `CLAUDE.md` (two files, kept in sync by hand) | `AGENTS.md` only — `CLAUDE.md` is a **symlink** to it (one rulebook, no copy to drift) | fork |
-| Skills | the opencharly/marketplace repo (each harness loads it natively: Claude Code marketplace, pi `git:` package, kimi plugin, Codex catalog) | same marketplace (no local links) | marketplace shared |
-| Pi | charly: `.pi/settings.json` (7 packages, npm-sourced) | umbrella: `.pi/settings.json` (11 packages, all `git:` refs into org-owned `opencharly/pi-*` forks/mirrors) | fork |
-| Claude hooks | `.claude/hooks/{pre-commit-gate.sh,pre-push-gate.sh,gitcmd.py,gate_test.py}` | same paths | identical (diff-checked) |
-| Claude settings | `.claude/settings.json` (full plugin list; **no `hooks` block** — the gates are unwired there) | `.claude/settings.json` (curated 14-plugin subset — charly development + omarchy evaluation only, zero MCP-server plugins; **plus the `PreToolUse`/`Bash` `hooks` block** wiring both gate scripts) | fork |
+| Instructions | `AGENTS.md` + `CLAUDE.md` | `AGENTS.md` only — `CLAUDE.md` is a **symlink** to it | same rulebook, one file |
+| Skills | the standalone opencharly/marketplace repo | same marketplace (loaded natively, no local links) | shared |
+| Gate scripts | `.claude/hooks/{pre-commit-gate.sh,pre-push-gate.sh,gitcmd.py,gate_test.py}` | same paths | **identical** (diff-checked) |
+| reasonix settings | `.reasonix/settings.json` | same path | **identical** (diff-checked) |
+| Pi settings | `.pi/settings.json` (7 packages, npm-sourced) | `.pi/settings.json` (14 packages, `git:` refs into org-owned `opencharly/pi-*` repos) | fork |
+| Pi extensions | `.pi/extensions/*` | `.pi/extensions/{charly-status,github-pr-status,vision}.ts` | fork |
+| Claude settings | `.claude/settings.json` (full plugin list; **no `hooks` block**) | `.claude/settings.json` (curated plugin subset; **plus the `PreToolUse`/`Bash` `hooks` block** wiring both gate scripts) | fork |
 | Claude workflows | `.claude/workflows/{verify-status,triage-check-failure,audit-deploy-configs,verify-beds}.js` | `.claude/workflows/{verify-status,triage-check-failure}.js` | fork |
-| opencode | `opencode.json` + `.opencode/plugins/charly-gates.ts` + `.opencode/agent/pr-validator.md` | `opencode.json` (skills.paths=[marketplace], instructions=[.opencode/instructions.md], references.marketplace, permission.skill allow-list) + `.opencode/instructions.md` (namespaced-ref → bare-name mapping) + `.opencode/plugins/umbrella-gates.ts` + `.opencode/agent/pr-validator.md` | fork |
-| reasonix | `reasonix.toml` + `.reasonix/settings.json` | `reasonix.toml` + `.reasonix/settings.json` | settings identical; toml fork |
+| opencode | `opencode.json` + `.opencode/plugins/charly-gates.ts` + `.opencode/agent/pr-validator.md` | `opencode.json` (skills.paths=[marketplace], instructions=[.opencode/instructions.md], references.marketplace, permission allow-list) + `.opencode/instructions.md` (namespaced-ref → bare-name mapping) + `.opencode/plugins/umbrella-gates.ts` + `.opencode/agent/pr-validator.md` | fork |
+| reasonix toml | `reasonix.toml` | `reasonix.toml` | fork |
 
-Shared-by-design files are enforced by `charly task harness` — on every
-commit via `hooks/pre-commit`, and on demand via `charly task harness`.
+`task harness` diffs exactly the two identical-by-design rows above (the gate
+scripts + `.reasonix/settings.json`); see `charly.yml`'s `harness:` task `pairs:`.
 
-### opencode skill addressing
+## opencode skill addressing
 
 `AGENTS.md` addresses skills by the canonical `/charly-<family>:<skill>`
 reference. opencode's `skill` tool accepts only the **bare frontmatter `name`**
@@ -34,147 +47,26 @@ rulebook stays harness-neutral while opencode resolves refs deterministically.
 `marketplace` is loaded through `skills.paths` and also exposed as a `references`
 entry for the direct-path fallback.
 
-Goal: the umbrella repo gets the same AI and harness configuration and
-instructions as `charly/` — same harnesses (pi, Claude Code, opencode,
-reasonix), same gate discipline, same instruction rigor — adapted to the
-umbrella's reality (gitlink pinning, policy B, no worktrees, no Go at the
-root).
-
-## Parity map (source → target)
-
-| Layer | charly/ (source) | umbrella (target) |
-|---|---|---|
-| Instructions | `AGENTS.md` (32KB, R0–R10 rulebook) + `CLAUDE.md` mirror | `AGENTS.md` (1.6KB, 7 rules) — expand, **not verbatim copy** |
-| Skills | the marketplace corpus (loaded natively by every harness from the standalone opencharly/marketplace repo) | none |
-| Pi | charly: `.pi/settings.json` (7 packages + gates extension), `extensions/charly-gates.ts` (477L), 6 prompts, `subagents/charly-agents.json`, `README.md` | umbrella: `.pi/settings.json` (11 packages, all `git:` refs into org-owned `opencharly/pi-*` forks/mirrors) + 3 local extensions |
-| Claude Code | `.claude/settings.json`, `.claude/hooks/` (2 gate `.sh` + `gitcmd.py` + tests), `.claude/workflows/` | none |
-| opencode | `opencode.json` + `.opencode/plugins/charly-gates.ts` | none |
-| reasonix/kimi | `reasonix.toml`, `.reasonix/settings.json` | none |
-
-Key enabler: both repos load the SAME marketplace — the standalone
-opencharly/marketplace repo — natively (Claude Code's `charly-plugins`
-marketplace, pi's `git:` package, Kimi's plugin), so the skill topology is
-identical by construction and no symlink farm needs reproducing. The gate
-scripts are mechanically repo-agnostic (they only parse `git commit`/`git push`
-command strings).
-
 ## Constraints
 
-- **Submodule isolation (AGENTS.md rules 1–2):** every new file lands at the
-  umbrella root or in new root-level dirs (`.pi/`, `.claude/`, `.opencode/`,
-  `.reasonix/`). The skills farm (`scripts/link-skills.sh` + `.agents/skills/`)
-  was DELETED in the marketplace cutover — each harness loads the marketplace
-  natively. Nothing is ever written inside a submodule.
-- **No worktrees (rule 4):** charly's worktree flow is banned here — no
-  `charly_worktree_create` tool, no cutover prompt. The umbrella equivalent
-  is "sync + verify + PR".
-- **No Go at the root (rule 3):** drop charly's golangci-lint/alias gates
-  (they self-skip anyway); keep the git-mechanics gates.
-- **R0–R10 substance is charly's:** the umbrella composes via rule 7 ("read
-  the subrepo's AGENTS.md"). The umbrella rulebook shares the *discipline*
-  (skills-first, RCA, no workarounds, attribution, fresh-validator at
-  merge) scoped to gitlink/CI ops.
-- **Policy B is the contract:** the validator subagent re-checks
-  `charly task verify` invariants, exactly as charly's re-checks its
-  beds.
-
-## Phases
-
-### Phase 1 — Instructions (root, committed)
-
-1. Rewrite `AGENTS.md`: keep the 7 rules verbatim as the top "rulebook",
-   then add the shared-doctrine sections mirroring charly's structure:
-   Skills-First (R0), skill dispatcher table, hard-sync-not-cutover,
-   post-execution policies, acceptance checklist, hooks doctrine, AI
-   attribution, PR-body contract. ~3–4KB, not 32KB — umbrella scope is
-   smaller and pi re-injects context.
-2. Add `CLAUDE.md` as the mirrored copy (per charly convention of keeping
-   both in sync) — or make AGENTS.md canonical and CLAUDE.md a pointer.
-   Pick one; decision recorded. **DECIDED: pointer.** The hand-kept copy
-   drifted (stale rule 3, rule 6, R0, hooks doctrine and PR-body rule, and
-   missing the whole *Command hygiene* section), so `CLAUDE.md` is now a
-   symlink to `AGENTS.md` — one rulebook, no copy to drift (R3/R5).
-3. Add rule 8 to `AGENTS.md`: "Harness config lives at the root —
-   `.pi/ .claude/ .opencode/ .reasonix/ opencode.json reasonix.toml` — mirror
-   charly's, never fork them silently." (`.agents/` was dropped from the rule
-   when the skills farm was deleted in the marketplace cutover.)
-
-### Phase 2 — Skills (root, committed)
-
-4. ~~Create `.agents/plugins/marketplace.json` + `.agents/skills/` symlinks~~ — OBSOLETE
-   since the marketplace cutover: each harness loads the standalone
-   opencharly/marketplace repo natively (Claude Code marketplace, pi git package,
-   kimi plugin). `scripts/link-skills.sh` was deleted with the farm.
-5. Recommend **subset first** (`internals:git-workflow, agents,
-   root-cause-analyzer, strict-policy` + `automation:*` — the ops the
-   umbrella actually runs), with full parity as a flag. The other ~120
-   skills call the `charly` CLI and are only executable inside `charly/`.
-6. `.charly-profile.json` — generate the umbrella version (it is a file,
-   not a symlink; regenerate from plugin metadata, don't copy charly's).
-
-### Phase 3 — Pi harness (root, committed)
-
-> **Superseded 2026-08-30:** the umbrella pi harness was slimmed to packages only —
-> the gates extension, prompts, and subagents were removed (config simplification).
-> The git-level gates (`hooks/pre-commit`, `.claude/hooks/*`) remain the enforcement
-> surface; pi no longer wires them.
-
-7. `.pi/settings.json`: umbrella loads 11 packages, all `git:` refs into
-   org-owned `opencharly/pi-*` forks/mirrors (pi-mcp-adapter, pi-subagents,
-   rpiv-todo, pi-memory, pi-ollama-cloud, pi-web-access, pi-fabric,
-   pi-claude-marketplace, pi-goal, pi-simple-team, pi-lsp) + 3 local
-   extensions. charly keeps its own npm-sourced list (diverged by design).
-8. `.pi/extensions/umbrella-gates.ts`: fork `charly-gates.ts` — keep
-   tool_call interception running the gate scripts; drop
-   `charly_worktree_create/remove`; keep the before-agent-start rules
-   injection, swapped to umbrella rules; optionally add an
-   `umbrella_sync_status` (`charly task map`) tool.
-9. `.pi/prompts/`: `cutover.md` → `sync.md` (fetch, `charly task sync`,
-   `charly task verify`, PR body, no worktrees); `rulebook.md`, `skill.md`,
-   `subagent-review.md`, `subagent-verify.md` (repoint verify at
-   `charly task verify`), `pr-body.md` (kept nearly as-is).
-10. `.pi/subagents/umbrella-agents.json`: reviewer/worker/validator with
-    umbrella policies (policy-B equality, clean checkouts, dangling-pin
-    checks, relevant R1–R10 subset).
-11. `.pi/README.md`: adapted copy of charly's (packages table, trust note,
-    security note).
-
-### Phase 4 — Claude Code (root)
-
-12. `.claude/settings.json`: copy, with `extraKnownMarketplaces` pointing at
-    `./plugins` (plugins submodule present); pare enabledPlugins to the
-    Phase-2 subset.
-13. `.claude/hooks/{pre-commit-gate.sh, pre-push-gate.sh, gitcmd.py,
-    gate_test.py}`: copy as-is (mechanics-agnostic); wire gate_test.py into
-    `scripts/`.
-14. `.claude/workflows/`: adapt `verify-status.js`/`triage-check-failure.js`
-    to the umbrella gate. (`verify.yml` has since been deleted; the surviving
-    workflow is `sync.yml`, and the gate runs in `hooks/pre-commit`.)
-
-### Phase 5 — opencode + reasonix
-
-15. `opencode.json`: copy; permission allow-list swapped to `charly task sync`,
-    `charly task verify`, `git -C …`, `gh pr merge`.
-16. `.opencode/plugins/umbrella-gates.ts`: copy of the adapted gates.
-17. `reasonix.toml`: adapted permissions (same as #15; keep `bash = "off"`
-    rationale for submodule git ops).
-
-### Phase 6 — Drift control + verification
-
-18. Add a "harness parity" section to `README.md` and a
-    `docs/harness-parity.md` table mapping each charly/ file to its
-    umbrella twin, plus `charly task harness` that diffs the
-    shared gate scripts against charly/ and fails on drift (cheap: the gate
-    scripts are identical by design).
-19. Verify: `charly task verify` still green; fresh `pi` session at the umbrella
-    root → packages install, gates load, skills discovered, sync flow works
-    end-to-end (dry `charly task sync` on a fake pin bump).
-20. One PR with all of it, so CI (`verify`) approves it in one shot.
+- **Submodule isolation (rules 1–2).** Every file here lands at the umbrella root
+  or in a root-level dir (`.pi/`, `.claude/`, `.opencode/`, `.reasonix/`). The
+  skills farm (`scripts/link-skills.sh` + `.agents/skills/`) was DELETED in the
+  marketplace cutover; each harness loads the standalone marketplace natively.
+- **Session worktrees are umbrella-rooted (rule 4).** Sessions edit repositories
+  in `<umbrella>/.worktrees/<slug>/<repo>/`; the submodule checkouts stay clean.
+  See `AGENTS.md` "The development model".
+- **No Go at the root (rule 3).** The umbrella has no `go.work` and runs no Go
+  gate; charly's Go gate lives inside `charly/`.
+- **R0–R10 substance is charly's.** The umbrella composes via rule 7 ("read the
+  subrepo's `AGENTS.md`") and shares the discipline (skills-first, RCA, no
+  workarounds, attribution, fresh validator at merge) scoped to gitlink/CI ops.
+- **Policy B is the contract.** The validator re-checks the
+  `./charly/bin/charly task verify` invariants.
 
 ## Deliberately not copied
 
-- Worktree machinery (banned by rule 4).
-- `.pi/prompts/cutover.md` (replaced by `sync.md`).
-- The 32KB rulebook verbatim — subrepo AGENTS.md composition via rule 7 is
-  the mechanism that gives "the same instructions" inside each repo without
-  duplication.
+- The `charly/AGENTS.md` R0–R10 rulebook verbatim — subrepo composition via
+  rule 7 gives "the same instructions" inside each repo without duplication.
+- The worktree machinery is charly's *technical* concern; the umbrella owns only
+  the session/worktree MODEL (rule 4 + "The development model").

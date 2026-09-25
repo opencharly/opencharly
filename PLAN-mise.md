@@ -1,6 +1,12 @@
 # Full mise support in charly — implementation plan
 
-**Status:** Draft for review · **Owner:** TBD · **Scope:** new plugin repo + spec/sdk vocabulary + layer candy + beds
+> **HISTORICAL — superseded in large part by the shipped `plugin-mise` repo and
+> the `builder:mise` / `verb:mise` surface.** This is an early draft (never
+> executed as written); the current mise support lives in `opencharly/plugin-mise`
+> and its layer/candy consumers. Read it for the original intent, not as a plan of
+> record.
+
+**Status:** Historical draft · **Scope:** new plugin repo + spec/sdk vocabulary + layer candy + beds
 
 ## 1. Goal
 
