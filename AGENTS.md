@@ -22,12 +22,15 @@ someone else's repo.
    `go.work` at the umbrella root —
    all Go builds happen inside `charly/`.
 4. **Sessions root at the umbrella; edits happen in a session worktree.** A session
-   roots at THIS checkout. Every repository it edits — `charly`, any `plugin-*`, `spec`,
-   `sdk`, `marketplace`, `docs` — is checked out as that session's own git worktree under
-   the umbrella: `<umbrella>/.worktrees/<slug>/<repo>/`, branched off fresh `origin/main`.
-   The submodule's TRACKED checkout then stays at its gitlink and clean, so `verify`
-   passes. Never edit a submodule's tracked checkout in place. Full model + concurrency
-   contract: **The development model** below.
+   roots at THIS checkout. Every repository it edits that exists as a submodule here —
+   `charly`, any `plugin-*`, `docs`, `marketplace`, and the `distro-*`/`layer-*`/`pod-*`
+   families — is checked out as that session's own git worktree under the umbrella:
+   `<umbrella>/.worktrees/<slug>/<repo>/`, branched off fresh `origin/main`. The
+   submodule's TRACKED checkout then stays at its gitlink and clean, so `verify` passes.
+   Never edit a submodule's tracked checkout in place. (`sdk` and `spec` are NOT
+   submodules — they resolve from the Go proxy at pinned `go.mod` requires — so a
+   session reaches them through the module cache, never a worktree here; see rule 6.)
+   Full model + concurrency contract: **The development model** below.
 5. **Pin discipline:** only pin merged refs (default branches or gitlinks charly
    records). Never a PR branch. `verify` treats dangling pins as failures.
 6. **Policy B is the contract:** `distro-*` must equal charly's own gitlinks.
