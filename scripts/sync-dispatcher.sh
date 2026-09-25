@@ -56,7 +56,7 @@ new = head + b + tail
 if new == text:
     print("sync-dispatcher: dispatcher already current")
 elif check:
-    sys.exit("FAIL: dispatcher is stale — the pinned marketplace carries a different table. Run `task skills` and commit the result.")
+    sys.exit("FAIL: dispatcher is stale — the pinned marketplace carries a different table. Run `charly task skills` and commit the result.")
 else:
     open(target, "w").write(new); print("sync-dispatcher: dispatcher updated from %s" % fragment)
 PY

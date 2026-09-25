@@ -17,7 +17,7 @@ Your context is the scarce resource. Three tools keep it small:
   in_progress at a time. The list is the durable record; never re-derive
   progress from files or history.
 - **subagent** — delegate heavy, long-running, or output-heavy work to a child
-  (beds, task verify, regen, greps, log archaeology, build loops). The child
+  (beds, charly task verify, regen, greps, log archaeology, build loops). The child
   returns a CONCISE verdict + evidence paths; the parent plans, decides, lands.
   Verify the child's resolved tools BEFORE delegating. Long waits belong to a
   child, never the parent.
@@ -65,7 +65,7 @@ The org-wide `charly/pr-validator` verdicts land on GitHub Actions — no path i
 
 The parent plans, decides, and lands. Children dig, run, and prove. NOT optional when the work matches:
 
-- **Heavy commands NEVER run in the parent's foreground bash.** `charly check run <bed>` (image builds + pod deploys, 10-40+ min), full `task verify`/test suites, regen runs (`marketplace generate`, `docs generate`), log archaeology, repo-wide greps, build loops → delegate to a child (or `runs.host` for one operator-owned command); the child returns a concise verdict + evidence paths.
+- **Heavy commands NEVER run in the parent's foreground bash.** `charly check run <bed>` (image builds + pod deploys, 10-40+ min), full `charly task verify`/test suites, regen runs (`marketplace generate`, `docs generate`), log archaeology, repo-wide greps, build loops → delegate to a child (or `runs.host` for one operator-owned command); the child returns a concise verdict + evidence paths.
 - **Bed runs use the executor agents**: drive `charly check run <bed>` from a child with verified tools (read/grep/find/ls/bash/edit/write), capture the run logs, return the step matrix (passed/failed/skipped) for the parent's ledger — never block the parent on the bed.
 - **A child's failure/verdict still triggers R1 in the parent**: RCA before acting on delegated output; never resubmit identical diagnostics.
 - **Verify before delegating** (the most common delegation failure): check the child's resolved tool set first — a child without bash/edit/write cannot run a bed or land a fix.

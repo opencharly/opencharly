@@ -46,4 +46,4 @@ The plugin follows the opencode **V2** contract: a default export
 keyed hook map does **not** load under opencode ≥ 2.0 — the loader logs a WARN and
 keeps starting, so the gates silently stop running. The V2 shell tool is named
 `shell` (V1's `bash`), which the hook matches. `scripts/check-opencode-plugin.mjs`
-guards the contract (run by `hooks/pre-commit` and `task verify`).
+guards the contract (run by `hooks/pre-commit` and `charly task verify`).
