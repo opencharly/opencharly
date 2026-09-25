@@ -1,4 +1,25 @@
 version: 2026.261.1747
+# here is the check-bed ROSTER: declaring which disposable check beds run together
+# as one gate. The beds themselves live in the submodules (charly/, distro-*),
+# reached as namespaces via the local-path import below.
+repo: github.com/opencharly/opencharly
+import:
+    # The charly submodule, by LOCAL PATH. Its own entities (the main repo's
+    # disposable beds + vm templates) and its OWN @github imports (the distro
+    # namespaces: arch/cachyos/debian/fedora/ubuntu/omarchy) walk in recursively,
+    # resolved through the shared repo cache (~/.cache/charly/repos). A bed is
+    # addressed by its QUALIFIED name (`charly.check-pod`, `arch.check-arch-vm`, …).
+    - charly: ./charly
+defaults:
+    platform:
+        - linux/amd64
+    tag: auto
+    registry: ghcr.io/opencharly
+    # Build-speed tunables (see charly/charly.yml's own defaults for the rationale).
+    jobs: 4
+    podman_jobs: 0
+    podman_jobs_cap: 8
+    keep_check_runs: 3
 # =============================================================================
 # The opencharly umbrella project manifest.
 #
@@ -342,3 +363,29 @@ pi-forks:
           done
           echo "done. Vendored mirrors (pi-fabric, rpiv-todo, pi-lsp) need manual re-vendor on version bump."
         context: [deploy]
+
+# `charly check run check-all-beds` enumerates EVERY disposable bed in EVERY
+# imported namespace (select defaults to '*'), runs them at `lanes` parallelism,
+# serializes exclusive-resource token groups (auto-derived from each bed's own
+# requires_exclusive:/requires_shared:), refuses host-local beds (they mutate the
+# operator workstation), and aggregates honest exit codes.
+#
+# `charly check-roster` is a FLAT kind served by candy/plugin-check (compiled into
+# the charly binary). Run it with a charly binary that carries this cutover:
+#   charly/bin/charly -C <umbrella-root> check run check-all-beds
+check-all-beds:
+    check-roster:
+        # select defaults to '*' — every disposable bed, namespace-qualified.
+        lanes: 16
+        # Enforced on every VM bed the roster runs (threaded to `charly vm create`).
+        cpu: 2
+        ram: 2G
+        # Negative controls: their CORRECT outcome is a check failure (exit 2).
+        expected_fail:
+            - charly.check-r10-two-vm-fail
+            - charly.check-r10-stage-race
+        # Excluded: an `iterate:` AI-iteration loop, not a deterministic R10 bed.
+        exclude:
+            - charly.check-preflight-local
+        # host-local beds (they apply candies to THIS workstation) are refused by
+        # default; leave refuse_host_local unset for the safe default.
