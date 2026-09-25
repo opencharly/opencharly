@@ -29,3 +29,27 @@
 # plans — working docs, never committed; directory kept via .gitkeep
 plan/*
 !plan/.gitkeep
+
+# Local-state classes — per-machine / per-run ephemera that live IN the project
+# tree but must never be version-controlled. Modelled on charly/.gitignore (the
+# same class list; charly's parity gate checks only the 5 byte-identical shared
+# files, not this file), adapted to what the umbrella root actually produces:
+#   .check/        — `charly check run check-all-beds` (the root roster) writes its
+#                    run artifacts + NOTES.md here; without this the root tree reads
+#                    dirty after every roster run (and risks an accidental commit of
+#                    per-run state). NOTE: `charly task verify` does NOT check the
+#                    root tree — it asserts each SUBMODULE's cleanliness — so this is
+#                    about an honest root `git status`, not a gate.
+#   .build/        — generated Containerfiles from `charly box generate`.
+#   .opencharly/   — deploy-state output from `charly deploy add`.
+#   scratchpad/    — per-session temporary files.
+#   .claude/worktrees/ — per-session linked feature worktrees (a session's own
+#                    lifecycle; the main tree stays on `main`).
+#   bin/           — a worktree-local built binary.
+.check/
+.build/
+.opencharly/
+scratchpad/
+.claude/worktrees/
+bin/
+*.sync-conflict-*
