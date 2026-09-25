@@ -1,7 +1,7 @@
 export const meta = {
   name: 'triage-verify-failure',
   description:
-    'Competing-hypotheses RCA of a FAILING pinning gate (AGENTS.md R1). Fans out N independent root-cause hypotheses for a failed `bash scripts/verify-pins.sh`, validates EACH on the live checkout, cross-checks them adversarially, converges on the surviving root cause, and returns a concrete fix to apply before re-running the gate. Read-mostly probing; never edits source or commits.',
+    'Competing-hypotheses RCA of a FAILING pinning gate (AGENTS.md R1). Fans out N independent root-cause hypotheses for a failed `./charly/bin/charly task verify`, validates EACH on the live checkout, cross-checks them adversarially, converges on the surviving root cause, and returns a concrete fix to apply before re-running the gate. Read-mostly probing; never edits source or commits.',
   phases: [
     { title: 'Reproduce', detail: 'run the gate verbosely and capture the failing invariant' },
     { title: 'Hypothesize', detail: 'N independent root-cause theories, each gitlink-validated' },
@@ -63,8 +63,8 @@ const VERDICT_SCHEMA = {
 
 phase('Reproduce')
 const repro = await agent(
-  `You are a pinning-gate triager. The umbrella pinning gate "${target || 'bash scripts/verify-pins.sh'}" failed. ` +
-  `Run it verbosely (bash -x scripts/verify-pins.sh) and read the FAIL: line. Report the failing invariant, exit code, ` +
+  `You are a pinning-gate triager. The umbrella pinning gate "${target || './charly/bin/charly task verify'}" failed. ` +
+  `Run it verbosely (bash -x ./charly/bin/charly task verify) and read the FAIL: line. Report the failing invariant, exit code, ` +
   `the tail of the output, and the concrete observed symptom. Do NOT mutate anything, do NOT re-run fixes.`,
   { schema: REPRO_SCHEMA, label: 'reproduce-verify', phase: 'Reproduce' }
 )
@@ -104,6 +104,6 @@ return {
   survivingRootCauses: survivors.map((h) => ({ theory: h.theory, evidence: h.evidence, proposedFix: h.proposedFix })),
   allHypotheses: judged,
   note: survivors.length
-    ? 'Apply a surviving fix in the working tree, then re-run `bash scripts/verify-pins.sh` to confirm.'
+    ? 'Apply a surviving fix in the working tree, then re-run `./charly/bin/charly task verify` to confirm.'
     : 'No hypothesis survived live validation — gather more evidence before editing.',
 }

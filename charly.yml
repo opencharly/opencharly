@@ -1,0 +1,309 @@
+version: 2026.261.1747
+# =============================================================================
+# The opencharly umbrella project manifest.
+#
+# The umbrella is a view of the org: ~400 submodules at the root, each a real repo
+# owned elsewhere. It declares NO candies/boxes of its own — only the maintenance
+# TASK surface (`charly task <name>`), which replaced the former Taskfile.yml +
+# taskfiles/ + the human-facing scripts/*.sh.
+#
+# Run `charly task list` for the surface. The binary comes from the `charly/`
+# submodule: build it ONCE per clone with `./charly/scripts/bootstrap-charly.sh`
+# (the ONE non-charly entrypoint — the build that PRODUCES the binary cannot itself
+# be a charly task), then `./charly/bin/charly task <name>`.
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# map — list every submodule with its pin and sync state.
+# -----------------------------------------------------------------------------
+map:
+  task:
+    description: List every submodule with its pin and sync state
+    dir: .
+    plan:
+      - run: print the submodule map
+        command: |
+          printf '%-28s %-10s %s\n' PATH BRANCH PIN
+          for m in $(git config -f .gitmodules --get-regexp '^submodule\..*\.path$' | awk '{print $2}'); do
+            b=$(git config -f .gitmodules --get "submodule.$m.branch")
+            p=$(git -C "$m" rev-parse --short HEAD 2>/dev/null || echo '-')
+            d=$(git -C "$m" status --porcelain 2>/dev/null | head -1)
+            printf '%-28s %-10s %s %s\n' "$m" "$b" "$p" "${d:+DIRTY}"
+          done
+        context: [deploy]
+
+# -----------------------------------------------------------------------------
+# policy-b — the cheap, PR-violable pinning assertion (the pre-commit gate).
+# -----------------------------------------------------------------------------
+policy-b:
+  task:
+    description: Assert policy B — every distro-* gitlink equals charly's own box/* gitlink
+    dir: .
+    plan:
+      - check: policy B holds
+        git-submodules:
+          mode: verify
+          pinned_from: charly
+          pin_map:
+            distro-arch: box/arch
+            distro-cachyos: box/cachyos
+            distro-debian: box/debian
+            distro-fedora: box/fedora
+            distro-omarchy: box/omarchy
+            distro-ubuntu: box/ubuntu
+        context: [runtime]
+
+# -----------------------------------------------------------------------------
+# self-test — exercise the two committed CI-body builder scripts (their --self-test
+# runs on every commit; the scripts stay because they are umbrella-specific PR-body
+# generators, not maintenance sweeps the generic verbs cover).
+# -----------------------------------------------------------------------------
+self-test:
+  task:
+    description: Self-test the committed CI body/pin-evidence builders
+    dir: .
+    plan:
+      - run: self-test sync-pin-evidence + sync-pr-body
+        command: |
+          set -eu
+          bash scripts/sync-pin-evidence.sh --self-test
+          bash scripts/sync-pr-body.sh --self-test
+        context: [deploy]
+
+# -----------------------------------------------------------------------------
+# hooks — install the pre-commit gate for this clone.
+# -----------------------------------------------------------------------------
+hooks:
+  task:
+    description: Install the pre-commit gate for this clone (policy B + parity)
+    dir: .
+    plan:
+      - run: set core.hooksPath and report it
+        command: |
+          git config core.hooksPath hooks
+          echo "core.hooksPath = $(git config --get core.hooksPath) — hooks/pre-commit is live"
+        context: [deploy]
+
+# -----------------------------------------------------------------------------
+# sync — bump every submodule pin per policy B (preview; does not commit).
+# The charly-pinned set is the six distro-* repos: charly rolls to its own
+# default-branch HEAD FIRST, and distro-* are then pinned from charly's NEW
+# gitlinks (the verb's phase order).
+# -----------------------------------------------------------------------------
+sync:
+  task:
+    description: Bump all submodule pins per policy B (preview; does not commit)
+    dir: .
+    plan:
+      - run: bump the pins (charly rolls first, then distro-* from its new gitlinks)
+        git-submodules:
+          mode: bump
+          pinned_from: charly
+          # umbrella path -> its twin in the pinned charly checkout
+          pin_map:
+            distro-arch: box/arch
+            distro-cachyos: box/cachyos
+            distro-debian: box/debian
+            distro-fedora: box/fedora
+            distro-omarchy: box/omarchy
+            distro-ubuntu: box/ubuntu
+        context: [deploy]
+
+# -----------------------------------------------------------------------------
+# verify — the FULL pinning gate (every pin, incl. the 408-remote branch audit).
+# The policy-B half is verb:git-submodules verify; the default-branch audit,
+# worktree cleanliness, and charly's nested-submodule check are inline.
+# -----------------------------------------------------------------------------
+verify:
+  task:
+    description: Run the full pinning gate on demand (every pin, incl. the remote branch audit)
+    dir: .
+    plan:
+      - check: policy B — every distro-* gitlink equals charly's own box/* gitlink
+        git-submodules:
+          mode: verify
+          pinned_from: charly
+          # umbrella path -> its twin in the pinned charly checkout
+          pin_map:
+            distro-arch: box/arch
+            distro-cachyos: box/cachyos
+            distro-debian: box/debian
+            distro-fedora: box/fedora
+            distro-omarchy: box/omarchy
+            distro-ubuntu: box/ubuntu
+        context: [runtime]
+      - check: every submodule is clean and checked out at its recorded gitlink, and its branch equals the remote default
+        # 408 submodules × `git ls-remote` — legitimately minutes, so raise the
+        # per-step never-hang bound above the default.
+        timeout: 20m
+        command: |
+          set -eu
+          fail() { echo "FAIL: $*" >&2; exit 1; }
+          mapfile -t MODULES < <(git config -f .gitmodules --get-regexp '^submodule\..*\.path$' | awk '{print $2}')
+          [ "${#MODULES[@]}" -ge 20 ] || fail "suspiciously few submodules (${#MODULES[@]})"
+          for path in "${MODULES[@]}"; do
+            url="$(git config -f .gitmodules --get "submodule.$path.url" 2>/dev/null || true)"
+            branch="$(git config -f .gitmodules --get "submodule.$path.branch" 2>/dev/null || true)"
+            [ -n "$url" ] || fail "$path: no url in .gitmodules"
+            [ -n "$branch" ] || fail "$path: missing branch= in .gitmodules"
+            default="$(git ls-remote --symref "$url" HEAD | sed -n 's/^ref: refs\/heads\/\(.*\)\tHEAD/\1/p')"
+            [ "$branch" = "$default" ] || fail "$path: branch=$branch but remote default is $default"
+            [ -d "$path" ] || fail "$path: not checked out"
+            [ -z "$(git -C "$path" status --porcelain)" ] || fail "$path: dirty working tree"
+            gitlink="$(git ls-files -s "$path" | awk '{print $2}')"
+            head="$(git -C "$path" rev-parse HEAD)"
+            [ "$gitlink" = "$head" ] || fail "$path: HEAD $head != gitlink $gitlink"
+          done
+          dirty="$(git -C charly submodule status --recursive | grep -E '^[+-]' || true)"
+          [ -z "$dirty" ] || fail "charly nested submodules not at their gitlinks:
+          $dirty"
+          echo "verify-pins: OK — ${#MODULES[@]} submodules, policy B holds"
+        context: [runtime]
+
+# -----------------------------------------------------------------------------
+# harness — harness config parity with charly/ (shared files identical).
+# -----------------------------------------------------------------------------
+harness:
+  task:
+    description: Check harness config parity with charly/ (shared files identical)
+    dir: .
+    plan:
+      - check: the byte-identical-by-design harness files match their charly/ twins
+        file-parity:
+          mode: check
+          pairs:
+            - {left: .claude/hooks/pre-commit-gate.sh, right: charly/.claude/hooks/pre-commit-gate.sh}
+            - {left: .claude/hooks/pre-push-gate.sh, right: charly/.claude/hooks/pre-push-gate.sh}
+            - {left: .claude/hooks/gitcmd.py, right: charly/.claude/hooks/gitcmd.py}
+            - {left: .claude/hooks/gate_test.py, right: charly/.claude/hooks/gate_test.py}
+            - {left: .reasonix/settings.json, right: charly/.reasonix/settings.json}
+        context: [runtime]
+
+# -----------------------------------------------------------------------------
+# skills — splice the generated R0 dispatcher from the pinned marketplace.
+# -----------------------------------------------------------------------------
+skills:
+  task:
+    description: Splice the generated R0 dispatcher from the pinned marketplace into AGENTS.md
+    dir: .
+    plan:
+      - run: splice the dispatcher region (no-op until the markers + fragment exist)
+        splice-region:
+          mode: sync
+          target: AGENTS.md
+          fragment: marketplace/DISPATCHER.md
+          begin: "<!-- BEGIN GENERATED SKILL DISPATCHER -->"
+          end: "<!-- END GENERATED SKILL DISPATCHER -->"
+        context: [deploy]
+
+# -----------------------------------------------------------------------------
+# org-map — verify the README's org-map tables against .gitmodules.
+# -----------------------------------------------------------------------------
+org-map:
+  task:
+    description: Verify the README "## The org map" tables against the repo and .gitmodules
+    dir: .
+    plan:
+      - check: every section reconciles, is sorted, and every submodule has a row
+        command: |
+          python3 - <<'PY'
+          import re, subprocess, sys
+          read = lambda p: open(p).read()
+          readme = read("README.md")
+          gitmodules = read(".gitmodules")
+          body = readme[readme.index("## The org map"):readme.index("## Pinning")]
+          sections = re.split(r"\n(?=### )", body)[1:]
+          fail = 0
+          print(f"{'section':26s} {'claimed':>7s} {'rows':>5s} {'sorted':>7s}")
+          for sec in sections:
+              name = sec.split("\n", 1)[0].strip()
+              rows = re.findall(r"^\| `([^/]+)/`", sec, re.M)
+              claimed_m = re.search(r"^(\d+) repos", sec, re.M)
+              claimed = int(claimed_m.group(1)) if claimed_m else -1
+              sorted_ok = rows == sorted(rows)
+              ok = len(rows) == claimed and sorted_ok
+              fail += 0 if ok else 1
+              print(f"{name:26s} {claimed:7d} {len(rows):5d} {'yes' if sorted_ok else 'NO':>7s}")
+          mods = re.findall(r'^\[submodule "([^"]+)"\]', gitmodules, re.M)
+          rowpaths = set(re.findall(r"^\| `([^/]+)/`", body, re.M))
+          missing = [m for m in mods if m not in rowpaths]
+          hdr_m = re.search(r"every OpenCharly repo \((\d+) today\)", readme)
+          hdr = hdr_m.group(1) if hdr_m else "?"
+          print()
+          print(f"submodules in .gitmodules : {len(mods)}")
+          print(f"submodules with no row    : {missing if missing else 'none'}")
+          print(f"header '(N today)'        : {hdr}  matches={hdr == str(len(mods))}")
+          if fail or missing or hdr != str(len(mods)):
+              print(f"\nFAIL: {fail} section(s) mismatched, {len(missing)} rowless, header={hdr}")
+              sys.exit(1)
+          print("\nOK: all sections reconcile and are sorted; every submodule has a row")
+          PY
+        context: [runtime]
+
+# -----------------------------------------------------------------------------
+# omarchy-agents — deterministic gate for the committed omarchy PR-eval pi agents.
+# -----------------------------------------------------------------------------
+omarchy-agents:
+  task:
+    description: Gate the committed omarchy PR-eval pi agents (tracked + parseable)
+    dir: .
+    plan:
+      - check: the unique agents are tracked, parseable, and the staged agents stay ignored
+        command: |
+          set -eu
+          fail() { echo "FAIL: $*" >&2; exit 1; }
+          AGENTS=(.pi/agents/omarchy-config-oracle.md .pi/agents/omarchy-eval-runner.md .pi/agents/omarchy-eval-supervisor.md .pi/agents/omarchy-cold-reader.md .pi/agents/worker.md)
+          for f in "${AGENTS[@]}"; do
+            [ -f "$f" ] || fail "missing agent file: $f"
+            git check-ignore -q "$f" && fail "agent $f is gitignored — must be committed"
+          done
+          git ls-files --error-unmatch "${AGENTS[@]}" >/dev/null || fail "a unique agent is untracked"
+          git check-ignore -q .pi/agents/pi-claude-marketplace-charly-internals-pr-validator.md \
+            || fail "marketplace-staged agents must stay gitignored"
+          for f in "${AGENTS[@]}"; do
+            [ "$(head -1 "$f")" = "---" ] || fail "$f: frontmatter must start with ---"
+            [ "$(grep -c '^---$' "$f")" -ge 2 ] || fail "$f: missing closing ---"
+            grep -q '^name:' "$f"        || fail "$f: missing name:"
+            grep -q '^description:' "$f" || fail "$f: missing description:"
+            grep -q '^tools:' "$f"       || fail "$f: missing tools:"
+            t=$(grep -n '^tools:' "$f"   | head -1 | cut -d: -f1)
+            c=$(grep -n '^---$' "$f"     | sed -n '2p' | cut -d: -f1)
+            [ "$t" -lt "${c:-0}" ] || fail "$f: tools: line leaks past the closing ---"
+          done
+          echo "omarchy-agents: OK — ${#AGENTS[@]} unique agents tracked + parseable, staged agents ignored"
+        context: [runtime]
+
+# -----------------------------------------------------------------------------
+# pi-forks — sync the opencharly pi-plugin forks from their upstreams.
+# -----------------------------------------------------------------------------
+pi-forks:
+  task:
+    description: Sync the opencharly pi-plugin forks from their upstreams (requires gh auth)
+    dir: .
+    plan:
+      - run: sync the 8 real forks and propagate tags
+        command: |
+          set -eu
+          PAIRS=(
+            "pi-mcp-adapter:nicobailon/pi-mcp-adapter"
+            "pi-subagents:nicobailon/pi-subagents"
+            "pi-memory:jayzeng/pi-memory"
+            "pi-ollama-cloud:fgrehm/pi-ollama-cloud"
+            "pi-web-access:nicobailon/pi-web-access"
+            "pi-claude-marketplace:acolomba/pi-claude-marketplace"
+            "pi-goal:Michaelliv/pi-goal"
+            "pi-simple-team:giladbarnea/pi-simple-team"
+          )
+          for pair in "${PAIRS[@]}"; do
+            fork="${pair%%:*}"; upstream="${pair#*:}"
+            echo "== syncing opencharly/$fork from $upstream"
+            gh repo sync "opencharly/$fork" --source "$upstream" --force
+            tmp="$(mktemp -d)/$fork.git"
+            git clone --bare "https://github.com/opencharly/$fork.git" "$tmp"
+            git -C "$tmp" remote add upstream "https://github.com/$upstream.git"
+            git -C "$tmp" fetch --tags upstream
+            git -C "$tmp" push --tags origin
+            rm -rf "$(dirname "$tmp")"
+          done
+          echo "done. Vendored mirrors (pi-fabric, rpiv-todo, pi-lsp) need manual re-vendor on version bump."
+        context: [deploy]

@@ -11,7 +11,7 @@ cache, home, or /tmp workspace. Begin in the clean author checkout at the
 exact PR head.
 
 Independently derive and run the full verification:
-- `bash scripts/verify-pins.sh` on the author head
+- `./charly/bin/charly task verify` on the author head
 - Check git submodule status is clean
 - Confirm policy B equality and merged-ref-only pins
 - Verify the PR body has all required sections (Summary, How tested,

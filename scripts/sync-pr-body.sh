@@ -111,7 +111,7 @@ build_body() {
     echo "  cannot resolve rather than guessing; no warning appears in the pasted output."
     echo "- **R2 no parking:** a defect found in THIS workflow is fixed here; content behind a"
     echo "  moved gitlink belongs to its OWNING repo (which gated it before tagging)."
-    echo "- **R3 no duplication:** policy B is asserted by \`scripts/check-policy-b.sh\` — the ONE"
+    echo "- **R3 no duplication:** policy B is asserted by \`charly task policy-b\` — the ONE"
     echo "  implementation \`verify-pins.sh\` also calls."
     echo "- **R4 no workaround:** \`charly\` and every non-\`distro-*\` pin is its owning repo's"
     echo "  default-branch HEAD (per-pin \`git ls-remote\` above); every \`distro-*\` pin is charly's"

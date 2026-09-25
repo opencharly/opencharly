@@ -56,8 +56,8 @@
       "capabilities": "allow"
     },
     "bash": {
-      "task sync *": "allow",
-      "task verify *": "allow",
+      "./charly/bin/charly task *": "allow",
+      "charly task *": "allow",
       "bash scripts/*": "allow",
       "git -C *": "allow",
       "gh pr merge *": "allow",

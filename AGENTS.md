@@ -30,13 +30,13 @@ someone else's repo.
    the Go proxy at pinned go.mod requires since their de-submodule cutovers, and the
    plugins corpus moved to the standalone `opencharly/marketplace` repo — which IS a
    submodule here, pinned to its own default-branch HEAD like `docs`). If charly's
-   pinning changed, the fix is a sync (`task sync` + PR), not a hand-pin.
+   pinning changed, the fix is a sync (`charly task sync` + PR), not a hand-pin.
 7. When a task touches a subrepo, read that subrepo's own rulebook (`AGENTS.md`)
    first — its policy applies inside it. Charly's R0–R10 rulebook lives in
    `charly/AGENTS.md`; this file owns only the umbrella's policy.
 8. **Harness config parity:** the harness configuration at the root (agent
    instruction files, hook scripts, and per-harness config) mirrors the source
-   repo's. Keep it in sync (`scripts/check-harness-parity.sh`); never fork it
+   repo's. Keep it in sync (`charly task harness`); never fork it
    silently. The gate scripts guard mechanics only; policy is judged by the
    `pr-validator` at merge.
 9. **Session-scoped ownership — never touch another session's files.** The
@@ -72,14 +72,14 @@ corpus's generated dispatcher (`marketplace/DISPATCHER.md`, emitted by
 `charly marketplace generate` from each skill entity's `triggers:` — one row per
 trigger, the full set in that file, which is the authority). It is hand-authored
 prose, NOT a generated artifact, so it lives outside any generated markers;
-`scripts/sync-dispatcher.sh` can splice the full generated fragment in its place
+`charly task skills` can splice the full generated fragment in its place
 when a consumer pins the fragment (see the script header). To add a row, edit
 here and keep the refs resolving.
 
 | Trigger (what the user said or you're about to do) | Skill to load |
 |---|---|
 | Git/`gh` workflow — `feat/` branch, commit, PR-only landing (NO direct push to main), branch protection, the `pr-validator` merge/tag, sync-to-upstream | `/charly-internals:git-workflow` |
-| Pinning / gitlink policy / `task sync` / `task verify` / `scripts/sync-gitlinks.sh` / `scripts/verify-pins.sh` | `/charly-internals:git-workflow` |
+| Pinning / gitlink policy / `charly task sync` / `charly task verify` | `/charly-internals:git-workflow` |
 | Engineering-discipline triggers (failure surfaced / dup pattern / ad-hoc fix tempting / "out of scope" framing) | `/charly-internals:strict-policy` |
 | R1 — every failure, warning, or doc-vs-reality divergence before any remediation | `/charly-internals:root-cause-analyzer` |
 | Sub-agents, fresh validator sessions, "which primitive drives verification?" | `/charly-internals:agents` |
@@ -119,8 +119,9 @@ the routing.
   around it.** RCA it (R1) and fix the capability in its owning repo; an ad-hoc
   skip, inline command, or local script substitute is forbidden (R4). If the fix is
   genuinely out of scope, stop and ask the operator.
-- **Umbrella-native mechanics are the sanctioned path for umbrella work:** `task
-  sync`, `task verify`, `task harness`, `bash scripts/*`, and submodule git through
+- **Umbrella-native mechanics are the sanctioned path for umbrella work:**
+  `charly task sync`, `charly task verify`, `charly task harness`, `bash
+  scripts/*`, and submodule git through
   `git -C <absolute-path>` (rule 2). These are the umbrella's own commands, not
   ad-hoc substitutes.
 
@@ -138,10 +139,10 @@ the routing.
 - **R5 — Delete legacy completely.** A cutover removes the old path in the same PR.
 - **R6 — Git safety.** `git status` before destructive actions. No force-push, no
   hook bypass (`--no-verify` / `core.hooksPath`), no direct push to `main`.
-- **R7 — Prove the gate, not the plan.** Run `task verify` (the full pinning gate,
+- **R7 — Prove the gate, not the plan.** Run `charly task verify` (the full pinning gate,
   local and on demand — there is no CI gate) on the final tree and paste the
   output. A green `git status` proves nothing. Install the per-commit gate once
-  per clone with `task hooks`.
+  per clone with `charly task hooks`.
 - **Live or skip — never fake a live service.** Any test, harness, or gate that
   crosses a live-service boundary (a `gh` / GitHub API call, an LLM or provider
   endpoint, a network or `charly` call) MUST run against the **REAL** service, or
@@ -195,7 +196,7 @@ These are enforced by the fresh `charly/pr-validator` at merge (rule A1).
 
 | Confidence | Required proof |
 |---|---|
-| `fully tested and validated` | `task verify` passed on the final tree, changed paths executed live |
+| `fully tested and validated` | `charly task verify` passed on the final tree, changed paths executed live |
 | `analysed on a live system` | Changed runtime path ran live with retained output; full gate did not pass |
 | `documentation reviewed` | Docs-only change class (forbidden if pins/scripts changed) |
 | `syntax check only` | Dry-run only — do not commit |
