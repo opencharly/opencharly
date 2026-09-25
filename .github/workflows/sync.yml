@@ -142,7 +142,7 @@ jobs:
           # them. A one-line body cannot pass rule A1 ("every diff item accounted for"), and
           # a sync that moves 79 submodules is exactly where a count says nothing: that is
           # what BLOCKED the first PR this workflow ever managed to open.
-          # `git add -A` is kept even though sync-gitlinks.sh already stages each bumped
+          # `git add -A` is kept even though `charly task sync` already stages each bumped
           # gitlink: dropping it would silently narrow what the sync commits to whatever the
           # script happened to stage. Capture AFTER it, so the list is what actually commits.
           git add -A

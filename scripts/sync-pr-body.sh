@@ -165,7 +165,7 @@ if [ "${1:-}" = "--self-test" ]; then
   # cap while still naming the TRUE count — this is exactly the case that broke the
   # inline builder.
   moved="$tmp/moved"; producer="$tmp/producer"; pblog="$tmp/pblog"
-  : > "$producer"; echo "check-policy-b: OK — 6 distro pins equal charly's gitlinks" > "$pblog"
+  : > "$producer"; echo "charly task policy-b: OK — 6 distro pins equal charly's gitlinks" > "$pblog"
   for i in $(seq 1 393); do
     p="layer-$(printf 'averylongrepo-name-segment-%03d' "$i")"
     printf '%s\n' "$p" >> "$moved"

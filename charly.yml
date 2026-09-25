@@ -185,9 +185,9 @@ verify:
           dirty="$(git -C charly submodule status --recursive | grep -E '^[+-]' || true)"
           [ -z "$dirty" ] || fail "charly nested submodules not at their gitlinks:
           $dirty"
-          echo "verify-pins: OK — ${#MODULES[@]} submodules, policy B holds"
+          echo "verify: OK — ${#MODULES[@]} submodules at their gitlinks, branches == remote defaults"
         context: [runtime]
-      - check: the opencode gate plugin contract (the check-opencode-plugin gate the deleted verify-pins.sh ran)
+      - check: the opencode gate plugin contract (the check-opencode-plugin gate the former verify-pins.sh ran)
         command: node scripts/check-opencode-plugin.mjs
         context: [runtime]
 
