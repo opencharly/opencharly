@@ -43,15 +43,17 @@ map:
     description: List every submodule with its pin and sync state
     dir: .
     plan:
+      # Composes the ONE status implementation (verb:git-submodules status) — the
+      # same table `pins MODE=status` produces. The former inline shell
+      # re-implemented that table (R3 duplication) AND its `command` stdout was
+      # discarded by the task reporter (the `command` verb's pass path returns only
+      # `exit=N`), so `map` printed no map at all. Composition makes the verb's
+      # table the step's Result.Message, which plugin-task v0.2026268.1402 renders.
+      # A `task:` verb wrapper is deliberately NOT used: verb:task returns only a
+      # one-line summary, which would discard the table again.
       - run: print the submodule map
-        command: |
-          printf '%-28s %-10s %s\n' PATH BRANCH PIN
-          for m in $(git config -f .gitmodules --get-regexp '^submodule\..*\.path$' | awk '{print $2}'); do
-            b=$(git config -f .gitmodules --get "submodule.$m.branch")
-            p=$(git -C "$m" rev-parse --short HEAD 2>/dev/null || echo '-')
-            d=$(git -C "$m" status --porcelain 2>/dev/null | head -1)
-            printf '%-28s %-10s %s %s\n' "$m" "$b" "$p" "${d:+DIRTY}"
-          done
+        git-submodules:
+          mode: status
         context: [deploy]
 
 # -----------------------------------------------------------------------------
