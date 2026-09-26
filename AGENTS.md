@@ -203,8 +203,7 @@ the routing.
   what the service actually does, so it certifies a contract that may not exist
   and hides a real integration break behind green. Gate the skip on the real
   credential (`LIVE_*` unset → skip, visibly reported — never a silent pass), and
-  keep pure/deterministic in-repo logic unit-testable normally. Mandate here; the
-  per-surface how-to lives in the owning skill.
+  keep pure/deterministic in-repo logic unit-testable normally.
 - **R10 — Fresh disposable proof.** Verify from the final committed tree, never
   from an edited state.
 
