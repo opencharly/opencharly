@@ -35,13 +35,13 @@ someone else's repo.
 5. **Pin discipline:** only pin merged refs (default branches or gitlinks charly
    records). Never a PR branch. `verify` treats dangling pins as failures.
 6. **Policy B is the contract:** `distro-*` must equal charly's own gitlinks.
-   `sdk` and `spec` are no longer charly-pinned submodules — they resolve from the
-   Go proxy at pinned `go.mod` requires (their de-submodule cutovers) — but they ARE
-   umbrella submodules, recorded like every other pin. `marketplace`, `docs`, and every
-   `plugin-*` repo are umbrella submodules recorded at their own default-branch HEAD, like
-   the rest of the org. **A pin IS A GITLINK:** the umbrella records a commit and checks
-   it out DETACHED and clean — that is exactly what `./charly/bin/charly task verify`
-   asserts. Never branch-checkout a submodule to "catch up"; advance a pin only with
+   `sdk` and `spec` are umbrella submodules like every other pin; what changed is that
+   CHARLY no longer pins them — charly's builds resolve them from the Go proxy at pinned
+   `go.mod` requires (the umbrella still records their gitlinks). `marketplace`, `docs`,
+   and every `plugin-*` repo are umbrella submodules recorded at their own default-branch
+   HEAD. **A pin IS A GITLINK:** the umbrella records a commit and checks it out DETACHED
+   and clean — exactly what `./charly/bin/charly task verify` asserts. Never
+   branch-checkout a submodule to "catch up"; advance a pin only with
    `./charly/bin/charly task sync` + PR, never a hand-pin or a checkout.
 7. When a task touches a subrepo, read that subrepo's own rulebook (`AGENTS.md`)
    first — its policy applies inside it. Charly's R0–R10 rulebook lives in
@@ -125,6 +125,15 @@ session on every harness.
   the bare `charly task` form is valid only when that binary is on `PATH`.
 
 ## R0. Skills first
+
+> **MANDATORY — NON-OPTIONAL. Read the skills BEFORE ANY code change.** The moment a task
+> will make ANY change to a repository — edit a file, create a branch, commit, push, open
+> or update a PR, touch a submodule, or run a git/`gh` action — the owning skill(s) MUST be
+> loaded FIRST, and `/charly-internals:git-workflow` before ANY git/PR action. This is a
+> hard precondition, never advisory: an edit, branch, commit, push, or PR made before the
+> selected skills are loaded is an R0 violation and is not landable. If a harness cannot
+> load a skill by name, it reads the `SKILL.md` by path — it does NOT proceed without the
+> procedure.
 
 Before the first tool call of a task, load every skill the dispatcher below selects
 by reading its SKILL.md from the opencharly/marketplace repo — the standalone marketplace.
