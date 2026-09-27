@@ -27,19 +27,22 @@ someone else's repo.
    families — is checked out as that session's own git worktree under the umbrella:
    `<umbrella>/.worktrees/<slug>/<repo>/`, branched off fresh `origin/main`. The
    submodule's TRACKED checkout then stays at its gitlink and clean, so `verify` passes.
-   Never edit a submodule's tracked checkout in place. (`sdk` and `spec` are NOT
-   submodules — they resolve from the Go proxy at pinned `go.mod` requires — so a
-   session reaches them through the module cache, never a worktree here; see rule 6.)
+   Never edit a submodule's tracked checkout in place. (`sdk` and `spec` ARE umbrella
+   submodules like the rest, so editing them takes a worktree here too; what sets them
+   apart is that charly no longer PINS them — its builds resolve them from the Go proxy at
+   pinned `go.mod` requires — see rule 6.)
    Full model + concurrency contract: **The development model** below.
 5. **Pin discipline:** only pin merged refs (default branches or gitlinks charly
    records). Never a PR branch. `verify` treats dangling pins as failures.
 6. **Policy B is the contract:** `distro-*` must equal charly's own gitlinks.
-   `sdk` and `spec` are no longer charly-pinned submodules — they resolve from the
-   Go proxy at pinned `go.mod` requires (their de-submodule cutovers). The plugin
-   corpus moved to the standalone `opencharly/marketplace` repo, and `marketplace`,
-   `docs`, and every `plugin-*` repo are submodules pinned to their own
-   default-branch HEAD, like the rest of the org. If charly's pinning changed, the
-   fix is a sync (`./charly/bin/charly task sync` + PR), not a hand-pin.
+   `sdk` and `spec` are umbrella submodules like every other pin; what changed is that
+   CHARLY no longer pins them — charly's builds resolve them from the Go proxy at pinned
+   `go.mod` requires (the umbrella still records their gitlinks). `marketplace`, `docs`,
+   and every `plugin-*` repo are umbrella submodules recorded at their own default-branch
+   HEAD. **A pin IS A GITLINK:** the umbrella records a commit and checks it out DETACHED
+   and clean — exactly what `./charly/bin/charly task verify` asserts. Never
+   branch-checkout a submodule to "catch up"; advance a pin only with
+   `./charly/bin/charly task sync` + PR, never a hand-pin or a checkout.
 7. When a task touches a subrepo, read that subrepo's own rulebook (`AGENTS.md`)
    first — its policy applies inside it. Charly's R0–R10 rulebook lives in
    `charly/AGENTS.md`; this file owns only the umbrella's policy.
@@ -66,12 +69,23 @@ someone else's repo.
    you did not create, and a PR you did not open are another session's work. Never
    edit, revert, reformat, stage, or commit them — not even to "clean up" or unblock
    your own work. A submodule left dirty or on a branch by another session stays
-   exactly as found. If a file you do not own blocks you, do NOT touch it:
-   communicate the need to that session through a **PR comment** on the PR that owns
-   the file (or open an issue naming it), and stop and ask the operator if it remains
-   blocked. Your own edits are committed in your session — leave no uncommitted file
-   of your authorship behind (an untracked scratchpad is the one exception, and it is
-   cleaned up before you finish).
+   exactly as found. If ANOTHER SESSION'S PR blocks you (a projection lands before the
+   source that pins it; a consumer pin needs the producer merged; a shared file is
+   mid-flight on their branch), do NOT touch it and do NOT work around it: the ONE channel
+   is a **PR comment on the PR that owns the blocking file** (or a new issue naming it) —
+   actionable, naming your slug + the exact file/gitlink/pin + what unblocks you + the
+   evidence — then stop and ask the operator if it stays blocked. Your own edits are
+   committed in your session — leave no uncommitted file of your authorship behind (an
+   untracked scratchpad is the one exception, and it is cleaned up before you finish).
+10. **Before ANY update push, read the PR's live state AND write the body.** Before any
+    push that updates an existing PR — a fix commit, a body edit, or `gh pr update-branch`
+    — ALWAYS read that PR's LATEST comments and validation results
+    (`gh pr view <n> --json comments,reviews` + `gh pr checks <n>`) AND ALWAYS
+    write/update the PR body for the head you are about to publish. The `pr-validator`
+    re-reviews the diff + body + the FULL live thread on every run, so a stale read or a
+    stale body re-reviews the wrong state. When another session's PR blocks you, use the
+    PR-comment channel (rule 9). Full mechanics: `/charly-internals:git-workflow`
+    ("BEFORE ANY UPDATE PUSH" invariant + B2b).
 
 ## The development model
 
@@ -98,12 +112,28 @@ session on every harness.
 - **Landing.** Producer-first: producer PR → merge → tag → consumer pin bump (`task sync`)
   → umbrella PR. A session never hand-edits a gitlink or `.gitmodules`. Landing is per
   repo, through a `feat/<slug>` branch, a fresh `pr-validator`, and a squash merge.
+- **Catch-up & cleanup.** The umbrella advances only via `task sync` (pins) + PR; its
+  submodule checkouts stay DETACHED at their recorded gitlinks, and the umbrella's own
+  `main` only fast-forwards to `origin/main`. After a PR merges: remove ONLY your own
+  session worktree, delete the local branch only if it is `--merged` (never `-D` an
+  unmerged branch without operator sign-off), and never touch another session's worktree
+  (rule 9). Full branch/PR/after-merge workflow: `/charly-internals:git-workflow` (B8);
+  new-repo setup: `/charly-internals:repo-setup`.
 - **Invocation.** Build the binary once per clone with `charly/scripts/bootstrap-charly.sh`
   (the one non-charly entrypoint — the build that produces the binary cannot itself be a
   charly task). From the umbrella root, run maintenance as `./charly/bin/charly task <name>`;
   the bare `charly task` form is valid only when that binary is on `PATH`.
 
 ## R0. Skills first
+
+> **MANDATORY — NON-OPTIONAL. Read the skills BEFORE ANY code change.** The moment a task
+> will make ANY change to a repository — edit a file, create a branch, commit, push, open
+> or update a PR, touch a submodule, or run a git/`gh` action — the owning skill(s) MUST be
+> loaded FIRST, and `/charly-internals:git-workflow` before ANY git/PR action. This is a
+> hard precondition, never advisory: an edit, branch, commit, push, or PR made before the
+> selected skills are loaded is an R0 violation and is not landable. If a harness cannot
+> load a skill by name, it reads the `SKILL.md` by path — it does NOT proceed without the
+> procedure.
 
 Before the first tool call of a task, load every skill the dispatcher below selects
 by reading its SKILL.md from the opencharly/marketplace repo — the standalone marketplace.
@@ -131,6 +161,7 @@ here and keep the refs resolving.
 |---|---|
 | Git/`gh` workflow — `feat/` branch, commit, PR-only landing (NO direct push to main), branch protection, the `pr-validator` merge/tag, sync-to-upstream | `/charly-internals:git-workflow` |
 | Pinning / gitlink policy / `./charly/bin/charly task sync` / `verify` | `/charly-internals:git-workflow` |
+| New repo in the org / org ruleset / dotgithub config + workflows / native auto-merge / tag-on-merge CalVer | `/charly-internals:repo-setup` |
 | Engineering-discipline triggers (failure surfaced / dup pattern / ad-hoc fix tempting / "out of scope" framing) | `/charly-internals:strict-policy` |
 | R1 — every failure, warning, or doc-vs-reality divergence before any remediation | `/charly-internals:root-cause-analyzer` |
 | Sub-agents, fresh validator sessions, "which primitive drives verification?" | `/charly-internals:agents` |
