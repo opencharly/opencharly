@@ -1773,3 +1773,7 @@
 	path = plugin-nerdctl
 	url = https://github.com/opencharly/plugin-nerdctl.git
 	branch = main
+[submodule "plugin-example-require"]
+	path = plugin-example-require
+	url = https://github.com/opencharly/plugin-example-require.git
+	branch = main
