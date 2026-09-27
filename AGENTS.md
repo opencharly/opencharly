@@ -27,19 +27,22 @@ someone else's repo.
    families — is checked out as that session's own git worktree under the umbrella:
    `<umbrella>/.worktrees/<slug>/<repo>/`, branched off fresh `origin/main`. The
    submodule's TRACKED checkout then stays at its gitlink and clean, so `verify` passes.
-   Never edit a submodule's tracked checkout in place. (`sdk` and `spec` are NOT
-   submodules — they resolve from the Go proxy at pinned `go.mod` requires — so a
-   session reaches them through the module cache, never a worktree here; see rule 6.)
+   Never edit a submodule's tracked checkout in place. (`sdk` and `spec` ARE umbrella
+   submodules like the rest, so editing them takes a worktree here too; what sets them
+   apart is that charly no longer PINS them — its builds resolve them from the Go proxy at
+   pinned `go.mod` requires — see rule 6.)
    Full model + concurrency contract: **The development model** below.
 5. **Pin discipline:** only pin merged refs (default branches or gitlinks charly
    records). Never a PR branch. `verify` treats dangling pins as failures.
 6. **Policy B is the contract:** `distro-*` must equal charly's own gitlinks.
    `sdk` and `spec` are no longer charly-pinned submodules — they resolve from the
-   Go proxy at pinned `go.mod` requires (their de-submodule cutovers). The plugin
-   corpus moved to the standalone `opencharly/marketplace` repo, and `marketplace`,
-   `docs`, and every `plugin-*` repo are submodules pinned to their own
-   default-branch HEAD, like the rest of the org. If charly's pinning changed, the
-   fix is a sync (`./charly/bin/charly task sync` + PR), not a hand-pin.
+   Go proxy at pinned `go.mod` requires (their de-submodule cutovers) — but they ARE
+   umbrella submodules, recorded like every other pin. `marketplace`, `docs`, and every
+   `plugin-*` repo are umbrella submodules recorded at their own default-branch HEAD, like
+   the rest of the org. **A pin IS A GITLINK:** the umbrella records a commit and checks
+   it out DETACHED and clean — that is exactly what `./charly/bin/charly task verify`
+   asserts. Never branch-checkout a submodule to "catch up"; advance a pin only with
+   `./charly/bin/charly task sync` + PR, never a hand-pin or a checkout.
 7. When a task touches a subrepo, read that subrepo's own rulebook (`AGENTS.md`)
    first — its policy applies inside it. Charly's R0–R10 rulebook lives in
    `charly/AGENTS.md`; this file owns only the umbrella's policy.
@@ -98,6 +101,13 @@ session on every harness.
 - **Landing.** Producer-first: producer PR → merge → tag → consumer pin bump (`task sync`)
   → umbrella PR. A session never hand-edits a gitlink or `.gitmodules`. Landing is per
   repo, through a `feat/<slug>` branch, a fresh `pr-validator`, and a squash merge.
+- **Catch-up & cleanup.** The umbrella advances only via `task sync` (pins) + PR; its
+  submodule checkouts stay DETACHED at their recorded gitlinks, and the umbrella's own
+  `main` only fast-forwards to `origin/main`. After a PR merges: remove ONLY your own
+  session worktree, delete the local branch only if it is `--merged` (never `-D` an
+  unmerged branch without operator sign-off), and never touch another session's worktree
+  (rule 9). Full branch/PR/after-merge workflow: `/charly-internals:git-workflow` (B8);
+  new-repo setup: `/charly-internals:repo-setup`.
 - **Invocation.** Build the binary once per clone with `charly/scripts/bootstrap-charly.sh`
   (the one non-charly entrypoint — the build that produces the binary cannot itself be a
   charly task). From the umbrella root, run maintenance as `./charly/bin/charly task <name>`;
@@ -131,6 +141,7 @@ here and keep the refs resolving.
 |---|---|
 | Git/`gh` workflow — `feat/` branch, commit, PR-only landing (NO direct push to main), branch protection, the `pr-validator` merge/tag, sync-to-upstream | `/charly-internals:git-workflow` |
 | Pinning / gitlink policy / `./charly/bin/charly task sync` / `verify` | `/charly-internals:git-workflow` |
+| New repo in the org / org ruleset / dotgithub config + workflows / native auto-merge / tag-on-merge CalVer | `/charly-internals:repo-setup` |
 | Engineering-discipline triggers (failure surfaced / dup pattern / ad-hoc fix tempting / "out of scope" framing) | `/charly-internals:strict-policy` |
 | R1 — every failure, warning, or doc-vs-reality divergence before any remediation | `/charly-internals:root-cause-analyzer` |
 | Sub-agents, fresh validator sessions, "which primitive drives verification?" | `/charly-internals:agents` |
