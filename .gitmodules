@@ -1777,3 +1777,11 @@
 	path = plugin-example-require
 	url = https://github.com/opencharly/plugin-example-require.git
 	branch = main
+[submodule "plugin-cua"]
+	path = plugin-cua
+	url = https://github.com/opencharly/plugin-cua.git
+	branch = main
+[submodule "layer-cua"]
+	path = layer-cua
+	url = https://github.com/opencharly/layer-cua.git
+	branch = main
