@@ -69,12 +69,23 @@ someone else's repo.
    you did not create, and a PR you did not open are another session's work. Never
    edit, revert, reformat, stage, or commit them — not even to "clean up" or unblock
    your own work. A submodule left dirty or on a branch by another session stays
-   exactly as found. If a file you do not own blocks you, do NOT touch it:
-   communicate the need to that session through a **PR comment** on the PR that owns
-   the file (or open an issue naming it), and stop and ask the operator if it remains
-   blocked. Your own edits are committed in your session — leave no uncommitted file
-   of your authorship behind (an untracked scratchpad is the one exception, and it is
-   cleaned up before you finish).
+   exactly as found. If ANOTHER SESSION'S PR blocks you (a projection lands before the
+   source that pins it; a consumer pin needs the producer merged; a shared file is
+   mid-flight on their branch), do NOT touch it and do NOT work around it: the ONE channel
+   is a **PR comment on the PR that owns the blocking file** (or a new issue naming it) —
+   actionable, naming your slug + the exact file/gitlink/pin + what unblocks you + the
+   evidence — then stop and ask the operator if it stays blocked. Your own edits are
+   committed in your session — leave no uncommitted file of your authorship behind (an
+   untracked scratchpad is the one exception, and it is cleaned up before you finish).
+10. **Before ANY update push, read the PR's live state AND write the body.** Before any
+    push that updates an existing PR — a fix commit, a body edit, or `gh pr update-branch`
+    — ALWAYS read that PR's LATEST comments and validation results
+    (`gh pr view <n> --json comments,reviews` + `gh pr checks <n>`) AND ALWAYS
+    write/update the PR body for the head you are about to publish. The `pr-validator`
+    re-reviews the diff + body + the FULL live thread on every run, so a stale read or a
+    stale body re-reviews the wrong state. When another session's PR blocks you, use the
+    PR-comment channel (rule 9). Full mechanics: `/charly-internals:git-workflow`
+    ("BEFORE ANY UPDATE PUSH" invariant + B2b).
 
 ## The development model
 
