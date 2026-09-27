@@ -83,7 +83,9 @@ someone else's repo.
    (comment + assign) BEFORE you branch; if another session owns it, coordinate on the
    thread instead of opening a competing PR. **Replacing a PR or an issue?** Comment on the
    OLD one referencing the new one, so other agents can follow where the work continued
-   (skill B2b/B5). Your own edits are
+   (skill B2b/B5). **Close the issue when its PR merges.** An issue resolved by a PR must
+   be closed by an agent once that PR merges, with a comment linking the merge — never
+   leave a resolved issue open. Your own edits are
    committed in your session — leave no uncommitted file of your authorship behind (an
    untracked scratchpad is the one exception, and it is cleaned up before you finish).
 10. **Before ANY update push, read the PR's live state AND write the body.** Before any
