@@ -99,6 +99,47 @@ someone else's repo.
     PR-comment channel (rule 9). Full mechanics: `/charly-internals:git-workflow`
     ("BEFORE ANY UPDATE PUSH" invariant + B2b).
 
+## Agent identity & comment coordination (extends rule 9)
+
+Rule 9 says *whose* work it is — this says *who is speaking* and *how a claim is made*.
+All sessions on a host share ONE GitHub account, so the comment author cannot tell two
+agents apart. **Identity lives in the footer; authority lives in the verb.**
+
+- **Identity is TWO italic lines** carried together at the end of an agent-authored
+  comment or PR body — the `Assisted-by` trailer, then a separate `Agent:` line naming
+  the WORK and the session: `*Agent: `<slug>` · session `<ses_…>`*`. The **slug** is a
+  stable, human-readable kebab name the session chooses for the work
+  (`c7-plugin-adoption`) — never a harness or account name, and never appended to
+  `Assisted-by`. (In a PR body the `Assisted-by` trailer stays the FINAL line — the
+  `pr-validator`'s rule — so the `Agent:` line sits directly above it.) The slug — not
+  the GitHub author — is the authority key.
+- **A coordination comment's first non-blank line is ONE label from the closed set**
+  `CLAIM` · `OWNING` · `HANDING OVER` · `TAKING OVER` · `BLOCKS` · `UNBLOCKS` · `STATUS` ·
+  `RESOLVED`, then sharp GitHub Markdown; the label is the greppable verb, and there is
+  no other vocabulary.
+- **Optional by default; MANDATORY on the trigger.** Neither the `Agent:` line nor the
+  verb grammar is required of a solo agent on an uncontended PR — never tax every comment.
+  They become mandatory the moment EITHER holds: **two or more agents work the same
+  issue/PR**, or **the scope is a blocking dependency** (`BLOCKS`/`UNBLOCKS` in play).
+- **The LATEST `OWNING` (or `TAKING OVER`) for a scope wins.** An agent MUST NOT push to a
+  branch/PR another slug has claimed unless (a) a `HANDING OVER` addressed it, (b) it posts
+  `TAKING OVER` naming its authority, or (c) the operator authorizes it. A status relay is
+  NOT a claim — a claim requires the verb.
+- **`TAKING OVER` cites `authority: hand-off | operator | window-expired` and is posted
+  BEFORE any push.** The window runs on the scope's ARTIFACTS — a new commit, a new
+  comment, or the `charly/pr-validator` run COMPLETING on a new head — never on session
+  activity: a looping agent never falls quiet, and a peer waiting on a running validator
+  is NOT stalled. Silence for the window (default 30 min) makes a claim `window-expired`.
+- **Delegation ≠ impersonation.** An agent never impersonates the operator; a sign-off
+  posted at the operator's explicit direction, labelled delegated and carrying the agent's
+  own footer, IS valid (the validator's rulebook accepts this form).
+
+Lifecycle: search → `CLAIM` (comment + assign where possible) → work → `HANDING OVER` →
+`RESOLVED` (link the merged PR + its CalVer tag; close the resolved issue). The SAME
+protocol applies across accounts and harnesses — the footer carries identity regardless of
+who owns the GitHub account. Mechanics + rendered examples: `/charly-internals:git-workflow`
+(B2b).
+
 ## The development model
 
 The umbrella is umbrella-centric and harness-independent. One model serves every
