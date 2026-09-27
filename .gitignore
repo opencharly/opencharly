@@ -42,6 +42,10 @@ plan/*
 #                    about an honest root `git status`, not a gate.
 #   .build/        — generated Containerfiles from `charly box generate`.
 #   .opencharly/   — deploy-state output from `charly deploy add`.
+#   image/         — built VM disk/seed artifacts (`charly vm build`; the
+#                    configurable vm.image_dir root, default `image`).
+#   .containerignore / .dockerignore — generated build-context ignore files
+#                    (`charly box generate` from defaults.context_ignore).
 #   scratchpad/    — per-session temporary files.
 #   .worktrees/    — per-session linked feature worktrees under the umbrella
 #                    (<umbrella>/.worktrees/<slug>/<repo>/), the harness-neutral
@@ -51,6 +55,9 @@ plan/*
 .check/
 .build/
 .opencharly/
+image/
+.containerignore
+.dockerignore
 scratchpad/
 .worktrees/
 bin/

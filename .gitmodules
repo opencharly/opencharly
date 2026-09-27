@@ -502,6 +502,11 @@
 	url = https://github.com/opencharly/layer-kimi.git
 	branch = main
 
+[submodule "layer-kind"]
+	path = layer-kind
+	url = https://github.com/opencharly/layer-kind.git
+	branch = main
+
 [submodule "layer-kubernetes"]
 	path = layer-kubernetes
 	url = https://github.com/opencharly/layer-kubernetes.git

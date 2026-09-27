@@ -1,7 +1,7 @@
 # OpenCharly — umbrella
 
 **One clone of the whole org.** `opencharly/opencharly` is an org-level umbrella repo:
-every OpenCharly repo (408 today) is pinned here as a git submodule ("gitlink", in the
+every OpenCharly repo (409 today) is pinned here as a git submodule ("gitlink", in the
 org's vocabulary), flat at the root — submodule path == repo name, except the one
 alias below. `charly` is the product repo and the single source of truth; this
 umbrella is a *view* of the org, not a new home for anything.
@@ -176,7 +176,7 @@ and intentionally not a submodule.
 
 ### Other layers
 
-140 repos.
+141 repos.
 
 | path | repo | role |
 |---|---|---|
@@ -242,6 +242,7 @@ and intentionally not a submodule.
 | `layer-kde-shell/` | [opencharly/layer-kde-shell](https://github.com/opencharly/layer-kde-shell) | image layer / candy |
 | `layer-keepassxc/` | [opencharly/layer-keepassxc](https://github.com/opencharly/layer-keepassxc) | image layer / candy |
 | `layer-kimi/` | [opencharly/layer-kimi](https://github.com/opencharly/layer-kimi) | image layer / candy |
+| `layer-kind/` | [opencharly/layer-kind](https://github.com/opencharly/layer-kind) | image layer / candy |
 | `layer-kubernetes/` | [opencharly/layer-kubernetes](https://github.com/opencharly/layer-kubernetes) | image layer / candy |
 | `layer-language-runtimes/` | [opencharly/layer-language-runtimes](https://github.com/opencharly/layer-language-runtimes) | image layer / candy |
 | `layer-libnotify/` | [opencharly/layer-libnotify](https://github.com/opencharly/layer-libnotify) | image layer / candy |
