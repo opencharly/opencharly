@@ -1,7 +1,7 @@
 # OpenCharly — umbrella
 
 **One clone of the whole org.** `opencharly/opencharly` is an org-level umbrella repo:
-every OpenCharly repo (409 today) is pinned here as a git submodule ("gitlink", in the
+every OpenCharly repo (412 today) is pinned here as a git submodule ("gitlink", in the
 org's vocabulary), flat at the root — submodule path == repo name, except the one
 alias below. `charly` is the product repo and the single source of truth; this
 umbrella is a *view* of the org, not a new home for anything.
@@ -176,7 +176,7 @@ and intentionally not a submodule.
 
 ### Other layers
 
-141 repos.
+142 repos.
 
 | path | repo | role |
 |---|---|---|
@@ -203,6 +203,7 @@ and intentionally not a submodule.
 | `layer-container-nesting/` | [opencharly/layer-container-nesting](https://github.com/opencharly/layer-container-nesting) | image layer / candy |
 | `layer-crabbox/` | [opencharly/layer-crabbox](https://github.com/opencharly/layer-crabbox) | image layer / candy |
 | `layer-cstream-desktop/` | [opencharly/layer-cstream-desktop](https://github.com/opencharly/layer-cstream-desktop) | charly metalayer: the full cstream streaming desktop — pod-cstream + pod-hyprland + fixings |
+| `layer-cua/` | [opencharly/layer-cua](https://github.com/opencharly/layer-cua) | image layer / candy: the Cua computer-use candies |
 | `layer-cuda/` | [opencharly/layer-cuda](https://github.com/opencharly/layer-cuda) | charly candy: layer-cuda (standalone repo of the candy de-submodule cutover) |
 | `layer-cue/` | [opencharly/layer-cue](https://github.com/opencharly/layer-cue) | image layer / candy |
 | `layer-debootstrap-builder/` | [opencharly/layer-debootstrap-builder](https://github.com/opencharly/layer-debootstrap-builder) | image layer / candy |
@@ -325,7 +326,7 @@ and intentionally not a submodule.
 
 ### Plugins
 
-111 repos — charly plug-ins (verb/substrate providers).
+113 repos — charly plug-ins (verb/substrate providers).
 
 | path | repo | role |
 |---|---|---|
@@ -357,6 +358,7 @@ and intentionally not a submodule.
 | `plugin-command/` | [opencharly/plugin-command](https://github.com/opencharly/plugin-command) | charly plugin |
 | `plugin-crabbox/` | [opencharly/plugin-crabbox](https://github.com/opencharly/plugin-crabbox) | charly plugin |
 | `plugin-cstream/` | [opencharly/plugin-cstream](https://github.com/opencharly/plugin-cstream) | charly plugin serving the cstream: check verb — session/login/frame/stats probes for charly-streamer deployme… |
+| `plugin-cua/` | [opencharly/plugin-cua](https://github.com/opencharly/plugin-cua) | charly plugin: verb:cua + kind:cua (the Cua computer-use provider) |
 | `plugin-dbus/` | [opencharly/plugin-dbus](https://github.com/opencharly/plugin-dbus) | charly plugin |
 | `plugin-deploy-local/` | [opencharly/plugin-deploy-local](https://github.com/opencharly/plugin-deploy-local) | charly plugin |
 | `plugin-deploy-pod/` | [opencharly/plugin-deploy-pod](https://github.com/opencharly/plugin-deploy-pod) | charly plugin |
@@ -378,6 +380,7 @@ and intentionally not a submodule.
 | `plugin-example-external/` | [opencharly/plugin-example-external](https://github.com/opencharly/plugin-example-external) | charly plugin |
 | `plugin-example-kind/` | [opencharly/plugin-example-kind](https://github.com/opencharly/plugin-example-kind) | charly plugin |
 | `plugin-example-lifecycle/` | [opencharly/plugin-example-lifecycle](https://github.com/opencharly/plugin-example-lifecycle) | charly plugin |
+| `plugin-example-require/` | [opencharly/plugin-example-require](https://github.com/opencharly/plugin-example-require) | charly plugin |
 | `plugin-example-step/` | [opencharly/plugin-example-step](https://github.com/opencharly/plugin-example-step) | charly plugin |
 | `plugin-example-stepkind/` | [opencharly/plugin-example-stepkind](https://github.com/opencharly/plugin-example-stepkind) | charly plugin |
 | `plugin-example-structkind/` | [opencharly/plugin-example-structkind](https://github.com/opencharly/plugin-example-structkind) | charly plugin |
