@@ -74,14 +74,24 @@ someone else's repo.
    mid-flight on their branch), do NOT touch it and do NOT work around it: the ONE channel
    is a **PR comment on the PR that owns the blocking file** (or a new issue naming it) —
    actionable, naming your slug + the exact file/gitlink/pin + what unblocks you + the
-   evidence — then stop and ask the operator if it stays blocked. Your own edits are
+   evidence — then stop and ask the operator if it stays blocked. **Search first; file and
+   own an issue.** Before any non-trivial work (and before filing anything), search the org
+   for an existing issue/PR (`gh search issues <terms>` / `gh search prs <terms>`) and ADD
+   to that thread rather than duplicating; if none exists, file ONE proper issue
+   (title/problem/evidence/scope) and reference it from the PR. The issue is the
+   coordination point: check its owner (assignee / claim comment / label) and CLAIM it
+   (comment + assign) BEFORE you branch; if another session owns it, coordinate on the
+   thread instead of opening a competing PR. **Replacing a PR or an issue?** Comment on the
+   OLD one referencing the new one, so other agents can follow where the work continued
+   (skill B2b/B5). Your own edits are
    committed in your session — leave no uncommitted file of your authorship behind (an
    untracked scratchpad is the one exception, and it is cleaned up before you finish).
 10. **Before ANY update push, read the PR's live state AND write the body.** Before any
     push that updates an existing PR — a fix commit, a body edit, or `gh pr update-branch`
     — ALWAYS read that PR's LATEST comments and validation results
-    (`gh pr view <n> --json comments,reviews` + `gh pr checks <n>`) AND ALWAYS
-    write/update the PR body for the head you are about to publish. The `pr-validator`
+    (`gh pr view <n> --json comments,reviews` + `gh pr checks <n>`) AND the latest
+    comments/state of every ISSUE it closes or relates to (`gh issue view <N> --comments`),
+    and ACT on each; AND ALWAYS write/update the PR body for the head you are about to publish. The `pr-validator`
     re-reviews the diff + body + the FULL live thread on every run, so a stale read or a
     stale body re-reviews the wrong state. When another session's PR blocks you, use the
     PR-comment channel (rule 9). Full mechanics: `/charly-internals:git-workflow`
