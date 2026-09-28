@@ -3,7 +3,9 @@
   "permissions": {
     "allow": [
       "Bash(git -C *)",
-      "Bash(task *)",
+      "Bash(./charly/bin/charly task *)",
+      "Bash(charly task *)",
+      "Bash(./charly/scripts/bootstrap-charly.sh)",
       "Bash(bash scripts/*)",
       "Bash(gh pr merge:*)",
       "Bash(gh api --method POST repos/opencharly:*)"

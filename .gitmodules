@@ -502,6 +502,11 @@
 	url = https://github.com/opencharly/layer-kimi.git
 	branch = main
 
+[submodule "layer-kind"]
+	path = layer-kind
+	url = https://github.com/opencharly/layer-kind.git
+	branch = main
+
 [submodule "layer-kubernetes"]
 	path = layer-kubernetes
 	url = https://github.com/opencharly/layer-kubernetes.git
@@ -1747,4 +1752,36 @@
 [submodule "plugin-jetkvm"]
 	path = plugin-jetkvm
 	url = https://github.com/opencharly/plugin-jetkvm.git
+	branch = main
+[submodule "layer-qdrant"]
+	path = layer-qdrant
+	url = https://github.com/opencharly/layer-qdrant.git
+	branch = main
+[submodule "plugin-qdrant"]
+	path = plugin-qdrant
+	url = https://github.com/opencharly/plugin-qdrant.git
+	branch = main
+[submodule "pod-qdrant"]
+	path = pod-qdrant
+	url = https://github.com/opencharly/pod-qdrant.git
+	branch = main
+[submodule "layer-nerdctl"]
+	path = layer-nerdctl
+	url = https://github.com/opencharly/layer-nerdctl.git
+	branch = main
+[submodule "plugin-nerdctl"]
+	path = plugin-nerdctl
+	url = https://github.com/opencharly/plugin-nerdctl.git
+	branch = main
+[submodule "plugin-example-require"]
+	path = plugin-example-require
+	url = https://github.com/opencharly/plugin-example-require.git
+	branch = main
+[submodule "plugin-cua"]
+	path = plugin-cua
+	url = https://github.com/opencharly/plugin-cua.git
+	branch = main
+[submodule "layer-cua"]
+	path = layer-cua
+	url = https://github.com/opencharly/layer-cua.git
 	branch = main

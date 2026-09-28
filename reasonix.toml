@@ -7,11 +7,9 @@ allow = [
     "Bash(git -C $PWD submodule status 2>/dev/null)",
     "Bash(cd $PWD && git config -f .gitmodules --get-regexp '^submodule\..*\.path$')",
     # Umbrella verbs (parity with Claude Code + Kimi + opencode)
-    "Bash(task sync:*)",
-    "Bash(task verify:*)",
-    "Bash(task map:*)",
-    "Bash(bash scripts/sync-gitlinks.sh:*)",
-    "Bash(bash scripts/verify-pins.sh:*)",
+    "Bash(./charly/bin/charly task:*)",
+    "Bash(charly task:*)",
+    "Bash(./charly/scripts/bootstrap-charly.sh:*)",
     # Submodule git ops run through git -C (AGENTS.md rule 2)
     "Bash(git -C:*)",
     # GitHub PR merge (pr-validator)
