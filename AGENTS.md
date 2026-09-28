@@ -106,13 +106,15 @@ All sessions on a host share ONE GitHub account, so the comment author cannot te
 agents apart. **Identity lives in the footer; authority lives in the verb.**
 
 - **Identity is TWO italic lines** carried together at the end of an agent-authored
-  comment or PR body — the `Assisted-by` trailer, then a separate `Agent:` line naming
-  the WORK and the session: `*Agent: `<slug>` · session `<ses_…>`*`. The **slug** is a
+  comment or PR body — the `Agent:` line naming the WORK and the session, then the
+  `Assisted-by` trailer: `*Agent: `<slug>` · session `<ses_…>`*` followed by
+  `*Assisted-by: <Harness> <Provider Model> (<confidence>)*`. The **slug** is a
   stable, human-readable kebab name the session chooses for the work
   (`c7-plugin-adoption`) — never a harness or account name, and never appended to
-  `Assisted-by`. (In a PR body the `Assisted-by` trailer stays the FINAL line — the
-  `pr-validator`'s rule — so the `Agent:` line sits directly above it.) The slug — not
-  the GitHub author — is the authority key.
+  `Assisted-by`. **The canonical order is `Agent:` FIRST, `Assisted-by:` LAST — one
+  rule on BOTH surfaces** (a comment and a PR body); in a PR body this also satisfies the
+  `pr-validator`, which requires the `Assisted-by` trailer to be the FINAL line. The slug
+  — not the GitHub author — is the authority key.
 - **A coordination comment's first non-blank line is ONE label from the closed set**
   `CLAIM` · `OWNING` · `HANDING OVER` · `TAKING OVER` · `BLOCKS` · `UNBLOCKS` · `STATUS` ·
   `RESOLVED`, then sharp GitHub Markdown; the label is the greppable verb, and there is
@@ -125,14 +127,62 @@ agents apart. **Identity lives in the footer; authority lives in the verb.**
   branch/PR another slug has claimed unless (a) a `HANDING OVER` addressed it, (b) it posts
   `TAKING OVER` naming its authority, or (c) the operator authorizes it. A status relay is
   NOT a claim — a claim requires the verb.
+- **The progress signal is a COMPLETED VALIDATOR RUN, never session activity.** Coordination
+  progress on a scope is a `charly/pr-validator` run **COMPLETING** on a new head (or a new
+  commit / new comment). A looping agent never falls quiet, so activity is a false positive;
+  and a peer **waiting on a running validator looks quiet** — it is working, not stalled.
+  Detect a stall/loop ONLY as **no new completed verdict within the window while the scope
+  is open and unmerged** — never by silence.
+- **Window-based takeover: comment FIRST, wait the window, then `TAKING OVER` BEFORE any
+  push.** A takeover may proceed ONLY after ALL of: (1) a coordination comment posted on
+  the scope FIRST — an ownership board, or a `BLOCKS`/`STATUS` addressed to the owner,
+  asking them to reply `OWNING — ETA` or `HANDING OVER — <reason>` — **no comment, no
+  takeover, ever**; (2) the window (below) elapsing with **no answer from the original
+  session AND no progress** (the progress signal above); (3) a
+  `TAKING OVER — authority: window-expired` posted **before** touching the branch. The
+  takeover is withdrawable if the owner replies.
+- **The window is 60 minutes — a FLOOR, measured from the comment's timestamp.** 60 min is
+  a minimum: it may be extended, never shortened without operator sign-off, and any answer
+  from the owner RESETS it. The window measures the progress signal above — never session
+  activity. Silence for the window with the scope open+unmerged makes a claim
+  `window-expired`.
+- **Auto-close carry-forward: continue on a clean thread, cross-referenced on FOUR
+  surfaces.** The validator auto-closes a PR after its BLOCK threshold
+  (`AI_REVIEW_AUTO_CLOSE_AFTER`, default 5). Carry the work forward to a **clean thread** —
+  a fresh PR from the same branch head — and ALL FOUR are mandatory: (1) on the CLOSED PR a
+  `RESOLVED — superseded by #<n>` naming the successor, the closure reason, and that the
+  closed thread is no longer acted on; (2) on the SUCCESSOR PR's body a `Supersedes #<n>`
+  plus the closure reason, with the diff/body showing the predecessor's findings were all
+  fixed in ONE commit (not re-argued); (3) on the ISSUE the work closes/relates to a `STATUS`
+  naming the successor, so anyone following the issue lands on the live PR; (4) ownership
+  transfer — a slug that claimed the predecessor but not the successor must `HANDING OVER`
+  (or be named in the successor's body); a silent drop is not allowed. Never re-argue on a
+  closed thread, and **never push to a PR at the block limit**: a push that yields another
+  verdict at the limit auto-closes it, so land ALL findings in ONE commit.
 - **`TAKING OVER` cites `authority: hand-off | operator | window-expired` and is posted
-  BEFORE any push.** The window runs on the scope's ARTIFACTS — a new commit, a new
-  comment, or the `charly/pr-validator` run COMPLETING on a new head — never on session
-  activity: a looping agent never falls quiet, and a peer waiting on a running validator
-  is NOT stalled. Silence for the window (default 30 min) makes a claim `window-expired`.
+  BEFORE any push, comment-first** (see the two bullets above).
 - **Delegation ≠ impersonation.** An agent never impersonates the operator; a sign-off
   posted at the operator's explicit direction, labelled delegated and carrying the agent's
-  own footer, IS valid (the validator's rulebook accepts this form).
+  own footer, IS valid (the validator's rulebook `AI_REVIEW_PROMPT` accepts exactly this
+  form).
+- **Sign-off authority lives in the BODY, in the DELEGATED form.** A maintainer/operator
+  sign-off is **cited in the PR body with pasted, executed evidence**; the accepted
+  delegated form is an explicit line — **`Maintainer sign-off — posted at the operator's
+  direction`** — carrying the agent's own identity footer. An agent may sign off at the
+  operator's direction; an agent must never impersonate the operator.
+- **No R10 class exemption (current project state).** A plugin-library or schema change runs
+  the **full assembled `disposable: true` bed** — there is no "library module" waiver and no
+  routing the bed to a consumer leg. A delegated "bed-exemption" sign-off is NOT an accepted
+  route. See the R10 change-class matrix (`/charly-check:check`).
+- **Amend an agent's own PR by CONTINUING ITS SESSION — one editor per change.** Continue
+  that agent's session **by ID** (a subagent conversation can be continued once idle); do
+  NOT spawn a second editor on the same files.
+- **State the dependency chain and the unblock order on the thread.** When a scope is gated
+  by another leg, name the exact chain (producer legs → consumer leg → corpus) and the
+  unblock order, and comment the new tag on the waiting issue the moment it lands. No "a
+  sibling session" / "deferred" framing.
+- **Watch the RIGHT scopes.** A monitor/coordinator must watch the scopes actually in
+  flight — the repo set changes as work moves, and a stale watch list produces false stalls.
 
 Lifecycle: search → `CLAIM` (comment + assign where possible) → work → `HANDING OVER` →
 `RESOLVED` (link the merged PR + its CalVer tag; close the resolved issue). The SAME
