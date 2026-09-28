@@ -138,16 +138,14 @@ agents apart. **Identity lives in the footer; authority lives in the verb.**
   the scope FIRST — an ownership board, or a `BLOCKS`/`STATUS` addressed to the owner,
   asking them to reply `OWNING — ETA` or `HANDING OVER — <reason>` — **no comment, no
   takeover, ever**; (2) the window (below) elapsing with **no answer from the original
-  session AND no artifact progress** (no new commit, no new comment, no `charly/pr-validator`
-  run completing on a new head); (3) a `TAKING OVER — authority: window-expired` posted
-  **before** touching the branch. The takeover is withdrawable if the owner replies.
+  session AND no progress** (the progress signal above); (3) a
+  `TAKING OVER — authority: window-expired` posted **before** touching the branch. The
+  takeover is withdrawable if the owner replies.
 - **The window is 60 minutes — a FLOOR, measured from the comment's timestamp.** 60 min is
   a minimum: it may be extended, never shortened without operator sign-off, and any answer
-  from the owner RESETS it. The window runs on the scope's ARTIFACTS — the
-  `charly/pr-validator` run COMPLETING on a new head, a new commit, or a new comment — never
-  on session activity: a looping agent never falls quiet, and a peer **waiting on a RUNNING
-  validator is NOT stalled**. Silence for the window with the scope open+unmerged makes a
-  claim `window-expired`.
+  from the owner RESETS it. The window measures the progress signal above — never session
+  activity. Silence for the window with the scope open+unmerged makes a claim
+  `window-expired`.
 - **Auto-close carry-forward: continue on a clean thread, cross-referenced on FOUR
   surfaces.** The validator auto-closes a PR after its BLOCK threshold
   (`AI_REVIEW_AUTO_CLOSE_AFTER`, default 5). Carry the work forward to a **clean thread** —
