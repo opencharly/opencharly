@@ -158,7 +158,7 @@ if (process.env.LIVE_OPENCODE === "1") {
         // scoped to whatever project first started it — so the model inherits
         // that project's skills and may refuse to call the tool at all, instead
         // of the gate doing the blocking (measured: the deny path never fired).
-        run("opencode", ["run", "--standalone", "--auto", prompt], {
+        run("opencode", ["run", "--auto", prompt], {
           cwd: proj,
           timeout: 240000,
         });

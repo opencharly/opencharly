@@ -61,92 +61,101 @@ export function lastWakeLine(stdout: string): string | undefined {
 
 export default {
   id: "pr-watch",
+  // opencode >= 2.0 definition form: the context carries `client` + `location`.
   async setup(ctx: any) {
-    const client = ctx?.client;
-    const dir: string = ctx?.location?.directory ?? ctx?.directory ?? process.cwd();
-
-    const warn = (message: string) => {
-      try {
-        if (client?.app?.log) {
-          void client.app.log({
-            body: { service: "pr-watch", level: "warn", message },
-          });
-          return;
-        }
-      } catch {
-        /* fall through to console */
-      }
-      console.warn(`pr-watch: ${message}`);
-    };
-
-    if (typeof Bun === "undefined") {
-      warn("Bun runtime unavailable — watcher disabled");
-      return;
-    }
-    if (!client?.tui?.showToast) {
-      warn("SDK client unavailable — watcher disabled");
-      return;
-    }
-
-    let items: string[] = [];
-    try {
-      items = parseItems(await Bun.file(`${dir}/.opencode/pr-watch.items`).text());
-    } catch {
-      return; // no config → watch nothing (inert by default)
-    }
-    if (items.length === 0) return;
-
-    const script = `${dir}/marketplace/scripts/gh_watch.sh`;
-    if (!(await Bun.file(script).exists())) {
-      warn(`watcher script missing at ${script} — sync the marketplace pin`);
-      return;
-    }
-
-    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
-    const deliver = async (line: string) => {
-      // 1. the visible signal (no session id required)
-      await client.tui
-        .showToast({ body: { message: `PR-watch: ${line}`, variant: "info" } })
-        .catch(() => {});
-      // 2. inject the alert as CONTEXT without starting a turn
-      try {
-        const res = await client.session.list();
-        const sessions = res?.data ?? res ?? [];
-        const id = pickSessionID(sessions, dir);
-        if (!id) return;
-        await client.session
-          .prompt({
-            path: { id },
-            body: { noReply: true, parts: [{ type: "text", text: line }] },
-          })
-          .catch(() => {});
-      } catch {
-        /* session list/prompt unavailable — the toast already fired */
-      }
-    };
-
-    const once = async () => {
-      const proc = Bun.spawn(
-        ["bash", script, "--events", "comment,merged,closed", ...items],
-        { cwd: dir, stdout: "pipe", stderr: "ignore" },
-      );
-      const out = (await new Response(proc.stdout).text()).trim();
-      await proc.exited;
-      const line = lastWakeLine(out);
-      if (line) await deliver(line);
-    };
-
-    // re-arm loop, detached so setup() returns at once
-    void (async () => {
-      for (;;) {
-        try {
-          await once();
-        } catch {
-          /* transient (gh/network) — skip this wake, keep watching */
-        }
-        await sleep(30000);
-      }
-    })();
+    await watch(ctx?.client, ctx?.location?.directory ?? ctx?.directory ?? process.cwd());
+  },
+  // opencode 1.x function form: the input carries `client` + `directory`.
+  async server(input: any) {
+    // The watcher runs as a detached side-effect; the 1.x hook surface has no
+    // equivalent registration to return, so return an empty hook map.
+    void watch(input?.client, input?.directory ?? process.cwd());
+    return {};
   },
 };
+
+async function watch(client: any, dir: string) {
+  const warn = (message: string) => {
+    try {
+      if (client?.app?.log) {
+        void client.app.log({ body: { service: "pr-watch", level: "warn", message } });
+        return;
+      }
+    } catch {
+      /* fall through to console */
+    }
+    console.warn(`pr-watch: ${message}`);
+  };
+
+  if (typeof Bun === "undefined") {
+    warn("Bun runtime unavailable — watcher disabled");
+    return;
+  }
+  if (!client?.tui?.showToast) {
+    warn("SDK client unavailable — watcher disabled");
+    return;
+  }
+
+  let items: string[] = [];
+  try {
+    items = parseItems(await Bun.file(`${dir}/.opencode/pr-watch.items`).text());
+  } catch {
+    return; // no config → watch nothing (inert by default)
+  }
+  if (items.length === 0) return;
+
+  const script = `${dir}/marketplace/scripts/gh_watch.sh`;
+  if (!(await Bun.file(script).exists())) {
+    warn(`watcher script missing at ${script} — sync the marketplace pin`);
+    return;
+  }
+
+  const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+  const deliver = async (line: string) => {
+    // 1. the visible signal (no session id required)
+    await client.tui
+      .showToast({ body: { message: `PR-watch: ${line}`, variant: "info" } })
+      .catch(() => {});
+    // 2. inject the alert as CONTEXT without starting a turn
+    try {
+      const res = await client.session.list();
+      const sessions = res?.data ?? res ?? [];
+      const id = pickSessionID(sessions, dir);
+      if (!id) return;
+      await client.session
+        .prompt({
+          path: { id },
+          body: { noReply: true, parts: [{ type: "text", text: line }] },
+        })
+        .catch(() => {});
+    } catch {
+      /* session list/prompt unavailable — the toast already fired */
+    }
+  };
+
+  const once = async () => {
+    const proc = Bun.spawn(["bash", script, "--events", "comment,merged,closed", ...items], {
+      cwd: dir,
+      stdout: "pipe",
+      stderr: "ignore",
+    });
+    const out = (await new Response(proc.stdout).text()).trim();
+    await proc.exited;
+    const line = lastWakeLine(out);
+    if (line) await deliver(line);
+  };
+
+  // re-arm loop, detached so the plugin's setup/server returns at once
+  void (async () => {
+    for (;;) {
+      try {
+        await once();
+      } catch {
+        /* transient (gh/network) — skip this wake, keep watching */
+      }
+      await sleep(30000);
+    }
+  })();
+}
+
