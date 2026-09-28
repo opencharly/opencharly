@@ -1,0 +1,11 @@
+# pr-watch.items — the PR/issue items the opencode PR watcher (`.opencode/plugins/pr-watch.ts`)
+# watches via the generic `marketplace/scripts/gh_watch.sh`.
+#
+# One item per line: `owner/repo#num`, `owner/repo/pull/num`, `owner/repo/issues/num`,
+# or a full https://github.com/owner/repo/(pull|issues)/num URL.
+# Blank lines and lines starting with `#` are ignored.
+#
+# This shipped file is comment-only, so the watcher is INERT by default.
+# Uncomment (or add) a line below to arm it, then RESTART opencode (plugins load once).
+#
+# acme/widget#12

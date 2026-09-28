@@ -54,22 +54,29 @@ The watcher is the harness-independent `marketplace/scripts/gh_watch.sh` family
 (`pr_watch_many.sh`, `pr_state_watch.sh`) — run one, never hand-roll a `sleep` poll. It
 emits one line per event and exits; re-arm after each wake.
 
-**Delivery is IN-PROCESS via the plugin SDK — never an `opencode run` subprocess** (that
-starts a separate headless run, can race the live session, and interrupts the in-flight
-turn). A plugin under `.opencode/plugins/` is handed the SDK `client` for the running
-server (<https://opencode.ai/docs/plugins/>, <https://opencode.ai/docs/sdk/>). On a wake:
+**Delivery is IN-PROCESS via the SDK — never an `opencode run` subprocess** (that starts a
+separate headless run, can race the live session, and interrupts the in-flight turn). The
+binding is `.opencode/plugins/pr-watch.ts`: it runs the generic watcher with `Bun.spawn`
+and, on a wake, delivers the alert with opencode's own SDK primitives
+(<https://opencode.ai/docs/plugins/>, <https://opencode.ai/docs/sdk/>):
 
     // 1. the visible signal
     await client.tui.showToast({ body: { message, variant: "info" } });
     // 2. inject the alert as CONTEXT without starting a turn (interruption-safe)
     await client.session.prompt({
-      path: { id: sessionID },
+      path: { id: sessionID },   // most recently updated root session in this directory
       body: { noReply: true, parts: [{ type: "text", text: alert }] },
     });
 
-`noReply: true` is the load-bearing primitive (SDK docs: *"Inject context without
+`noReply: true` is what makes delivery interruption-safe (SDK docs: *"Inject context without
 triggering AI response (useful for plugins)"*): the alert joins the session and is handled
 on the next turn, so an in-flight turn is NOT interrupted — an alert is an **addition** to
-the ledger, never a reset (`AGENTS.md` rule 11). Omit `noReply` (or use `promptAsync`) only
-when the wake must start a turn immediately. The plugin runs the generic watcher with Bun's
-`$`. Plugins load once at startup — **restart** to activate.
+the ledger, never a reset (`AGENTS.md` rule 11). The target `sessionID` is resolved from
+`client.session.list()` (the most recently updated root session whose `directory` matches
+this project); if none resolves, the wake is toast-only.
+
+Config: one item per line in `.opencode/pr-watch.items` (`acme/widget#12`; blank lines and
+`#` comments ignored). The shipped file contains only comments, so the plugin is **inert
+until you add an item** — and it needs `marketplace/scripts/gh_watch.sh`, so the
+`marketplace` submodule pin must carry the watcher family. Plugins load once at startup —
+**restart** to activate.

@@ -1,49 +1,126 @@
 /**
- * pr-watch.ts — opencode delivery for the GENERIC, harness-independent PR watcher.
+ * pr-watch.ts — opencode delivery binding for the GENERIC, harness-independent PR watcher.
  *
  * The watcher itself is `marketplace/scripts/gh_watch.sh` (pure shell, no opencode
- * imports). This file is the HARNESS BINDING and uses opencode's OWN SDK primitives —
- * never an `opencode run` subprocess (which starts a separate headless run, can race the
- * live session, and interrupts the in-flight turn):
+ * imports). This file is the HARNESS BINDING: `setup(ctx)` starts a DETACHED re-arm
+ * loop that runs the watcher via `Bun.spawn` and, on each wake, delivers the alert
+ * with opencode's OWN SDK primitives — never an `opencode run` subprocess (which
+ * starts a separate headless run, can race the live session, and interrupts the
+ * in-flight turn):
  *
- *   - `client.tui.showToast(...)`                — the visible signal.
- *   - `client.session.prompt({ noReply: true })` — inject the alert as CONTEXT without
- *     starting a turn (SDK docs: "Inject context without triggering AI response (useful
- *     for plugins)"), so an in-flight turn is NOT interrupted and the alert is handled on
- *     the next turn. Omit `noReply` only when the wake must start a turn immediately.
+ *   1. `client.tui.showToast(...)` — the visible signal.
+ *   2. `client.session.prompt({ noReply: true })` — inject the alert as CONTEXT into
+ *      the target session without starting a turn (SDK docs: "Inject context without
+ *      triggering AI response (useful for plugins)"), so an in-flight turn is NOT
+ *      interrupted and the alert is handled on the next turn.
  *
- * Config: one item per line in `.opencode/pr-watch.items` (blank lines / `#` ignored):
- *     acme/widget#12
+ * The injection target is the most recently updated root session whose `directory`
+ * equals this project directory (`client.session.list()`, excluding child sessions);
+ * if none resolves, the wake is toast-only.
  *
- * opencode loads plugins ONCE at startup — RESTART after editing. `setup(ctx)` starts the
- * re-arm loop DETACHED and returns immediately, so it never blocks startup. Defensive: if
- * the SDK client or the Bun shell is unavailable the plugin logs a warning and no-ops;
- * opencode keeps running.
+ * Config: one item per line in `.opencode/pr-watch.items` (blank lines and `#`
+ * comments ignored), e.g. `acme/widget#12`. Absent or comment-only → the plugin
+ * watches nothing (inert). opencode loads plugins ONCE at startup — RESTART after
+ * editing. `setup()` starts the loop detached and returns immediately.
  *
- * RDD note (load-bearing assumption to VERIFY on the next restart): the opencode V2
- * `setup(ctx)` context exposes `ctx.client` (the live SDK client) and Bun's `$`/`Bun`
- * globals. If that assumption is false the plugin is a visible no-op, not a breakage.
+ * Defensive: if the `Bun` runtime, the SDK client (`client.tui.showToast`), or the
+ * watcher script is unavailable, the plugin logs a warning (`client.app.log`, else
+ * `console.warn`) and no-ops; opencode keeps running.
+ *
+ * RDD note (assumption to confirm on the next restart): the opencode V2 `setup(ctx)`
+ * context exposes `ctx.client` (the live SDK client) and the `Bun` global. If that is
+ * false the plugin warns and no-ops rather than breaking startup.
  */
+
+export function parseItems(text: string): string[] {
+  return text
+    .split("\n")
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0 && !s.startsWith("#"));
+}
+
+export function pickSessionID(sessions: any[], directory: string): string | undefined {
+  const roots = sessions.filter(
+    (s) => s && typeof s.id === "string" && !s.parentID && s.directory === directory,
+  );
+  roots.sort((a, b) => (b?.time?.updated ?? 0) - (a?.time?.updated ?? 0));
+  return roots[0]?.id;
+}
+
+export function lastWakeLine(stdout: string): string | undefined {
+  return stdout
+    .split("\n")
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .pop();
+}
+
 export default {
   id: "pr-watch",
   async setup(ctx: any) {
     const client = ctx?.client;
     const dir: string = ctx?.location?.directory ?? ctx?.directory ?? process.cwd();
-    if (!client?.tui?.showToast) return; // no SDK client → nothing to deliver with
+
+    const warn = (message: string) => {
+      try {
+        if (client?.app?.log) {
+          void client.app.log({
+            body: { service: "pr-watch", level: "warn", message },
+          });
+          return;
+        }
+      } catch {
+        /* fall through to console */
+      }
+      console.warn(`pr-watch: ${message}`);
+    };
+
+    if (typeof Bun === "undefined") {
+      warn("Bun runtime unavailable — watcher disabled");
+      return;
+    }
+    if (!client?.tui?.showToast) {
+      warn("SDK client unavailable — watcher disabled");
+      return;
+    }
 
     let items: string[] = [];
     try {
-      items = (await Bun.file(`${dir}/.opencode/pr-watch.items`).text())
-        .split("\n")
-        .map((s) => s.trim())
-        .filter((s) => s && !s.startsWith("#"));
+      items = parseItems(await Bun.file(`${dir}/.opencode/pr-watch.items`).text());
     } catch {
-      return; // no config → watch nothing
+      return; // no config → watch nothing (inert by default)
     }
     if (items.length === 0) return;
 
     const script = `${dir}/marketplace/scripts/gh_watch.sh`;
+    if (!(await Bun.file(script).exists())) {
+      warn(`watcher script missing at ${script} — sync the marketplace pin`);
+      return;
+    }
+
     const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+    const deliver = async (line: string) => {
+      // 1. the visible signal (no session id required)
+      await client.tui
+        .showToast({ body: { message: `PR-watch: ${line}`, variant: "info" } })
+        .catch(() => {});
+      // 2. inject the alert as CONTEXT without starting a turn
+      try {
+        const res = await client.session.list();
+        const sessions = res?.data ?? res ?? [];
+        const id = pickSessionID(sessions, dir);
+        if (!id) return;
+        await client.session
+          .prompt({
+            path: { id },
+            body: { noReply: true, parts: [{ type: "text", text: line }] },
+          })
+          .catch(() => {});
+      } catch {
+        /* session list/prompt unavailable — the toast already fired */
+      }
+    };
 
     const once = async () => {
       const proc = Bun.spawn(
@@ -52,16 +129,8 @@ export default {
       );
       const out = (await new Response(proc.stdout).text()).trim();
       await proc.exited;
-      const line = out.split("\n").filter(Boolean).pop();
-      if (!line) return;
-      // 1. visible signal (no session id required)
-      await client.tui
-        .showToast({ body: { message: `PR-watch: ${line}`, variant: "info" } })
-        .catch(() => {});
-      // 2. context injection without starting a turn — enable + set the target session id
-      //    when a proactive promptless wake is wanted:
-      // await client.session.prompt({ path: { id: SESSION_ID },
-      //   body: { noReply: true, parts: [{ type: "text", text: line }] } }).catch(() => {});
+      const line = lastWakeLine(out);
+      if (line) await deliver(line);
     };
 
     // re-arm loop, detached so setup() returns at once
