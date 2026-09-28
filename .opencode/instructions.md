@@ -50,24 +50,26 @@ guards the contract (run by `hooks/pre-commit` and `charly task verify`).
 
 ### Watching for PR events (opencode)
 
-The watcher is the harness-independent `marketplace/scripts/gh_watch.sh` (siblings
-`pr_watch_many.sh`, `pr_state_watch.sh`) — run one, never hand-roll a `sleep` poll. It
+The watcher is the harness-independent `marketplace/scripts/gh_watch.sh` family
+(`pr_watch_many.sh`, `pr_state_watch.sh`) — run one, never hand-roll a `sleep` poll. It
 emits one line per event and exits; re-arm after each wake.
 
-opencode has **no background-completion notification** by default (`task` is synchronous
-and `bash` blocks; `OPENCODE_EXPERIMENTAL_BACKGROUND_SUBAGENTS` opts into async tasks) and
-config, plugins, and skills load **once at startup — no hot reload**. The one documented
-push channel is:
+**Delivery is IN-PROCESS via the plugin SDK — never an `opencode run` subprocess** (that
+starts a separate headless run, can race the live session, and interrupts the in-flight
+turn). A plugin under `.opencode/plugins/` is handed the SDK `client` for the running
+server (<https://opencode.ai/docs/plugins/>, <https://opencode.ai/docs/sdk/>). On a wake:
 
-    opencode run --session <ses_…> "<alert>"
+    // 1. the visible signal
+    await client.tui.showToast({ body: { message, variant: "info" } });
+    // 2. inject the alert as CONTEXT without starting a turn (interruption-safe)
+    await client.session.prompt({
+      path: { id: sessionID },
+      body: { noReply: true, parts: [{ type: "text", text: alert }] },
+    });
 
-So bind the generic watcher's notify hook to that command, and keep a durable inbox (the
-watcher's event log) that the agent drains at the start of every turn. Because the push
-injects a message and so starts a NEW turn, it can interrupt in-flight work — exactly why
-the todo rule matters: an alert is an **addition** to the ledger, never a reset
-(`AGENTS.md` rule 11).
-
-The fuller native surface (`client.tui.showToast`, `client.session.promptAsync`, the
-`event` hook — see <https://opencode.ai/docs/plugins/>) is available to a plugin under
-`.opencode/plugins/` (contract above) and can replace the CLI push; it is optional and
-requires a restart.
+`noReply: true` is the load-bearing primitive (SDK docs: *"Inject context without
+triggering AI response (useful for plugins)"*): the alert joins the session and is handled
+on the next turn, so an in-flight turn is NOT interrupted — an alert is an **addition** to
+the ledger, never a reset (`AGENTS.md` rule 11). Omit `noReply` (or use `promptAsync`) only
+when the wake must start a turn immediately. The plugin runs the generic watcher with Bun's
+`$`. Plugins load once at startup — **restart** to activate.
