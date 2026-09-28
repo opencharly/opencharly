@@ -16,7 +16,7 @@
  * every startup logged `failed to load plugin … must default export an object
  * with server()` and the gates were SILENTLY UNENFORCED. This file exports BOTH
  * so it loads and enforces under either generation; the shared `gate()` keeps the
- * logic single-sourced. `scripts/check-opencode-plugin.mjs` accepts either shape.
+ * logic single-sourced. `scripts/check-opencode-plugin.mjs` requires BOTH shapes.
  */
 import { spawn } from "node:child_process";
 import { join } from "node:path";
