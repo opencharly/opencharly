@@ -1,7 +1,7 @@
 # OpenCharly — umbrella
 
 **One clone of the whole org.** `opencharly/opencharly` is an org-level umbrella repo:
-every OpenCharly repo (412 today) is pinned here as a git submodule ("gitlink", in the
+every OpenCharly repo (424 today) is pinned here as a git submodule ("gitlink", in the
 org's vocabulary), flat at the root — submodule path == repo name, except the one
 alias below. `charly` is the product repo and the single source of truth; this
 umbrella is a *view* of the org, not a new home for anything.
@@ -9,6 +9,8 @@ umbrella is a *view* of the org, not a new home for anything.
 ```
 git clone --recurse-submodules https://github.com/opencharly/opencharly.git
 ```
+
+Add `--depth 1` to keep the clone light (~50 MB of working trees).
 
 All submodule URLs are plain HTTPS, so **forks work without extra configuration**:
 every gitlink resolves to its `opencharly/<repo>` upstream over HTTPS, no credentials
@@ -33,11 +35,12 @@ and intentionally not a submodule.
 
 ### Core & contract
 
-5 repos — the product and the contracts it consumes.
+6 repos — the product and the contracts it consumes.
 
 | path | repo | role |
 |---|---|---|
 | `charly/` | [opencharly/charly](https://github.com/opencharly/charly) | The wonky DevOps tool for you and your agents. |
+| `charly-lib/` | [opencharly/charly-lib](https://github.com/opencharly/charly-lib) | The shared multi-call plugin host for charly — ONE binary serving every welded plugin (`opencharly/sdk/charlylib`) |
 | `docs/` | [opencharly/docs](https://github.com/opencharly/docs) | Documentation site for OpenCharly — the wonky DevOps tool, its candies, and its plugins. Published at opencharly.ai. |
 | `marketplace/` | [opencharly/marketplace](https://github.com/opencharly/marketplace) | OpenCharly plugins — Claude Code skills, agents, and workflows for the charly CLI |
 | `sdk/` | [opencharly/sdk](https://github.com/opencharly/sdk) | OpenCharly plugin SDK + contract repo |
@@ -78,10 +81,11 @@ and intentionally not a submodule.
 
 ### Product & tooling
 
-6 repos — streamer product, appliance provisioning, org action, and third-party pins.
+7 repos — streamer product, appliance provisioning, org action, and third-party pins.
 
 | path | repo | role |
 |---|---|---|
+| `action-review/` | [opencharly/action-review](https://github.com/opencharly/action-review) | Charly config for the org AI PR-review gate: dual-runner workflow, env/secret contract, review plan |
 | `charly-jetkvm/` | [opencharly/charly-jetkvm](https://github.com/opencharly/charly-jetkvm) | Provision the appliance-resident `charly` on a JetKVM (armv7) — install the published release binary + welded plugins over ssh and verify it runs project-less |
 | `charly-streamer/` | [opencharly/charly-streamer](https://github.com/opencharly/charly-streamer) | charly-streamer (cstream) — Hyprland desktops streamed to a browser over WebRTC: Rust streamer + leader, Go g… |
 | `dotgithub/` | [opencharly/.github](https://github.com/opencharly/.github) | OpenCharly org-wide community-health defaults (PR template, etc.) — single source inherited by every repo wit… |
@@ -89,6 +93,17 @@ and intentionally not a submodule.
 | `pi-review-action/` | [opencharly/pi-review-action](https://github.com/opencharly/pi-review-action) | Archived — the org PR-review gate now runs the charly engine (opencharly/action-review) |
 | `pixelflux/` | [opencharly/pixelflux](https://github.com/opencharly/pixelflux) | Patched pixelflux wl-screenshot/record library for OpenCharly selkies desktops (migrated from overthinkos) |
 
+
+### pi packages
+
+4 repos — vendored pi agent packages and extensions consumed by the umbrella's `.pi/settings.json`.
+
+| path | repo | role |
+|---|---|---|
+| `pi-asciinema/` | [opencharly/pi-asciinema](https://github.com/opencharly/pi-asciinema) | pi agent extension: `cast_read` — read and analyze asciinema `.cast` recordings from agents |
+| `pi-fabric/` | [opencharly/pi-fabric](https://github.com/opencharly/pi-fabric) | Vendored mirror of monotykamary/pi-fabric (npm 0.70.0) |
+| `pi-lsp/` | [opencharly/pi-lsp](https://github.com/opencharly/pi-lsp) | Vendored mirror of pi-lsp (npm 0.1.7, no upstream repo) |
+| `rpiv-todo/` | [opencharly/rpiv-todo](https://github.com/opencharly/rpiv-todo) | Vendored mirror of juicesharp/rpiv-mono packages/rpiv-todo (npm 2.8.0) |
 
 ### Charly candy layers
 
@@ -176,7 +191,7 @@ and intentionally not a submodule.
 
 ### Other layers
 
-142 repos.
+144 repos.
 
 | path | repo | role |
 |---|---|---|
@@ -245,6 +260,8 @@ and intentionally not a submodule.
 | `layer-kimi/` | [opencharly/layer-kimi](https://github.com/opencharly/layer-kimi) | image layer / candy |
 | `layer-kind/` | [opencharly/layer-kind](https://github.com/opencharly/layer-kind) | image layer / candy |
 | `layer-kubernetes/` | [opencharly/layer-kubernetes](https://github.com/opencharly/layer-kubernetes) | image layer / candy |
+| `layer-kubevirt/` | [opencharly/layer-kubevirt](https://github.com/opencharly/layer-kubevirt) | virtctl CLI (the KubeVirt client) at a stable path — installs the pinned virtctl release binary for driving a KubeVirt cluster. |
+| `layer-kubevirt-operator/` | [opencharly/layer-kubevirt-operator](https://github.com/opencharly/layer-kubevirt-operator) | KubeVirt + CDI platform install: applies the pinned KubeVirt operator + CR and the CDI operator + CR to a Kubernetes cluster, then waits for the CRs Available. |
 | `layer-language-runtimes/` | [opencharly/layer-language-runtimes](https://github.com/opencharly/layer-language-runtimes) | image layer / candy |
 | `layer-libnotify/` | [opencharly/layer-libnotify](https://github.com/opencharly/layer-libnotify) | image layer / candy |
 | `layer-llama-cpp/` | [opencharly/layer-llama-cpp](https://github.com/opencharly/layer-llama-cpp) | image layer / candy |
@@ -326,7 +343,7 @@ and intentionally not a submodule.
 
 ### Plugins
 
-113 repos — charly plug-ins (verb/substrate providers).
+117 repos — charly plug-ins (verb/substrate providers).
 
 | path | repo | role |
 |---|---|---|
@@ -388,6 +405,7 @@ and intentionally not a submodule.
 | `plugin-feature/` | [opencharly/plugin-feature](https://github.com/opencharly/plugin-feature) | charly plugin |
 | `plugin-file/` | [opencharly/plugin-file](https://github.com/opencharly/plugin-file) | charly plugin |
 | `plugin-fleet/` | [opencharly/plugin-fleet](https://github.com/opencharly/plugin-fleet) | charly plugin |
+| `plugin-gh/` | [opencharly/plugin-gh](https://github.com/opencharly/plugin-gh) | The canonical GitHub surface for opencharly plugins — verb:gh + command:gh + the ghkit client (one gh implementation, zero hand-rolled subprocesses) |
 | `plugin-gpu/` | [opencharly/plugin-gpu](https://github.com/opencharly/plugin-gpu) | charly plugin |
 | `plugin-harness-kind/` | [opencharly/plugin-harness-kind](https://github.com/opencharly/plugin-harness-kind) | charly plugin |
 | `plugin-helm/` | [opencharly/plugin-helm](https://github.com/opencharly/plugin-helm) | charly plugin |
@@ -400,6 +418,7 @@ and intentionally not a submodule.
 | `plugin-k8sgen/` | [opencharly/plugin-k8sgen](https://github.com/opencharly/plugin-k8sgen) | charly plugin |
 | `plugin-kernel-param/` | [opencharly/plugin-kernel-param](https://github.com/opencharly/plugin-kernel-param) | charly plugin |
 | `plugin-kube/` | [opencharly/plugin-kube](https://github.com/opencharly/plugin-kube) | charly plugin |
+| `plugin-kubevirt/` | [opencharly/plugin-kubevirt](https://github.com/opencharly/plugin-kubevirt) | OUT-OF-TREE charly plugin owning ALL KubeVirt interaction: the kind:kubevirt substrate, the deploy:kubevirt venue lifecycle, the kubevirt: check verb, and the charly kubevirt CLI. |
 | `plugin-loader/` | [opencharly/plugin-loader](https://github.com/opencharly/plugin-loader) | charly plugin |
 | `plugin-marketplace/` | [opencharly/plugin-marketplace](https://github.com/opencharly/plugin-marketplace) | charly plugin |
 | `plugin-matching/` | [opencharly/plugin-matching](https://github.com/opencharly/plugin-matching) | charly plugin |
@@ -434,12 +453,14 @@ and intentionally not a submodule.
 | `plugin-ssh/` | [opencharly/plugin-ssh](https://github.com/opencharly/plugin-ssh) | charly plugin |
 | `plugin-status/` | [opencharly/plugin-status](https://github.com/opencharly/plugin-status) | charly plugin |
 | `plugin-substrate/` | [opencharly/plugin-substrate](https://github.com/opencharly/plugin-substrate) | charly plugin |
+| `plugin-task/` | [opencharly/plugin-task](https://github.com/opencharly/plugin-task) | Generic declarative task runner for charly — kind:task entities + command:task + verb:task |
 | `plugin-tmux/` | [opencharly/plugin-tmux](https://github.com/opencharly/plugin-tmux) | charly plugin |
 | `plugin-tunnel/` | [opencharly/plugin-tunnel](https://github.com/opencharly/plugin-tunnel) | charly plugin |
 | `plugin-udev/` | [opencharly/plugin-udev](https://github.com/opencharly/plugin-udev) | charly plugin |
 | `plugin-unit/` | [opencharly/plugin-unit](https://github.com/opencharly/plugin-unit) | charly plugin serving the unit: act/assert verb — declarative init-unit authoring (.socket/.target/.slice/dro… |
 | `plugin-unix-group/` | [opencharly/plugin-unix-group](https://github.com/opencharly/plugin-unix-group) | charly plugin |
 | `plugin-user/` | [opencharly/plugin-user](https://github.com/opencharly/plugin-user) | charly plugin |
+| `plugin-vision/` | [opencharly/plugin-vision](https://github.com/opencharly/plugin-vision) | The `vision:` check verb — validate a screenshot by sending it directly to an OpenAI-compatible vision endpoint from charly |
 | `plugin-vm/` | [opencharly/plugin-vm](https://github.com/opencharly/plugin-vm) | charly plugin |
 | `plugin-vnc/` | [opencharly/plugin-vnc](https://github.com/opencharly/plugin-vnc) | charly plugin |
 | `plugin-wl/` | [opencharly/plugin-wl](https://github.com/opencharly/plugin-wl) | charly plugin |
@@ -540,84 +561,18 @@ and intentionally not a submodule.
 
 ## Pinning — the umbrella tracks charly's graph
 
-Every submodule is pinned to a specific commit (a gitlink). The policy (`policy B`):
+Every submodule is pinned to a specific commit (a gitlink), and `policy B` keeps the
+whole org a single coherent snapshot:
 
-1. `charly` → its own default-branch HEAD (`main`).
-2. `distro-*` → **exactly the commits charly's own
-   gitlinks pin** (charly's `box/<distro>` maps to `distro-<distro>` here). The umbrella
-   therefore means *"the org exactly as charly sees it"* — one coherent snapshot.
-3. Every other repo (the `sdk`, `spec`, `marketplace`, `docs`, `charly-*`, `pkg-*`,
-   `layer-*`, `plugin-*`, `pod-*`, `vm-*` families, `pi-review-action`, `pixelflux`,
-   `gst-wayland-display`, `dotgithub`, …) → its own default-branch HEAD
-   (`av1` for `pixelflux`, `stable` for `gst-wayland-display`). (`sdk`, `spec` and
-   `docs` are no longer charly-pinned — `sdk` and `spec` resolve from the Go proxy at
-   pinned go.mod requires since the de-submodule cutovers (spec: charly#371; sdk:
-   mirroring it), and `docs` pins charly in ITS .gitmodules since the docs
-   de-submodule cutover, so they follow the every-other-repo rule.)
+- `charly` follows its own default-branch HEAD.
+- every `distro-*` follows **exactly the commit charly's own gitlinks pin** (charly's
+  `box/<distro>` ↔ this repo's `distro-<distro>`), so the umbrella means *"the org
+  exactly as charly sees it"*.
+- every other repo follows its own default-branch HEAD.
 
-`.gitmodules` carries `branch = <repo default>` on every entry; nothing ever assumes
-`main` — defaults are resolved via `git ls-remote --symref`, so a future default-branch
-rename keeps working.
-
-The daily `sync` workflow runs `./charly/bin/charly task sync`, opens a `chore: sync
-gitlinks` PR when anything moved, and the org-wide validation chain lands it:
-`charly/pr-validator` runs the charly review engine (`opencharly/action-review`) and
-enables native auto-merge on PASS; `tag-on-merge` tags the merged snapshot —
-same discipline as charly. There is no CI gate: an audit found the verify
-workflow's assertions were either created by `actions/checkout` itself or already
-enforced by their consumer, so it was deleted. The assertions a commit can actually
-violate — policy B, the pi-extension parse, harness parity — run in `hooks/pre-commit`
-(`./charly/bin/charly task hooks` to install); the full pinning audit stays available as
-`./charly/bin/charly task verify`.
-
-## House rules
-
-- **Never edit inside a submodule.** Changes land via PR to the owning repo; this repo
-  only bumps gitlinks.
-- **Git ops on submodules go through `git -C <path>`** — never root a worker in a
-  submodule.
-- **No `go.work` at the umbrella root.** `charly/` has its own workspace spanning
-  the charly module + the compiled plugin candies (the sdk + spec contract modules
-  resolve from the Go proxy at pinned go.mod requires — no workspace members); Go
-  forbids nested workspace files. All Go work happens inside
-  `charly/`.
-- **Pin only merged refs** — never a PR branch. `verify` fails on dangling pins.
-- Read each subrepo's own `README.md` / `AGENTS.md` before editing inside it.
-
-## AI & harness parity
-
-This repo runs the same agent harness config and discipline as `charly/` — pi
-(`.pi/`, same packages), Claude Code (`.claude/`), opencode
-(`opencode.json`), reasonix (`reasonix.toml`), and skills (the marketplace repo —
-each harness loads it natively). See `HARNESS-PARITY.md` for the full map.
-`AGENTS.md`/`CLAUDE.md` own the umbrella rulebook; `charly/AGENTS.md` owns charly's.
-Shared-by-design harness files are diff-checked by `./charly/bin/charly task harness`.
-
-## Helpers
-
-The umbrella's maintenance is the `charly task` surface, served by the `charly/`
-submodule's binary. Build it once per clone with
-`./charly/scripts/bootstrap-charly.sh` (the ONE non-charly entrypoint), then:
-
-```
-./charly/bin/charly task map           # list every submodule with its pin and sync state
-./charly/bin/charly task sync          # bump pins per policy B (preview; does not commit)
-./charly/bin/charly task hooks         # install hooks/pre-commit for this clone (once)
-./charly/bin/charly task verify        # the full pinning audit, on demand
-./charly/bin/charly task harness       # harness config parity vs charly/
-./charly/bin/charly task org-map       # verify the README org-map tables vs .gitmodules
-./charly/bin/charly task omarchy-agents # gate the committed omarchy pi agents
-./charly/bin/charly task pi-forks      # sync the pi-plugin forks from their upstreams
-./charly/bin/charly task skills        # splice the generated R0 dispatcher into AGENTS.md
-```
-
-`./charly/bin/charly task list` enumerates them.
-
-`--depth 1` keeps the clone light (~50 MB of working trees):
-
-```
-git clone --recurse-submodules --depth 1 https://github.com/opencharly/opencharly.git
-```
+`.gitmodules` records `branch = <repo default>` on every entry, so a future
+default-branch rename keeps working. A daily `sync` workflow advances the pins and
+lands them through the org's PR-only validation chain.
 
 ## License
 
