@@ -58,37 +58,90 @@ export is the portable form, not a host workaround. `scripts/check-opencode-plug
 requires BOTH entry points and, with `LIVE_OPENCODE=1`, drives the real binary end
 to end.
 
+### V2 custom tools (measured against v2.0.18)
+
+A V2 `setup(ctx)` registers a custom tool through `ctx.tool.transform`:
+
+    await ctx.tool.transform((draft) => {
+      draft.add({
+        name: "my_tool",
+        description: "…",
+        input: { type: "object", properties: { … }, required: ["…"] }, // JSON Schema
+        execute: async (args, toolCtx) => ({ content: "…" }),           // { content } REQUIRED
+      });
+    });
+
+Measured (2026-09-28, live against v2.0.18): `tool.transform(cb)` invokes `cb` with a
+draft exposing `list/get/namespace/add/update/remove`; the tool `input` is a plain
+JSON Schema; the `execute` result MUST be `{ content: string }` — a bare string and
+`{ output }` both FAIL at runtime (`s is not an Object. (evaluating '"output" in s')`).
+The `setup(ctx)` context is FAR richer than the published `@opencode-ai/plugin/v2`
+types: besides `tool`, `options`, `location`, `agent`, `command`, `event`, `skill`,
+`reference`, `aisdk`, `integration` it also carries `session`, `shell`, `vcs`,
+`worktree`, `permission`, `provider`, `model`, `mcp`, `storage`, `rpc`, `websearch`,
+`generate`, `app`, `experimental`. `ctx.location.directory` is the project root;
+`ctx.session.prompt({…})` is the canonical prompt call. Type-only imports
+(`import type { Plugin } from "@opencode-ai/plugin/v2/promise"`) are erased at
+runtime, so a local plugin needs NO `node_modules` to load; the declared
+`@opencode-ai/plugin` version must nonetheless be one that ships the `./v2/promise`
+export (**1.18.33** is the current such release — `1.18.32` has it too, but the pin
+tracks the newest).
+
+### Coordination tools (`.opencode/plugins/coord.ts`)
+
+`coord.ts` registers two V2 custom tools binding the GENERIC shell scripts, so a
+session posts the canonical coordination comment and waits on GitHub without
+hand-writing the footer:
+
+- **`coord_comment`** — backed by `marketplace/scripts/coord.sh` (the ONE
+  implementation of the verb grammar). Posts ONE verb-labelled comment
+  (`CLAIM`/`OWNING`/`HANDING OVER`/`TAKING OVER`/`BLOCKS`/`UNBLOCKS`/`STATUS`/`RESOLVED`)
+  carrying the canonical TWO-LINE footer (`Agent:` FIRST, `Assisted-by:` LAST), and
+  can `--assign` the posting account (a CLAIM).
+- **`coord_watch`** — backed by `marketplace/scripts/gh_watch.sh`; a bounded,
+  session-invoked one-shot wait (`events`/`timeout`/`stallmin`), returning the wake
+  line. The BACKGROUND continuous watch stays `pr-watch.ts`'s job.
+
+Identity (`agent`/`harness`/`model`/`confidence`) defaults from
+`.opencode/coord.conf` (git-ignored; copy `.opencode/coord.conf.example`) then
+`COORD_*` env; the `session` is always the live `toolCtx.sessionID`, so a stale
+config can never mislabel who is speaking. `scripts/check-opencode-coord.mjs` covers
+the plugin A/B/C layers, the live C layer driving the REAL binary to post a real
+comment through the REAL `coord.sh`.
+
 ### Watching for PR events (opencode)
 
 The watcher is the harness-independent `marketplace/scripts/gh_watch.sh` family
 (`pr_watch_many.sh`, `pr_state_watch.sh`) — run one, never hand-roll a `sleep` poll. It
 emits one line per event and exits; re-arm after each wake.
 
-**Delivery is IN-PROCESS via the SDK — never an `opencode run` subprocess** (that starts a
-separate headless run, can race the live session, and interrupts the in-flight turn). The
-binding is `.opencode/plugins/pr-watch.ts`: it runs the generic watcher with `Bun.spawn`
-and, on a wake, delivers the alert with opencode's own SDK primitives
-(<https://opencode.ai/docs/plugins/>, <https://opencode.ai/docs/sdk/>):
+The PR-event binding is `.opencode/plugins/pr-watch.ts`. The watcher itself is the
+generic `marketplace/scripts/gh_watch.sh` (run via `Bun.spawn`); delivery is
+IN-PROCESS — never an `opencode run` subprocess (that starts a separate headless run,
+can race the live session, and interrupts the in-flight turn).
 
-    // 1. the visible signal
-    await client.tui.showToast({ body: { message, variant: "info" } });
-    // 2. inject the alert as CONTEXT without starting a turn (interruption-safe)
-    await client.session.prompt({
-      path: { id: sessionID },   // most recently updated root session in this directory
-      body: { noReply: true, parts: [{ type: "text", text: alert }] },
-    });
+**V2 delivery (opencode ≥ 2.0, MEASURED against v2.0.18).** The `setup(ctx)` context
+carries NO `client` (only 1.x's `server(input)` does). The V2 "inject context without
+starting a turn" primitive is the Session domain:
 
-`noReply: true` is what makes delivery interruption-safe (SDK docs: *"Inject context without
-triggering AI response (useful for plugins)"*): the alert joins the session and is handled
-on the next turn, so an in-flight turn is NOT interrupted — an alert is an **addition** to
-the ledger, never a reset (`AGENTS.md` rule 11). The target `sessionID` is resolved from
-`client.session.list()` (the most recently updated root session whose `directory` matches
-this project); if none resolves, the wake is toast-only.
+    await ctx.session.synthetic({ sessionID, text: alert });
 
-Config: one item per line in `.opencode/pr-watch.items` (`acme/widget#12`; blank lines and
-`#` comments ignored). The shipped file contains only comments, so the plugin is **inert
-until you add an item** — and it needs `marketplace/scripts/gh_watch.sh`, so the
+`session.synthetic` enqueues a synthetic message whose default `delivery` is `steer`,
+so the alert is ADDED to the running session rather than starting a new turn (the same
+interruption-safe intent as 1.x's `noReply: true`). The session id is unknown at setup
+and `session.list` does not exist on V2, so it is CAPTURED from the first tool call
+(`ctx.tool.hook("execute.before", e => e.sessionID)`) or the first prompt
+(`ctx.session.hook("prompt", e => e.sessionID)`); if no id is captured before a wake,
+the wake is a logged warning, never a silent drop.
+
+**V1 delivery (opencode 1.x).** The documented SDK-client shape —
+`client.tui.showToast(...)` plus `client.session.prompt({ path: { id }, body: { noReply:
+true, parts: […] } })`, the target resolved from `client.session.list()` (the most
+recently updated root session in this directory).
+
+Config: one item per line in `.opencode/pr-watch.items` (`acme/widget#12`; blank lines
+and `#` comments ignored). The shipped file contains only comments, so the plugin is
+**inert until you add an item** — and it needs `marketplace/scripts/gh_watch.sh`, so the
 `marketplace` submodule pin must carry the watcher family. Plugins load once at startup —
-**restart** to activate. The binding is **unproven against opencode's Bun runtime** (it
-landed without a live opencode target); treat it as experimental and inert, and it warns
-and no-ops if the context or runtime differs.
+**restart** to activate. `scripts/check-pr-watch.mjs` asserts both delivery primitives
+are present as CODE (comments stripped), so a commented-out or absent call fails the gate.
