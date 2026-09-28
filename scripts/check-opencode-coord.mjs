@@ -53,7 +53,11 @@ const pluginPath = resolve(root, arg("--plugin", ".opencode/plugins/coord.ts"));
 const coordSh = (() => {
   const explicit = arg("--coord-sh");
   if (explicit) return resolve(root, explicit);
-  for (const c of ["marketplace/scripts/coord.sh", "scripts/coord.sh"]) {
+  for (const c of [
+    "marketplace/scripts/coord.sh",
+    "../marketplace/scripts/coord.sh",
+    "scripts/coord.sh",
+  ]) {
     if (existsSync(join(root, c))) return join(root, c);
   }
   return join(root, "marketplace/scripts/coord.sh");
@@ -143,10 +147,37 @@ if (mod) {
   ok(VERBS.includes("HANDING OVER") && VERBS.includes("TAKING OVER"), "VERBS carries the spaced multi-word labels");
   ok(TIERS.length === 5, "TIERS carries the five documented attribution tiers");
 
-  // The script location is overridable (a repo without a marketplace submodule
-  // points COORD_SH/GH_WATCH_SH at the scripts instead of forking them — R3).
+  // The script location is overridable + repo-relative-searchable (a repo without
+  // a marketplace submodule — e.g. dotgithub in the session worktree layout — finds
+  // `../marketplace/scripts/…` instead of forking it — R3).
   const src = readFileSync(pluginPath, "utf8");
   ok(/COORD_SH/.test(src) && /GH_WATCH_SH/.test(src), "the plugin resolves its scripts via COORD_SH/GH_WATCH_SH overrides");
+  ok(typeof mod.resolveScript === "function", "resolveScript is exported (script resolution is unit-testable)");
+  if (typeof mod.resolveScript === "function") {
+    const { resolveScript } = mod;
+    const d = mkdtempSync(join(tmpdir(), "coord-resolve."));
+    try {
+      mkdirSync(join(d, "marketplace", "scripts"), { recursive: true });
+      writeFileSync(join(d, "marketplace", "scripts", "coord.sh"), "#!/bin/sh\n");
+      eq(
+        resolveScript(d, undefined, ["marketplace/scripts/coord.sh", "../marketplace/scripts/coord.sh"]),
+        join(d, "marketplace", "scripts", "coord.sh"),
+        "resolveScript finds the repo-relative marketplace script",
+      );
+      eq(
+        resolveScript("/elsewhere", "/abs/coord.sh", ["marketplace/scripts/coord.sh"]),
+        "/abs/coord.sh",
+        "resolveScript prefers the explicit env override",
+      );
+      eq(
+        resolveScript("/elsewhere", undefined, ["marketplace/scripts/coord.sh"]),
+        "/elsewhere/marketplace/scripts/coord.sh",
+        "resolveScript returns the first candidate when none exists (so the caller reports it missing)",
+      );
+    } finally {
+      rmSync(d, { recursive: true, force: true });
+    }
+  }
 }
 
 // --- Layer C: the REAL opencode binary, end to end (opt-in) -----------------

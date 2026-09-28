@@ -91,6 +91,27 @@ export function parseConf(text: string): Record<string, string> {
   return out;
 }
 
+/**
+ * Resolve a script this plugin binds. Order: an explicit env override, then each
+ * repo-relative candidate that EXISTS, else the first candidate (the caller then
+ * reports it missing). The `../marketplace/...` candidate covers the session
+ * worktree layout (`<umbrella>/.worktrees/<slug>/<repo>` — a repo without its own
+ * marketplace submodule, e.g. dotgithub, still finds the sibling marketplace
+ * worktree) with NO forked copy (R3).
+ */
+export function resolveScript(
+  dir: string,
+  envVal: string | undefined,
+  rels: string[],
+): string {
+  if (envVal) return envVal;
+  for (const rel of rels) {
+    const p = join(dir, rel);
+    if (existsSync(p)) return p;
+  }
+  return join(dir, rels[0]);
+}
+
 export function isTier(value: unknown): value is string {
   return typeof value === "string" && TIERS.includes(value);
 }
@@ -156,8 +177,14 @@ export default {
     } catch {
       /* no config → env/args only */
     }
-    const commentScript = process.env.COORD_SH || join(dir, "marketplace", "scripts", "coord.sh");
-    const watchScript = process.env.GH_WATCH_SH || join(dir, "marketplace", "scripts", "gh_watch.sh");
+    const commentScript = resolveScript(dir, process.env.COORD_SH, [
+      "marketplace/scripts/coord.sh",
+      "../marketplace/scripts/coord.sh",
+    ]);
+    const watchScript = resolveScript(dir, process.env.GH_WATCH_SH, [
+      "marketplace/scripts/gh_watch.sh",
+      "../marketplace/scripts/gh_watch.sh",
+    ]);
 
     await ctx.tool.transform((draft: any) => {
       draft.add({
