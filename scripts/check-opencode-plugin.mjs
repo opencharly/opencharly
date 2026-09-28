@@ -8,13 +8,13 @@
 //
 // Layers:
 //   A (always)  — the plugin is a real ES module whose default export is a
-//                 definition object with a string `id` AND at least one of the
-//                 two loader entry points: `setup` (opencode >= 2.0) or `server`
-//                 (opencode 1.x). A definition with NEITHER is rejected by every
-//                 installed generation (`must default export an object with
-//                 server()`), and a bare function is the V1 form. This is the
-//                 regression the gate exists for — a plugin that silently loads as
-//                 a no-op on the generation it was not written for.
+//                 definition object with a string `id` AND BOTH loader entry
+//                 points: `setup` (opencode >= 2.0) AND `server` (opencode 1.x).
+//                 Requiring only one is the regression this gate exists for — a
+//                 plugin that loads on one generation and is SILENTLY UNENFORCED
+//                 on the other (measured: a `setup`-only definition was rejected
+//                 by 1.18.33 with `must default export an object with server()`,
+//                 so the gates never ran).
 //   B (always)  — the REAL gate scripts, invoked with the same stdin payload the
 //                 plugin sends, BLOCK a hook-bypassing commit (exit 2) and ALLOW
 //                 a benign one (exit 0).
@@ -110,13 +110,14 @@ for (const pluginPath of plugins) {
     plugin !== null && typeof plugin === "object" && !Array.isArray(plugin),
     "default export is a definition object (V2), not a V1 function",
   );
-  // A definition must carry the loader entry point for its generation: `setup`
-  // (opencode >= 2.0) or `server` (opencode 1.x). NEITHER loads on any binary.
+  // The dual contract is REQUIRED: `setup` for opencode >= 2.0 AND `server` for
+  // 1.x. Requiring only one re-opens the exact regression this gate exists for —
+  // a plugin that loads on one generation and is SILENTLY UNENFORCED on the other.
   const hasSetup = typeof plugin?.setup === "function";
   const hasServer = typeof plugin?.server === "function";
   ok(
-    hasSetup || hasServer,
-    `definition exposes setup() (>=2.0) or server() (1.x) [setup=${hasSetup} server=${hasServer}]`,
+    hasSetup && hasServer,
+    `definition exposes BOTH setup() (>=2.0) and server() (1.x) [setup=${hasSetup} server=${hasServer}]`,
   );
   ok(
     typeof plugin?.id === "string" && plugin.id.length > 0,

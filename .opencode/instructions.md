@@ -49,12 +49,14 @@ opencode has TWO plugin shapes, and the loader picks by the default export:
   The bare function form (`async (input) => ({...})`) does not load on ≥ 2.0.
 
 A plugin MUST export **both** `setup` and `server` (sharing ONE implementation) so
-it loads and enforces under either generation. This host's installed binary is
-**1.18.33**, so a `setup`-only plugin is SILENTLY UNENFORCED — measured
-(2026-09-28, R1): the gate logged
+it loads and enforces under EITHER generation. Measured (2026-09-28, R1): a
+`setup`-only plugin was REJECTED by the then-installed **1.18.33** with
 `failed to load plugin … must default export an object with server()` on every
-startup and blocked nothing. `scripts/check-opencode-plugin.mjs` accepts either
-shape and, with `LIVE_OPENCODE=1`, drives the real binary end to end.
+startup, and the gates blocked nothing — the regression this rule prevents. The
+host has since been upgraded to **v2.0.18** (which loads `setup`), so the dual
+export is the portable form, not a host workaround. `scripts/check-opencode-plugin.mjs`
+requires BOTH entry points and, with `LIVE_OPENCODE=1`, drives the real binary end
+to end.
 
 ### Watching for PR events (opencode)
 
