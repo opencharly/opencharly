@@ -192,6 +192,9 @@ verify:
       - check: the opencode gate plugin contract (the check-opencode-plugin gate the former verify-pins.sh ran)
         command: node scripts/check-opencode-plugin.mjs
         context: [runtime]
+      - check: the PR-watch plugin's pure logic + its shipped (uncommented) SDK delivery primitives
+        command: node scripts/check-pr-watch.mjs
+        context: [runtime]
 
 # -----------------------------------------------------------------------------
 # harness — harness config parity with charly/ (shared files identical).
