@@ -40,6 +40,7 @@
  * unavailable, the plugin logs a warning and no-ops; opencode keeps running.
  */
 import { wakeLine } from "../lib/wake-line.ts";
+import { resolveScript } from "./coord.ts";
 
 // The ONE shared "last non-empty stdout line" helper (R3) — the same module
 // `coord.ts` imports. Re-exported under the historical name this plugin's own
@@ -97,7 +98,13 @@ async function loop(dir: string, deliver: (line: string) => Promise<void>) {
   }
   if (items.length === 0) return;
 
-  const script = `${dir}/marketplace/scripts/gh_watch.sh`;
+  // The watcher script is resolved exactly like coord.ts resolves its scripts
+  // (env override → <dir>/marketplace/scripts → <dir>/../marketplace/scripts), so a
+  // repo without a marketplace submodule still finds the sibling worktree's copy.
+  const script = resolveScript(dir, process.env.GH_WATCH_SH, [
+    "marketplace/scripts/gh_watch.sh",
+    "../marketplace/scripts/gh_watch.sh",
+  ]);
   if (!(await Bun.file(script).exists())) {
     warn(`watcher script missing at ${script} — sync the marketplace pin`);
     return;

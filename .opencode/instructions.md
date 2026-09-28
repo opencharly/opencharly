@@ -84,8 +84,8 @@ types: besides `tool`, `options`, `location`, `agent`, `command`, `event`, `skil
 (`import type { Plugin } from "@opencode-ai/plugin/v2/promise"`) are erased at
 runtime, so a local plugin needs NO `node_modules` to load; the declared
 `@opencode-ai/plugin` version must nonetheless be one that ships the `./v2/promise`
-export (**1.18.33** is the current such release — `1.18.32` has it too, but the pin
-tracks the newest).
+export. **Both 1.18.32 and 1.18.33 ship it** (verified against their published
+packages); the pin tracks **1.18.33**, the newest release on the `latest` tag.
 
 ### Coordination tools (`.opencode/plugins/coord.ts`)
 
