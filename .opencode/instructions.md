@@ -40,13 +40,23 @@ uses). Never proceed without loading the procedure — R0 is mandatory.
 
 ### opencode plugin contract
 
-The plugin follows the opencode **V2** contract: a default export
-`{ id, setup(ctx) }`, with the gate hook registered inside `setup` via
-`ctx.tool.hook("execute.before", …)`. V1's default-exported function returning a
-keyed hook map does **not** load under opencode ≥ 2.0 — the loader logs a WARN and
-keeps starting, so the gates silently stop running. The V2 shell tool is named
-`shell` (V1's `bash`), which the hook matches. `scripts/check-opencode-plugin.mjs`
-guards the contract (run by `hooks/pre-commit` and `charly task verify`).
+opencode has TWO plugin shapes, and the loader picks by the default export:
+- **opencode ≥ 2.0** — `{ id, setup(ctx) }`, registering hooks via
+  `ctx.tool.hook("execute.before", …)`; the shell tool is named `shell`.
+- **opencode 1.x** — `{ id, server(input) }`, returning a hooks object keyed by
+  `"tool.execute.before"`; the shell tool is named `bash`. A definition WITHOUT
+  `server` is REJECTED at startup: `must default export an object with server()`.
+  The bare function form (`async (input) => ({...})`) does not load on ≥ 2.0.
+
+A plugin MUST export **both** `setup` and `server` (sharing ONE implementation) so
+it loads and enforces under EITHER generation. Measured (2026-09-28, R1): a
+`setup`-only plugin was REJECTED by the then-installed **1.18.33** with
+`failed to load plugin … must default export an object with server()` on every
+startup, and the gates blocked nothing — the regression this rule prevents. The
+host has since been upgraded to **v2.0.18** (which loads `setup`), so the dual
+export is the portable form, not a host workaround. `scripts/check-opencode-plugin.mjs`
+requires BOTH entry points and, with `LIVE_OPENCODE=1`, drives the real binary end
+to end.
 
 ### Watching for PR events (opencode)
 
