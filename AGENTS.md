@@ -52,10 +52,9 @@ someone else's repo.
    harness additionally carries its own deliberately-forked settings and workflows that
    adapt the umbrella's reality, and the umbrella carries its own clone-level git hook
    (installed per clone by `./charly/bin/charly task hooks`). Which concrete files make
-   up the shared core, the forks, and the clone-level hook — and how each harness's
-   adapter is wired — is owned by the harness-specific skill
-   (`/charly-internals:agents`) and by the per-harness config itself; harness names and
-   file locations never appear in this file's policy prose.
+   up the shared core, the forks, and the hook live in the per-harness config itself;
+   harness names and file locations never appear in this file's policy prose. The
+   harness-specific skill (`/charly-internals:agents`) documents the mechanism.
 
    The gate scripts guard mechanics only; policy is judged by the `pr-validator` at merge.
 9. **Session-scoped ownership — never touch another session's files.** The
