@@ -47,5 +47,6 @@ echo "pre-commit: running the umbrella gate…"
 "$CHARLY" task harness
 "$CHARLY" task self-test
 node "$ROOT/scripts/check-opencode-plugin.mjs"
+node "$ROOT/scripts/check-pr-watch.mjs"
 
 echo "pre-commit: OK"
