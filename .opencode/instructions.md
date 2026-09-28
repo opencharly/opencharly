@@ -105,9 +105,21 @@ hand-writing the footer:
 Identity (`agent`/`harness`/`model`/`confidence`) defaults from
 `.opencode/coord.conf` (git-ignored; copy `.opencode/coord.conf.example`) then
 `COORD_*` env; the `session` is always the live `toolCtx.sessionID`, so a stale
-config can never mislabel who is speaking. `scripts/check-opencode-coord.mjs` covers
-the plugin A/B/C layers, the live C layer driving the REAL binary to post a real
-comment through the REAL `coord.sh`.
+config can never mislabel who is speaking.
+
+**Execution is ASYNC + ABORTABLE (R1 fix, measured 2026-09-28).** Both executors
+spawn their script with `Bun.spawn` and pass the tool executor's
+`context.signal` to the child — NEVER a synchronous spawn helper. `coord_watch` runs
+the LONG-LIVED watcher, so a blocking spawn froze opencode's server event loop for
+the whole watch and the supervisor restarted it (measured: a `timeout: 3` call ran
+the full 20s stub and ignored the deadline; the server log showed a reload). The
+async form keeps the server responsive, an interrupted Session ABORTS the child, and
+`coord_watch`'s `timeout` is also enforced tool-side as a deadline backstop.
+`scripts/check-opencode-coord.mjs` asserts statically that `coord.ts` contains no
+synchronous spawn helper and references `signal`, and — live — that a `timeout: 2`
+`coord_watch` returns without the server reloading. The plugin A/B/B2/C layers run
+against the REAL binary, the live C layer posting a real comment through the REAL
+`coord.sh`.
 
 ### Watching for PR events (opencode)
 
