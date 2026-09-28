@@ -7,11 +7,14 @@
 // opencode actually does, and cannot see a real integration break.
 //
 // Layers:
-//   A (always)  — the plugin is a real ES module whose default export is a V2
-//                 definition: a plain object with a string `id` and a `setup`
-//                 function. That is the shape opencode >= 2.0 loads; the V1
-//                 default-exported function fails it (the regression this gate
-//                 exists for — it loads as a WARN-only no-op under 2.0).
+//   A (always)  — the plugin is a real ES module whose default export is a
+//                 definition object with a string `id` AND at least one of the
+//                 two loader entry points: `setup` (opencode >= 2.0) or `server`
+//                 (opencode 1.x). A definition with NEITHER is rejected by every
+//                 installed generation (`must default export an object with
+//                 server()`), and a bare function is the V1 form. This is the
+//                 regression the gate exists for — a plugin that silently loads as
+//                 a no-op on the generation it was not written for.
 //   B (always)  — the REAL gate scripts, invoked with the same stdin payload the
 //                 plugin sends, BLOCK a hook-bypassing commit (exit 2) and ALLOW
 //                 a benign one (exit 0).
@@ -107,7 +110,14 @@ for (const pluginPath of plugins) {
     plugin !== null && typeof plugin === "object" && !Array.isArray(plugin),
     "default export is a definition object (V2), not a V1 function",
   );
-  ok(typeof plugin?.setup === "function", "definition exposes a setup() function");
+  // A definition must carry the loader entry point for its generation: `setup`
+  // (opencode >= 2.0) or `server` (opencode 1.x). NEITHER loads on any binary.
+  const hasSetup = typeof plugin?.setup === "function";
+  const hasServer = typeof plugin?.server === "function";
+  ok(
+    hasSetup || hasServer,
+    `definition exposes setup() (>=2.0) or server() (1.x) [setup=${hasSetup} server=${hasServer}]`,
+  );
   ok(
     typeof plugin?.id === "string" && plugin.id.length > 0,
     "definition has a string id",
@@ -154,11 +164,11 @@ if (process.env.LIVE_OPENCODE === "1") {
 
       const opencode = (prompt) =>
         // --standalone: a PRIVATE server for THIS throwaway project. Without it,
-        // `opencode run` uses the shared background service, whose location is
-        // scoped to whatever project first started it — so the model inherits
-        // that project's skills and may refuse to call the tool at all, instead
-        // of the gate doing the blocking (measured: the deny path never fired).
-        run("opencode", ["run", "--auto", prompt], {
+        // `opencode run` uses the shared background service, whose project binding
+        // is whatever project first started it — so the throwaway project's plugin
+        // never loads and the deny path never fires (MEASURED). It IS supported on
+        // the current binary (v2.0.18) and on the 1.x line the plugin also supports.
+        run("opencode", ["run", "--standalone", "--auto", prompt], {
           cwd: proj,
           timeout: 240000,
         });
