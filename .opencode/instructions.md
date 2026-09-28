@@ -79,4 +79,6 @@ Config: one item per line in `.opencode/pr-watch.items` (`acme/widget#12`; blank
 `#` comments ignored). The shipped file contains only comments, so the plugin is **inert
 until you add an item** — and it needs `marketplace/scripts/gh_watch.sh`, so the
 `marketplace` submodule pin must carry the watcher family. Plugins load once at startup —
-**restart** to activate.
+**restart** to activate. The binding is **unproven against opencode's Bun runtime** (it
+landed without a live opencode target); treat it as experimental and inert, and it warns
+and no-ops if the context or runtime differs.

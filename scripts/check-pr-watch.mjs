@@ -18,12 +18,19 @@ const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, "..");
 const pluginPath = join(root, ".opencode/plugins/pr-watch.ts");
 const source = readFileSync(pluginPath, "utf8");
-// Strip whole-line `//` comments so a commented-out call no longer counts as present
-// (the exact regression this gate exists for: a "load-bearing" call left as a comment).
-const code = source
-  .split("\n")
-  .filter((l) => !l.trim().startsWith("//"))
-  .join("\n");
+
+// Strip BOTH block comments (`/* … */`, including the ` *`-prefixed docstring) and
+// whole-line `//` comments, so a commented-out call no longer counts as present (the
+// exact regression this gate exists for: a "load-bearing" call left as a comment). A
+// docstring alone must never satisfy the primitive assertions below.
+function stripComments(src) {
+  return src
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .split("\n")
+    .filter((l) => !l.trim().startsWith("//"))
+    .join("\n");
+}
+const code = stripComments(source);
 
 let failures = 0;
 const pass = (m) => console.log(`  PASS  ${m}`);
@@ -83,6 +90,13 @@ eq(
 );
 eq(lastWakeLine(""), undefined, "lastWakeLine returns undefined for empty output");
 
+// Negative control: the stripper MUST remove a docstring and a `//` comment, so needles
+// that live only there cannot satisfy the positive assertions below.
+const synthetic =
+  "/** doc: client.tui.showToast + client.session.list + noReply: true + Bun.spawn */\n" +
+  "// client.session.prompt\nconst real = 1;\n";
+const syntheticCode = stripComments(synthetic);
+
 for (const needle of [
   "client.tui",
   "showToast",
@@ -91,6 +105,10 @@ for (const needle of [
   "noReply: true",
   "Bun.spawn",
 ]) {
+  ok(
+    !syntheticCode.includes(needle),
+    `stripComments removes ${needle} from a docstring/comment (negative control)`,
+  );
   ok(code.includes(needle), `the shipped code (comments stripped) contains ${needle}`);
 }
 

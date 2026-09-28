@@ -27,9 +27,13 @@
  * watcher script is unavailable, the plugin logs a warning (`client.app.log`, else
  * `console.warn`) and no-ops; opencode keeps running.
  *
- * RDD note (assumption to confirm on the next restart): the opencode V2 `setup(ctx)`
- * context exposes `ctx.client` (the live SDK client) and the `Bun` global. If that is
- * false the plugin warns and no-ops rather than breaking startup.
+ * UNPROVEN / INERT BY DEFAULT — this is the LANDED state, not a "verify later" note.
+ * This binding has NOT been exercised under opencode's Bun runtime: no opencode V2 /
+ * disposable target was available when it landed, so only the module and its pure
+ * helpers were unit-tested (under Node). Do NOT rely on it. It watches nothing until
+ * `.opencode/pr-watch.items` carries at least one item, and if the `setup(ctx)` context
+ * does not expose `ctx.client`, or `Bun` is absent, or the watcher script is missing, it
+ * logs a warning and no-ops rather than breaking startup.
  */
 
 export function parseItems(text: string): string[] {
