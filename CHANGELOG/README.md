@@ -5,7 +5,7 @@ Every repository in the project keeps its **own** `CHANGELOG/` — history is
 repo-scoped, never centralized in one file, and split into one file per CalVer
 release version so no single file grows without bound.
 
-`README.md`, `AGENTS.md`/`CLAUDE.md`, and `HARNESS-PARITY.md` describe the
+`README.md` and `AGENTS.md` describe the
 **current** state of the umbrella — present tense, forward-looking. Any
 reference to a previous version, a past rename, a completed cutover or
 migration, a relocated / deleted / retired identifier, a "previously /

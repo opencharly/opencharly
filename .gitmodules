@@ -1785,3 +1785,51 @@
 	path = layer-cua
 	url = https://github.com/opencharly/layer-cua.git
 	branch = main
+[submodule "plugin-task"]
+	path = plugin-task
+	url = https://github.com/opencharly/plugin-task.git
+	branch = main
+[submodule "plugin-gh"]
+	path = plugin-gh
+	url = https://github.com/opencharly/plugin-gh.git
+	branch = main
+[submodule "plugin-vision"]
+	path = plugin-vision
+	url = https://github.com/opencharly/plugin-vision.git
+	branch = main
+[submodule "plugin-kubevirt"]
+	path = plugin-kubevirt
+	url = https://github.com/opencharly/plugin-kubevirt.git
+	branch = main
+[submodule "layer-kubevirt"]
+	path = layer-kubevirt
+	url = https://github.com/opencharly/layer-kubevirt.git
+	branch = main
+[submodule "layer-kubevirt-operator"]
+	path = layer-kubevirt-operator
+	url = https://github.com/opencharly/layer-kubevirt-operator.git
+	branch = main
+[submodule "charly-lib"]
+	path = charly-lib
+	url = https://github.com/opencharly/charly-lib.git
+	branch = main
+[submodule "action-review"]
+	path = action-review
+	url = https://github.com/opencharly/action-review.git
+	branch = main
+[submodule "pi-asciinema"]
+	path = pi-asciinema
+	url = https://github.com/opencharly/pi-asciinema.git
+	branch = main
+[submodule "pi-fabric"]
+	path = pi-fabric
+	url = https://github.com/opencharly/pi-fabric.git
+	branch = main
+[submodule "pi-lsp"]
+	path = pi-lsp
+	url = https://github.com/opencharly/pi-lsp.git
+	branch = main
+[submodule "rpiv-todo"]
+	path = rpiv-todo
+	url = https://github.com/opencharly/rpiv-todo.git
+	branch = main
