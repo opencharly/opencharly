@@ -41,13 +41,13 @@
  *
  * SCRIPT LOCATION — the coordination logic itself is NOT reimplemented here; the
  * scripts are resolved as:
- *   - `COORD_SH`  (env) → else `<dir>/marketplace/scripts/coord.sh`
- *   - `GH_WATCH_SH` (env) → else `<dir>/marketplace/scripts/gh_watch.sh`
- * The default assumes this plugin sits in the umbrella (which carries the
- * `marketplace` submodule). A repo WITHOUT a marketplace submodule (e.g.
- * `opencharly/.github`) points `COORD_SH`/`GH_WATCH_SH` at the marketplace
- * scripts (an absolute path, or a `../..` relative path) instead of carrying a
- * forked copy — ONE implementation (R3).
+ *   - `COORD_SH`    (env override, an absolute path), else
+ *   - `<dir>/marketplace/scripts/coord.sh`, else
+ *   - `<dir>/../marketplace/scripts/coord.sh`   (the session-worktree layout)
+ * and likewise for `GH_WATCH_SH` / `gh_watch.sh`. A repo WITHOUT a marketplace
+ * submodule (e.g. `opencharly/.github` at `.worktrees/<slug>/dotgithub`) therefore
+ * finds the sibling `.worktrees/<slug>/marketplace/scripts/…` automatically, with
+ * no forked copy (R3); set `COORD_SH`/`GH_WATCH_SH` when it lives elsewhere.
  *
  * Defensive: a missing `coord.sh`/`gh_watch.sh` (marketplace pin too old), a
  * missing `gh`, or a missing required identity returns a clear message to the
@@ -56,6 +56,9 @@
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { wakeLine } from "../lib/wake-line.ts";
+// Re-exported so consumers/tests can use the shared helper through this module.
+export { wakeLine };
 
 export const TIERS = [
   "fully tested and validated",
@@ -140,12 +143,17 @@ export function resolveIdentity(
   };
 }
 
-/** Argv for a one-shot `gh_watch.sh` wait (no baked-in org/repo/session). */
+/**
+ * Argv for a one-shot `gh_watch.sh` wait (no baked-in org/repo/session). The
+ * returned array is the SCRIPT PLUS its arguments — the caller prepends the
+ * interpreter (`spawnSync("bash", watchArgv(...))`). It does NOT include `"bash"`
+ * itself; including it produced `bash bash <script>` (a measured no-op).
+ */
 export function watchArgv(
   script: string,
   input: Record<string, any>,
 ): string[] {
-  const argv = ["bash", script];
+  const argv = [script];
   if (input.events) argv.push("--events", String(input.events));
   if (input.interval !== undefined) argv.push("--interval", String(input.interval));
   if (input.stallmin !== undefined) argv.push("--stallmin", String(input.stallmin));
@@ -154,15 +162,6 @@ export function watchArgv(
   if (input.autoRearm) argv.push("--auto-rearm");
   for (const item of input.items ?? []) argv.push(String(item));
   return argv;
-}
-
-/** The wake line (last non-empty stdout line), or undefined. */
-export function wakeLine(stdout: string): string | undefined {
-  return stdout
-    .split("\n")
-    .map((s) => s.trim())
-    .filter(Boolean)
-    .pop();
 }
 
 export default {

@@ -39,6 +39,12 @@
  * Defensive: if the `Bun` runtime, the session domain, or the watcher script is
  * unavailable, the plugin logs a warning and no-ops; opencode keeps running.
  */
+import { wakeLine } from "../lib/wake-line.ts";
+
+// The ONE shared "last non-empty stdout line" helper (R3) — the same module
+// `coord.ts` imports. Re-exported under the historical name this plugin's own
+// check asserts.
+export const lastWakeLine = wakeLine;
 
 export function parseItems(text: string): string[] {
   return text
@@ -53,14 +59,6 @@ export function pickSessionID(sessions: any[], directory: string): string | unde
   );
   roots.sort((a, b) => (b?.time?.updated ?? 0) - (a?.time?.updated ?? 0));
   return roots[0]?.id;
-}
-
-export function lastWakeLine(stdout: string): string | undefined {
-  return stdout
-    .split("\n")
-    .map((s) => s.trim())
-    .filter(Boolean)
-    .pop();
 }
 
 export default {

@@ -100,6 +100,32 @@ if (mod) {
   ok(hasSetup && hasServer, `definition exposes BOTH setup() (>=2.0) and server() (1.x) [setup=${hasSetup} server=${hasServer}]`);
   ok(typeof plugin?.id === "string" && plugin.id.length > 0, "definition has a string id");
 
+  // The declared @opencode-ai/plugin version must carry the ./v2/promise export the
+  // plugin types against. The declared pin is asserted ALWAYS; the installed
+  // package's export is asserted when it is present (live-or-skip — a worktree
+  // without `bun install` has no node_modules).
+  const pkgPath = join(root, ".opencode", "package.json");
+  if (existsSync(pkgPath)) {
+    const pkg = JSON.parse(readFileSync(pkgPath, "utf8"));
+    const declared = pkg?.dependencies?.["@opencode-ai/plugin"];
+    ok(
+      typeof declared === "string" && declared.length > 0,
+      `package.json declares @opencode-ai/plugin (${declared})`,
+    );
+    ok(pkg?.type === "module", "package.json sets type=module (silences the MODULE_TYPELESS warning)");
+    const installedPkg = join(root, ".opencode", "node_modules", "@opencode-ai", "plugin", "package.json");
+    if (existsSync(installedPkg)) {
+      const ip = JSON.parse(readFileSync(installedPkg, "utf8"));
+      ok(ip?.exports?.["./v2/promise"], `the installed @opencode-ai/plugin ${ip.version} exports ./v2/promise`);
+    } else {
+      console.log(
+        "  SKIP  installed @opencode-ai/plugin absent (run `bun install` in .opencode to assert the ./v2/promise export)",
+      );
+    }
+  } else {
+    fail(".opencode/package.json is missing (the V2 type pin)");
+  }
+
   // --- Layer B: the pure helpers (real inputs, no opencode) -----------------
   const { parseConf, isTier, resolveIdentity, watchArgv, wakeLine, TIERS, VERBS } = mod;
 
@@ -132,12 +158,16 @@ if (mod) {
 
   eq(
     watchArgv("/x/gh_watch.sh", { items: ["acme/widget#1", "acme/other#2"], events: "comment", timeout: 30 }),
-    ["bash", "/x/gh_watch.sh", "--events", "comment", "--timeout", "30", "acme/widget#1", "acme/other#2"],
-    "watchArgv builds a generic one-shot argv (no baked-in org/repo)",
+    ["/x/gh_watch.sh", "--events", "comment", "--timeout", "30", "acme/widget#1", "acme/other#2"],
+    "watchArgv builds a generic one-shot argv (script first, NO leading 'bash')",
+  );
+  ok(
+    watchArgv("/x/gh_watch.sh", { items: ["a/b#1"] })[0] === "/x/gh_watch.sh",
+    "watchArgv starts with the script, not 'bash' (the double-bash regression)",
   );
   eq(
     watchArgv("/x/gh_watch.sh", { items: ["a/b#1"], autoRearm: true }),
-    ["bash", "/x/gh_watch.sh", "--auto-rearm", "a/b#1"],
+    ["/x/gh_watch.sh", "--auto-rearm", "a/b#1"],
     "watchArgv honours autoRearm",
   );
 
@@ -174,6 +204,70 @@ if (mod) {
         "/elsewhere/marketplace/scripts/coord.sh",
         "resolveScript returns the first candidate when none exists (so the caller reports it missing)",
       );
+    } finally {
+      rmSync(d, { recursive: true, force: true });
+    }
+  }
+
+  // --- Layer B2: the tool EXECUTE paths (real spawn, stub scripts) ----------
+  // Drives `plugin.setup` with a stub context, then CALLS each tool's execute. This
+  // is the layer that fails on the double-`bash` regression (`spawnSync("bash",
+  // ["bash", script, …])`), which the pure-array assertion above cannot catch.
+  {
+    const d = mkdtempSync(join(tmpdir(), "coord-exec."));
+    try {
+      mkdirSync(join(d, ".opencode"), { recursive: true });
+      const stubWatch = join(d, "stub-gh-watch.sh");
+      const stubCoord = join(d, "stub-coord.sh");
+      writeFileSync(stubWatch, '#!/bin/sh\necho "MERGED acme/widget#1"\n');
+      writeFileSync(stubCoord, '#!/bin/sh\necho "https://github.com/acme/widget/issues/1#issuecomment-9"\n');
+
+      const tools = {};
+      const ctx = {
+        location: { directory: d },
+        tool: { transform: async (cb) => cb({ add: (t) => (tools[t.name] = t) }) },
+        session: { hook: async () => ({}) },
+      };
+      // The plugin resolves its script paths AT SETUP TIME, so the overrides must
+      // be in place before setup runs.
+      const saved = { COORD_SH: process.env.COORD_SH, GH_WATCH_SH: process.env.GH_WATCH_SH };
+      process.env.COORD_SH = stubCoord;
+      process.env.GH_WATCH_SH = stubWatch;
+      try {
+        await plugin.setup(ctx);
+        ok(!!tools.coord_comment && !!tools.coord_watch, "setup registers coord_comment + coord_watch");
+
+        const watchRes = await tools.coord_watch.execute({ items: ["acme/widget#1"] });
+        eq(
+          watchRes.content,
+          "MERGED acme/widget#1",
+          "coord_watch.execute RUNS the watcher via bash (double-`bash` regression) and returns the wake line",
+        );
+
+        const commentRes = await tools.coord_comment.execute({
+          verb: "STATUS",
+          item: "acme/widget#1",
+          confidence: "documentation reviewed",
+          agent: "slug-x",
+          session: "ses_x",
+          harness: "OpenCode",
+          model: "M",
+        });
+        eq(
+          commentRes.content,
+          "https://github.com/acme/widget/issues/1#issuecomment-9",
+          "coord_comment.execute RUNS coord.sh (single `bash`) and returns its stdout",
+        );
+
+        const missing = await tools.coord_watch.execute({});
+        ok(
+          /at least one item/.test(missing.content),
+          "coord_watch.execute rejects an empty items list with a clear message",
+        );
+      } finally {
+        process.env.COORD_SH = saved.COORD_SH;
+        process.env.GH_WATCH_SH = saved.GH_WATCH_SH;
+      }
     } finally {
       rmSync(d, { recursive: true, force: true });
     }
