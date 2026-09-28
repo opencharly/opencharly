@@ -117,10 +117,12 @@ async form keeps the server responsive; the kill is **SIGKILL** (the watcher's
 `trap '…' TERM` defers a SIGTERM until its foreground child finishes), so stopping the
 Session terminates the watch; and `coord_watch`'s `timeout` is also enforced tool-side
 as a deadline backstop. `scripts/check-opencode-coord.mjs` asserts statically that
-`coord.ts` contains no synchronous spawn helper and references `signal`, and — live —
-that a `timeout: 2` `coord_watch` STARTED a 30s watcher but killed it before it
-finished, with no server reload. The plugin A/B/B2/C layers run against the REAL
-binary, the live C layer posting a real comment through the REAL `coord.sh`.
+`coord.ts` contains no synchronous spawn helper and wires the abort (an `abort`
+listener + `toolCtx.signal`), and — live — that a `timeout: 2` `coord_watch` STARTED
+a 30s watcher but killed it before it finished, with no server reload. The A/B/B2
+layers run in-process under plain `node` (the executor's Node fallback branch); only
+the LIVE C layer drives the REAL opencode binary and posts a comment through the REAL
+`coord.sh` (it SKIPS visibly when `LIVE_OPENCODE` is unset).
 
 ### Watching for PR events (opencode)
 
