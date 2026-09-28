@@ -46,23 +46,18 @@ someone else's repo.
 7. When a task touches a subrepo, read that subrepo's own rulebook (`AGENTS.md`)
    first — its policy applies inside it. Charly's R0–R10 rulebook lives in
    `charly/AGENTS.md`; this file owns only the umbrella's policy.
-8. **Harness config: a shared core plus deliberate forks.** The harness configuration at
-   the root mirrors the source repo's. Three classes exist and are not the same:
-   - **Identical-by-design** — the byte-identical gate scripts
-     (`.claude/hooks/*.sh`, `gitcmd.py`, `gate_test.py`, `.reasonix/settings.json`),
-     diff-checked against `charly/` by `./charly/bin/charly task harness`; a drift is a
-     failure.
-   - **Umbrella-only** — `hooks/pre-commit` (this repo's own gate, activated per clone with
-     `./charly/bin/charly task hooks`, which sets `core.hooksPath`). It has no `charly/`
-     twin.
-   - **Deliberately-forked** — per-harness settings and workflows (`.claude/settings.json`,
-     `.pi/settings.json`, `.opencode/*`) that adapt the umbrella's reality. These are
-     fork-by-design; they are not silently copied, and they are not a `task harness`
-     diff pair.
+8. **Harness config: a shared neutral core plus deliberate per-harness forks.** The
+   harness configuration at the root mirrors the source repo's. A shared, neutral core
+   is kept byte-identical and drift-checked by `./charly/bin/charly task harness`; each
+   harness additionally carries its own deliberately-forked settings and workflows that
+   adapt the umbrella's reality, and the umbrella carries its own clone-level git hook
+   (installed per clone by `./charly/bin/charly task hooks`). Which concrete files make
+   up the shared core, the forks, and the clone-level hook — and how each harness's
+   adapter is wired — is owned by the harness-specific skill
+   (`/charly-internals:agents`) and by the per-harness config itself; harness names and
+   file locations never appear in this file's policy prose.
 
    The gate scripts guard mechanics only; policy is judged by the `pr-validator` at merge.
-   The convention is harness-neutral: harness names live in the per-harness config, never
-   in the policy prose of this file.
 9. **Session-scoped ownership — never touch another session's files.** The
    changes you make belong to YOUR session: a file you did not author in this
    session, a branch you did not create, a worktree (`<umbrella>/.worktrees/<slug>/`)
@@ -100,7 +95,8 @@ someone else's repo.
     ("BEFORE ANY UPDATE PUSH" invariant + B2b).
 
 11. **Todo ledger & interruption safety — never drop in-flight work.** Maintain the
-    structured todo list (`todowrite`) as the session's durable ledger. On ANY new or
+    session's structured todo ledger (the harness's todo primitive) as the durable
+    ledger. On ANY new or
     interrupting instruction — a fresh user message, an automated watcher alert, a
     delegated report — FIRST reconcile the list (keep every in-flight item, add the new
     one), THEN act. Never start a new list from scratch, and never drop an in-flight item
@@ -339,8 +335,6 @@ task), then run the umbrella's maintenance from the umbrella root:
 | `./charly/bin/charly task verify` | the full pinning audit, on demand |
 | `./charly/bin/charly task harness` | harness config parity vs `charly/` |
 | `./charly/bin/charly task org-map` | verify the README org-map tables vs `.gitmodules` |
-| `./charly/bin/charly task omarchy-agents` | gate the committed omarchy pi agents |
-| `./charly/bin/charly task pi-forks` | sync the pi-plugin forks from their upstreams |
 | `./charly/bin/charly task skills` | splice the generated R0 dispatcher into this file |
 
 `./charly/bin/charly task list` enumerates them. The detailed mechanics — the
@@ -427,11 +421,12 @@ These are enforced by the fresh `charly/pr-validator` at merge (rule A1).
 ## Hooks doctrine
 
 Deterministic git-workflow mechanics — bypass flags, force-push, direct-main push,
-untokenizable commands — are enforced by the umbrella's root hooks
-(`hooks/pre-commit`, installed per clone via `./charly/bin/charly task hooks`, which sets
-`core.hooksPath`) together with the byte-identical per-harness gate scripts each harness
-wires (see rule 8). Attribution, change class, and rulebook compliance are judged once by
-the fresh `pr-validator` at merge — never by the gates.
+untokenizable commands — are enforced by the umbrella's clone-level git hook together
+with the shared neutral gate scripts (installed per clone via
+`./charly/bin/charly task hooks`; see rule 8). The per-harness wiring is owned by the
+harness-specific skill (`/charly-internals:agents`). Attribution, change class, and
+rulebook compliance are judged once by the fresh `pr-validator` at merge — never by the
+gates.
 
 Reference: `README.md` (pinning policy),
 `.github/workflows/` (CI contract).
