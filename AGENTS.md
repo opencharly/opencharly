@@ -99,6 +99,16 @@ someone else's repo.
     PR-comment channel (rule 9). Full mechanics: `/charly-internals:git-workflow`
     ("BEFORE ANY UPDATE PUSH" invariant + B2b).
 
+11. **Todo ledger & interruption safety — never drop in-flight work.** Maintain the
+    structured todo list (`todowrite`) as the session's durable ledger. On ANY new or
+    interrupting instruction — a fresh user message, an automated watcher alert, a
+    delegated report — FIRST reconcile the list (keep every in-flight item, add the new
+    one), THEN act. Never start a new list from scratch, and never drop an in-flight item
+    on interruption: an interruption is an ADDITION to the ledger, not a reset. Before
+    starting any long-running operation, ensure the list reflects it, so a later
+    interruption resumes from state rather than memory. Detail:
+    `/charly-internals:agents` ("Todo ledger & interruption safety").
+
 ## Agent identity & comment coordination (extends rule 9)
 
 Rule 9 says *whose* work it is — this says *who is speaking* and *how a claim is made*.
