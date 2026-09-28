@@ -1,7 +1,7 @@
 # AGENTS.md — rules for agent workers in the umbrella
 
-> The single, harness-neutral rulebook. Every harness reads this file (directly or
-> through a symlink alias), so there is no second copy to keep in sync — edit here.
+> The single, harness-neutral rulebook. Every harness reads this file directly, so
+> there is no second copy to keep in sync — edit here.
 
 The umbrella is a *view* of the org: ~400 submodules at the root, each a real repo
 owned elsewhere. Short rulebook — every rule exists because breaking it corrupts
@@ -57,12 +57,12 @@ someone else's repo.
      twin.
    - **Deliberately-forked** — per-harness settings and workflows (`.claude/settings.json`,
      `.pi/settings.json`, `.opencode/*`) that adapt the umbrella's reality. These are
-     recorded fork-by-design in `HARNESS-PARITY.md`; they are not silently copied, and
-     they are not a `task harness` diff pair.
+     fork-by-design; they are not silently copied, and they are not a `task harness`
+     diff pair.
 
    The gate scripts guard mechanics only; policy is judged by the `pr-validator` at merge.
-   The convention is harness-neutral: harness names live in `HARNESS-PARITY.md` and the
-   per-harness config, never in the policy prose of this file.
+   The convention is harness-neutral: harness names live in the per-harness config, never
+   in the policy prose of this file.
 9. **Session-scoped ownership — never touch another session's files.** The
    changes you make belong to YOUR session: a file you did not author in this
    session, a branch you did not create, a worktree (`<umbrella>/.worktrees/<slug>/`)
@@ -258,8 +258,11 @@ a tool action before R0 admission is a violation.
 
 ### Skill Dispatcher
 
-Consult this table BEFORE the first tool call of every task. When several rows match,
-load every skill those rows select before doing anything — never the whole index.
+**This table is the umbrella's authoritative answer to *when to use which skill*:** each
+row is a trigger (what the user said, or what you are about to do) and the exact
+canonical skill to load for it. Consult it BEFORE the first tool call of every task.
+When several rows match, load every skill those rows select before acting — never
+pre-load, never load the whole index.
 
 The table is a **hand-curated umbrella-relevant subset** of the marketplace
 corpus's generated dispatcher (`marketplace/DISPATCHER.md`, emitted by
@@ -289,6 +292,7 @@ here and keep the refs resolving.
 | Docs / marketplace regeneration (`docs generate`, `marketplace generate`, pin bumps, corpus drift) | `/charly-build:docs` |
 | Marketplace corpus generation / refs-list / per-harness vendoring | `/charly-internals:marketplace` |
 | Skill maintenance / marketplace corpus authoring | `/charly-internals:skills` |
+| Where guidance belongs — README (user overview) vs `AGENTS.md` (agent guidance) vs skill detail vs `CHANGELOG/` (history) | `/charly-internals:skills` |
 | Hard-cutover / rename sweeps (remove legacy in the same phase) | `/charly-internals:cutover-policy` |
 | `disposable: true` authorization / autonomous destroy+rebuild | `/charly-internals:disposable` |
 | Plugin authoring (a candy with a `plugin:` block, providers, CUE schema) | `/charly-internals:plugin` |
@@ -320,6 +324,29 @@ the routing.
   scripts/*`, and submodule git through
   `git -C <absolute-path>` (rule 2). These are the umbrella's own commands, not
   ad-hoc substitutes.
+
+### Umbrella maintenance commands
+
+Build the binary once per clone with `./charly/scripts/bootstrap-charly.sh` (the ONE
+non-charly entrypoint — the build that produces the binary cannot itself be a charly
+task), then run the umbrella's maintenance from the umbrella root:
+
+| command | purpose |
+|---|---|
+| `./charly/bin/charly task map` | list every submodule with its pin and sync state |
+| `./charly/bin/charly task sync` | bump pins per policy B (preview; does not commit) |
+| `./charly/bin/charly task hooks` | install `hooks/pre-commit` for this clone (once) |
+| `./charly/bin/charly task verify` | the full pinning audit, on demand |
+| `./charly/bin/charly task harness` | harness config parity vs `charly/` |
+| `./charly/bin/charly task org-map` | verify the README org-map tables vs `.gitmodules` |
+| `./charly/bin/charly task omarchy-agents` | gate the committed omarchy pi agents |
+| `./charly/bin/charly task pi-forks` | sync the pi-plugin forks from their upstreams |
+| `./charly/bin/charly task skills` | splice the generated R0 dispatcher into this file |
+
+`./charly/bin/charly task list` enumerates them. The detailed mechanics — the
+branch/PR loop, policy-B sync order, the after-merge cleanup, and new-repo
+onboarding — are owned by `/charly-internals:git-workflow` and
+`/charly-internals:repo-setup`; load them before any git/PR action.
 
 ## Engineering rules (umbrella-scaled)
 
@@ -406,5 +433,5 @@ untokenizable commands — are enforced by the umbrella's root hooks
 wires (see rule 8). Attribution, change class, and rulebook compliance are judged once by
 the fresh `pr-validator` at merge — never by the gates.
 
-Reference: `README.md` (pinning policy), `HARNESS-PARITY.md` (config map),
+Reference: `README.md` (pinning policy),
 `.github/workflows/` (CI contract).
