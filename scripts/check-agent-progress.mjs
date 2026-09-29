@@ -498,9 +498,10 @@ if (process.env.LIVE_OPENCODE === "1") {
       // session in the test — `list` is read-only, and the throwaway project has no session
       // of its own to stop.
       const snippet =
+        'const pc = (x) => (typeof x === "string" ? x : (x && x.content) || String(x));\n' +
         'const p = await tools.agent_progress({ all: true, windowMin: 15, limit: 5 });\n' +
         'const c = await tools.agent_control({ action: "list", sinceMin: 240, limit: 10 });\n' +
-        'return p.content + "\\n====\\n" + c.content;';
+        'return pc(p) + "\\n====\\n" + pc(c);';
       const prompt =
         "Run this exact snippet ONCE with the execute tool and report the returned text verbatim:\n\n" + snippet;
 
