@@ -114,10 +114,28 @@ config can never mislabel who is speaking.
 Codex / git hooks / CI. The OpenCode plugins are PURE TypeScript and NEVER spawn
 those scripts (no `Bun.spawn`/`spawnSync` of a `.sh`, no reference to any script
 file), so they load and work from the SAME ref as the plugin — with NO `marketplace`
-submodule pin to lag. The two implementations share ONE *contract* — the closed verb
-set, the canonical footer order, the event vocabulary + wake-line format, the item
-grammar — asserted by `scripts/check-opencode-coord.mjs` so they cannot drift; the
-split is deliberately TWO harness-native implementations, not a forked copy (R3).
+submodule pin to lag. This is deliberately TWO harness-native implementations of ONE
+shared CONTRACT (the closed verb set, the canonical footer order, the event
+vocabulary + wake-line format, the item grammar) — a maintainer-account R3 divergence,
+not a forked copy. `scripts/check-opencode-coord.mjs` pins the CONTRACT on the
+TypeScript side (unit layer) AND, **where the shell family is present**, RUNS
+`coord.sh` and diffs its output against the TypeScript output (Layer B3); it SKIPS
+that comparison visibly where the shell is absent, so the gate never depends on the
+pin.
+
+**API EFFICIENCY + RATE LIMITS (operator requirement, 2026-09-29).**
+- **ONE request per poll for N items** — a single batched GraphQL query with one alias
+  per item; calls-per-poll is **1** regardless of item count (asserted by the gate).
+- **Skip unchanged items** — a per-item fingerprint (`state|merged|updatedAt|comments|
+  verdict|commit`) means an idle watch costs exactly one batched call per interval;
+  delta events (comment/verdict) are only evaluated on a change (state events are
+  always evaluated — they are arm-baseline driven).
+- **Rate limits FAIL HARD** — a REST 403/429 or a GraphQL `RATE_LIMITED` throws
+  `RateLimitedError`; the tool returns a distinct `RATE-LIMITED …` message and the
+  watch STOPS (never spins, never reports it as "no event"). The remaining quota is
+  read FREE from the batched response's `x-ratelimit-remaining` header, so a
+  near-exhausted quota backs off VISIBLY without an extra call.
+- **`POLL_FLOOR = 60`** — a sub-60s interval is refused; `clampInterval` enforces it.
 
 **Execution is ASYNC + ABORTABLE (R1 fix, measured 2026-09-28; preserved by the
 native rewrite).** `coord_watch` runs a LONG-LIVED poll loop, so a blocking spawn
@@ -128,10 +146,14 @@ the poll sleep, so stopping the Session terminates the watch promptly. Auth is
 async `execFile`; the `gh` binary is a tool, not a `.sh`); `GITHUB_API_URL` overrides
 the API base (GitHub Enterprise / tests). `scripts/check-opencode-coord.mjs` asserts
 statically that `coord.ts`/`pr-watch.ts` contain NO `.sh`, NO `spawnSync`, and NO
-`Bun.spawn`, and — live — that the REAL binary POSTs the comment and returns a
-`MERGED` wake line with no server reload. The A/B/B2 layers run in-process under plain
-`node`; only the LIVE C layer drives the REAL opencode binary (it SKIPS visibly when
-`LIVE_OPENCODE` is unset).
+`Bun.spawn`; runs the shell family vs the TypeScript output where the shell is present
+(Layer B3); drives the tools against a REAL local HTTP server (calls-per-poll, rate-limit
+fail-hard, poll-floor); and — live — drives the REAL binary against a local capture
+server (`GITHUB_API_URL`). The A/B/B2/B3 layers run in-process under plain `node`; only
+the LIVE C layer drives the REAL opencode binary (it SKIPS visibly when `LIVE_OPENCODE`
+is unset; the model's tool-invocation is stochastic, so the C layer's tool-call
+assertions are live-or-skip, while the plugin-load + no-reload assertions are
+deterministic).
 
 ### Watching for PR events (opencode)
 
