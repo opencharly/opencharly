@@ -287,9 +287,10 @@ a field is an R0 violation.** The brief MUST contain:
   and babysitting it costs more than the fix.
 - **A rotation is STOP + spawn — never spawn alone.** Stopping the predecessor is **part of
   the rotation**; leaving it running is a **duplicate-owner violation** (two sessions then work
-  the same scope — observed on `charly#714`). **Stop it with the mechanism that exists:**
-  `opencode session delete <sessionID>` (deletes it and its children) or
-  `POST /api/session/{sessionID}/interrupt`; then **CONFIRM it stopped** (no new turns).
+  the same scope — observed on `charly#714`). **STOP it via the agent control plane** (the
+  harness's session stop/interrupt) and **CONFIRM it stopped** (no new turns) **before** the
+  successor starts. The concrete per-harness stop verb is *mechanism*, owned by the `agents`
+  skill — never a raw shell command here.
 
 ### Monitor — artifact and cadence, never a counter
 
