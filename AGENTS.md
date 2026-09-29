@@ -218,6 +218,14 @@ A subagent starts with **zero context**; everything it needs must be in the brie
 
 ### Use — dispatch and rotation
 
+- **A rotation is STOP + spawn — never spawn alone.** Stopping the predecessor is
+  **part of the rotation**, not optional: leaving it running is a **duplicate-owner
+  violation**, not a rotation (two sessions then work the same scope, duplicate the bed
+  work, and can open competing PRs — observed on `charly#714`). **Stop it with the
+  mechanism that exists:** \`opencode session delete <sessionID>\` (deletes it and its
+  children) or \`POST /api/session/{sessionID}/interrupt\` (the SDK's
+  \`ctx.session.interrupt({sessionID, continue:false})\`). Then **CONFIRM it stopped** — no
+  new turns — before declaring the rotation done; verifying beats assuming.
 - **Dispatch a fresh session per task**; never append a second, unrelated brief to a running one.
 - **Reuse is strictly continue-same-task** (its own PR's fix round, a rebase, a re-scope of
   the SAME unit); anything else is a new task → a new session.
