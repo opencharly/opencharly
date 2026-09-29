@@ -195,6 +195,42 @@ protocol applies across accounts and harnesses — the footer carries identity r
 who owns the GitHub account. Mechanics + rendered examples: `/charly-internals:git-workflow`
 (B2b).
 
+## Responsibilities — main session vs subagent (the ownership contract)
+
+**The main session owns the OUTCOME; a subagent only EXECUTES ITS BRIEF.** This split is
+explicit so no duty falls between them. The main session is the single accountable owner of
+a scope from dispatch to merged artifact; its subagents are instructed workers.
+
+### The main session (the persistent orchestrator) — owns
+- **Every PR in its scope, end to end.** It **reads every `charly/pr-validator` verdict IN
+  FULL** — every block, every comment disposition — and **acts on each** before the next
+  push. A subagent reading a block does not discharge this: the main session verifies.
+- **Answering comments on OTHER sessions' PRs that block it** (rule 9: the PR-comment
+  channel). It — not a subagent — owns the coordination verbs (`BLOCKS`/`STATUS`/
+  `TAKING OVER`/`HANDING OVER`) on threads outside its own PR.
+- **Writing/updating every PR body** (for the head being published) and the **merge
+  decision** (merge only on a validator PASS; never a subagent's claim).
+- **The brief** (below), the **plan/contract**, **all scope rulings**, **agent + worktree
+  lifecycle** (spawn, stop-stale, prune), and **verifying every subagent result against the
+  live artifact** — never the subagent's word.
+- **Stopping a rotated predecessor** and confirming it stopped.
+
+### A subagent — does exactly its brief, and nothing else
+- **Executes the one task in its brief.** It does not widen scope, does not coordinate with
+  other sessions, does not take over other scopes, and does not merge.
+- **Loads the named skills before its first tool call** and **runs the embedded
+  pre-validator self-audit before its first push**.
+- **On a BLOCK on its own PR:** fixes the findings in **ONE** commit and reports; it does
+  **not** decide the merge, and if unclear it asks the parent — never invents scope.
+- **Reports a merged artifact or a precise, named blocker** — never "still working". The
+  parent owns what happens next.
+
+**Rule of ambiguity:** if a duty is not named here or in the brief, it belongs to the
+**main session** — a subagent never assumes a duty it was not given.
+
+Mechanism + the full role matrix (orchestrator / implementation teammate / PR validator):
+the `agents` skill (`/charly-internals:agents`), "The responsibility matrix — who owns what".
+
 ## Subagent lifecycle — one task per worker; rotate, never re-task
 
 A subagent is a **fresh-context, single-task** worker. The orchestrator budgets and
