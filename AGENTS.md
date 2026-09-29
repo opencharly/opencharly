@@ -214,76 +214,66 @@ who owns the GitHub account. Mechanics + rendered examples: `/charly-internals:g
 
 ## Responsibilities — main session vs subagent (the ownership contract)
 
-**The main session owns the OUTCOME; a subagent only EXECUTES ITS BRIEF.** This split is
-explicit so no duty falls between them. The main session is the single accountable owner of
-a scope from dispatch to merged artifact; its subagents are instructed workers.
+**The main session owns the OUTCOME and the ENTIRE PR SURFACE; a subagent does exactly three
+things — RESEARCH, WRITE CODE, and MERGE CODE — and nothing else.** This split is explicit so no
+duty falls between them. `charly#717` is the field evidence: a hands-off orchestrator that let
+subagents create and push PRs and "watch" their own verdicts produced NINE PRs that sat BLOCKED
+and unchanged with inflated attribution tiers — the orchestrator had delegated the one duty it
+cannot delegate.
 
-### The main session (the persistent orchestrator) — owns
-- **Every PR in its scope, end to end.** It **reads every `charly/pr-validator` verdict IN
-  FULL** — every block, every comment disposition — and **acts on each** before the next
-  push. A subagent reading a block does not discharge this: the main session verifies.
-- **Answering comments on OTHER sessions' PRs that block it** (rule 9: the PR-comment
-  channel). It — not a subagent — owns the coordination verbs (`BLOCKS`/`STATUS`/
-  `TAKING OVER`/`HANDING OVER`) on threads outside its own PR.
-- **Writing/updating every PR body** (for the head being published), and **driving the PR to
-  the merge — which is NOT an agent action.** The merge is GitHub **native auto-merge**: the
-  `charly/pr-validator` gate **arms auto-merge (squash) inline on its own PASS**, and the
-  org-wide `tag-on-merge` workflow writes `CHANGELOG/<CalVer>.md` and tags the merged HEAD.
-  **No agent runs `gh pr merge`** and `--admin` bypass is forbidden; a `BEHIND` branch is
-  recovered with `gh pr update-branch` (never a force-push). The main session's merge duty is
-  therefore to **get the PR to a PASS on the final head** — never to push at the block limit —
-  and then stop touching it.
-- **The brief** (below), the **plan/contract**, **all scope rulings**, **agent + worktree
-  lifecycle** (spawn, stop-stale, prune), and **verifying every subagent result against the
-  live artifact** — never the subagent's word.
-- **Stopping a rotated predecessor** and confirming it stopped.
+### The main session (the persistent orchestrator) — owns, and does HIMSELF
+- **Creating every PR and running the push — the SINGLE push after full validation.** A
+  subagent MAY make MANY commits in its worktree; the orchestrator is the ONLY one who pushes
+  (one push, after it has itself validated the change and the body). It creates the PR and
+  writes the PR body.
+- **Fully validating every code change AND every PR body BEFORE the push.** It reads the diff
+  itself, runs the gates itself, and proves the change and the body itself; **a subagent's
+  claim is never the validation.**
+- **Reading every `charly/pr-validator` verdict IN FULL** — every block, every comment
+  disposition — and **ensuring EVERY finding is fixed before the next push.** A partial fix is
+  never pushed; all findings land in **ONE** commit; never a push at the block limit.
+- **Answering comments on OTHER sessions' PRs that block it** (rule 9: the PR-comment channel).
+  It — not a subagent — owns the coordination verbs (`BLOCKS`/`STATUS`/`TAKING OVER`/
+  `HANDING OVER`) on threads outside its own PR.
+- **Driving the PR to a PASS on the final head** — the merge itself is GitHub **native
+  auto-merge**: the `charly/pr-validator` gate arms it (squash) inline on its own PASS, and
+  `tag-on-merge` writes `CHANGELOG/<CalVer>.md` and tags the merged HEAD. **No agent runs
+  `gh pr merge`** and `--admin` bypass is forbidden; a `BEHIND` branch is recovered with
+  `gh pr update-branch` (never a force-push).
+- **The brief, the plan/contract, all scope rulings, agent + worktree lifecycle**, and
+  **verifying every subagent result against the live artifact** — never the subagent's word.
 
-### A subagent — does exactly its brief, and nothing else
-- **Executes the one task in its brief.** It does not widen scope, does not coordinate with
-  other sessions, does not take over other scopes, and **never merges or arms a merge** — a
-  PASS arms native auto-merge on its own; `gh pr merge` / `--admin` are forbidden.
-- **Loads the named skills before its first tool call** and **runs the embedded
-  pre-validator self-audit before its first push**.
-- **On a BLOCK on its own PR:** fixes the findings in **ONE** commit and reports; it does
-  **not** push again until the parent confirms **every** block is addressed (the push gate),
-  and if unclear it asks the parent — never invents scope.
-- **Reports a merged artifact or a precise, named blocker** — never "still working". The
-  parent owns what happens next.
+### A subagent — RESEARCH, WRITE CODE, MERGE CODE — nothing else
+- **Research** — investigate, read, run read-only probes, and report findings.
+- **Write code** — edit files AND COMMIT freely in the worktree it was given; **multiple
+  commits are expected and fine.** It does NOT push.
+- **Merge code** — combine/resolve changes in that worktree when instructed (still commits
+  only).
+- **It NEVER creates a PR, NEVER pushes, NEVER writes a PR body, NEVER reads or dispositions a
+  validator verdict, NEVER decides the merge, and NEVER coordinates with other sessions.** It
+  hands the workspace back to the orchestrator with a precise report (branch/worktree + the
+  exact change + the evidence); the orchestrator then validates, pushes, reads the verdict,
+  and drives the fixes.
+- **Loads the named skills before its first tool call.**
 
-**Rule of ambiguity:** if a duty is not named here or in the brief, it belongs to the
-**main session** — a subagent never assumes a duty it was not given.
+**Rule of ambiguity:** if a duty is not named here, it belongs to the **main session** — a
+subagent never assumes a duty it was not given.
 
-### The PR lifecycle — who opens it, who fixes BLOCKs, who gates the push
+### The PR lifecycle — the orchestrator owns ALL of it
+1. **Creates the PR + runs the SINGLE push:** the **main session**, always — sole
+   responsibility. A subagent may make many local commits; only the orchestrator pushes.
+2. **Validates the code change AND the PR body:** the **main session** — it reads the diff and
+   the body and proves both BEFORE the push.
+3. **Reads every validator result IN FULL:** the **main session** — every block, every comment
+   disposition.
+4. **Ensures EVERY finding is fixed before the next push:** the **main session** — all findings
+   in **ONE** commit; never a partial fix; never a push at the block limit.
+5. **Merges:** no agent — the validator's PASS arms native auto-merge (squash); no `gh pr
+   merge`, no `--admin`, no force-push.
 
-1. **Who opens the PR:** the session that **authored the change** opens it — the
-   **subagent** for work it was instructed to do, the **main session** for its own work. The
-   PR footer names the worker (and, for a subagent, its parent), so the author is never
-   ambiguous.
-2. **Who watches the verdict:** the **main session**. It watches every scope it dispatched
-   and **reads every `charly/pr-validator` verdict IN FULL** — every block, every comment
-   disposition. A subagent reading its own verdict does **not** discharge this duty.
-3. **Who fixes a BLOCK:** the **PR author**. If the author is a subagent, the subagent fixes
-   it (it holds the context, one editor per change); the main session never hand-edits
-   another author's PR.
-4. **Who guarantees it is FULLY fixed before the next push:** the **main session** is the
-   gate. Before **any** push that updates a PR it dispatched, the main session (a) enumerates
-   **every** finding in the latest verdict, (b) confirms each is addressed — against the
-   author's pre-push self-audit **and** its own read of the diff — and (c) only then permits
-   the push. **A partial fix is never pushed:** all findings land in **ONE** commit (a push
-   that yields another verdict at the block limit auto-closes the PR). "Fully fixed" means
-   **every block in the block list**, not the first one — and rule 10 (read the PR's live
-   state AND write the body for the head being published) is the same gate on the same
-   session.
-
-5. **Who merges:** **no agent.** A validator **PASS arms GitHub native auto-merge (squash)
-   inline** (there is no separate auto-merge workflow, and nobody runs `gh pr merge`); the
-   org-wide `tag-on-merge` then tags the merged HEAD. The main session's job ends at a **PASS
-   on the final head** — never `gh pr merge`, never `--admin`, never a force-push, never a push
-   at the block limit.
-
-Mechanism + the full role matrix (orchestrator / implementation teammate / PR validator):
-the `agents` skill (`/charly-internals:agents`), "The responsibility matrix — who owns what";
-the EXACT merge/tag mechanics: `/charly-internals:git-workflow` (`validator-and-calver.md`).
+Mechanism + the full role matrix: the `agents` skill (`/charly-internals:agents`), "The
+responsibility matrix — who owns what"; the EXACT merge/tag mechanics:
+`/charly-internals:git-workflow` (`validator-and-calver.md`).
 
 ## Subagent lifecycle — instruct, use, monitor
 
@@ -296,27 +286,33 @@ A subagent starts with **zero context**; everything it needs must be in the brie
 a field is an R0 violation.** The brief MUST contain:
 
 - **Task** — one atomic unit, sized to one context budget. Never a queue.
-- **Deliverable + definition of done** — the exact artifact: a merged PR + its CalVer tag, or
-  a measured result. Never "investigate".
+- **Deliverable + definition of done** — the exact **code change in the worktree it was given**
+  (files + intended behaviour) plus the **evidence** (commands run + their output), or a measured
+  research result. It is NOT a merged PR — the orchestrator creates, pushes and validates the PR.
 - **Skills to load** — the exact `/charly-…:…` refs the R0 dispatcher selects, **named**,
   with: *load them with the `skill` tool before your first tool call; do not proceed without
   them.*
-- **Pre-validator self-audit — EMBEDDED** — the checklist to run before the FIRST push
-  (`/charly-internals:git-workflow`), so the first verdict is not a re-derivation.
+- **Scope boundary** — RESEARCH / WRITE CODE / MERGE CODE only. It must NOT create a PR,
+  push, write a PR body, read or disposition a validator verdict, or coordinate with other
+  sessions; the orchestrator does all of that.
 - **Context** — issue/PR numbers, branch head, the diagnosis; the exact repo(s).
 - **Evidence** — paste executed commands + output, **anchored to the worker's own head**;
   live-or-skip, never fake.
 - **Rules** — the applicable `AGENTS.md` rules + R0, the landing rules, the canonical footer.
-- **Completion** — report a merged PR + tag, or a precise named blocker. Never "still working".
+- **Completion** — hand back the **worktree path + the change + the evidence**, or a precise
+  named blocker. Never "still working".
 
 ### Use — dispatch and rotation
 
 - **Dispatch a fresh session per task**; never append a second, unrelated brief to a running one.
-- **Reuse is strictly continue-same-task** (its own PR's fix round, a rebase, a re-scope of the
-  SAME unit); anything else is a new task → a new session.
+- **Reuse is strictly continue-same-task** (a revision of the SAME change after the
+  orchestrator has read the verdict, or a re-scope of the SAME unit); anything else is a new task
+  → a new session.
 - **Cap the fan-out** — only the subagents the critical path needs.
-- **Do the bounded fix yourself** when you already hold the context; delegating a few-file fix
-  and babysitting it costs more than the fix.
+- **The orchestrator does the PR work itself** — create, push, validate the change AND the body,
+  read every verdict in full, ensure every finding is fixed before the next push. A subagent only
+  researches and edits; delegating the PR surface is what produced nine BLOCKED, unchanged PRs on
+  `charly#717`.
 - **A rotation is STOP + spawn — never spawn alone.** Stopping the predecessor is **part of
   the rotation**; leaving it running is a **duplicate-owner violation** (two sessions then work
   the same scope — observed on `charly#714`). **STOP it via the agent control plane** (the
