@@ -22,7 +22,7 @@ set -euo pipefail
 # SYNC_EVIDENCE_MAX_BYTES (default 40000, passed to sync-pin-evidence.sh for the per-pin
 # table). GITHUB_BODY_MAX (default 65536) is the platform cap the hard guard enforces.
 
-SYNC_PATH_LIST_MAX="${SYNC_PATH_LIST_MAX:-200}"
+SYNC_PATH_LIST_MAX="${SYNC_PATH_LIST_MAX:-1000}"
 PRODUCER_MAX="${PRODUCER_MAX:-200}"
 GITHUB_BODY_MAX="${GITHUB_BODY_MAX:-65536}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -194,9 +194,9 @@ if [ "${1:-}" = "--self-test" ]; then
   bytes=$(wc -c < "$tmp/body")
   [ "$bytes" -lt 65536 ] || fail "393-pin body is ${bytes} bytes (>= 65536)"
   grep -q '^\*\*393\*\* gitlink(s) moved\.' "$tmp/body" || fail "body must name the TRUE total (393)"
-  grep -q 'first 200 of 393' "$tmp/body" || fail "bounded path list must carry the (first N of M) hint"
+  grep -q 'first 200 of' "$tmp/body" && fail "the 1000 default must NOT truncate 393 paths" || true
   grep -q 'per-pin evidence table (full, all 393 rows)' "$tmp/ev" || fail "artifact must carry the FULL rendered table (all 393 rows)"
-  [ "$(grep -c 'staged-gitlink=' "$tmp/ev")" -eq 393 ] || fail "artifact table must have exactly 393 rows"
+  [ "$(grep -cE '^  [^ ].*[=!]$' "$tmp/ev")" -eq 393 ] || fail "artifact table must have exactly 393 rows (compact format)"
 
   # The producer excerpt is carried VERBATIM for BOTH historical shapes — the
   # retired scripts/sync-gitlinks.sh per-pin form and the current `charly task sync`

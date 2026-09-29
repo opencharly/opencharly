@@ -32,7 +32,7 @@
 # the moved-path list into the `sync-evidence` run artifact the body links to — so every
 # moved pin is named (in the body's count) and every elided row is retrievable (artifact).
 
-SYNC_EVIDENCE_MAX_BYTES="${SYNC_EVIDENCE_MAX_BYTES:-40000}"
+SYNC_EVIDENCE_MAX_BYTES="${SYNC_EVIDENCE_MAX_BYTES:-120000}"
 set -euo pipefail
 
 KIND_DISTRO="charly-pinned (policy B)"
@@ -46,9 +46,9 @@ pin_row() {
     distro-*) kind="$KIND_DISTRO" ;;
     *)        kind="$KIND_DEFAULT" ;;
   esac
-  if [ -n "$staged" ] && [ "$staged" = "$remote" ]; then eq="EQUAL"; else eq="not-equal"; fi
-  printf '  %-28s staged-gitlink=%.12s remote-HEAD=%.12s  [%s, %s]\n' \
-    "$p" "$staged" "$remote" "$kind" "$eq"
+  if [ -n "$staged" ] && [ "$staged" = "$remote" ]; then flag="="; else flag="!"; fi
+  printf '  %-28s %.12s  %.12s  %s\n' \
+    "$p" "$staged" "$remote" "$flag"
 }
 
 # coverage_note <distro_moved_count> — policy B asserts only `distro-*` gitlinks, so it
@@ -108,19 +108,19 @@ if [ "${1:-}" = "--self-test" ]; then
   fail() { echo "FAIL: sync-pin-evidence self-test: $*" >&2; exit 1; }
 
   # pin_row: distro-* is charly-pinned; equality classified by the STAGED gitlink.
-  pin_row "distro-arch" "aaaa1111bbbb" "cccc2222dddd" | grep -q 'charly-pinned (policy B), not-equal' \
-    || fail "distro-* row not classified charly-pinned/not-equal"
-  pin_row "distro-arch" "same9999" "same9999" | grep -q 'charly-pinned (policy B), EQUAL' \
-    || fail "distro-* equal staged/remote not EQUAL"
-  pin_row "plugin-vm" "same9999" "same9999" | grep -q 'default-branch HEAD, EQUAL' \
-    || fail "non-distro equal staged/remote not EQUAL"
-  pin_row "plugin-vm" "aaaa1111" "cccc2222" | grep -q 'default-branch HEAD, not-equal' \
-    || fail "non-distro mismatch not not-equal"
-  pin_row "plugin-vm" "" "cccc2222" | grep -q 'not-equal' \
-    || fail "empty staged gitlink not not-equal"
+  pin_row "distro-arch" "aaaa1111bbbb" "cccc2222dddd" | grep -qE 'distro-arch +aaaa1111bbbb +cccc2222dddd +!' \
+    || fail "distro-* mismatch row not flagged !"
+  pin_row "distro-arch" "same9999" "same9999" | grep -qE 'distro-arch +same9999 +same9999 +=' \
+    || fail "distro-* equal row not flagged ="
+  pin_row "plugin-vm" "same9999" "same9999" | grep -qE 'plugin-vm +same9999 +same9999 +=' \
+    || fail "non-distro equal row not flagged ="
+  pin_row "plugin-vm" "aaaa1111" "cccc2222" | grep -qE 'plugin-vm +aaaa1111 +cccc2222 +!' \
+    || fail "non-distro mismatch row not flagged !"
+  pin_row "plugin-vm" "" "cccc2222" | grep -qE 'plugin-vm + +cccc2222 +!' \
+    || fail "empty staged gitlink not flagged !"
   # A LONGER name in the default class must classify as default (not charly-pinned).
-  pin_row "plugin-vm-extra" "x" "y" | grep -q 'default-branch HEAD' \
-    || fail "plugin-vm-extra wrongly classified charly-pinned"
+  pin_row "plugin-vm-extra" "x" "y" | grep -qE 'plugin-vm-extra +x+ +y+ +[=!]' \
+    || fail "plugin-vm-extra compact row malformed"
 
   # coverage_note: both directions.
   [ "$(coverage_note 0)" = "POLICY_B_NOT_COVERAGE" ] || fail "0 distro moved should NOT offer policy B"
@@ -208,6 +208,8 @@ echo '```'
 # This environment ignores SIGPIPE, so an early-exiting bounder would leave the producer
 # writing to a closed pipe; under `set -o pipefail` those failed writes would abort the
 # script. A file sidesteps that entirely (only a few hundred rows).
+# Legend printed ONCE, outside the row set (compact rows omit per-row kind/flags).
+echo "legend: \`<path> <staged-gitlink> <remote-HEAD> <flag>\`  (= equal · ! mismatch; \`distro-*\` = policy-B pinned)"
 ROWS_FILE="$(mktemp)"; trap 'rm -f "$ROWS_FILE"' EXIT
 while IFS= read -r p; do
   [ -n "$p" ] || continue
