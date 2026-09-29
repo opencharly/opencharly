@@ -104,6 +104,23 @@ someone else's repo.
     interruption resumes from state rather than memory. Detail:
     `/charly-internals:agents` ("Todo ledger & interruption safety").
 
+    **What the ledger MUST itemize — one entry each, so a disrupted session resumes from
+    the list alone:**
+    1. **Every RUNNING subagent** — its session id, its task, its PR/artifact, and its last
+       observed state. One item per live subagent; a worker with no item is an unmonitored
+       worker.
+    2. **Every open PR you own or plan to open** — the PR (or `PLANNED`), its head, its
+       verdict, and the single next action (fix / update-branch / sign-off / merge-watch).
+       A PR with no item is a PR nobody is driving.
+    3. **Every blocker** — what is blocked, by whom/what, and the ONE named unblock path.
+    4. **Every long-running operation** (a bed run, a sync, a batch landing) — so an
+       interruption resumes it rather than restarting it.
+    When the harness exposes a **structured todo primitive** (e.g. an `todowrite`/`todo`
+    tool), it IS the ledger: keep one todo per item above, update it as state changes, and
+    reconcile it FIRST on every interruption — the same rule, a machine-tracked surface.
+    When no such tool is exposed, a durable file (this repo's `AGENTS.md` detail path) is
+    the ledger; never leave the in-flight state only in the conversation.
+
 ## Agent identity & comment coordination (extends rule 9)
 
 Rule 9 says *whose* work it is — this says *who is speaking* and *how a claim is made*.
