@@ -195,49 +195,65 @@ protocol applies across accounts and harnesses — the footer carries identity r
 who owns the GitHub account. Mechanics + rendered examples: `/charly-internals:git-workflow`
 (B2b).
 
-## Subagent lifecycle — one task per worker; rotate, never re-task
+## Subagent lifecycle — instruct, use, monitor
 
-A subagent is a **fresh-context, single-task** worker. The orchestrator budgets and
-rotates them; it never nurses one session forward.
+A subagent is a **fresh-context, single-task** worker. The orchestrating session owns its
+brief, its progress, and its result. This is the whole contract — how to **instruct** one,
+how to **use** it, and how to **monitor** it. It replaces any earlier heuristic (a
+turn-count limit, a magic message number); those were guidance failures, not rules.
 
-- **One task per subagent.** Dispatch with a clear brief (the owning skills, the exact
-  deliverable, the definition of done). Close it when its task completes — never hand a
-  finished worker a new task.
-- **Monitor by ARTIFACT + CADENCE — never by turn count.** A "message" is one
-  **assistant turn** (one model response with its tool calls); counting turns penalises an
-  agent for *working* — a long task (a bed run, a large read) legitimately takes many
-  turns. A high turn count is **NOT** a stall. Read the transcript; never infer a stall
-  from a counter you have not looked at.
-  - **Artifact — the real signal:** a pushed commit, an opened PR, a merge, a tag, or
-    measured output. Progress is a **CHANGED artifact**.
-  - **Cadence:** an agent calling tools (`read`/`write`/`shell`) at a steady rate is
-    **working** — give it room. An agent with **no turns for the window AND no artifact**
-    is stalled.
-  - **Loop — the real pathology:** the **same failing action repeated** with no artifact
-    change.
-  - **Rotate ONLY on:** (a) **more than two *orchestrator re-briefs* of the SAME task**
-    (a countable ORCHESTRATOR action, not the agent's turns); (b) **idle** (no turns) for
-    the window with no artifact; (c) a **repeated failing action** with no artifact.
-    **Never rotate an actively-working session for its turn count.**
-  - **Diagnose before rotating:** read the session transcript — turns are
-    `session_message` rows with `type='assistant'`; the **tool mix** shows whether it is
-    working; the **last actions** show whether it is progressing or looping. Evidence, not
-    a magic number.
-- **Judge progress by artifacts, never by liveness.** An idle session, a heartbeat, or
-  "still working" is NOT progress. Act and report only on a changed artifact (new head
-  SHA, PR number, merge, tag, measured output).
-- **Cap the fan-out.** Run the fewest concurrent subagents the critical path needs; each
-  is a context budget and a coordination surface.
-- **Durable artifacts carry state across the rotation.** Briefs, findings and handoffs go
-  to files or PR comments, so a successor starts from disk, never from a predecessor's
-  context.
-- **Do the bounded critical-path fix yourself** when the change is small and you already
-  hold the context — delegating a few-file fix and then babysitting it costs more than
-  the fix.
+### Instruct — the brief
 
-Mechanism + the reference model: the `agents` skill (`/charly-internals:agents`),
-"Teammate context lifecycle" and "Agent lifecycle hygiene". OpenCode auto-reads this
-file, so this rule applies to every instance in this repo.
+A subagent starts with **zero context**; everything it needs must be in the brief.
+
+- **One task per subagent** — a single atomic unit, sized to one context budget. Never a queue.
+- **State the deliverable and the definition of done** — the exact artifact (a merged PR +
+  its CalVer tag; a measured result), never "investigate".
+- **Name the owning skills** the R0 dispatcher selects and require the worker to **load them
+  before its first tool call**.
+- **Require pasted evidence**, anchored to **its own head** — never a claim it did not run.
+- **Point at durable inputs** (issue/PR numbers, branch head, the diagnosis) so it starts
+  from disk, not from your narration.
+- **Require the pre-validator self-audit** before the first push (`/charly-internals:git-workflow`).
+
+### Use — dispatch and rotation
+
+- **Dispatch a fresh session per task**; never append a second, unrelated brief to a running one.
+- **Reuse is strictly continue-same-task** (its own PR's fix round, a rebase, a re-scope of
+  the SAME unit); anything else is a new task → a new session.
+- **Cap the fan-out** — only the subagents the critical path needs.
+- **Do the bounded fix yourself** when you already hold the context; delegating a few-file
+  fix and babysitting it costs more than the fix.
+- **Continue a worker's own PR via its session** (one editor per change) — unless it has
+  **finished or stalled**, then start fresh.
+
+### Monitor — artifact and cadence, never a counter
+
+**A "message" is one ASSISTANT TURN** (one model response with its tool calls). Turn count is
+**not** progress and **not** a stall signal: a long task (a bed run, a large read)
+legitimately takes many turns, so counting turns **penalises an agent for working**. Never
+infer anything from a number you have not looked at.
+
+- **Artifact = the real signal.** Progress is a **CHANGED artifact**: a pushed commit, an
+  opened/updated PR, a merge, a tag, or **measured output**. Liveness (a session existing,
+  a heartbeat, "still working") is **not** progress.
+- **Cadence = working.** An agent whose turns call tools (`read`/`write`/`shell`) at a steady
+  rate is **working** — give it room for the window.
+- **Loop = the real pathology.** The **same failing action repeated** with no artifact change.
+- **Diagnose before acting — read the transcript.** Turns are `session_message` rows with
+  `type='assistant'`; the **tool mix** shows whether it is working; the **last actions** show
+  progress or a loop. Evidence, not a counter.
+- **Rotate / take over ONLY on:** (1) **re-brief thrash** — you, the orchestrator, have had
+  to re-brief the SAME task **more than twice** (a countable *orchestrator* action, not the
+  agent's turns); (2) **idle past the window with no artifact** — no turns for the window
+  **and** no changed artifact; (3) a **repeated failing action** with no artifact change.
+  **Never rotate an actively-working session for its turn count.**
+- **Report by artifact too.** State a status as a changed artifact (merged PR + tag) or say
+  plainly nothing landed. "Idle = 0" or "it is working" is not a status.
+
+Mechanism + the reference model: the `agents` skill (`/charly-internals:agents`) —
+"Delegation is fresh context", "Teammate context lifecycle", "Agent lifecycle hygiene".
+This file is auto-read by every harness, so the rule applies to every instance in this repo.
 
 ## The development model
 
