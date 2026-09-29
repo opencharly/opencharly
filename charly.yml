@@ -194,6 +194,9 @@ verify:
       - check: the PR-watch plugin's pure logic + its shipped (uncommented) SDK delivery primitives
         command: node scripts/check-pr-watch.mjs
         context: [runtime]
+      - check: the agent-progress monitor+control plugin — static (no .sh), the classifier (RCA regression), and a read-only store
+        command: node scripts/check-agent-progress.mjs
+        context: [runtime]
 
 # -----------------------------------------------------------------------------
 # harness — harness config parity with charly/ (shared files identical).
