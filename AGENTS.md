@@ -195,37 +195,128 @@ protocol applies across accounts and harnesses — the footer carries identity r
 who owns the GitHub account. Mechanics + rendered examples: `/charly-internals:git-workflow`
 (B2b).
 
-## Subagent lifecycle — one task per worker; rotate, never re-task
+## Responsibilities — main session vs subagent (the ownership contract)
 
-A subagent is a **fresh-context, single-task** worker. The orchestrator budgets and
-rotates them; it never nurses one session forward.
+**The main session owns the OUTCOME; a subagent only EXECUTES ITS BRIEF.** This split is
+explicit so no duty falls between them. The main session is the single accountable owner of
+a scope from dispatch to merged artifact; its subagents are instructed workers.
 
-- **One task per subagent.** Dispatch with a clear brief (the owning skills, the exact
-  deliverable, the definition of done). Close it when its task completes — never hand a
-  finished worker a new task.
-- **Rotate on stall — never re-task a stalled session.** If a subagent has not produced
-  its ARTIFACT (a pushed commit, an opened PR, a merge, a tag, or measured output) after
-  **two re-briefs**, or its session passes **~50 messages without a produced artifact**,
-  **STOP it and spawn a FRESH subagent** with a clean brief. Repeatedly appending
-  corrections to a stalled session grows its context with dead ends and superseded
-  instructions: the worker gets slower and less likely to converge — not closer.
-  (Field evidence: a 7-hour, 351-message session produced no artifact on a few-file
-  change; a fresh session with the same brief produced it directly.)
-- **Judge progress by artifacts, never by liveness.** An idle session, a heartbeat, or
-  "still working" is NOT progress. Act and report only on a changed artifact (new head
-  SHA, PR number, merge, tag, measured output).
-- **Cap the fan-out.** Run the fewest concurrent subagents the critical path needs; each
-  is a context budget and a coordination surface.
-- **Durable artifacts carry state across the rotation.** Briefs, findings and handoffs go
-  to files or PR comments, so a successor starts from disk, never from a predecessor's
-  context.
-- **Do the bounded critical-path fix yourself** when the change is small and you already
-  hold the context — delegating a few-file fix and then babysitting it costs more than
-  the fix.
+### The main session (the persistent orchestrator) — owns
+- **Every PR in its scope, end to end.** It **reads every `charly/pr-validator` verdict IN
+  FULL** — every block, every comment disposition — and **acts on each** before the next
+  push. A subagent reading a block does not discharge this: the main session verifies.
+- **Answering comments on OTHER sessions' PRs that block it** (rule 9: the PR-comment
+  channel). It — not a subagent — owns the coordination verbs (`BLOCKS`/`STATUS`/
+  `TAKING OVER`/`HANDING OVER`) on threads outside its own PR.
+- **Writing/updating every PR body** (for the head being published) and the **merge
+  decision** (merge only on a validator PASS; never a subagent's claim).
+- **The brief** (below), the **plan/contract**, **all scope rulings**, **agent + worktree
+  lifecycle** (spawn, stop-stale, prune), and **verifying every subagent result against the
+  live artifact** — never the subagent's word.
+- **Stopping a rotated predecessor** and confirming it stopped.
 
-Mechanism + the reference model: the `agents` skill (`/charly-internals:agents`),
-"Teammate context lifecycle" and "Agent lifecycle hygiene". OpenCode auto-reads this
-file, so this rule applies to every instance in this repo.
+### A subagent — does exactly its brief, and nothing else
+- **Executes the one task in its brief.** It does not widen scope, does not coordinate with
+  other sessions, does not take over other scopes, and does not merge.
+- **Loads the named skills before its first tool call** and **runs the embedded
+  pre-validator self-audit before its first push**.
+- **On a BLOCK on its own PR:** fixes the findings in **ONE** commit and reports; it does
+  **not** decide the merge, and if unclear it asks the parent — never invents scope.
+- **Reports a merged artifact or a precise, named blocker** — never "still working". The
+  parent owns what happens next.
+
+**Rule of ambiguity:** if a duty is not named here or in the brief, it belongs to the
+**main session** — a subagent never assumes a duty it was not given.
+
+### The PR lifecycle — who opens it, who fixes BLOCKs, who gates the push
+
+1. **Who opens the PR:** the session that **authored the change** opens it — the
+   **subagent** for work it was instructed to do, the **main session** for its own work. The
+   PR footer names the worker (and, for a subagent, its parent), so the author is never
+   ambiguous.
+2. **Who watches the verdict:** the **main session**. It watches every scope it dispatched
+   and **reads every `charly/pr-validator` verdict IN FULL** — every block, every comment
+   disposition. A subagent reading its own verdict does **not** discharge this duty.
+3. **Who fixes a BLOCK:** the **PR author**. If the author is a subagent, the subagent fixes
+   it (it holds the context, one editor per change); the main session never hand-edits
+   another author's PR.
+4. **Who guarantees it is FULLY fixed before the next push:** the **main session** is the
+   gate. Before **any** push that updates a PR it dispatched, the main session (a) enumerates
+   **every** finding in the latest verdict, (b) confirms each is addressed — against the
+   author's pre-push self-audit **and** its own read of the diff — and (c) only then permits
+   the push. **A partial fix is never pushed:** all findings land in **ONE** commit (a push
+   that yields another verdict at the block limit auto-closes the PR). "Fully fixed" means
+   **every block in the block list**, not the first one — and rule 10 (read the PR's live
+   state AND write the body for the head being published) is the same gate on the same
+   session.
+
+Mechanism + the full role matrix (orchestrator / implementation teammate / PR validator):
+the `agents` skill (`/charly-internals:agents`), "The responsibility matrix — who owns what".
+
+## Subagent lifecycle — instruct, use, monitor
+
+A subagent is a **fresh-context, single-task** worker. The orchestrating session owns its
+brief, its progress, and its result.
+
+### Instruct — the brief (a structural template, not prose)
+
+A subagent starts with **zero context**; everything it needs must be in the brief. **Omitting
+a field is an R0 violation.** The brief MUST contain:
+
+- **Task** — one atomic unit, sized to one context budget. Never a queue.
+- **Deliverable + definition of done** — the exact artifact: a merged PR + its CalVer tag, or
+  a measured result. Never "investigate".
+- **Skills to load** — the exact `/charly-…:…` refs the R0 dispatcher selects, **named**,
+  with: *load them with the `skill` tool before your first tool call; do not proceed without
+  them.*
+- **Pre-validator self-audit — EMBEDDED** — the checklist to run before the FIRST push
+  (`/charly-internals:git-workflow`), so the first verdict is not a re-derivation.
+- **Context** — issue/PR numbers, branch head, the diagnosis; the exact repo(s).
+- **Evidence** — paste executed commands + output, **anchored to the worker's own head**;
+  live-or-skip, never fake.
+- **Rules** — the applicable `AGENTS.md` rules + R0, the landing rules, the canonical footer.
+- **Completion** — report a merged PR + tag, or a precise named blocker. Never "still working".
+
+### Use — dispatch and rotation
+
+- **Dispatch a fresh session per task**; never append a second, unrelated brief to a running one.
+- **Reuse is strictly continue-same-task** (its own PR's fix round, a rebase, a re-scope of the
+  SAME unit); anything else is a new task → a new session.
+- **Cap the fan-out** — only the subagents the critical path needs.
+- **Do the bounded fix yourself** when you already hold the context; delegating a few-file fix
+  and babysitting it costs more than the fix.
+- **A rotation is STOP + spawn — never spawn alone.** Stopping the predecessor is **part of
+  the rotation**; leaving it running is a **duplicate-owner violation** (two sessions then work
+  the same scope — observed on `charly#714`). **STOP it via the agent control plane** (the
+  harness's session stop/interrupt) and **CONFIRM it stopped** (no new turns) **before** the
+  successor starts. The concrete per-harness stop verb is *mechanism*, owned by the `agents`
+  skill — never a raw shell command here.
+
+### Monitor — artifact and cadence, never a counter
+
+**A "message" is one ASSISTANT TURN** (one model response with its tool calls). Turn count is
+**not** progress and **not** a stall signal: a long task (a bed run, a large read) legitimately
+takes many turns, so counting turns **penalises an agent for working**. Never infer anything
+from a number you have not looked at.
+
+- **Artifact = the real signal.** Progress is a **CHANGED artifact**: a pushed commit, an
+  opened/updated PR, a merge, a tag, or **measured output**. Liveness is **not** progress.
+- **Cadence = working.** An agent whose turns call tools (`read`/`write`/`shell`) at a steady
+  rate is **working** — give it room for the window.
+- **Loop = the real pathology.** The **same failing action repeated** with no artifact change.
+- **Diagnose before acting — read the transcript.** Turns are `session_message` rows with
+  `type='assistant'`; the **tool mix** shows whether it is working; the **last actions** show
+  progress or a loop. Evidence, not a counter.
+- **Rotate / take over ONLY on:** (1) **re-brief thrash** — you have re-briefed the SAME task
+  **more than twice** (a countable *orchestrator* action, not the agent's turns); (2) **idle past
+  the window with no artifact**; (3) a **repeated failing action** with no artifact change.
+  **Never rotate an actively-working session for its turn count.**
+- **Report by artifact too.** State a status as a changed artifact (merged PR + tag) or say
+  plainly nothing landed. "Idle = 0" is not a status.
+
+Mechanism + the reference model: the `agents` skill (`/charly-internals:agents`) —
+"Delegation is fresh context", "Teammate context lifecycle", "Agent lifecycle hygiene". This
+file is auto-read by every harness, so the rule applies to every instance in this repo.
 
 ## The development model
 
