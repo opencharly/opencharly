@@ -208,8 +208,14 @@ a scope from dispatch to merged artifact; its subagents are instructed workers.
 - **Answering comments on OTHER sessions' PRs that block it** (rule 9: the PR-comment
   channel). It — not a subagent — owns the coordination verbs (`BLOCKS`/`STATUS`/
   `TAKING OVER`/`HANDING OVER`) on threads outside its own PR.
-- **Writing/updating every PR body** (for the head being published) and the **merge
-  decision** (merge only on a validator PASS; never a subagent's claim).
+- **Writing/updating every PR body** (for the head being published), and **driving the PR to
+  the merge — which is NOT an agent action.** The merge is GitHub **native auto-merge**: the
+  `charly/pr-validator` gate **arms auto-merge (squash) inline on its own PASS**, and the
+  org-wide `tag-on-merge` workflow writes `CHANGELOG/<CalVer>.md` and tags the merged HEAD.
+  **No agent runs `gh pr merge`** and `--admin` bypass is forbidden; a `BEHIND` branch is
+  recovered with `gh pr update-branch` (never a force-push). The main session's merge duty is
+  therefore to **get the PR to a PASS on the final head** — never to push at the block limit —
+  and then stop touching it.
 - **The brief** (below), the **plan/contract**, **all scope rulings**, **agent + worktree
   lifecycle** (spawn, stop-stale, prune), and **verifying every subagent result against the
   live artifact** — never the subagent's word.
@@ -217,11 +223,13 @@ a scope from dispatch to merged artifact; its subagents are instructed workers.
 
 ### A subagent — does exactly its brief, and nothing else
 - **Executes the one task in its brief.** It does not widen scope, does not coordinate with
-  other sessions, does not take over other scopes, and does not merge.
+  other sessions, does not take over other scopes, and **never merges or arms a merge** — a
+  PASS arms native auto-merge on its own; `gh pr merge` / `--admin` are forbidden.
 - **Loads the named skills before its first tool call** and **runs the embedded
   pre-validator self-audit before its first push**.
 - **On a BLOCK on its own PR:** fixes the findings in **ONE** commit and reports; it does
-  **not** decide the merge, and if unclear it asks the parent — never invents scope.
+  **not** push again until the parent confirms **every** block is addressed (the push gate),
+  and if unclear it asks the parent — never invents scope.
 - **Reports a merged artifact or a precise, named blocker** — never "still working". The
   parent owns what happens next.
 
@@ -250,8 +258,15 @@ a scope from dispatch to merged artifact; its subagents are instructed workers.
    state AND write the body for the head being published) is the same gate on the same
    session.
 
+5. **Who merges:** **no agent.** A validator **PASS arms GitHub native auto-merge (squash)
+   inline** (there is no separate auto-merge workflow, and nobody runs `gh pr merge`); the
+   org-wide `tag-on-merge` then tags the merged HEAD. The main session's job ends at a **PASS
+   on the final head** — never `gh pr merge`, never `--admin`, never a force-push, never a push
+   at the block limit.
+
 Mechanism + the full role matrix (orchestrator / implementation teammate / PR validator):
-the `agents` skill (`/charly-internals:agents`), "The responsibility matrix — who owns what".
+the `agents` skill (`/charly-internals:agents`), "The responsibility matrix — who owns what";
+the EXACT merge/tag mechanics: `/charly-internals:git-workflow` (`validator-and-calver.md`).
 
 ## Subagent lifecycle — instruct, use, monitor
 
@@ -342,7 +357,8 @@ session on every harness.
   the only writers of gitlinks and run one session at a time.
 - **Landing.** Producer-first: producer PR → merge → tag → consumer pin bump (`task sync`)
   → umbrella PR. A session never hand-edits a gitlink or `.gitmodules`. Landing is per
-  repo, through a `feat/<slug>` branch, a fresh `pr-validator`, and a squash merge.
+  repo, through a `feat/<slug>` branch, a fresh `pr-validator`, and a **native-auto-merge
+  squash** (the validator's PASS arms it; no `gh pr merge`).
 - **Catch-up & cleanup.** The umbrella advances only via `task sync` (pins) + PR; its
   submodule checkouts stay DETACHED at their recorded gitlinks, and the umbrella's own
   `main` only fast-forwards to `origin/main`. After a PR merges: remove ONLY your own
