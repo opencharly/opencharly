@@ -1,17 +1,18 @@
 #!/usr/bin/env node
 // check-pr-watch.mjs — unit tests for the pure logic in .opencode/plugins/pr-watch.ts.
 //
-// The delivery loop crosses the Bun/opencode boundary (plugins run only under
-// opencode's Bun runtime, which a plain `node` process is not), so it is proven by
-// (a) the real module importing cleanly as a V2 definition and (b) the delivery
-// primitives being present as CODE (not commented out) on BOTH generations:
+// pr-watch.ts is PURE TypeScript (operator directive, 2026-09-29): its native poll
+// loop uses the shared engine `../lib/watch.ts` and NEVER spawns a `.sh`. So it is
+// proven by (a) the real module importing cleanly as a V2 definition, (b) the pure
+// helpers (`parseItems`/`pickSessionID`/`lastWakeLine`) behaving, and (c) the delivery
+// AND native-poll primitives being present as CODE (not commented out) on BOTH
+// generations:
 //   - V2 (opencode >= 2.0, MEASURED 2026-09-28 against v2.0.18): the context has NO
 //     `client`; delivery is `ctx.session.synthetic({ sessionID, text })` with the
 //     session id captured from `ctx.tool.hook("execute.before", …)`.
 //   - V1 (opencode 1.x): the SDK client, `client.tui.showToast` + the noReply
 //     context injection.
-// The PURE helpers that decide what to watch, which session to inject into, and
-// what the last wake line is are tested here with real inputs — no mocks, no stubs.
+//   - the native watcher: `pollOnce` + `sleepAbortable` from `lib/watch.ts` (no shell).
 //
 // Usage: node scripts/check-pr-watch.mjs
 
@@ -98,7 +99,7 @@ eq(lastWakeLine(""), undefined, "lastWakeLine returns undefined for empty output
 // Negative control: the stripper MUST remove a docstring and a `//` comment, so needles
 // that live only there cannot satisfy the positive assertions below.
 const synthetic =
-  "/** doc: client.tui.showToast + client.session.list + noReply: true + Bun.spawn + " +
+  "/** doc: client.tui.showToast + client.session.list + noReply: true + " +
   "ctx.session.synthetic + ctx.tool.hook */\n" +
   "// client.session.prompt\nconst real = 1;\n";
 const syntheticCode = stripComments(synthetic);
@@ -115,8 +116,9 @@ for (const needle of [
   "client.session.list",
   "client.session",
   "noReply: true",
-  // the shared watcher spawn.
-  "Bun.spawn",
+  // the NATIVE poll engine (lib/watch.ts) — no shell spawn.
+  "pollOnce",
+  "sleepAbortable",
 ]) {
   ok(
     !syntheticCode.includes(needle),

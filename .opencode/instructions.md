@@ -89,40 +89,71 @@ packages); the pin tracks **1.18.33**, the newest release on the `latest` tag.
 
 ### Coordination tools (`.opencode/plugins/coord.ts`)
 
-`coord.ts` registers two V2 custom tools binding the GENERIC shell scripts, so a
+`coord.ts` registers two V2 custom tools implemented NATIVELY in TypeScript, so a
 session posts the canonical coordination comment and waits on GitHub without
 hand-writing the footer:
 
-- **`coord_comment`** — backed by `marketplace/scripts/coord.sh` (the ONE
-  implementation of the verb grammar). Posts ONE verb-labelled comment
+- **`coord_comment`** — builds the verb-labelled comment
   (`CLAIM`/`OWNING`/`HANDING OVER`/`TAKING OVER`/`BLOCKS`/`UNBLOCKS`/`STATUS`/`RESOLVED`)
-  carrying the canonical TWO-LINE footer (`Agent:` FIRST, `Assisted-by:` LAST), and
-  can `--assign` the posting account (a CLAIM).
-- **`coord_watch`** — backed by `marketplace/scripts/gh_watch.sh`; a bounded,
-  session-invoked one-shot wait (`events`/`timeout`/`stallmin`), returning the wake
-  line. The BACKGROUND continuous watch stays `pr-watch.ts`'s job.
+  carrying the canonical TWO-LINE footer (`Agent:` FIRST, `Assisted-by:` LAST) and
+  POSTs it directly through the GitHub REST API; it can `assign` the posting account
+  (a CLAIM).
+- **`coord_watch`** — a bounded, session-invoked one-shot wait
+  (`events`/`timeout`/`stallmin`) that polls the GitHub API NATIVELY and returns the
+  wake line. The BACKGROUND continuous watch stays `pr-watch.ts`'s job.
 
 Identity (`agent`/`harness`/`model`/`confidence`) defaults from
 `.opencode/coord.conf` (git-ignored; copy `.opencode/coord.conf.example`) then
 `COORD_*` env; the `session` is always the live `toolCtx.sessionID`, so a stale
 config can never mislabel who is speaking.
 
-**Execution is ASYNC + ABORTABLE (R1 fix, measured 2026-09-28).** Both executors
-spawn their script with `Bun.spawn` and wire the tool executor's `context.signal` to
-a `kill()` via the signal's `abort` event — **NOT** a spawn option. `coord_watch`
-runs the LONG-LIVED watcher, so a blocking spawn froze opencode's server event loop
-for the whole watch and the supervisor restarted it (measured: a `timeout: 3` call
-ran the full 20s stub and ignored the deadline; the server log showed a reload). The
-async form keeps the server responsive; the kill is **SIGKILL** (the watcher's
-`trap '…' TERM` defers a SIGTERM until its foreground child finishes), so stopping the
-Session terminates the watch; and `coord_watch`'s `timeout` is also enforced tool-side
-as a deadline backstop. `scripts/check-opencode-coord.mjs` asserts statically that
-`coord.ts` contains no synchronous spawn helper and wires the abort (an `abort`
-listener + `toolCtx.signal`), and — live — that a `timeout: 2` `coord_watch` STARTED
-a 30s watcher but killed it before it finished, with no server reload. The A/B/B2
-layers run in-process under plain `node` (the executor's Node fallback branch); only
-the LIVE C layer drives the REAL opencode binary and posts a comment through the REAL
-`coord.sh` (it SKIPS visibly when `LIVE_OPENCODE` is unset).
+**PURE TYPESCRIPT — no shell delegation, no submodule pin (operator directive,
+2026-09-29).** Harness-INDEPENDENT tooling is SHELL — the coordination CLI
+`coord.sh` and the watcher family (`gh_watch.sh`, `pr_watch_many.sh`,
+`pr_state_watch.sh`, `_watch_common.sh`) stay shell, usable from bash / Claude Code /
+Codex / git hooks / CI. The OpenCode plugins are PURE TypeScript and NEVER spawn
+those scripts (no `Bun.spawn`/`spawnSync` of a `.sh`, no reference to any script
+file), so they load and work from the SAME ref as the plugin — with NO `marketplace`
+submodule pin to lag. This is deliberately TWO harness-native implementations of ONE
+shared CONTRACT (the closed verb set, the canonical footer order, the event
+vocabulary + wake-line format, the item grammar) — a maintainer-account R3 divergence,
+not a forked copy. `scripts/check-opencode-coord.mjs` pins the CONTRACT on the
+TypeScript side (unit layer) AND, **where the shell family is present**, RUNS
+`coord.sh` and diffs its output against the TypeScript output (Layer B3); it SKIPS
+that comparison visibly where the shell is absent, so the gate never depends on the
+pin.
+
+**API EFFICIENCY + RATE LIMITS (operator requirement, 2026-09-29).**
+- **ONE request per poll for N items** — a single batched GraphQL query with one alias
+  per item; calls-per-poll is **1** regardless of item count (asserted by the gate).
+- **Skip unchanged items** — a per-item fingerprint (`state|merged|updatedAt|comments|
+  verdict|commit`) means an idle watch costs exactly one batched call per interval;
+  delta events (comment/verdict) are only evaluated on a change (state events are
+  always evaluated — they are arm-baseline driven).
+- **Rate limits FAIL HARD** — a REST 403/429 or a GraphQL `RATE_LIMITED` throws
+  `RateLimitedError`; the tool returns a distinct `RATE-LIMITED …` message and the
+  watch STOPS (never spins, never reports it as "no event"). The remaining quota is
+  read FREE from the batched response's `x-ratelimit-remaining` header, so a
+  near-exhausted quota backs off VISIBLY without an extra call.
+- **`POLL_FLOOR = 60`** — a sub-60s interval is refused; `clampInterval` enforces it.
+
+**Execution is ASYNC + ABORTABLE (R1 fix, measured 2026-09-28; preserved by the
+native rewrite).** `coord_watch` runs a LONG-LIVED poll loop, so a blocking spawn
+froze opencode's server event loop and the supervisor restarted it. The native loop
+is fully async and wires the tool executor's `context.signal` into every `fetch` and
+the poll sleep, so stopping the Session terminates the watch promptly. Auth is
+`GITHUB_TOKEN`/`GH_TOKEN`, else the `gh` CLI's stored token (`gh auth token` — one
+async `execFile`; the `gh` binary is a tool, not a `.sh`); `GITHUB_API_URL` overrides
+the API base (GitHub Enterprise / tests). `scripts/check-opencode-coord.mjs` asserts
+statically that `coord.ts`/`pr-watch.ts` contain NO `.sh`, NO `spawnSync`, and NO
+`Bun.spawn`; runs the shell family vs the TypeScript output where the shell is present
+(Layer B3); drives the tools against a REAL local HTTP server (calls-per-poll, rate-limit
+fail-hard, poll-floor); and — live — drives the REAL binary against a local capture
+server (`GITHUB_API_URL`). The A/B/B2/B3 layers run in-process under plain `node`; only
+the LIVE C layer drives the REAL opencode binary (it SKIPS visibly when `LIVE_OPENCODE`
+is unset; the model's tool-invocation is stochastic, so the C layer's tool-call
+assertions are live-or-skip, while the plugin-load + no-reload assertions are
+deterministic).
 
 ### Watching for PR events (opencode)
 
@@ -130,10 +161,13 @@ The watcher is the harness-independent `marketplace/scripts/gh_watch.sh` family
 (`pr_watch_many.sh`, `pr_state_watch.sh`) — run one, never hand-roll a `sleep` poll. It
 emits one line per event and exits; re-arm after each wake.
 
-The PR-event binding is `.opencode/plugins/pr-watch.ts`. The watcher itself is the
-generic `marketplace/scripts/gh_watch.sh` (run via `Bun.spawn`); delivery is
-IN-PROCESS — never an `opencode run` subprocess (that starts a separate headless run,
-can race the live session, and interrupts the in-flight turn).
+The PR-event binding is `.opencode/plugins/pr-watch.ts`. It is PURE TypeScript: it
+polls the GitHub API NATIVELY (via the shared engine `../lib/watch.ts` — the same one
+`coord.ts` uses) and NEVER spawns `gh_watch.sh`, so it depends on no `.sh` and no
+`marketplace` pin; delivery is IN-PROCESS — never an `opencode run` subprocess (that
+starts a separate headless run, can race the live session, and interrupts the
+in-flight turn). It shares the event vocabulary + wake-line format with the shell
+family (asserted by the gate).
 
 **V2 delivery (opencode ≥ 2.0, MEASURED against v2.0.18).** The `setup(ctx)` context
 carries NO `client` (only 1.x's `server(input)` does). The V2 "inject context without
@@ -156,7 +190,7 @@ recently updated root session in this directory).
 
 Config: one item per line in `.opencode/pr-watch.items` (`acme/widget#12`; blank lines
 and `#` comments ignored). The shipped file contains only comments, so the plugin is
-**inert until you add an item** — and it needs `marketplace/scripts/gh_watch.sh`, so the
-`marketplace` submodule pin must carry the watcher family. Plugins load once at startup —
-**restart** to activate. `scripts/check-pr-watch.mjs` asserts both delivery primitives
-are present as CODE (comments stripped), so a commented-out or absent call fails the gate.
+**inert until you add an item**. It polls GitHub natively (no `gh_watch.sh`, no
+`marketplace` pin). Plugins load once at startup — **restart** to activate.
+`scripts/check-pr-watch.mjs` asserts the delivery primitives are present as CODE
+(comments stripped), so a commented-out or absent call fails the gate.
