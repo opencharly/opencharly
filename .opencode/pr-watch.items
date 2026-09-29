@@ -1,5 +1,5 @@
 # pr-watch.items — the PR/issue items the opencode PR watcher (`.opencode/plugins/pr-watch.ts`)
-# watches via the generic `marketplace/scripts/gh_watch.sh`.
+# watches NATIVELY (TypeScript; the shared engine `.opencode/lib/watch.ts`).
 #
 # One item per line: `owner/repo#num`, `owner/repo/pull/num`, `owner/repo/issues/num`,
 # or a full https://github.com/owner/repo/(pull|issues)/num URL.
