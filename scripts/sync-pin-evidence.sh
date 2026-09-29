@@ -21,34 +21,35 @@
 #   --self-test                       exercise pin_row + coverage_note on fixtures.
 #
 # SIZE BOUND (a GitHub platform limit, not a preference). A sync PR body is capped by
-# GitHub at 65536 characters; a sync that moves hundreds of pins (measured: 393 after
-# the org-wide ruleset cutover) overflows it and `gh pr create` fails with
-# "Body is too long". The per-pin evidence table is the largest section, so it is
-# emitted up to SYNC_EVIDENCE_MAX_BYTES (default 40000) and then truncated with an
-# explicit elision notice naming shown/total. Two things keep A1 accounting complete
-# despite the bound: the workflow's "Every changed path, named" list is itself bounded
-# to SYNC_PATH_LIST_MAX and carries a `(first N of M …)` hint naming the TRUE total, and
-# the workflow writes the RENDERED rows of this table (not just an unrendered log) plus
-# the moved-path list into the `sync-evidence` run artifact the body links to — so every
-# moved pin is named (in the body's count) and every elided row is retrievable (artifact).
+# GitHub at 65536 characters; a sync that moves hundreds of pins overflows it and
+# `gh pr create` fails with "Body is too long". The per-pin evidence table is the
+# largest section. It is emitted in the COMPACT format above (≈50 bytes/row, vs ≈115
+# for the retired `staged-gitlink=… remote-HEAD=… [kind, eq]` row) so the FULL table —
+# every changed path, no elision — fits the body with headroom at fleet scale
+# (measured: 424 rows render COMPLETE at ≈21 KB; the whole body is ≈45 KB, well under
+# 65536). SYNC_EVIDENCE_MAX_BYTES (default 50000) is now a FALLBACK guard only: it
+# does not fire at fleet scale, and if a far larger sync ever tripped it the elision
+# notice names shown/total. The BODY always carries the complete table; the
+# `sync-evidence` run artifact still holds a copy, but the body no longer POINTS at
+# the artifact as the home of the evidence — a pointer is a promise, not pasted
+# output, which is exactly what the validator BLOCKed.
 
-SYNC_EVIDENCE_MAX_BYTES="${SYNC_EVIDENCE_MAX_BYTES:-120000}"
+SYNC_EVIDENCE_MAX_BYTES="${SYNC_EVIDENCE_MAX_BYTES:-50000}"
 set -euo pipefail
 
-KIND_DISTRO="charly-pinned (policy B)"
-KIND_DEFAULT="default-branch HEAD"
-
-# pin_row <path> <staged_gitlink> <remote_head> — ONE evidence row. The single
-# implementation the live path and the self-test both call.
+# pin_row <path> <staged_gitlink> <remote_head> — ONE evidence row, in the COMPACT
+# format the body-size budget is measured against: `  <path>  <staged12>  <remote12>
+# <flag>`. The kind (`distro-*` policy-B pinned vs default-branch HEAD) is derivable
+# from the path prefix and stated ONCE in the section legend, so the row carries no
+# verbose `[kind, eq]` suffix — that suffix is what pushed a 402-pin table past the
+# body budget and forced the artifact elision the validator rejects. `flag` is `=`
+# when the staged gitlink equals the remote default-branch HEAD, else `!` (a real
+# finding for a non-`distro-*` row, never silently elided). ONE implementation the
+# live path and the self-test both call.
 pin_row() {
-  local p="$1" staged="$2" remote="$3" kind eq
-  case "$p" in
-    distro-*) kind="$KIND_DISTRO" ;;
-    *)        kind="$KIND_DEFAULT" ;;
-  esac
+  local p="$1" staged="$2" remote="$3" flag
   if [ -n "$staged" ] && [ "$staged" = "$remote" ]; then flag="="; else flag="!"; fi
-  printf '  %-28s %.12s  %.12s  %s\n' \
-    "$p" "$staged" "$remote" "$flag"
+  printf '  %s  %.12s  %.12s  %s\n' "$p" "$staged" "$remote" "$flag"
 }
 
 # coverage_note <distro_moved_count> — policy B asserts only `distro-*` gitlinks, so it
@@ -107,20 +108,26 @@ staged_gitlink() {
 if [ "${1:-}" = "--self-test" ]; then
   fail() { echo "FAIL: sync-pin-evidence self-test: $*" >&2; exit 1; }
 
-  # pin_row: distro-* is charly-pinned; equality classified by the STAGED gitlink.
-  pin_row "distro-arch" "aaaa1111bbbb" "cccc2222dddd" | grep -qE 'distro-arch +aaaa1111bbbb +cccc2222dddd +!' \
-    || fail "distro-* mismatch row not flagged !"
-  pin_row "distro-arch" "same9999" "same9999" | grep -qE 'distro-arch +same9999 +same9999 +=' \
-    || fail "distro-* equal row not flagged ="
-  pin_row "plugin-vm" "same9999" "same9999" | grep -qE 'plugin-vm +same9999 +same9999 +=' \
-    || fail "non-distro equal row not flagged ="
-  pin_row "plugin-vm" "aaaa1111" "cccc2222" | grep -qE 'plugin-vm +aaaa1111 +cccc2222 +!' \
-    || fail "non-distro mismatch row not flagged !"
-  pin_row "plugin-vm" "" "cccc2222" | grep -qE 'plugin-vm + +cccc2222 +!' \
-    || fail "empty staged gitlink not flagged !"
-  # A LONGER name in the default class must classify as default (not charly-pinned).
-  pin_row "plugin-vm-extra" "x" "y" | grep -qE 'plugin-vm-extra +x+ +y+ +[=!]' \
-    || fail "plugin-vm-extra compact row malformed"
+  # pin_row: the COMPACT format `  <path>  <staged12>  <remote12>  <flag>`. The kind
+  # (distro-* policy-B vs default-branch) is derivable from the path prefix and stated
+  # once in the section legend, so it is NOT in the row; the row carries only the
+  # equality flag. A `!` is a real finding and must never be silently elided.
+  got="$(pin_row 'plugin-vm' 'aaaa1111bbbb' 'cccc2222dddd')"
+  [ "$got" = '  plugin-vm  aaaa1111bbbb  cccc2222dddd  !' ] \
+    || fail "compact mismatch row wrong: '$got'"
+  got="$(pin_row 'plugin-vm' 'same9999aaaa' 'same9999aaaa')"
+  [ "$got" = '  plugin-vm  same9999aaaa  same9999aaaa  =' ] \
+    || fail "compact equal row wrong: '$got'"
+  # A distro-* row is byte-identical in shape (kind lives in the legend, not the row).
+  got="$(pin_row 'distro-arch' 'aaaa1111bbbb' 'aaaa1111bbbb')"
+  [ "$got" = '  distro-arch  aaaa1111bbbb  aaaa1111bbbb  =' ] \
+    || fail "distro-* row must use the same compact shape: '$got'"
+  pin_row 'plugin-vm' '' 'cccc2222dddd' | grep -q '  !$' \
+    || fail "empty staged gitlink must flag '!'"
+  # A LONGER name must still render the same 4-field shape (no kind suffix creep).
+  pin_row 'layer-check-cross-local-driver-layer' 'x1' 'y2' \
+    | grep -qE '^  layer-check-cross-local-driver-layer  [^ ]+  [^ ]+  [!=]$' \
+    || fail "row shape must be <path> <staged> <remote> <flag> regardless of path length"
 
   # coverage_note: both directions.
   [ "$(coverage_note 0)" = "POLICY_B_NOT_COVERAGE" ] || fail "0 distro moved should NOT offer policy B"
@@ -182,7 +189,7 @@ if [ "${1:-}" = "--self-test" ]; then
   [ "$got" = "3333333333333333333333333333333333333333" ] \
     || fail "staged_gitlink fallback read '$got', want HEAD's 3333… for an unstaged path"
 
-  echo "sync-pin-evidence: self-test OK (per-pin classification both ways; coverage both directions; bounded_rows emits all under budget and >=1 + elision notice over budget; staged-gitlink reads the index + falls back to HEAD)"
+  echo "sync-pin-evidence: self-test OK (compact <path> <staged> <remote> <flag> rows both ways; coverage both directions; bounded_rows emits all under budget and >=1 + elision notice over budget; staged-gitlink reads the index + falls back to HEAD)"
   exit 0
 fi
 
@@ -196,20 +203,21 @@ MOVED_COUNT=$(printf '%s\n' "$MOVED" | grep -c . || true); MOVED_COUNT=${MOVED_C
 # coverage is decided from the full diff, never from the truncated emission window.
 DISTRO_MOVED=$(printf '%s\n' "$MOVED" | grep -c '^distro-' || true); DISTRO_MOVED=${DISTRO_MOVED:-0}
 
-echo "**Default-branch HEAD, per moved pin.** For each moved path: the STAGED"
-echo "GITLINK this PR records (\`git rev-parse --verify --quiet :<path>\` from the index, \`git ls-tree HEAD\` fallback) beside the owning"
+echo "**Default-branch HEAD, per moved pin.** Every moved path, complete (no"
+echo "elision): the STAGED GITLINK this PR records (\`git rev-parse --verify --quiet"
+echo ":\<path>\` from the index, \`git ls-tree HEAD\` fallback) beside the owning"
 echo "remote default-branch HEAD (\`git ls-remote <url> HEAD\`). \`charly\` and every"
 echo "non-\`distro-*\` repo must be EQUAL; a \`distro-*\` pin tracks charly's own gitlink"
-echo "and is proven by policy B, so it is marked \`charly-pinned\` and not required"
-echo "equal here:"
+echo "and is proven by policy B, so it is policy-B pinned rather than required equal"
+echo "here:"
 echo
 echo '```'
+echo 'legend: <path>  <staged-gitlink>  <remote-HEAD>  <flag>'
+echo '        (= equal · ! mismatch; distro-* = policy-B pinned)'
 # Render every row to a temp file, THEN bound — never pipe the producer into the bounder.
 # This environment ignores SIGPIPE, so an early-exiting bounder would leave the producer
 # writing to a closed pipe; under `set -o pipefail` those failed writes would abort the
 # script. A file sidesteps that entirely (only a few hundred rows).
-# Legend printed ONCE, outside the row set (compact rows omit per-row kind/flags).
-echo "legend: \`<path> <staged-gitlink> <remote-HEAD> <flag>\`  (= equal · ! mismatch; \`distro-*\` = policy-B pinned)"
 ROWS_FILE="$(mktemp)"; trap 'rm -f "$ROWS_FILE"' EXIT
 while IFS= read -r p; do
   [ -n "$p" ] || continue
