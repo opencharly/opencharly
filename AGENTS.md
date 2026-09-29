@@ -121,6 +121,16 @@ someone else's repo.
     When no such tool is exposed, a durable file (this repo's `AGENTS.md` detail path) is
     the ledger; never leave the in-flight state only in the conversation.
 
+    **On this harness the durable-file branch applies.** OpenCode V2 exposes NO todo
+    primitive — `todowrite` survives only as a migration shim that maps it into the
+    tool-removed list; there is no todo table, no `/session/:id/todo` endpoint, and no
+    `todo.updated` plugin event. The mechanism is the `tracker` plugin
+    (`.opencode/plugins/tracker.ts`): `tracker_ledger` is the durable file
+    (`.opencode/ledger/<session>.json`, git-ignored), `tracker_status` joins it against
+    LIVE GitHub to answer *what am I on and where must I comment*, and `tracker_sync`
+    reconciles the B2b events (merged / closed / stalled). Use them per the `agents`
+    skill; this file states only the mandate.
+
 ## Agent identity & comment coordination (extends rule 9)
 
 Rule 9 says *whose* work it is — this says *who is speaking* and *how a claim is made*.
@@ -428,6 +438,7 @@ here and keep the refs resolving.
 | Marketplace corpus generation / refs-list / per-harness vendoring | `/charly-internals:marketplace` |
 | Skill maintenance / marketplace corpus authoring | `/charly-internals:skills` |
 | Where guidance belongs — README (user overview) vs `AGENTS.md` (agent guidance) vs skill detail vs `CHANGELOG/` (history) | `/charly-internals:skills` |
+| Session ledger / "what am I working on" / "where must I comment" / claim-or-track an issue (rule 11 durable-file ledger on a harness with no todo primitive) | `/charly-internals:agents` |
 | Hard-cutover / rename sweeps (remove legacy in the same phase) | `/charly-internals:cutover-policy` |
 | `disposable: true` authorization / autonomous destroy+rebuild | `/charly-internals:disposable` |
 | Plugin authoring (a candy with a `plugin:` block, providers, CUE schema) | `/charly-internals:plugin` |
