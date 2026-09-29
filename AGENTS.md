@@ -195,6 +195,38 @@ protocol applies across accounts and harnesses — the footer carries identity r
 who owns the GitHub account. Mechanics + rendered examples: `/charly-internals:git-workflow`
 (B2b).
 
+## Subagent lifecycle — one task per worker; rotate, never re-task
+
+A subagent is a **fresh-context, single-task** worker. The orchestrator budgets and
+rotates them; it never nurses one session forward.
+
+- **One task per subagent.** Dispatch with a clear brief (the owning skills, the exact
+  deliverable, the definition of done). Close it when its task completes — never hand a
+  finished worker a new task.
+- **Rotate on stall — never re-task a stalled session.** If a subagent has not produced
+  its ARTIFACT (a pushed commit, an opened PR, a merge, a tag, or measured output) after
+  **two re-briefs**, or its session passes **~50 messages without a produced artifact**,
+  **STOP it and spawn a FRESH subagent** with a clean brief. Repeatedly appending
+  corrections to a stalled session grows its context with dead ends and superseded
+  instructions: the worker gets slower and less likely to converge — not closer.
+  (Field evidence: a 7-hour, 351-message session produced no artifact on a few-file
+  change; a fresh session with the same brief produced it directly.)
+- **Judge progress by artifacts, never by liveness.** An idle session, a heartbeat, or
+  "still working" is NOT progress. Act and report only on a changed artifact (new head
+  SHA, PR number, merge, tag, measured output).
+- **Cap the fan-out.** Run the fewest concurrent subagents the critical path needs; each
+  is a context budget and a coordination surface.
+- **Durable artifacts carry state across the rotation.** Briefs, findings and handoffs go
+  to files or PR comments, so a successor starts from disk, never from a predecessor's
+  context.
+- **Do the bounded critical-path fix yourself** when the change is small and you already
+  hold the context — delegating a few-file fix and then babysitting it costs more than
+  the fix.
+
+Mechanism + the reference model: the `agents` skill (`/charly-internals:agents`),
+"Teammate context lifecycle" and "Agent lifecycle hygiene". OpenCode auto-reads this
+file, so this rule applies to every instance in this repo.
+
 ## The development model
 
 The umbrella is umbrella-centric and harness-independent. One model serves every
