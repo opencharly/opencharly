@@ -416,6 +416,7 @@ here and keep the refs resolving.
 | Engineering-discipline triggers (failure surfaced / dup pattern / ad-hoc fix tempting / "out of scope" framing) | `/charly-internals:strict-policy` |
 | R1 — every failure, warning, or doc-vs-reality divergence before any remediation | `/charly-internals:root-cause-analyzer` |
 | Sub-agents, fresh validator sessions, "which primitive drives verification?" | `/charly-internals:agents` |
+| Monitoring a subagent's progress / "is this agent stalled?" / a loop or idle worker / whether to rotate, take over, or stop a subagent | `/charly-internals:agents` |
 | R10 beds / check verdicts (`charly check run <bed>`, `.check/<bed>/<calver>/summary.yml`, deploy verification) | `/charly-check:check` |
 | Agent control plane (`charly agent`, sessions, `charly tui`, MCP routing) | `/charly-automation:agent` |
 | Host command aliases / wrapper scripts | `/charly-automation:alias` |
