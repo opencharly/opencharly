@@ -26,13 +26,13 @@
 # largest section. It is emitted in the COMPACT format above (≈50 bytes/row, vs ≈115
 # for the retired `staged-gitlink=… remote-HEAD=… [kind, eq]` row) so the FULL table —
 # every changed path, no elision — fits the body with headroom at fleet scale
-# (measured: 424 rows render COMPLETE at ≈21 KB; the whole body is ≈45 KB, well under
-# 65536). SYNC_EVIDENCE_MAX_BYTES (default 50000) is now a FALLBACK guard only: it
-# does not fire at fleet scale, and if a far larger sync ever tripped it the elision
-# notice names shown/total. The BODY always carries the complete table; the
-# `sync-evidence` run artifact still holds a copy, but the body no longer POINTS at
-# the artifact as the home of the evidence — a pointer is a promise, not pasted
-# output, which is exactly what the validator BLOCKed.
+# (measured: 424 rows render COMPLETE at ≈21 KB of table; the whole body is ≈39 KB,
+# well under 65536). SYNC_EVIDENCE_MAX_BYTES (default 50000) is now a FALLBACK
+# guard only: it does not fire at fleet scale, and if a far larger sync ever
+# tripped it the elision notice names shown/total. The BODY always carries the
+# complete table; the `sync-evidence` run artifact still holds a copy, but the
+# body no longer POINTS at the artifact as the home of the evidence — a pointer
+# is a promise, not pasted output, which is exactly what the validator BLOCKed.
 
 SYNC_EVIDENCE_MAX_BYTES="${SYNC_EVIDENCE_MAX_BYTES:-50000}"
 set -euo pipefail
