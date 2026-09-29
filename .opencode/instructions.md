@@ -105,9 +105,24 @@ hand-writing the footer:
 Identity (`agent`/`harness`/`model`/`confidence`) defaults from
 `.opencode/coord.conf` (git-ignored; copy `.opencode/coord.conf.example`) then
 `COORD_*` env; the `session` is always the live `toolCtx.sessionID`, so a stale
-config can never mislabel who is speaking. `scripts/check-opencode-coord.mjs` covers
-the plugin A/B/C layers, the live C layer driving the REAL binary to post a real
-comment through the REAL `coord.sh`.
+config can never mislabel who is speaking.
+
+**Execution is ASYNC + ABORTABLE (R1 fix, measured 2026-09-28).** Both executors
+spawn their script with `Bun.spawn` and wire the tool executor's `context.signal` to
+a `kill()` via the signal's `abort` event — **NOT** a spawn option. `coord_watch`
+runs the LONG-LIVED watcher, so a blocking spawn froze opencode's server event loop
+for the whole watch and the supervisor restarted it (measured: a `timeout: 3` call
+ran the full 20s stub and ignored the deadline; the server log showed a reload). The
+async form keeps the server responsive; the kill is **SIGKILL** (the watcher's
+`trap '…' TERM` defers a SIGTERM until its foreground child finishes), so stopping the
+Session terminates the watch; and `coord_watch`'s `timeout` is also enforced tool-side
+as a deadline backstop. `scripts/check-opencode-coord.mjs` asserts statically that
+`coord.ts` contains no synchronous spawn helper and wires the abort (an `abort`
+listener + `toolCtx.signal`), and — live — that a `timeout: 2` `coord_watch` STARTED
+a 30s watcher but killed it before it finished, with no server reload. The A/B/B2
+layers run in-process under plain `node` (the executor's Node fallback branch); only
+the LIVE C layer drives the REAL opencode binary and posts a comment through the REAL
+`coord.sh` (it SKIPS visibly when `LIVE_OPENCODE` is unset).
 
 ### Watching for PR events (opencode)
 
