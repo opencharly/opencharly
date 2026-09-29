@@ -18,13 +18,15 @@ set -euo pipefail
 #                                       build the body + evidence from real inputs.
 #   --self-test                         exercise the bounding + guard on fixtures.
 #
-# Bounds (all overridable): SYNC_PATH_LIST_MAX (default 200), PRODUCER_MAX (default 200),
-# SYNC_EVIDENCE_MAX_BYTES (default 40000, passed to sync-pin-evidence.sh for the per-pin
+# Bounds (all overridable): SYNC_PATH_LIST_MAX (default 1000), PRODUCER_MAX (default 200),
+# SYNC_EVIDENCE_MAX_BYTES (default 120000, passed to sync-pin-evidence.sh for the per-pin
 # table). GITHUB_BODY_MAX (default 65536) is the platform cap the hard guard enforces.
 
 SYNC_PATH_LIST_MAX="${SYNC_PATH_LIST_MAX:-1000}"
 PRODUCER_MAX="${PRODUCER_MAX:-200}"
 GITHUB_BODY_MAX="${GITHUB_BODY_MAX:-65536}"
+SYNC_EVIDENCE_MAX_BYTES="${SYNC_EVIDENCE_MAX_BYTES:-120000}"
+export SYNC_EVIDENCE_MAX_BYTES
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # producer_log_excerpt <max-lines> reads the producer log on stdin and prints at
@@ -196,6 +198,7 @@ if [ "${1:-}" = "--self-test" ]; then
   grep -q '^\*\*393\*\* gitlink(s) moved\.' "$tmp/body" || fail "body must name the TRUE total (393)"
   grep -q 'first 200 of' "$tmp/body" && fail "the 1000 default must NOT truncate 393 paths" || true
   grep -q 'per-pin evidence table (full, all 393 rows)' "$tmp/ev" || fail "artifact must carry the FULL rendered table (all 393 rows)"
+  [ "$(grep -cE '^  [^ ].*[=!]$' "$tmp/body")" -eq 393 ] || fail "the BODY must carry the FULL 393-row table (the stated goal)"
   [ "$(grep -cE '^  [^ ].*[=!]$' "$tmp/ev")" -eq 393 ] || fail "artifact table must have exactly 393 rows (compact format)"
 
   # The producer excerpt is carried VERBATIM for BOTH historical shapes — the
