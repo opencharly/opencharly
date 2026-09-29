@@ -203,14 +203,26 @@ rotates them; it never nurses one session forward.
 - **One task per subagent.** Dispatch with a clear brief (the owning skills, the exact
   deliverable, the definition of done). Close it when its task completes — never hand a
   finished worker a new task.
-- **Rotate on stall — never re-task a stalled session.** If a subagent has not produced
-  its ARTIFACT (a pushed commit, an opened PR, a merge, a tag, or measured output) after
-  **two re-briefs**, or its session passes **~50 messages without a produced artifact**,
-  **STOP it and spawn a FRESH subagent** with a clean brief. Repeatedly appending
-  corrections to a stalled session grows its context with dead ends and superseded
-  instructions: the worker gets slower and less likely to converge — not closer.
-  (Field evidence: a 7-hour, 351-message session produced no artifact on a few-file
-  change; a fresh session with the same brief produced it directly.)
+- **Monitor by ARTIFACT + CADENCE — never by turn count.** A "message" is one
+  **assistant turn** (one model response with its tool calls); counting turns penalises an
+  agent for *working* — a long task (a bed run, a large read) legitimately takes many
+  turns. A high turn count is **NOT** a stall. Read the transcript; never infer a stall
+  from a counter you have not looked at.
+  - **Artifact — the real signal:** a pushed commit, an opened PR, a merge, a tag, or
+    measured output. Progress is a **CHANGED artifact**.
+  - **Cadence:** an agent calling tools (`read`/`write`/`shell`) at a steady rate is
+    **working** — give it room. An agent with **no turns for the window AND no artifact**
+    is stalled.
+  - **Loop — the real pathology:** the **same failing action repeated** with no artifact
+    change.
+  - **Rotate ONLY on:** (a) **more than two *orchestrator re-briefs* of the SAME task**
+    (a countable ORCHESTRATOR action, not the agent's turns); (b) **idle** (no turns) for
+    the window with no artifact; (c) a **repeated failing action** with no artifact.
+    **Never rotate an actively-working session for its turn count.**
+  - **Diagnose before rotating:** read the session transcript — turns are
+    `session_message` rows with `type='assistant'`; the **tool mix** shows whether it is
+    working; the **last actions** show whether it is progressing or looping. Evidence, not
+    a magic number.
 - **Judge progress by artifacts, never by liveness.** An idle session, a heartbeat, or
   "still working" is NOT progress. Act and report only on a changed artifact (new head
   SHA, PR number, merge, tag, measured output).
