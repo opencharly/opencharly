@@ -155,6 +155,39 @@ is unset; the model's tool-invocation is stochastic, so the C layer's tool-call
 assertions are live-or-skip, while the plugin-load + no-reload assertions are
 deterministic).
 
+### Agent progress monitoring (`.opencode/plugins/agent-progress.ts`)
+
+`agent-progress.ts` registers ONE V2 custom tool, **`agent_progress`**, implemented
+NATIVELY in TypeScript. It answers the orchestrator's real question — *what is this
+subagent actually doing?* — from the **transcript**, not a turn count:
+
+- **A "message" is an ASSISTANT TURN, never a progress signal.** `session_message` rows
+  with `type='assistant'` are turns (`data.content: [{type:"reasoning"|"text"|"tool"}]`);
+  counting them penalises an agent for WORKING. The monitor SHOWS the count and never
+  keys a verdict on it.
+- The report, per session: id + title/slug; **turns**, **span** (first→last), **last-turn /
+  last-event age**; the **tool mix** (`shell`/`read`/`write`/`edit`/…); the **last action**
+  (the text/reasoning snippet + the last tool + its input); **artifact hints**
+  (`owner/repo#N`, `gh pr merge`, `merged`, `v…` tags, `pushed`); and a **VERDICT**.
+- The verdict mirrors the rulebook model: **WORKING** (recent turns + tool cadence) /
+  **IDLE** (no turns past `windowMin` — default 15 — and no artifact) / **LOOP** (the same
+  tool+input repeated `≥4`× in the tail, no artifact) / **DONE** (a final report
+  `finish=stop`, no pending action). **Rotate/take over ONLY on** >2 orchestrator re-briefs
+  of the same task, idle-past-window with no artifact, or a loop — **never on turn count.**
+- Data source is **VERIFIED**: a **read-only** handle on the opencode store
+  (`$XDG_DATA_HOME/opencode/opencode.db`, `OPENCODE_DB` override) — `new Database(path,
+  { readonly: true })` under `bun:sqlite` (the shipped runtime), `new DatabaseSync(path,
+  { readOnly: true })` under `node:sqlite` (the gate). The live schema is `session_v2` +
+  `session_message`; there is NO `session` table. Async, `context.signal`-aware, and it
+  fails CLEARLY (`cannot open …`, `no session …`) — it never fabricates a verdict.
+- **PURE TYPESCRIPT, no `.sh`, no `marketplace` pin** — same directive as `coord.ts`.
+  `scripts/check-agent-progress.mjs` gates it: **(A)** static (no `.sh`/`spawnSync`/
+  `Bun.spawn`, read-only both drivers, DB path); **(B)** unit — the classifier, INCLUDING
+  the RCA regression (a turn-count-heavy-but-working transcript is `WORKING`, not stalled)
+  and a REAL read-only SQLite fixture; **(C)** `LIVE_OPENCODE=1` drives the real binary and
+  calls the tool (live-or-skip, visibly; the plugin-load + no-reload assertions are
+  deterministic).
+
 ### Watching for PR events (opencode)
 
 The watcher is the harness-independent `marketplace/scripts/gh_watch.sh` family
