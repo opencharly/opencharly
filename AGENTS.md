@@ -283,15 +283,37 @@ brief, its progress, and its result.
 ### Instruct — the brief (a structural template, not prose)
 
 A subagent starts with **zero context**; everything it needs must be in the brief. **Omitting
-a field is an R0 violation.** The brief MUST contain:
+a field is an R0 violation.**
+
+**The orchestrator FULLY PLANS every subagent execution — exactly as it would plan the task for
+itself.** A worker executes a plan; it does not design one. So before spawning, the orchestrator:
+1. **does the planning work itself** — reads the code/skill(s) involved, decides the exact files,
+   the exact edits, the exact commands, the exact evidence, and the exact acceptance; and
+2. **reads the relevant skills itself and EMBEDS their content in the brief** (the concrete rules,
+   field names, gotchas, and commands the worker must follow) — naming the skill to load is NOT
+   enough; the plan must carry what the worker needs so no skill knowledge is left implicit.
+
+**A brief that leaves ANY decision to the worker is an orchestrator defect and is NOT dispatched.**
+"Fix the findings", "align the versions", "do the right thing", or any scope the worker must
+disambiguate (which file, which tag, which finding, what "fixed" means) is FORBIDDEN — the plan is
+**fully fleshed out with ZERO ambiguities**, so the worker needs no judgment calls. If the
+orchestrator cannot yet write such a plan, it does the missing investigation FIRST, then briefs.
+
+The brief MUST contain:
 
 - **Task** — one atomic unit, sized to one context budget. Never a queue.
+- **The full plan (zero disambiguation)** — the end-to-end execution the orchestrator already
+  worked out: the exact files and the exact edit for each, the exact commands to run, the exact
+  evidence to paste, and the exact acceptance. The **relevant skill content is embedded here**
+  (read by the orchestrator, not merely referenced), so the worker never opens a skill to
+  re-derive a rule the plan should have carried.
 - **Deliverable + definition of done** — the exact **code change in the worktree it was given**
   (files + intended behaviour) plus the **evidence** (commands run + their output), or a measured
   research result. It is NOT a merged PR — the orchestrator creates, pushes and validates the PR.
-- **Skills to load** — the exact `/charly-…:…` refs the R0 dispatcher selects, **named**,
-  with: *load them with the `skill` tool before your first tool call; do not proceed without
-  them.*
+- **Skills to load** — the exact `/charly-…:…` refs the R0 dispatcher selects, **named**, with:
+  *load them with the `skill` tool before your first tool call; do not proceed without them.*
+  **AND** the plan above already carries the relevant skill content, so a skill is loaded for
+  complete context — never as the only place a rule lives.
 - **Scope boundary** — RESEARCH / WRITE CODE / MERGE CODE only. It must NOT create a PR,
   push, write a PR body, read or disposition a validator verdict, or coordinate with other
   sessions; the orchestrator does all of that.
@@ -304,6 +326,16 @@ a field is an R0 violation.** The brief MUST contain:
 
 ### Use — dispatch and rotation
 
+- **ONE task per subagent — fully planned and specified BEFORE it is spawned.** A subagent gets
+  **exactly ONE** task, and that task must be **complete and precise** in its brief (the template
+  above names every field it needs). **Never** hand a subagent several PRs, several findings, or a
+  broad "fix these" brief: that is the overload that produced five PRs fixed by one confused worker
+  and a validator spammed with re-fires that fixed nothing (field evidence, `charly#717`'s distro
+  wave — one worker briefed on 5 PRs at once). If a wave spans N PRs/items, dispatch **N agents,
+  one per PR/item**, each with only ITS verdict findings and ITS file list.
+- **A task that is not fully planned is NOT dispatched** — it is planned first (the exact file
+  list, the exact findings, the exact evidence to paste, the exact acceptance). Vagueness in the
+  brief is an orchestrator defect, never a worker's to resolve.
 - **Dispatch a fresh session per task**; never append a second, unrelated brief to a running one.
 - **Reuse is strictly continue-same-task** (a revision of the SAME change after the
   orchestrator has read the verdict, or a re-scope of the SAME unit); anything else is a new task
