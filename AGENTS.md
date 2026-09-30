@@ -214,8 +214,8 @@ who owns the GitHub account. Mechanics + rendered examples: `/charly-internals:g
 
 ## Responsibilities — main session vs subagent (the ownership contract)
 
-**The main session owns the OUTCOME and the ENTIRE PR SURFACE; a subagent does exactly three
-things — RESEARCH, WRITE CODE, and MERGE CODE — and nothing else.** This split is explicit so no
+**The main session owns the OUTCOME and the ENTIRE PR SURFACE; a subagent does exactly FOUR
+things — RESEARCH, WRITE CODE, MERGE CODE, and FIX ITS PR'S VERDICTS — and nothing else.** This split is explicit so no
 duty falls between them. `charly#717` is the field evidence: a hands-off orchestrator that let
 subagents create and push PRs and "watch" their own verdicts produced NINE PRs that sat BLOCKED
 and unchanged with inflated attribution tiers — the orchestrator had delegated the one duty it
@@ -228,7 +228,15 @@ cannot delegate.
   writes the PR body.
 - **Fully validating every code change AND every PR body BEFORE the push.** It reads the diff
   itself, runs the gates itself, and proves the change and the body itself; **a subagent's
-  claim is never the validation.**
+  claim is never the validation.** Concretely, BEFORE pushing it: reads the body **end to end**
+  and checks the **`Assisted-by:` footer is the LAST line**; verifies **every evidence claim
+  matches the actual diff** (the boxes/refs/files named are the ones changed, the numbers
+  reconcile); confirms **every applicable rule is answered** (R0–R10) and that the **attribution
+  tier matches the proof**; and pastes **verbatim** command output, never an ellipsized line.
+  **The validator is NOT a body-linting loop:** a push that yields a body/footer/evidence/
+  rule-answer finding is an ORCHESTRATOR VALIDATION FAILURE, not a normal iteration — fix it in
+  that same push, never re-fire and iterate (re-firing an unfixed body is the spam that spent
+  this project's verdicts; field evidence `charly#717`).
 - **Reading every `charly/pr-validator` verdict IN FULL** — every block, every comment
   disposition — and **ensuring EVERY finding is fixed before the next push.** A partial fix is
   never pushed; all findings land in **ONE** commit; never a push at the block limit.
@@ -243,17 +251,19 @@ cannot delegate.
 - **The brief, the plan/contract, all scope rulings, agent + worktree lifecycle**, and
   **verifying every subagent result against the live artifact** — never the subagent's word.
 
-### A subagent — RESEARCH, WRITE CODE, MERGE CODE — nothing else
+### A subagent — RESEARCH, WRITE CODE, MERGE CODE, FIX ITS VERDICTS — nothing else
 - **Research** — investigate, read, run read-only probes, and report findings.
 - **Write code** — edit files AND COMMIT freely in the worktree it was given; **multiple
   commits are expected and fine.** It does NOT push.
 - **Merge code** — combine/resolve changes in that worktree when instructed (still commits
   only).
-- **It NEVER creates a PR, NEVER pushes, NEVER writes a PR body, NEVER reads or dispositions a
-  validator verdict, NEVER decides the merge, and NEVER coordinates with other sessions.** It
-  hands the workspace back to the orchestrator with a precise report (branch/worktree + the
-  exact change + the evidence); the orchestrator then validates, pushes, reads the verdict,
-  and drives the fixes.
+- **Reads `charly/pr-validator`'s results IN FULL and fixes EVERY finding — that IS its job.**
+  The worker holds the context, so it reads every block and comment disposition for its own work
+  and fixes **all** of them in ONE commit. A partial fix is never handed back.
+- **It NEVER creates a PR, NEVER pushes, NEVER writes a PR body, NEVER decides the merge, and
+  NEVER coordinates with other sessions.** It hands the workspace back with a precise report
+  (branch/worktree + the exact change + the evidence); the orchestrator validates, pushes, and
+  GATES the next push.
 - **Loads the named skills before its first tool call.**
 
 **Rule of ambiguity:** if a duty is not named here, it belongs to the **main session** — a
@@ -264,8 +274,9 @@ subagent never assumes a duty it was not given.
    responsibility. A subagent may make many local commits; only the orchestrator pushes.
 2. **Validates the code change AND the PR body:** the **main session** — it reads the diff and
    the body and proves both BEFORE the push.
-3. **Reads every validator result IN FULL:** the **main session** — every block, every comment
-   disposition.
+3. **Reads every validator result IN FULL:** **both, with different duties** — the **worker**
+   reads them to FIX every finding (its job), and the **main session** reads them to GATE
+   (verify every finding is addressed before the next push). Neither discharges the other.
 4. **Ensures EVERY finding is fixed before the next push:** the **main session** — all findings
    in **ONE** commit; never a partial fix; never a push at the block limit.
 5. **Merges:** no agent — the validator's PASS arms native auto-merge (squash); no `gh pr
@@ -283,18 +294,41 @@ brief, its progress, and its result.
 ### Instruct — the brief (a structural template, not prose)
 
 A subagent starts with **zero context**; everything it needs must be in the brief. **Omitting
-a field is an R0 violation.** The brief MUST contain:
+a field is an R0 violation.**
+
+**The orchestrator FULLY PLANS every subagent execution — exactly as it would plan the task for
+itself.** A worker executes a plan; it does not design one. So before spawning, the orchestrator:
+1. **does the planning work itself** — reads the code/skill(s) involved, decides the exact files,
+   the exact edits, the exact commands, the exact evidence, and the exact acceptance; and
+2. **reads the relevant skills itself and EMBEDS their content in the brief** (the concrete rules,
+   field names, gotchas, and commands the worker must follow) — naming the skill to load is NOT
+   enough; the plan must carry what the worker needs so no skill knowledge is left implicit.
+
+**A brief that leaves ANY decision to the worker is an orchestrator defect and is NOT dispatched.**
+"Fix the findings", "align the versions", "do the right thing", or any scope the worker must
+disambiguate (which file, which tag, which finding, what "fixed" means) is FORBIDDEN — the plan is
+**fully fleshed out with ZERO ambiguities**, so the worker needs no judgment calls. If the
+orchestrator cannot yet write such a plan, it does the missing investigation FIRST, then briefs.
+
+The brief MUST contain:
 
 - **Task** — one atomic unit, sized to one context budget. Never a queue.
+- **The full plan (zero disambiguation)** — the end-to-end execution the orchestrator already
+  worked out: the exact files and the exact edit for each, the exact commands to run, the exact
+  evidence to paste, and the exact acceptance. The **relevant skill content is embedded here**
+  (read by the orchestrator, not merely referenced), so the worker never opens a skill to
+  re-derive a rule the plan should have carried.
 - **Deliverable + definition of done** — the exact **code change in the worktree it was given**
   (files + intended behaviour) plus the **evidence** (commands run + their output), or a measured
   research result. It is NOT a merged PR — the orchestrator creates, pushes and validates the PR.
-- **Skills to load** — the exact `/charly-…:…` refs the R0 dispatcher selects, **named**,
-  with: *load them with the `skill` tool before your first tool call; do not proceed without
-  them.*
-- **Scope boundary** — RESEARCH / WRITE CODE / MERGE CODE only. It must NOT create a PR,
-  push, write a PR body, read or disposition a validator verdict, or coordinate with other
-  sessions; the orchestrator does all of that.
+- **Skills to load** — the exact `/charly-…:…` refs the R0 dispatcher selects, **named**, with:
+  *load them with the `skill` tool before your first tool call; do not proceed without them.*
+  **AND** the plan above already carries the relevant skill content, so a skill is loaded for
+  complete context — never as the only place a rule lives.
+- **Scope boundary** — RESEARCH / WRITE CODE / MERGE CODE + **READ AND FIX ITS PR'S VERDICTS**.
+  It must NOT create a PR, push, write a PR body, or coordinate with other sessions — the
+  orchestrator does those. (Reading the verdicts in full and fixing every finding is the
+  WORKER's job, not a prohibited act.)
 - **Context** — issue/PR numbers, branch head, the diagnosis; the exact repo(s).
 - **Evidence** — paste executed commands + output, **anchored to the worker's own head**;
   live-or-skip, never fake.
@@ -304,6 +338,16 @@ a field is an R0 violation.** The brief MUST contain:
 
 ### Use — dispatch and rotation
 
+- **ONE task per subagent — fully planned and specified BEFORE it is spawned.** A subagent gets
+  **exactly ONE** task, and that task must be **complete and precise** in its brief (the template
+  above names every field it needs). **Never** hand a subagent several PRs, several findings, or a
+  broad "fix these" brief: that is the overload that produced five PRs fixed by one confused worker
+  and a validator spammed with re-fires that fixed nothing (field evidence, `charly#717`'s distro
+  wave — one worker briefed on 5 PRs at once). If a wave spans N PRs/items, dispatch **N agents,
+  one per PR/item**, each with only ITS verdict findings and ITS file list.
+- **A task that is not fully planned is NOT dispatched** — it is planned first (the exact file
+  list, the exact findings, the exact evidence to paste, the exact acceptance). Vagueness in the
+  brief is an orchestrator defect, never a worker's to resolve.
 - **Dispatch a fresh session per task**; never append a second, unrelated brief to a running one.
 - **Reuse is strictly continue-same-task** (a revision of the SAME change after the
   orchestrator has read the verdict, or a re-scope of the SAME unit); anything else is a new task
