@@ -128,8 +128,8 @@ someone else's repo.
     (`.opencode/plugins/tracker.ts`): `tracker_ledger` is the durable file
     (`.opencode/ledger/<session>.json`, git-ignored), `tracker_status` joins it against
     LIVE GitHub to answer *what am I on and where must I comment*, and `tracker_sync`
-    reconciles the B2b events (merged / closed / stalled). Use them per the `agents`
-    skill; this file states only the mandate.
+    reconciles the B2b events (merged / closed / stalled). This file states only the
+    mandate; the tool usage lives in `.opencode/instructions.md` (the OpenCode binding).
 
 ## Agent identity & comment coordination (extends rule 9)
 
