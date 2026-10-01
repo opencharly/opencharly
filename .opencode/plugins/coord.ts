@@ -195,6 +195,40 @@ export function buildComment(
 }
 
 /**
+ * The canonical FIRST-LINE verb predicate — DERIVED from `VERBS` (the closed set's one
+ * owner), never a hand-copied alternation. This is the ONE parser the coordinating
+ * plugins share to classify a comment/review as a coordination comment and to read the
+ * verb. Escaped so a future verb containing a regex metacharacter stays literal.
+ */
+export const VERB_RE = new RegExp(`^(${VERBS.map((v) => v.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})\\b`, "i");
+
+/**
+ * The canonical `Agent:` footer parser — the slug on the `Agent:` line of a
+ * coordination comment (the authority key, per `AGENTS.md`). ONE parser, shared.
+ */
+export const AGENT_RE = /Agent:\s*`([^`]+)`/;
+
+/** The `Agent:` slug found in a comment body, or "" when there is none. */
+export function parseAgent(body: string): string {
+  const m = AGENT_RE.exec(String(body ?? ""));
+  return m ? m[1] : "";
+}
+
+/**
+ * The canonical verb label carried by a comment body: the FIRST non-blank line's
+ * leading verb, canonicalised; `""` when the first line is not a coordination verb.
+ */
+export function parseVerb(body: string): string {
+  const first =
+    String(body ?? "")
+      .split("\n")
+      .map((s) => s.trim())
+      .find((s) => s.length > 0) ?? "";
+  if (!VERB_RE.test(first)) return "";
+  return VERBS.find((v) => first.toUpperCase().startsWith(v)) ?? "";
+}
+
+/**
  * Resolve the footer identity. Precedence, highest first:
  *   args (the tool call) > env (`COORD_*`) > conf (`.opencode/coord.conf`).
  * `session` is special: the live session always wins when provided, so a stale

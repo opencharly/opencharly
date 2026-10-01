@@ -190,7 +190,6 @@ export async function watchLoop(items: Item[], opts: WatchLoopOptions): Promise<
   // missed-verdict case), so arming on an already-BLOCKed PR wakes the session at once.
   for (const r of reports) await opts.deliver(r.line);
 
-  let fired = false;
   const body = async () => {
     for (;;) {
       if (opts.signal?.aborted) return;
@@ -206,7 +205,6 @@ export async function watchLoop(items: Item[], opts: WatchLoopOptions): Promise<
         // so the SAME comment/verdict is never delivered twice.
         if (outcome.fire) {
           await opts.deliver(outcome.fire.line);
-          fired = true;
           if (!detached && opts.firstOnly) return;
         }
         // A near-exhausted quota (FREE header read) → back off VISIBLY.
@@ -236,5 +234,4 @@ export async function watchLoop(items: Item[], opts: WatchLoopOptions): Promise<
     return;
   }
   await body();
-  void fired;
 }

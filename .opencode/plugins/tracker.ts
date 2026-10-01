@@ -52,7 +52,7 @@ import {
   type Item,
 } from "../lib/watch.ts";
 import { makeWarn, v2SessionSink, watchLoop } from "../lib/watcher-loop.ts";
-import { VERBS, canonicalVerb } from "./coord.ts";
+import { VERBS, parseAgent, parseVerb } from "./coord.ts";
 
 /** The default validator workflow — the progress signal (a COMPLETED run). */
 export const DEFAULT_WORKFLOW = "charly/pr-validator";
@@ -187,9 +187,6 @@ export interface LiveScope {
   error?: string;
 }
 
-const VERB_RE = /^(CLAIM|OWNING|HANDING OVER|TAKING OVER|BLOCKS|UNBLOCKS|STATUS|RESOLVED)\b/;
-const AGENT_RE = /Agent:\s*`([^`]+)`/;
-
 /**
  * Observe ONE scope from LIVE GitHub: its state + the latest coordination verb/slug.
  * Read-only; a missing token or an API error returns `error` rather than throwing.
@@ -223,11 +220,12 @@ export async function liveScope(it: Item, signal?: AbortSignal): Promise<LiveSco
     if (Array.isArray(comments)) {
       for (const c of comments) {
         const body = String(c?.body ?? "");
-        const first = body.split("\n").map((s) => s.trim()).find((s) => s.length > 0) ?? "";
-        if (VERB_RE.test(first)) {
-          out.verb = canonicalVerb(first.split(/\s+/).slice(0, 2).join(" ")) || first.split(/\s+/)[0];
-          const m = AGENT_RE.exec(body);
-          if (m) out.slug = m[1];
+        // R3 — the verb/footer grammar is owned by `coord.ts` (the closed VERBS set);
+        // this reads through the SHARED parsers, never a hand-copied alternation.
+        const verb = parseVerb(body);
+        if (verb) {
+          out.verb = verb;
+          out.slug = parseAgent(body) || out.slug;
         }
       }
     }
@@ -392,12 +390,17 @@ export default {
             const items = ledgerScopes(ledger);
             if (items.length === 0) return { content: "tracker_sync: no scopes in the ledger to watch" };
             let fired: string | null = null;
+            // A BOUNDED, session-invoked wait: `detached:false` AWAITS the loop and
+            // `firstOnly:true` returns on the first delivered event (the documented
+            // one-shot wait) — not a detached arm-and-return.
             await watchLoop(items, {
               events: "merged,closed,stall",
               wf,
               stallMin,
               signal: toolCtx?.signal,
               warn,
+              detached: false,
+              firstOnly: true,
               deliver: async (line) => {
                 fired = line;
                 await sink.deliver(line);

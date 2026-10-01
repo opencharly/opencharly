@@ -71,6 +71,13 @@ for (const p of [trackerPath, loopPath]) {
   ok(!/\.sh\b/.test(code), `${rel}: contains NO .sh reference (no shell delegation)`);
   ok(!/execFile\(\s*["']bash/.test(code), `${rel}: no bash execFile`);
 }
+// R3 — the verb/footer grammar is OWNED by coord.ts. tracker.ts must NOT re-hardcode
+// the closed verb set: no literal alternation of two-or-more coordination verbs.
+{
+  const trackerCode = stripComments(readFileSync(trackerPath, "utf8"));
+  const hardcoded = /\(\s*CLAIM\s*\|[^)]*\bOWNING\b/.test(trackerCode);
+  ok(!hardcoded, "tracker.ts does NOT re-hardcode the verb table (derives it from coord.ts's VERBS)");
+}
 
 // --- Layer A: the real plugin module is a V2 definition ---------------------
 let mod;
@@ -154,10 +161,20 @@ if (mod) {
 
   // A LOCAL capture server stands in for the GitHub API at the HTTP boundary; the
   // plugin's REAL fetch/parse path (liveScope) runs against it.
+  const state = { merged: false };
+  const prNode = () => ({
+    state: "OPEN",
+    merged: state.merged,
+    updatedAt: new Date().toISOString(),
+    commits: { nodes: [{ commit: { oid: "abc123", committedDate: new Date().toISOString(), checkSuites: { nodes: [] } } }] },
+  });
   const server = createServer((req, res) => {
-    const body = /\/pulls\//.test(req.url)
-      ? { state: "open", merged: false, updated_at: new Date().toISOString() }
-      : { state: "open", updated_at: new Date().toISOString(), comments: 1 };
+    // The watcher seeds/polls over GraphQL (`batchSnapshot`), one alias per item.
+    if (/\/graphql/.test(req.url)) {
+      res.setHeader("content-type", "application/json");
+      res.end(JSON.stringify({ data: { i0: { pullRequest: prNode() }, i1: { pullRequest: prNode() } } }));
+      return;
+    }
     if (/\/comments/.test(req.url)) {
       res.setHeader("content-type", "application/json");
       res.end(JSON.stringify([
@@ -165,6 +182,9 @@ if (mod) {
       ]));
       return;
     }
+    const body = /\/pulls\//.test(req.url)
+      ? { state: "open", merged: state.merged, merged_at: state.merged ? new Date().toISOString() : null, updated_at: new Date().toISOString() }
+      : { state: "open", updated_at: new Date().toISOString(), comments: 1 };
     res.setHeader("content-type", "application/json");
     res.end(JSON.stringify(body));
   });
@@ -180,6 +200,16 @@ if (mod) {
     // tracker_sync runs liveScope and classifies OK/merged/closed/stall.
     const sy = await HANDLERS.tracker_sync({}, { ...ctx });
     ok(typeof sy?.content === "string" && /OK\s+o\/r#7/.test(sy.content), "tracker_sync EXECUTES the live join and classifies the scope");
+    // tracker_sync `watch:true` is a BOUNDED one-shot wait (detached:false, firstOnly):
+    // the server answers `merged`, so the arm-report delivers immediately and the call
+    // RETURNS on the first event rather than detaching — the path the docs promise.
+    state.merged = true;
+    // Bound the wait so the gate can never hang if the bounded-wait path regresses.
+    const ac = new AbortController();
+    const t = setTimeout(() => ac.abort(), 8000);
+    const w = await HANDLERS.tracker_sync({ watch: true }, { ...ctx, signal: ac.signal });
+    clearTimeout(t);
+    ok(typeof w?.content === "string" && /woke:|aborted/.test(w.content), "tracker_sync watch:true is a BOUNDED wait that returns on the first event (never detaches)");
   } finally {
     if (prevApi === undefined) delete process.env.GITHUB_API_URL;
     else process.env.GITHUB_API_URL = prevApi;
