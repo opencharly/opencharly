@@ -48,14 +48,14 @@ someone else's repo.
    `charly/AGENTS.md`; this file owns only the umbrella's policy.
 8. **Harness config lives ONLY in this umbrella.** Every harness configuration —
    `.claude/`, `.opencode/`, `.codex/`, `.pi/`, `.reasonix/`, and `opencode.json` —
-   lives HERE (the umbrella root) and NOWHERE else. No submodule or sibling repo carries
-   a copy: sessions root at this checkout (rule 4), and harness config is resolved from
-   the session's project root, so config anywhere else would bind a situation that
-   cannot legally occur. A `distro-*`/`layer-*`/`pod-*`/`plugin-*`/`.github` copy is
-   deleted, never mirrored — one home, no parity gate. An AGENTS.md rulebook is NOT
-   harness config and stays in its own repo. The umbrella carries its own clone-level git
-   hook (installed per clone by `./charly/bin/charly task hooks`). The harness-specific
-   skill (`/charly-internals:agents`) documents the mechanism.
+   belongs HERE (the umbrella root) and must exist NOWHERE else. A submodule or sibling
+   repo carrying a copy is a defect: DELETE it, never mirror it (no parity gate). Sessions
+   root at this checkout (rule 4), and harness config resolves from the session's project
+   root, so config elsewhere binds a situation that cannot legally occur — one root, one
+   config home. An AGENTS.md rulebook is NOT harness config and stays in its own repo. The
+   umbrella carries its own clone-level git hook (installed per clone by
+   `./charly/bin/charly task hooks`). The harness-specific skill
+   (`/charly-internals:agents`) documents the mechanism.
 
    The gate scripts guard mechanics only; policy is judged by the `pr-validator` at merge.
 9. **Session-scoped ownership — never touch another session's files.** The
@@ -524,9 +524,8 @@ the routing.
   genuinely out of scope, stop and ask the operator.
 - **Umbrella-native mechanics are the sanctioned path for umbrella work:**
   `./charly/bin/charly task sync`, `./charly/bin/charly task verify`,
-  `bash scripts/*`, and submodule git through
-  `git -C <absolute-path>` (rule 2). These are the umbrella's own commands, not
-  ad-hoc substitutes.
+  `git -C <absolute-path>` (rule 2), and `bash scripts/*`. These are the
+  umbrella's own commands, not ad-hoc substitutes.
 
 ### Umbrella maintenance commands
 
