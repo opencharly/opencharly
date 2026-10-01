@@ -201,6 +201,9 @@ verify:
       - check: the session tracker plugin — the durable ledger (rule 11 invariant), the three tools, and the real-binary load
         command: node scripts/check-issue-tracker.mjs
         context: [runtime]
+      - check: every harness-config surface parses and is wired (rule 8 — the umbrella is the sole home)
+        command: node scripts/check-harness-config.mjs
+        context: [runtime]
 
 # -----------------------------------------------------------------------------
 # skills — splice the generated R0 dispatcher from the pinned marketplace.
