@@ -198,6 +198,9 @@ verify:
       - check: the agent-progress monitor+control plugin — static (no .sh), the classifier (RCA regression), and a read-only store
         command: node scripts/check-agent-progress.mjs
         context: [runtime]
+      - check: the session tracker plugin — the durable ledger (rule 11 invariant), the three tools, and the real-binary load
+        command: node scripts/check-issue-tracker.mjs
+        context: [runtime]
 
 # -----------------------------------------------------------------------------
 # harness — harness config parity with charly/ (shared files identical).
