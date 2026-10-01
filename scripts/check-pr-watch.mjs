@@ -23,7 +23,11 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, "..");
 const pluginPath = join(root, ".opencode/plugins/pr-watch.ts");
-const source = readFileSync(pluginPath, "utf8");
+const loopPath = join(root, ".opencode/lib/watcher-loop.ts");
+// The shared detached loop now lives in `lib/watcher-loop.ts` (R3 extraction) and
+// `pr-watch.ts` imports it; the primitive assertions therefore scan the PAIR.
+const source =
+  readFileSync(pluginPath, "utf8") + "\n" + readFileSync(loopPath, "utf8");
 
 // Strip BOTH block comments (`/* … */`, including the ` *`-prefixed docstring) and
 // whole-line `//` comments, so a commented-out call no longer counts as present (the

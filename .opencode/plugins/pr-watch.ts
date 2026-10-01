@@ -9,6 +9,10 @@
  * `marketplace` pin. It shares the watcher CONTRACT with the shell family (event
  * vocabulary, wake-line format, item grammar), asserted by `scripts/check-opencode-coord.mjs`.
  *
+ * R3 — the detached V2 loop (session capture, `ctx.session.synthetic` delivery, the
+ * poll loop, the rate backoff) lives ONCE in `../lib/watcher-loop.ts`; this plugin is
+ * the `pr-watch.items` CONFIG binding over it, and `tracker.ts` imports the SAME loop.
+ *
  * DELIVERY — measured 2026-09-28 against the REAL v2.0.18 binary. The V2 `setup(ctx)`
  * context does NOT carry `client`; the V2 "inject context without starting a turn"
  * primitive is `ctx.session.synthetic({ sessionID, text })` (default `delivery: steer`,
@@ -26,29 +30,17 @@
  * plugin logs/skips and no-ops; opencode keeps running.
  */
 import { wakeLine } from "../lib/wake-line.ts";
-import {
-  BACKOFF_FACTOR,
-  DEFAULT_INTERVAL_S,
-  DEFAULT_STALL_MIN,
-  MAX_BACKOFF_S,
-  RATE_FLOOR,
-  RateLimitedError,
-  parseEvents,
-  parseItem,
-  pollOnce,
-  rateLimitMessage,
-  seedAll,
-  sleepAbortable,
-  type Item,
-  type Snap,
-  type Fire,
-  type ArmReport,
-} from "../lib/watch.ts";
+import { parseItem, type Item } from "../lib/watch.ts";
+import { makeWarn, parseItems, readText, v2SessionSink, watchLoop } from "../lib/watcher-loop.ts";
 
 // The ONE shared "last non-empty stdout line" helper (R3) — the same module
 // `coord.ts` imports. Re-exported under the historical name this plugin's own
 // check asserts.
 export const lastWakeLine = wakeLine;
+
+// `parseItems` is the ONE shared config-line parser (R3) — re-exported from the
+// shared loop module under the historical name this plugin's own check asserts.
+export { parseItems };
 
 /**
  * The watcher event set delivered to the session. It MUST include `comment` (the
@@ -58,12 +50,8 @@ export const lastWakeLine = wakeLine;
  */
 export const WATCH_EVENTS = "comment,merged,closed,verdict";
 
-export function parseItems(text: string): string[] {
-  return text
-    .split("\n")
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0 && !s.startsWith("#"));
-}
+/** The validator workflow whose COMPLETED runs are the progress signal. */
+const WF = "charly/pr-validator";
 
 export function pickSessionID(sessions: any[], directory: string): string | undefined {
   const roots = sessions.filter(
@@ -88,19 +76,16 @@ export default {
   },
 };
 
-function warn(message: string) {
-  console.warn(`pr-watch: ${message}`);
-}
+const warn = makeWarn("pr-watch");
 
-// --- shared native watcher loop ---------------------------------------------
-
-async function loop(dir: string, deliver: (line: string) => Promise<void>) {
+/** Parse `.opencode/pr-watch.items` into watch targets (inert when absent/empty). */
+async function loadItems(dir: string): Promise<Item[]> {
   const file = `${dir}/.opencode/pr-watch.items`;
   let raw: string;
   try {
     raw = await readText(file);
   } catch {
-    return; // no config → watch nothing (inert by default)
+    return []; // no config → watch nothing (inert by default)
   }
   const items: Item[] = [];
   for (const line of parseItems(raw)) {
@@ -111,103 +96,22 @@ async function loop(dir: string, deliver: (line: string) => Promise<void>) {
     }
     items.push(it);
   }
-  if (items.length === 0) return;
-
-  const events = parseEvents(WATCH_EVENTS, WATCH_EVENTS);
-  const wf = "charly/pr-validator";
-  const stallMin = DEFAULT_STALL_MIN;
-  const intervalMs = DEFAULT_INTERVAL_S * 1000;
-  const armEpoch = Math.floor(Date.now() / 1000);
-  let seeds: Map<string, Snap>;
-  let reports: ArmReport[] = [];
-  try {
-    const seeded = await seedAll(items, { wf, events });
-    seeds = seeded.seeds;
-    reports = seeded.reports;
-  } catch (err) {
-    if (err instanceof RateLimitedError) {
-      warn(rateLimitMessage(err));
-      return; // fail hard: never spin on a rate limit
-    }
-    seeds = new Map();
-  }
-
-  // The ARM report is the FIRST emission: the baseline the watch armed on — a
-  // pre-existing BLOCK/verdict or an in-flight run is delivered IMMEDIATELY (the
-  // missed-verdict case), so arming on an already-BLOCKed PR wakes the session at once.
-  for (const r of reports) await deliver(r.line);
-
-  void (async () => {
-    for (;;) {
-      try {
-        const outcome = await pollOnce(items, seeds, { events, wf, armEpoch, stallMin });
-        // `pollOnce` updates `seeds` in place AND skips fingerprint-unchanged items,
-        // so the SAME comment/verdict is never delivered twice — no manual re-seed.
-        if (outcome.fire) await deliver(outcome.fire.line);
-        // A near-exhausted quota (FREE header read) → back off VISIBLY.
-        if (outcome.rateRemaining !== null && outcome.rateRemaining < RATE_FLOOR) {
-          warn(`core quota remaining=${outcome.rateRemaining} < ${RATE_FLOOR} — backing off`);
-          await sleepAbortable(Math.min((intervalMs / 1000) * BACKOFF_FACTOR, MAX_BACKOFF_S) * 1000);
-          continue;
-        }
-      } catch (err) {
-        if (err instanceof RateLimitedError) {
-          // FAIL HARD: surface the rate limit and STOP this watch — never spin.
-          warn(rateLimitMessage(err));
-          return;
-        }
-        /* transient (network) — skip this poll, keep watching */
-      }
-      await sleepAbortable(intervalMs);
-    }
-  })();
-}
-
-/** Read a file as text under both runtimes (Bun's `Bun.file`, else `node:fs`). */
-async function readText(path: string): Promise<string> {
-  const bun = (globalThis as { Bun?: any }).Bun;
-  if (bun?.file) return bun.file(path).text();
-  const { readFileSync } = await import("node:fs");
-  return readFileSync(path, "utf8");
+  return items;
 }
 
 // --- V2 binding (measured opencode >= 2.0) ----------------------------------
 
 async function watchV2(ctx: any, dir: string) {
-  if (!ctx?.session?.synthetic) {
-    warn("ctx.session.synthetic unavailable — watcher disabled");
-    return;
-  }
-
-  let sessionID = "";
-  try {
-    if (ctx.tool?.hook) {
-      await ctx.tool.hook("execute.before", (e: any) => {
-        if (e?.sessionID) sessionID = e.sessionID;
-      });
-    }
-    if (ctx.session?.hook) {
-      await ctx.session.hook("prompt", (e: any) => {
-        if (e?.sessionID) sessionID = e.sessionID;
-      });
-    }
-  } catch {
-    /* hook registration unavailable — delivery will warn if it wakes first */
-  }
-
-  const deliver = async (line: string) => {
-    if (!sessionID) {
-      warn(`wake with no session id captured yet: ${line}`);
-      return;
-    }
-    try {
-      await ctx.session.synthetic({ sessionID, text: `PR-watch: ${line}` });
-    } catch {
-      /* delivery unavailable — the loop keeps watching */
-    }
-  };
-
-  await loop(dir, deliver);
+  const sink = await v2SessionSink(ctx, "PR-watch:", warn);
+  if (!sink) return;
+  const items = await loadItems(dir);
+  if (items.length === 0) return;
+  await watchLoop(items, {
+    events: WATCH_EVENTS,
+    wf: WF,
+    deliver: sink.deliver,
+    warn,
+  });
 }
 
 // --- V1 binding (opencode 1.x SDK client) -----------------------------------
@@ -233,5 +137,7 @@ async function watchV1(client: any, dir: string) {
       /* session list/prompt unavailable — the toast already fired */
     }
   };
-  await loop(dir, deliver);
+  const items = await loadItems(dir);
+  if (items.length === 0) return;
+  await watchLoop(items, { events: WATCH_EVENTS, wf: WF, deliver, warn });
 }
