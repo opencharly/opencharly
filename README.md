@@ -1,20 +1,77 @@
 # OpenCharly — umbrella
 
-**One clone of the whole org.** `opencharly/opencharly` is an org-level umbrella repo:
-every OpenCharly repo (424 today) is pinned here as a git submodule ("gitlink", in the
-org's vocabulary), flat at the root — submodule path == repo name, except the one
-alias below. `charly` is the product repo and the single source of truth; this
-umbrella is a *view* of the org, not a new home for anything.
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/opencharly/opencharly)
 
-```
+**One clone of the whole org — and the place all charly development happens.**
+`opencharly/opencharly` is an org-level umbrella repo: every OpenCharly repo (424 today)
+is pinned here as a git submodule ("gitlink", in the org's vocabulary), flat at the
+root — submodule path == repo name for all but one alias (`.github`, pinned at the
+`dotgithub/` path).
+
+It is two things at once. It is a *view* of the org: one checkout in which every repo
+sits at the exact commit the rest of the org builds against. And it is the working root
+for the product — charly development happens here, in per-session worktrees, and lands
+through the org's PR-only chain. `charly` remains the product repo and the single
+source of truth; this umbrella is where you work on it.
+
+Product docs: [charly's README](charly/README.md) · [opencharly.ai](https://opencharly.ai).
+
+## Start developing
+
+```sh
 git clone --recurse-submodules https://github.com/opencharly/opencharly.git
+cd opencharly
+./charly/scripts/bootstrap-charly.sh   # builds ./charly/bin/charly — once per clone
+./charly/bin/charly task hooks         # installs this clone's pre-commit gate
 ```
 
-Add `--depth 1` to keep the clone light (~50 MB of working trees).
+Add `--depth 1` to keep the clone light (~50 MB of working trees). All submodule URLs
+are plain HTTPS, so **forks work without extra configuration**: every gitlink resolves
+to its `opencharly/<repo>` upstream over HTTPS, no credentials needed for a read-only
+checkout.
 
-All submodule URLs are plain HTTPS, so **forks work without extra configuration**:
-every gitlink resolves to its `opencharly/<repo>` upstream over HTTPS, no credentials
-needed for a read-only checkout.
+Then the one rule that keeps the checkout honest: **never edit a submodule in place.**
+Every repo you change gets its own worktree at `.worktrees/<slug>/<repo>/`, branched off
+a fresh `origin/main`, so the submodule's tracked checkout stays detached and clean at
+its recorded gitlink. Change lands only by pull request. The full model — worktrees,
+policy B, the producer-first landing order, after-merge cleanup — is in
+[AGENTS.md](AGENTS.md) under *The development model*.
+
+## Built for agent sessions
+
+[AGENTS.md](AGENTS.md) is the one rulebook, and it is harness-neutral: every agent
+harness reads that same file directly, so no second copy exists to drift. Each harness
+carries its own configuration at the root alongside it — a shared, deliberately
+byte-identical core that `./charly/bin/charly task harness` drift-checks, plus that
+harness's own settings and workflows as a deliberate fork. Skills live in neither: they
+come from the [`opencharly/marketplace`](https://github.com/opencharly/marketplace)
+corpus, which each harness resolves per its own conventions.
+
+Every change lands the same way: a `feat/` branch, a PR validated by
+`charly/pr-validator`, then native auto-merge — and `tag-on-merge` writes the CHANGELOG
+entry and the CalVer tag.
+
+## Maintenance commands
+
+Build the binary once per clone (above), then run the umbrella's own maintenance from
+the umbrella root:
+
+| command | purpose |
+|---|---|
+| `./charly/bin/charly task map` | list every submodule with its pin and sync state |
+| `./charly/bin/charly task sync` | bump pins per policy B (preview; does not commit) |
+| `./charly/bin/charly task verify` | the full pinning gate, on demand (every pin, incl. the remote branch audit) |
+| `./charly/bin/charly task hooks` | install `hooks/pre-commit` for this clone (once) |
+| `./charly/bin/charly task org-map` | verify the README org-map tables against the repo and `.gitmodules` |
+| `./charly/bin/charly task harness` | harness config parity vs `charly/` (shared files identical) |
+| `./charly/bin/charly task skills` | splice the generated R0 dispatcher from the pinned marketplace into AGENTS.md |
+| `./charly/bin/charly task policy-b` | assert policy B — every `distro-*` gitlink equals charly's own `box/*` gitlink |
+| `./charly/bin/charly task pins` | the policy-B pin operation over the `distro-*` set (mode via param) |
+| `./charly/bin/charly task self-test` | self-test the committed CI body/pin-evidence builders + the dispatcher splice |
+| `./charly/bin/charly task omarchy-agents` | gate the committed omarchy PR-eval pi agents (tracked + parseable) |
+| `./charly/bin/charly task pi-forks` | sync the opencharly pi-plugin forks from their upstreams (requires `gh` auth) |
+
+`./charly/bin/charly task list` enumerates them.
 
 ## The org map
 
@@ -30,8 +87,7 @@ Two repos are deliberately **not** listed as their own-name submodules:
   path (submodule path != repo name), so this repo's own `.github/workflows/` stays
   free for its CI dispatchers.
 
-`heroic-heroic` (an accidental scaffold repo from a batch cutover bug) is archived
-and intentionally not a submodule.
+`heroic-heroic` is archived and intentionally not a submodule.
 
 ### Core & contract
 
@@ -343,7 +399,9 @@ and intentionally not a submodule.
 
 ### Plugins
 
-117 repos — charly plug-ins (verb/substrate providers).
+117 repos — charly plugin candies. Their `providers:` blocks register the kinds,
+deploys, verbs, steps, builds, builders, commands, engines, loaders, refs,
+agent runtimes and terminals charly speaks.
 
 | path | repo | role |
 |---|---|---|
@@ -564,15 +622,22 @@ and intentionally not a submodule.
 Every submodule is pinned to a specific commit (a gitlink), and `policy B` keeps the
 whole org a single coherent snapshot:
 
-- `charly` follows its own default-branch HEAD.
+- `charly` tracks its own default branch — the pin is the `main` commit the last `sync`
+  recorded.
 - every `distro-*` follows **exactly the commit charly's own gitlinks pin** (charly's
   `box/<distro>` ↔ this repo's `distro-<distro>`), so the umbrella means *"the org
   exactly as charly sees it"*.
+- `sdk` and `spec` are pinned the same way, at their own default branch's HEAD.
 - every other repo follows its own default-branch HEAD.
 
-`.gitmodules` records `branch = <repo default>` on every entry, so a future
-default-branch rename keeps working. A daily `sync` workflow advances the pins and
-lands them through the org's PR-only validation chain.
+This umbrella's `.gitmodules` records `branch = <repo default>` on all of its entries,
+so a future default-branch rename keeps working. A daily `sync` workflow
+(`.github/workflows/sync.yml`, `17 3 * * *`) advances the pins and lands them through
+the org's PR-only validation chain: it opens a PR, and never pushes to the default
+branch.
+
+A pin is a gitlink — the recorded commit, checked out detached and clean — and
+`./charly/bin/charly task verify` asserts exactly that. A dangling pin is a failure.
 
 ## License
 
