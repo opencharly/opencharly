@@ -8,9 +8,12 @@
  * extension is the Pi equivalent of the `.reasonix`/kimi `PreToolUse(Bash)`
  * wiring of `.claude/hooks/pre-commit-gate.sh` and `pre-push-gate.sh`. It
  * intercepts every `bash` tool call and runs both gate scripts against the
- * command, blocking the call when a gate exits 2 — and REFUSING the call
- * (fail CLOSED) when a gate script is missing or cannot be executed, so a hook
- * that is absent or broken can never degrade into a silent bypass.
+ * command, blocking the call on exit 2 (the gates' documented block signal)
+ * and REFUSING the call (fail CLOSED) whenever a gate script is missing, is
+ * not executable, cannot be exec'd, or exits with ANY other non-zero code, so
+ * a hook that is absent or broken can never degrade into a silent bypass.
+ * Both gate scripts exit ONLY 0 (allow) or 2 (block) — measured on every path
+ * — so any other code is the gate itself failing, never an approval.
  *
  * The gates guard ONLY deterministic command mechanics (per the project
  * rulebook "Hooks" doctrine):
@@ -44,7 +47,7 @@
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { writeFile, unlink, access, readFile } from "node:fs/promises";
-import { existsSync } from "node:fs";
+import { constants, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Type } from "typebox";
@@ -471,18 +474,21 @@ export default function (pi: ExtensionAPI) {
       for (const rel of GATE_SCRIPTS) {
         const script = join(ctx.cwd, rel);
         try {
-          await access(script);
+          // X_OK, not the F_OK default: mere existence would let a gate whose exec bit
+          // was stripped (or whose shebang cannot run) pass as "checked". A MISSING or
+          // NON-EXECUTABLE gate script BLOCKS — fail CLOSED: this extension is the Pi
+          // equivalent of the PreToolUse gates, so a hook that cannot be found or cannot
+          // be run must not let `git commit --no-verify` / `git push --force` through
+          // silently — a missing gate is the one case an attacker would arrange.
+          await access(script, constants.X_OK);
         } catch {
-          // A MISSING gate script BLOCKS. Fail CLOSED: this extension is the Pi
-          // equivalent of the PreToolUse gates, so a hook that cannot be found must
-          // not let `git commit --no-verify` / `git push --force` through silently —
-          // a missing gate is the one case an attacker would arrange.
           return {
             block: true,
             reason:
-              `charly gate ${rel} is MISSING (no such file: ${script}) — the bash call is refused ` +
-              "because the git-workflow mechanics cannot be checked. Restore the gate script " +
-              "(it is committed under .claude/hooks/) or run pi from the project root.",
+              `charly gate ${rel} is MISSING or NOT EXECUTABLE (${script} is not a runnable ` +
+              "file) — the bash call is refused because the git-workflow mechanics cannot be " +
+              "checked. Restore the gate script (it is committed under .claude/hooks/, with " +
+              "its exec bit) or run pi from the project root.",
           };
         }
 
@@ -504,11 +510,26 @@ export default function (pi: ExtensionAPI) {
           };
         }
 
-        if (result.code === 2) {
+        if (result.code !== 0) {
           const detail = (result.stderr ?? "").trim();
+          if (result.code === 2) {
+            return {
+              block: true,
+              reason: `charly gate (${rel}) BLOCKED: ${detail || "command violates a git-workflow mechanic"}`,
+            };
+          }
+          // The gates exit 0 (allow) or 2 (block) and nothing else, so any further
+          // non-zero code is the gate ITSELF failing — 1 an internal error, 126/127 a
+          // lost exec bit or a missing interpreter. Refuse it (fail CLOSED): a gate
+          // that crashed checked nothing, and reading that as approval is exactly the
+          // silent bypass the missing-script arm above exists to forbid.
           return {
             block: true,
-            reason: `charly gate (${rel}) BLOCKED: ${detail || "command violates a git-workflow mechanic"}`,
+            reason:
+              `charly gate ${rel} exited ${result.code} with NO verdict` +
+              `${detail ? ` (stderr: ${detail})` : ""} — the bash call is refused because the ` +
+              "git-workflow mechanics were not checked. The gates exit 0 (allow) or 2 (block); " +
+              "a gate that breaks must never read as a pass. Fix the gate before retrying.",
           };
         }
       }

@@ -8,25 +8,30 @@
 // points at a missing file, is a silent capability loss.
 //
 // WHICH assertions discriminate. Two classes, and they are NOT the same claim. MEASURED, not
-// asserted: `git archive main | tar -x -C <dir>` + `--root <dir>` reports 18 failures out of
-// 29 assertions, and `--self-test` proves every assertion is live.
+// asserted: `git archive main | tar -x -C <dir>` + `--root <dir>` reports 20 failures out of
+// 31 assertions (all 31 PASS on the consolidated tree), and `--self-test` proves every CHECK
+// is live — 12 mutations: one per check, a second for checks 2 and 4, and four for check 3 —
+// which is what its own OK message says, and NOT a claim that all 31 assertions are mutated.
 //   * DISCRIMINATING — the surface did not exist before the consolidation, so the assertion
 //     FAILS on a pre-consolidation tree (`main`): going green is evidence the surface is now
-//     present and wired. That is checks 2, 6 and 7 in full, 3 of check 3's 4, and 4 of the 5
-//     in check 5 (env / teammateMode / worktree / the plugin set).
+//     present and wired. That is checks 2, 6 and 7 in full, 5 of check 3's 6 (existence, the
+//     .pi wiring, the entry point, and both fail-closed arms), and 4 of the 5 in check 5
+//     (env / teammateMode / worktree / the plugin set).
 //   * STRUCTURAL — PASSES on `main` too, and NOT claimed to discriminate: check 1's 5
 //     JSON-parse assertions (all five files pre-exist), check 4's 4 assertions (the two gate
 //     scripts pre-exist AND are already executable — what the consolidation adds is the
 //     extension that INVOKES them, which check 3 covers), check 5's hooks-block assertion,
 //     and check 3's `build:binary` absence clause (vacuously true where no extension exists).
-// `--self-test` proves that split by EXECUTING it (see below) rather than asserting it.
+// `--self-test` proves that split by EXECUTING it (see below) rather than asserting it: every
+// mutation must turn the gate RED carrying the mutated check's own message.
 //
 // Checks:
 //   1. Every harness JSON parses (and is an object).                        [structural]
 //   2. .codex TOML exists and has the required keys (sandbox_mode,
 //      approval_policy; pr-validator name+instructions).                [discriminating]
-//   3. .pi/extensions/charly-gates.ts EXISTS, is listed in .pi/settings.json, and
-//      builds via bootstrap-charly.sh (not the retired `task build:binary`).
+//   3. .pi/extensions/charly-gates.ts EXISTS, is listed in .pi/settings.json, builds via
+//      bootstrap-charly.sh (not the retired `task build:binary`), and carries BOTH of its
+//      fail-closed arms: executability (X_OK) and a refusal on any non-zero exit.
 //   4. The two gate scripts charly-gates.ts invokes EXIST and are
 //      executable.                                                       [structural]
 //   5. .claude/settings.json carries the absorbed env/teammateMode/worktree + hooks.
@@ -54,10 +59,11 @@ const root = rootIdx === -1 ? resolve(here, "..") : resolve(argv[rootIdx + 1]);
 
 // ── --self-test: prove the discriminating/structural split by executing it ──────────
 // Copies every surface this gate reads into a temp tree, asserts the gate is GREEN there
-// (so the copy is faithful), then mutates ONE surface per check and asserts the gate goes
-// RED with that check's own message. Every mutation is reverted by re-copying all surfaces
-// from this tree first, so the mutations never compound. Runs BEFORE the checks and exits,
-// so `--self-test` output is exactly the self-test's.
+// (so the copy is faithful), then applies ONE mutation at a time — one per check, more where
+// a check carries several arms — and asserts the gate goes RED with that check's own message.
+// Every mutation is reverted by re-copying all surfaces from this tree first, so the
+// mutations never compound. Runs BEFORE the checks and exits, so `--self-test` output is
+// exactly the self-test's.
 if (argv.includes("--self-test")) {
   const { cpSync, mkdtempSync, mkdirSync, rmSync, writeFileSync, chmodSync } = await import("node:fs");
   const { spawnSync } = await import("node:child_process");
@@ -117,6 +123,9 @@ if (argv.includes("--self-test")) {
     [".claude/settings.json", (p) => { const s = JSON.parse(readFileSync(p, "utf8")); delete s.teammateMode; writeFileSync(p, JSON.stringify(s)); }, "carries teammateMode", "5"],
     [".claude/workflows/audit-deploy-configs.js", (p) => rmSync(p), "audit-deploy-configs.js exists", "6"],
     ["opencode.json", (p) => { const o = JSON.parse(readFileSync(p, "utf8")); delete o.permission.bash["charly check run *"]; writeFileSync(p, JSON.stringify(o)); }, 'grants "charly check run *"', "7"],
+    [".claude/hooks/pre-commit-gate.sh", (p) => chmodSync(p, 0o644), "pre-commit-gate.sh is executable", "4 (a lost exec bit must FAIL, not pass)"],
+    [".pi/extensions/charly-gates.ts", (p) => writeFileSync(p, readFileSync(p, "utf8").replace(/constants\.X_OK/, "undefined")), "EXECUTABLE (access X_OK)", "3 (fail-closed arm: executability)"],
+    [".pi/extensions/charly-gates.ts", (p) => writeFileSync(p, readFileSync(p, "utf8").replace(/result\.code !== 0/, "result.code === 2")), "refuses ANY non-zero gate exit", "3 (fail-closed arm: the reverted guard must FAIL the gate)"],
   ];
   for (const [surface, mutate, expect, check] of mutations) {
     stage(); // revert everything, then apply exactly this mutation
@@ -209,6 +218,17 @@ for (const p of [
   const extBody = read(ext) ?? "";
   ok(extBody.includes("bootstrap-charly.sh"), `${ext} builds via bootstrap-charly.sh (the only sanctioned entry point)`);
   ok(!extBody.includes("build:binary"), `${ext} does not use the retired bare \`task build:binary\` target`);
+  // The extension's fail-closed arms. The gate cannot EXECUTE a Pi extension, so it
+  // asserts the arms by source — without these two lines, deleting both arms left every
+  // check green while the extension's header still promised to fail closed.
+  ok(
+    /access\(\s*script\s*,\s*constants\.X_OK\s*\)/.test(extBody),
+    `${ext} requires the gate scripts to be EXECUTABLE (access X_OK), not merely present`,
+  );
+  ok(
+    /result\.code\s*!==\s*0/.test(extBody),
+    `${ext} refuses ANY non-zero gate exit, not only exit 2 (a broken gate cannot read as a pass)`,
+  );
 }
 
 // 4. The gate scripts the Pi extension invokes exist and are executable.
