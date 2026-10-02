@@ -63,6 +63,7 @@
     "bash": {
       "./charly/bin/charly task *": "allow",
       "charly task *": "allow",
+      "charly status *": "allow",
       "bash scripts/*": "allow",
       "git -C *": "allow",
       "gh pr merge *": "allow",

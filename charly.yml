@@ -201,6 +201,9 @@ verify:
       - check: the session tracker plugin — the durable ledger (rule 11 invariant), the three tools, and the real-binary load
         command: node scripts/check-issue-tracker.mjs
         context: [runtime]
+      - check: every harness-config surface parses and is wired (rule 8)
+        command: node scripts/check-harness-config.mjs
+        context: [runtime]
 
 # -----------------------------------------------------------------------------
 # harness — harness config parity with charly/ (shared files identical).
