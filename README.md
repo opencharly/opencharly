@@ -21,9 +21,16 @@ Product docs: [charly's README](charly/README.md) · [opencharly.ai](https://ope
 ```sh
 git clone --recurse-submodules https://github.com/opencharly/opencharly.git
 cd opencharly
-./charly/scripts/bootstrap-charly.sh   # builds ./charly/bin/charly — once per clone
-./charly/bin/charly task hooks         # installs this clone's pre-commit gate
+./charly/scripts/bootstrap-charly.sh   # builds charly/bin/charly — once per clone
+export PATH="$PWD/charly/bin:$PATH"    # from here on this page reads `charly …`
+charly task hooks                      # installs this clone's pre-commit gate
 ```
+
+The bootstrap script is the umbrella's one non-`charly` entrypoint, and it has to be:
+the build that produces the `charly` binary cannot itself be a `charly` task. Every
+command after it is the installed-binary form — `charly task …`, exactly as on a host
+that installed a package. Without the `export`, the same commands run as
+`./charly/bin/charly task …`; both forms are the same binary.
 
 Add `--depth 1` to keep the clone light (~50 MB of working trees). All submodule URLs
 are plain HTTPS, so **forks work without extra configuration**: every gitlink resolves
@@ -42,7 +49,7 @@ policy B, the producer-first landing order, after-merge cleanup — is in
 [AGENTS.md](AGENTS.md) is the one rulebook, and it is harness-neutral: every agent
 harness reads that same file directly, so no second copy exists to drift. Each harness
 carries its own configuration at the root alongside it — a shared, deliberately
-byte-identical core that `./charly/bin/charly task harness` drift-checks, plus that
+byte-identical core that `charly task harness` drift-checks, plus that
 harness's own settings and workflows as a deliberate fork. Skills live in neither: they
 come from the [`opencharly/marketplace`](https://github.com/opencharly/marketplace)
 corpus, which each harness resolves per its own conventions.
@@ -53,25 +60,27 @@ entry and the CalVer tag.
 
 ## Maintenance commands
 
-Build the binary once per clone (above), then run the umbrella's own maintenance from
-the umbrella root:
+Build the binary once per clone and put it on `PATH` (both in *Start developing* above),
+then run the umbrella's own maintenance from the umbrella root. Every command below is the
+installed-binary form — `charly task …`, the same shape a packaged `charly` gives you:
 
 | command | purpose |
 |---|---|
-| `./charly/bin/charly task map` | list every submodule with its pin and sync state |
-| `./charly/bin/charly task sync` | bump pins per policy B (preview; does not commit) |
-| `./charly/bin/charly task verify` | the full pinning gate, on demand (every pin, incl. the remote branch audit) |
-| `./charly/bin/charly task hooks` | install `hooks/pre-commit` for this clone (once) |
-| `./charly/bin/charly task org-map` | verify the README org-map tables against the repo and `.gitmodules` |
-| `./charly/bin/charly task harness` | harness config parity vs `charly/` (shared files identical) |
-| `./charly/bin/charly task skills` | splice the generated R0 dispatcher from the pinned marketplace into AGENTS.md |
-| `./charly/bin/charly task policy-b` | assert policy B — every `distro-*` gitlink equals charly's own `box/*` gitlink |
-| `./charly/bin/charly task pins` | the policy-B pin operation over the `distro-*` set (mode via param) |
-| `./charly/bin/charly task self-test` | self-test the committed CI body/pin-evidence builders + the dispatcher splice |
-| `./charly/bin/charly task omarchy-agents` | gate the committed omarchy PR-eval pi agents (tracked + parseable) |
-| `./charly/bin/charly task pi-forks` | sync the opencharly pi-plugin forks from their upstreams (requires `gh` auth) |
+| `charly task map` | list every submodule with its pin and sync state |
+| `charly task sync` | bump pins per policy B (preview; does not commit) |
+| `charly task verify` | the full pinning gate, on demand (every pin, incl. the remote branch audit) |
+| `charly task hooks` | install `hooks/pre-commit` for this clone (once) |
+| `charly task org-map` | verify the README org-map tables against the repo and `.gitmodules` |
+| `charly task harness` | harness config parity vs `charly/` (shared files identical) |
+| `charly task skills` | splice the generated R0 dispatcher from the pinned marketplace into AGENTS.md |
+| `charly task policy-b` | assert policy B — every `distro-*` gitlink equals charly's own `box/*` gitlink |
+| `charly task pins` | the policy-B pin operation over the `distro-*` set (mode via param) |
+| `charly task self-test` | self-test the committed CI body/pin-evidence builders + the dispatcher splice |
+| `charly task omarchy-agents` | gate the committed omarchy PR-eval pi agents (tracked + parseable) |
+| `charly task pi-forks` | sync the opencharly pi-plugin forks from their upstreams (requires `gh` auth) |
 
-`./charly/bin/charly task list` enumerates them.
+`charly task list` enumerates them — twelve today. Without the `PATH` export, the same
+commands run as `./charly/bin/charly task …`; the README and `AGENTS.md` list the same twelve.
 
 ## The org map
 
@@ -637,7 +646,7 @@ the org's PR-only validation chain: it opens a PR, and never pushes to the defau
 branch.
 
 A pin is a gitlink — the recorded commit, checked out detached and clean — and
-`./charly/bin/charly task verify` asserts exactly that. A dangling pin is a failure.
+`charly task verify` asserts exactly that. A dangling pin is a failure.
 
 ## License
 

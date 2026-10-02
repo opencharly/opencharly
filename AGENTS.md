@@ -543,8 +543,14 @@ task), then run the umbrella's maintenance from the umbrella root:
 | `./charly/bin/charly task harness` | harness config parity vs `charly/` |
 | `./charly/bin/charly task org-map` | verify the README org-map tables vs `.gitmodules` |
 | `./charly/bin/charly task skills` | splice the generated R0 dispatcher into this file |
+| `./charly/bin/charly task policy-b` | assert policy B — every `distro-*` gitlink equals charly's own `box/*` gitlink |
+| `./charly/bin/charly task pins` | the policy-B pin operation over the `distro-*` set (mode via param) |
+| `./charly/bin/charly task self-test` | self-test the committed CI body/pin-evidence builders + the dispatcher splice |
+| `./charly/bin/charly task omarchy-agents` | gate the committed omarchy PR-eval pi agents (tracked + parseable) |
+| `./charly/bin/charly task pi-forks` | sync the opencharly pi-plugin forks from their upstreams (requires `gh` auth) |
 
-`./charly/bin/charly task list` enumerates them. The detailed mechanics — the
+`./charly/bin/charly task list` enumerates them — twelve today, and the README's
+`## Maintenance commands` table must match this list row for row. The detailed mechanics — the
 branch/PR loop, policy-B sync order, the after-merge cleanup, and new-repo
 onboarding — are owned by `/charly-internals:git-workflow` and
 `/charly-internals:repo-setup`; load them before any git/PR action.
