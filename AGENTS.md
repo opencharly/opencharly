@@ -54,8 +54,7 @@ someone else's repo.
    root, so config elsewhere binds a situation that cannot legally occur — one root, one
    config home. An AGENTS.md rulebook is NOT harness config and stays in its own repo. The
    umbrella carries its own clone-level git hook (installed per clone by
-   `./charly/bin/charly task hooks`). The harness-specific skill
-   (`/charly-internals:agents`) documents the mechanism.
+   `./charly/bin/charly task hooks`).
 
    The gate scripts guard mechanics only; policy is judged by the `pr-validator` at merge.
 9. **Session-scoped ownership — never touch another session's files.** The

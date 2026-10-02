@@ -8,23 +8,25 @@
 // points at a missing file, is a silent capability loss.
 //
 // WHICH assertions discriminate. Two classes, and they are NOT the same claim. MEASURED, not
-// asserted: `git archive main | tar -x -C <dir>` + `--root <dir>` reports 17 failures, and
-// `--self-test` proves every assertion is live.
+// asserted: `git archive main | tar -x -C <dir>` + `--root <dir>` reports 18 failures out of
+// 29 assertions, and `--self-test` proves every assertion is live.
 //   * DISCRIMINATING — the surface did not exist before the consolidation, so the assertion
 //     FAILS on a pre-consolidation tree (`main`): going green is evidence the surface is now
-//     present and wired. That is every assertion of checks 2, 3, 6 and 7, and 4 of the 5 in
-//     check 5 (env / teammateMode / worktree / the plugin set).
+//     present and wired. That is checks 2, 6 and 7 in full, 3 of check 3's 4, and 4 of the 5
+//     in check 5 (env / teammateMode / worktree / the plugin set).
 //   * STRUCTURAL — PASSES on `main` too, and NOT claimed to discriminate: check 1's 5
 //     JSON-parse assertions (all five files pre-exist), check 4's 4 assertions (the two gate
 //     scripts pre-exist AND are already executable — what the consolidation adds is the
-//     extension that INVOKES them, which check 3 covers), and check 5's hooks-block assertion.
+//     extension that INVOKES them, which check 3 covers), check 5's hooks-block assertion,
+//     and check 3's `build:binary` absence clause (vacuously true where no extension exists).
 // `--self-test` proves that split by EXECUTING it (see below) rather than asserting it.
 //
 // Checks:
 //   1. Every harness JSON parses (and is an object).                        [structural]
 //   2. .codex TOML exists and has the required keys (sandbox_mode,
 //      approval_policy; pr-validator name+instructions).                [discriminating]
-//   3. .pi/extensions/charly-gates.ts EXISTS and is listed in .pi/settings.json.
+//   3. .pi/extensions/charly-gates.ts EXISTS, is listed in .pi/settings.json, and
+//      builds via bootstrap-charly.sh (not the retired `task build:binary`).
 //   4. The two gate scripts charly-gates.ts invokes EXIST and are
 //      executable.                                                       [structural]
 //   5. .claude/settings.json carries the absorbed env/teammateMode/worktree + hooks.
@@ -110,6 +112,7 @@ if (argv.includes("--self-test")) {
     [".codex/config.toml", (p) => writeFileSync(p, readFileSync(p, "utf8").replace(/^sandbox_mode\s*=.*$/m, "")), "declares sandbox_mode", "2"],
     [".codex/config.toml", (p) => rmSync(p), ".codex/config.toml exists", "2 (missing surface: must FAIL, not throw ENOENT)"],
     [".pi/settings.json", (p) => writeFileSync(p, JSON.stringify({ extensions: [] })), ".pi/settings.json lists", "3"],
+    [".pi/extensions/charly-gates.ts", (p) => writeFileSync(p, readFileSync(p, "utf8") + "\n// task build:binary\n"), "does not use the retired bare", "3 (sanctioned entry point)"],
     [".claude/hooks/pre-commit-gate.sh", (p) => rmSync(p), "pre-commit-gate.sh exists", "4"],
     [".claude/settings.json", (p) => { const s = JSON.parse(readFileSync(p, "utf8")); delete s.teammateMode; writeFileSync(p, JSON.stringify(s)); }, "carries teammateMode", "5"],
     [".claude/workflows/audit-deploy-configs.js", (p) => rmSync(p), "audit-deploy-configs.js exists", "6"],
@@ -190,7 +193,11 @@ for (const p of [
   ok(/^developer_instructions\s*=\s*"""/m.test(pv), ".codex/agents/pr-validator.toml carries developer_instructions");
 }
 
-// 3. The Pi gate extension exists AND is wired in .pi/settings.json.
+// 3. The Pi gate extension exists, is wired in .pi/settings.json, and its own commands
+//    use the sanctioned build entry point (bootstrap-charly.sh, which writes
+//    charly/bin/charly) rather than the bare `task build:binary` target it used before the
+//    consolidation — that target exists in no repo, so the old tool reported a binary that
+//    was never built.
 {
   const ext = ".pi/extensions/charly-gates.ts";
   ok(existsSync(join(root, ext)), `${ext} exists`);
@@ -199,6 +206,9 @@ for (const p of [
     Array.isArray(pi.extensions) && pi.extensions.some((e) => /charly-gates\.ts$/.test(e)),
     ".pi/settings.json lists ./extensions/charly-gates.ts (the wiring FAILS without it)",
   );
+  const extBody = read(ext) ?? "";
+  ok(extBody.includes("bootstrap-charly.sh"), `${ext} builds via bootstrap-charly.sh (the only sanctioned entry point)`);
+  ok(!extBody.includes("build:binary"), `${ext} does not use the retired bare \`task build:binary\` target`);
 }
 
 // 4. The gate scripts the Pi extension invokes exist and are executable.

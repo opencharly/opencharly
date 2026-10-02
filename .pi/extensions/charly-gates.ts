@@ -8,7 +8,9 @@
  * extension is the Pi equivalent of the `.reasonix`/kimi `PreToolUse(Bash)`
  * wiring of `.claude/hooks/pre-commit-gate.sh` and `pre-push-gate.sh`. It
  * intercepts every `bash` tool call and runs both gate scripts against the
- * command, blocking the call when a gate exits 2.
+ * command, blocking the call when a gate exits 2 — and REFUSING the call
+ * (fail CLOSED) when a gate script is missing or cannot be executed, so a hook
+ * that is absent or broken can never degrade into a silent bypass.
  *
  * The gates guard ONLY deterministic command mechanics (per the project
  * rulebook "Hooks" doctrine):
@@ -351,8 +353,12 @@ export default function (pi: ExtensionAPI) {
         // Step 3: Init submodules
         await pi.exec("git", ["submodule", "update", "--init", "--recursive"], { cwd: worktreePath });
 
-        // Step 4: Build binary
-        await pi.exec("task", ["build:binary"], { cwd: worktreePath });
+        // Step 4: Build binary — the umbrella's ONLY sanctioned build entry point is
+        // charly/scripts/bootstrap-charly.sh (the build that produces the binary cannot
+        // itself be a charly task), and it writes $worktreePath/charly/bin/charly.
+        await pi.exec("bash", [join(worktreePath, "charly", "scripts", "bootstrap-charly.sh")], {
+          cwd: worktreePath,
+        });
 
         // Record for cleanup
         _worktrees.push({ slug, path: worktreePath, branch });
@@ -363,7 +369,7 @@ export default function (pi: ExtensionAPI) {
               type: "text",
               text:
                 `Worktree created at ${worktreePath} on branch ${branch}.\n` +
-                `- Binary built at ${worktreePath}/bin/charly\n` +
+                `- Binary built at ${worktreePath}/charly/bin/charly\n` +
                 `- Submodules initialized\n` +
                 `- Use \`cd ${worktreePath}\` to work in this branch\n` +
                 `- Use charly_worktree_remove when done`,
@@ -467,8 +473,17 @@ export default function (pi: ExtensionAPI) {
         try {
           await access(script);
         } catch {
-          // Gate script absent (e.g. running pi from a subdirectory) — skip.
-          continue;
+          // A MISSING gate script BLOCKS. Fail CLOSED: this extension is the Pi
+          // equivalent of the PreToolUse gates, so a hook that cannot be found must
+          // not let `git commit --no-verify` / `git push --force` through silently —
+          // a missing gate is the one case an attacker would arrange.
+          return {
+            block: true,
+            reason:
+              `charly gate ${rel} is MISSING (no such file: ${script}) — the bash call is refused ` +
+              "because the git-workflow mechanics cannot be checked. Restore the gate script " +
+              "(it is committed under .claude/hooks/) or run pi from the project root.",
+          };
         }
 
         let result;
@@ -477,9 +492,16 @@ export default function (pi: ExtensionAPI) {
             cwd: ctx.cwd,
           });
         } catch (err) {
-          // Fail-open on unexpected execution errors; only the gate's own
-          // exit 2 is the block signal.
-          continue;
+          // A gate that cannot RUN is not a gate that PASSED. Fail CLOSED: only exit 2
+          // is the documented block signal, but an unexpected exec error must never
+          // downgrade to "allow" — that is the same silent bypass as a missing hook.
+          const msg = err instanceof Error ? err.message : String(err);
+          return {
+            block: true,
+            reason:
+              `charly gate ${rel} could not run (${msg}) — the bash call is refused because the ` +
+              "git-workflow mechanics were not checked. Fix the gate before retrying.",
+          };
         }
 
         if (result.code === 2) {
