@@ -1,6 +1,5 @@
 {
   "extensions": [
-    "./extensions/charly-gates.ts",
     "./extensions/github-pr-status.ts",
     "./extensions/charly-status.ts",
     "./extensions/vision.ts"

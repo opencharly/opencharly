@@ -121,7 +121,7 @@ self-test:
 # -----------------------------------------------------------------------------
 hooks:
   task:
-    description: Install the pre-commit gate for this clone (policy B + harness parity + the harness-config gate)
+    description: Install the pre-commit gate for this clone (policy B + parity)
     dir: .
     plan:
       - run: set core.hooksPath and report it

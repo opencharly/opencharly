@@ -1,12 +1,5 @@
 {
   "includeCoAuthoredBy": false,
-  "env": {
-    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
-  },
-  "teammateMode": "auto",
-  "worktree": {
-    "bgIsolation": "none"
-  },
   "permissions": {
     "allow": [
       "Bash(git -C *)",

@@ -1,50 +1,46 @@
 #!/usr/bin/env node
-// check-harness-config.mjs — validates EVERY harness-config surface in the umbrella
-// (rule 8: harness config lives ONLY here) and the wiring between them.
+// check-harness-config.mjs — validates the umbrella's harness-config surfaces (rule 8:
+// harness config lives at this root, not in a submodule) and the wiring between them.
 //
-// It exists because the consolidation absorbed charly's unique config (.codex/, the Pi
-// gate extension, an extra Claude workflow, extra .claude/settings.json fields, extra
-// opencode.json grants) — and an absorbed surface that does not parse, or a wiring that
-// points at a missing file, is a silent capability loss.
+// It exists because the root carries several per-harness surfaces that nothing else
+// reads: a JSON surface that stops parsing, an exec bit lost off a committed gate
+// script, a hooks block dropped from .claude/settings.json, or a permission grant that
+// widens past read-only is a silent capability loss — none of it is exercised by
+// `task verify` or `task harness` (the latter checks byte-parity of the FIVE files
+// shared with charly, which these are not).
 //
-// WHICH assertions discriminate. Two classes, and they are NOT the same claim. MEASURED, not
-// asserted: `git archive main | tar -x -C <dir>` + `--root <dir>` reports 20 failures out of
-// 31 assertions (all 31 PASS on the consolidated tree), and `--self-test` proves every CHECK
-// is live — 12 mutations: one per check, a second for checks 2 and 4, and four for check 3 —
-// which is what its own OK message says, and NOT a claim that all 31 assertions are mutated.
-//   * DISCRIMINATING — the surface did not exist before the consolidation, so the assertion
-//     FAILS on a pre-consolidation tree (`main`): going green is evidence the surface is now
-//     present and wired. That is checks 2, 6 and 7 in full, 5 of check 3's 6 (existence, the
-//     .pi wiring, the entry point, and both fail-closed arms), and 4 of the 5 in check 5
-//     (env / teammateMode / worktree / the plugin set).
-//   * STRUCTURAL — PASSES on `main` too, and NOT claimed to discriminate: check 1's 5
-//     JSON-parse assertions (all five files pre-exist), check 4's 4 assertions (the two gate
-//     scripts pre-exist AND are already executable — what the consolidation adds is the
-//     extension that INVOKES them, which check 3 covers), check 5's hooks-block assertion,
-//     and check 3's `build:binary` absence clause (vacuously true where no extension exists).
-// `--self-test` proves that split by EXECUTING it (see below) rather than asserting it: every
+// WHICH assertions discriminate. Two classes, and they are NOT the same claim. The split
+// below is MEASURED, not intended — `node scripts/check-harness-config.mjs --root <a main
+// checkout>` is the measurement, and it is the one to re-run if `main` moves:
+//   * DISCRIMINATING — the assertion FAILS on `main`, so going green is evidence the
+//     surface is present and wired: check 4 in full, check 3's plugin-set arm (main
+//     enables 14 plugins, this branch 28), and check 5's POSITIVE `charly status *` arm
+//     (main grants no `charly` verb of its own).
+//   * STRUCTURAL — PASSES on `main` too, and NOT claimed to discriminate: check 1's four
+//     JSON-parse assertions, check 2's four assertions (both gate scripts pre-exist AND
+//     are already executable), check 3's hooks-block arm (main retains it), and check 5's
+//     NEGATIVE arms — which pass on `main` precisely BECAUSE `main` grants nothing, so a
+//     tree that grants nothing satisfies them vacuously. They are a regression guard on
+//     the positive arm, not evidence of this branch.
+// `--self-test` proves that split by EXECUTING it rather than asserting it: every
 // mutation must turn the gate RED carrying the mutated check's own message.
 //
 // Checks:
 //   1. Every harness JSON parses (and is an object).                        [structural]
-//   2. .codex TOML exists and has the required keys (sandbox_mode,
-//      approval_policy; pr-validator name+instructions).                [discriminating]
-//   3. .pi/extensions/charly-gates.ts EXISTS, is listed in .pi/settings.json, builds via
-//      bootstrap-charly.sh (not the retired `task build:binary`), and carries BOTH of its
-//      fail-closed arms: executability (X_OK) and a refusal on any non-zero exit.
-//   4. The two gate scripts charly-gates.ts invokes EXIST and are
-//      executable.                                                       [structural]
-//   5. .claude/settings.json carries the absorbed env/teammateMode/worktree + hooks.
-//   6. .claude/workflows/audit-deploy-configs.js EXISTS. A Claude workflow is invoked by
+//   2. The two committed gate scripts exist and are executable.            [structural]
+//   3. .claude/settings.json retains its hooks block and the enabled
+//      plugin set.                                    [hooks: struct | plugins: disc]
+//   4. .claude/workflows/audit-deploy-configs.js EXISTS. A Claude workflow is invoked by
 //      name, so nothing "lists" it — existence is the whole check, and this comment says
-//      exactly that (it used to claim a listing the code never performed).
-//   7. opencode.json carries the absorbed charly check/status grants.
+//      exactly that.                                                    [discriminating]
+//   5. opencode.json auto-allows the READ-ONLY `charly status *`, and does
+//      NOT auto-allow the verbs that deploy or run the destructive bed
+//      gate (`charly check live *`, `charly check run *`). [status: disc | negative: struct]
 //
 // Usage:
 //   node scripts/check-harness-config.mjs                 # check this tree
 //   node scripts/check-harness-config.mjs --root <dir>    # check another tree
 //   node scripts/check-harness-config.mjs --self-test     # prove the split above
-//                                                         # (run by hooks/pre-commit)
 
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -57,13 +53,16 @@ const argv = process.argv.slice(2);
 const rootIdx = argv.indexOf("--root");
 const root = rootIdx === -1 ? resolve(here, "..") : resolve(argv[rootIdx + 1]);
 
+// The verbs opencode.json must NOT auto-allow: every one of them either deploys or runs
+// the destructive R10 bed gate, so an agent must ask before it runs one.
+const MUST_NOT_AUTO_ALLOW = ["charly check live *", "charly check run *"];
+
 // ── --self-test: prove the discriminating/structural split by executing it ──────────
 // Copies every surface this gate reads into a temp tree, asserts the gate is GREEN there
-// (so the copy is faithful), then applies ONE mutation at a time — one per check, more where
-// a check carries several arms — and asserts the gate goes RED with that check's own message.
-// Every mutation is reverted by re-copying all surfaces from this tree first, so the
-// mutations never compound. Runs BEFORE the checks and exits, so `--self-test` output is
-// exactly the self-test's.
+// (so the copy is faithful), then applies ONE mutation at a time and asserts the gate goes
+// RED with that check's own message. Every mutation is reverted by re-copying all surfaces
+// from this tree first, so the mutations never compound. Runs BEFORE the checks and exits,
+// so `--self-test` output is exactly the self-test's.
 if (argv.includes("--self-test")) {
   const { cpSync, mkdtempSync, mkdirSync, rmSync, writeFileSync, chmodSync } = await import("node:fs");
   const { spawnSync } = await import("node:child_process");
@@ -74,13 +73,9 @@ if (argv.includes("--self-test")) {
     ".claude/workflows/audit-deploy-configs.js",
     ".claude/hooks/pre-commit-gate.sh",
     ".claude/hooks/pre-push-gate.sh",
-    ".pi/settings.json",
-    ".pi/extensions/charly-gates.ts",
     "opencode.json",
     ".reasonix/settings.json",
     ".opencode/package.json",
-    ".codex/config.toml",
-    ".codex/agents/pr-validator.toml",
   ];
 
   const tmp = mkdtempSync(join(tmpdir(), "check-harness-config-"));
@@ -114,18 +109,14 @@ if (argv.includes("--self-test")) {
 
   // [surface, mutation, the message the mutation must provoke, the check it exercises]
   const mutations = [
-    [".claude/settings.json", (p) => writeFileSync(p, "{ nope"), "does not parse", "1 structural"],
-    [".codex/config.toml", (p) => writeFileSync(p, readFileSync(p, "utf8").replace(/^sandbox_mode\s*=.*$/m, "")), "declares sandbox_mode", "2"],
-    [".codex/config.toml", (p) => rmSync(p), ".codex/config.toml exists", "2 (missing surface: must FAIL, not throw ENOENT)"],
-    [".pi/settings.json", (p) => writeFileSync(p, JSON.stringify({ extensions: [] })), ".pi/settings.json lists", "3"],
-    [".pi/extensions/charly-gates.ts", (p) => writeFileSync(p, readFileSync(p, "utf8") + "\n// task build:binary\n"), "does not use the retired bare", "3 (sanctioned entry point)"],
-    [".claude/hooks/pre-commit-gate.sh", (p) => rmSync(p), "pre-commit-gate.sh exists", "4"],
-    [".claude/settings.json", (p) => { const s = JSON.parse(readFileSync(p, "utf8")); delete s.teammateMode; writeFileSync(p, JSON.stringify(s)); }, "carries teammateMode", "5"],
-    [".claude/workflows/audit-deploy-configs.js", (p) => rmSync(p), "audit-deploy-configs.js exists", "6"],
-    ["opencode.json", (p) => { const o = JSON.parse(readFileSync(p, "utf8")); delete o.permission.bash["charly check run *"]; writeFileSync(p, JSON.stringify(o)); }, 'grants "charly check run *"', "7"],
-    [".claude/hooks/pre-commit-gate.sh", (p) => chmodSync(p, 0o644), "pre-commit-gate.sh is executable", "4 (a lost exec bit must FAIL, not pass)"],
-    [".pi/extensions/charly-gates.ts", (p) => writeFileSync(p, readFileSync(p, "utf8").replace(/constants\.X_OK/, "undefined")), "EXECUTABLE (access X_OK)", "3 (fail-closed arm: executability)"],
-    [".pi/extensions/charly-gates.ts", (p) => writeFileSync(p, readFileSync(p, "utf8").replace(/result\.code !== 0/, "result.code === 2")), "refuses ANY non-zero gate exit", "3 (fail-closed arm: the reverted guard must FAIL the gate)"],
+    [".claude/settings.json", (p) => writeFileSync(p, "{ nope"), "does not parse", "1"],
+    [".claude/hooks/pre-commit-gate.sh", (p) => rmSync(p), "pre-commit-gate.sh exists", "2"],
+    [".claude/settings.json", (p) => { const s = JSON.parse(readFileSync(p, "utf8")); delete s.hooks; writeFileSync(p, JSON.stringify(s)); }, "retains the PreToolUse hooks block", "3"],
+    [".claude/workflows/audit-deploy-configs.js", (p) => rmSync(p), "audit-deploy-configs.js exists", "4"],
+    ["opencode.json", (p) => { const o = JSON.parse(readFileSync(p, "utf8")); o.permission.bash["charly check run *"] = "allow"; writeFileSync(p, JSON.stringify(o)); }, 'does not auto-allow the deploying/destructive "charly check run *"', "5 (negative arm)"],
+    [".claude/hooks/pre-push-gate.sh", (p) => chmodSync(p, 0o644), "pre-push-gate.sh is executable", "2 (a lost exec bit must FAIL, not pass)"],
+    [".claude/settings.json", (p) => { const s = JSON.parse(readFileSync(p, "utf8")); s.enabledPlugins = {}; writeFileSync(p, JSON.stringify(s)); }, "enables the plugin set", "3 (plugin-set arm)"],
+    ["opencode.json", (p) => { const o = JSON.parse(readFileSync(p, "utf8")); delete o.permission.bash["charly status *"]; writeFileSync(p, JSON.stringify(o)); }, 'grants "charly status *"', "5 (positive arm)"],
   ];
   for (const [surface, mutate, expect, check] of mutations) {
     stage(); // revert everything, then apply exactly this mutation
@@ -152,9 +143,9 @@ const fail = (m) => {
   console.error(`  FAIL  ${m}`);
 };
 const ok = (c, m) => (c ? pass(m) : fail(m));
-// A missing surface is a FAIL, never a crash: an unguarded readFileSync threw ENOENT out of
-// the gate on the pre-consolidation tree, aborting all remaining checks with a stack trace
-// instead of reporting which surfaces are absent.
+// A missing surface is a FAIL, never a crash: an unguarded readFileSync throws ENOENT out
+// of the gate, aborting all remaining checks with a stack trace instead of reporting which
+// surfaces are absent.
 const read = (p) => (existsSync(join(root, p)) ? readFileSync(join(root, p), "utf8") : null);
 // A JSON surface reads as {} when missing or malformed: check 1 reports that explicitly, so
 // the check using it then fails on the absent field rather than aborting the whole gate.
@@ -167,11 +158,10 @@ const jsonOr = (p) => {
   }
 };
 
-// 1. Every harness JSON parses. STRUCTURAL: all five exist on `main` too, so this class
-//    is not the consolidation's evidence — read it as "an existing surface stays valid".
+// 1. Every harness JSON parses. STRUCTURAL: all four exist on `main` too, so this class
+//    is not the branch's evidence — read it as "an existing surface stays valid".
 for (const p of [
   ".claude/settings.json",
-  ".pi/settings.json",
   "opencode.json",
   ".reasonix/settings.json",
   ".opencode/package.json",
@@ -189,76 +179,36 @@ for (const p of [
   }
 }
 
-// 2. .codex TOML shape (no built-in TOML parser; assert the required keys are present).
-{
-  for (const p of [".codex/config.toml", ".codex/agents/pr-validator.toml"]) {
-    ok(existsSync(join(root, p)), `${p} exists`);
-  }
-  const cfg = read(".codex/config.toml") ?? "";
-  ok(/^sandbox_mode\s*=/m.test(cfg), ".codex/config.toml declares sandbox_mode");
-  ok(/^approval_policy\s*=/m.test(cfg), ".codex/config.toml declares approval_policy");
-  const pv = read(".codex/agents/pr-validator.toml") ?? "";
-  ok(/^name\s*=\s*"pr-validator"/m.test(pv), ".codex/agents/pr-validator.toml names pr-validator");
-  ok(/^developer_instructions\s*=\s*"""/m.test(pv), ".codex/agents/pr-validator.toml carries developer_instructions");
-}
-
-// 3. The Pi gate extension exists, is wired in .pi/settings.json, and its own commands
-//    use the sanctioned build entry point (bootstrap-charly.sh, which writes
-//    charly/bin/charly) rather than the bare `task build:binary` target it used before the
-//    consolidation — that target exists in no repo, so the old tool reported a binary that
-//    was never built.
-{
-  const ext = ".pi/extensions/charly-gates.ts";
-  ok(existsSync(join(root, ext)), `${ext} exists`);
-  const pi = jsonOr(".pi/settings.json");
-  ok(
-    Array.isArray(pi.extensions) && pi.extensions.some((e) => /charly-gates\.ts$/.test(e)),
-    ".pi/settings.json lists ./extensions/charly-gates.ts (the wiring FAILS without it)",
-  );
-  const extBody = read(ext) ?? "";
-  ok(extBody.includes("bootstrap-charly.sh"), `${ext} builds via bootstrap-charly.sh (the only sanctioned entry point)`);
-  ok(!extBody.includes("build:binary"), `${ext} does not use the retired bare \`task build:binary\` target`);
-  // The extension's fail-closed arms. The gate cannot EXECUTE a Pi extension, so it
-  // asserts the arms by source — without these two lines, deleting both arms left every
-  // check green while the extension's header still promised to fail closed.
-  ok(
-    /access\(\s*script\s*,\s*constants\.X_OK\s*\)/.test(extBody),
-    `${ext} requires the gate scripts to be EXECUTABLE (access X_OK), not merely present`,
-  );
-  ok(
-    /result\.code\s*!==\s*0/.test(extBody),
-    `${ext} refuses ANY non-zero gate exit, not only exit 2 (a broken gate cannot read as a pass)`,
-  );
-}
-
-// 4. The gate scripts the Pi extension invokes exist and are executable.
+// 2. The committed gate scripts exist and are executable. STRUCTURAL: both are on `main`
+//    already — an absent script or a lost exec bit is still a silent capability loss, so
+//    the assertion is worth keeping even though it is not this branch's evidence.
 for (const h of [".claude/hooks/pre-commit-gate.sh", ".claude/hooks/pre-push-gate.sh"]) {
   const p = join(root, h);
   const exists = existsSync(p);
-  ok(exists, `${h} exists (invoked by charly-gates.ts)`);
+  ok(exists, `${h} exists`);
   if (exists) ok((statSync(p).mode & 0o111) !== 0, `${h} is executable`);
 }
 
-// 5. .claude/settings.json carries the absorbed fields.
+// 3. .claude/settings.json keeps its hooks block and the enabled plugin set.
 {
   const s = jsonOr(".claude/settings.json");
-  ok(s.env?.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS === "1", ".claude/settings.json carries env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS");
-  ok(typeof s.teammateMode === "string", ".claude/settings.json carries teammateMode");
-  ok(s.worktree && typeof s.worktree === "object", ".claude/settings.json carries worktree");
-  ok(Array.isArray(s.hooks?.PreToolUse) && s.hooks.PreToolUse.length > 0, ".claude/settings.json retains the hooks block");
+  ok(Array.isArray(s.hooks?.PreToolUse) && s.hooks.PreToolUse.length > 0, ".claude/settings.json retains the PreToolUse hooks block");
   const plugins = Object.keys(s.enabledPlugins ?? {});
-  ok(plugins.length >= 20, `.claude/settings.json enables the absorbed plugin set (${plugins.length} plugins)`);
+  ok(plugins.length >= 20, `.claude/settings.json enables the plugin set (${plugins.length} plugins)`);
 }
 
-// 6. The absorbed Claude workflow exists (invoked by name — nothing lists it).
+// 4. The Claude workflow exists (invoked by name — nothing lists it).
 ok(existsSync(join(root, ".claude/workflows/audit-deploy-configs.js")), ".claude/workflows/audit-deploy-configs.js exists");
 
-// 7. opencode.json carries the absorbed charly grants.
+// 5. opencode.json auto-allows the read-only status report and NOTHING that deploys or
+//    destroys. The negative arm is the point: an auto-allow on `charly check run` would
+//    let an agent run the destructive R10 bed gate with no approval prompt.
 {
   const o = jsonOr("opencode.json");
   const bash = o.permission?.bash ?? {};
-  for (const g of ["charly check box *", "charly check live *", "charly check run *", "charly status *"]) {
-    ok(Object.hasOwn(bash, g), `opencode.json grants "${g}" (absorbed from charly)`);
+  ok(Object.hasOwn(bash, "charly status *"), 'opencode.json grants "charly status *" (read-only)');
+  for (const g of MUST_NOT_AUTO_ALLOW) {
+    ok(!Object.hasOwn(bash, g), `opencode.json does not auto-allow the deploying/destructive "${g}"`);
   }
 }
 
