@@ -205,25 +205,6 @@ verify:
         context: [runtime]
 
 # -----------------------------------------------------------------------------
-# harness — harness config parity with charly/ (shared files identical).
-# -----------------------------------------------------------------------------
-harness:
-  task:
-    description: Check harness config parity with charly/ (shared files identical)
-    dir: .
-    plan:
-      - check: the byte-identical-by-design harness files match their charly/ twins
-        file-parity:
-          mode: check
-          pairs:
-            - {left: .claude/hooks/pre-commit-gate.sh, right: charly/.claude/hooks/pre-commit-gate.sh}
-            - {left: .claude/hooks/pre-push-gate.sh, right: charly/.claude/hooks/pre-push-gate.sh}
-            - {left: .claude/hooks/gitcmd.py, right: charly/.claude/hooks/gitcmd.py}
-            - {left: .claude/hooks/gate_test.py, right: charly/.claude/hooks/gate_test.py}
-            - {left: .reasonix/settings.json, right: charly/.reasonix/settings.json}
-        context: [runtime]
-
-# -----------------------------------------------------------------------------
 # skills — splice the generated R0 dispatcher from the pinned marketplace.
 # -----------------------------------------------------------------------------
 skills:

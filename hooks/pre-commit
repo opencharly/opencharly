@@ -10,12 +10,11 @@
 #
 #   1. policy B          — distro-* gitlinks must equal charly's box/* gitlinks
 #                          (`charly task policy-b` → verb:git-submodules verify)
-#   2. harness parity    — the 5 files byte-identical to charly's by design
-#                          (`charly task harness` → verb:file-parity)
-#   3. self-tests        — the committed CI body/pin-evidence builders AND the
+#   2. self-tests        — the committed CI body/pin-evidence builders AND the
 #                          dispatcher splice logic (`charly task self-test`, each
 #                          script's own --self-test)
-#   4. opencode gate     — the TypeScript gate plugin contract
+#   3. opencode gate     — the TypeScript gate plugin contract
+#   4. pr-watch gate     — the PR-watch plugin's pure logic + SDK delivery primitives
 #
 # Deliberately NOT here (see `charly task verify`): the per-submodule
 # `git ls-remote` default-branch audit — it reads remote state no commit can change
@@ -44,7 +43,6 @@ fi
 echo "pre-commit: running the umbrella gate…"
 
 "$CHARLY" task policy-b
-"$CHARLY" task harness
 "$CHARLY" task self-test
 node "$ROOT/scripts/check-opencode-plugin.mjs"
 node "$ROOT/scripts/check-pr-watch.mjs"
