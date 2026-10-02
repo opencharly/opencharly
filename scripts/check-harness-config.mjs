@@ -15,13 +15,14 @@
 //   * DISCRIMINATING — the assertion FAILS on `main`, so going green is evidence the
 //     surface is present and wired: check 4 in full, check 3's plugin-set arm (main
 //     enables 14 plugins, this branch 28), and check 5's POSITIVE `charly status *` arm
-//     (main grants no `charly` verb of its own).
+//     (main grants no `charly status *` entry and no `charly check *` entry; it DOES grant
+//     `charly task *` and `./charly/bin/charly task *`, which this check does not touch).
 //   * STRUCTURAL — PASSES on `main` too, and NOT claimed to discriminate: check 1's four
 //     JSON-parse assertions, check 2's four assertions (both gate scripts pre-exist AND
 //     are already executable), check 3's hooks-block arm (main retains it), and check 5's
-//     NEGATIVE arms — which pass on `main` precisely BECAUSE `main` grants nothing, so a
-//     tree that grants nothing satisfies them vacuously. They are a regression guard on
-//     the positive arm, not evidence of this branch.
+//     NEGATIVE arms — which pass on `main` precisely BECAUSE `main` grants none of those
+//     three verbs, so a tree that grants none of them satisfies them vacuously. They are a
+//     regression guard on the positive arm, not evidence of this branch.
 // `--self-test` proves that split by EXECUTING it rather than asserting it: every
 // mutation must turn the gate RED carrying the mutated check's own message.
 //
@@ -34,8 +35,11 @@
 //      name, so nothing "lists" it — existence is the whole check, and this comment says
 //      exactly that.                                                    [discriminating]
 //   5. opencode.json auto-allows the READ-ONLY `charly status *`, and does
-//      NOT auto-allow the verbs that deploy or run the destructive bed
-//      gate (`charly check live *`, `charly check run *`). [status: disc | negative: struct]
+//      NOT auto-allow ANY of the three `charly check *` verbs — each runs
+//      code an operator would want to approve: `check run *` is the
+//      destructive R10 bed gate, `check box *` starts a disposable
+//      container, `check live *` checks a running deployment.
+//                                                 [status: disc | negative: struct]
 //
 // Usage:
 //   node scripts/check-harness-config.mjs                 # check this tree
@@ -53,9 +57,22 @@ const argv = process.argv.slice(2);
 const rootIdx = argv.indexOf("--root");
 const root = rootIdx === -1 ? resolve(here, "..") : resolve(argv[rootIdx + 1]);
 
-// The verbs opencode.json must NOT auto-allow: every one of them either deploys or runs
-// the destructive R10 bed gate, so an agent must ask before it runs one.
-const MUST_NOT_AUTO_ALLOW = ["charly check live *", "charly check run *"];
+// The verbs opencode.json must NOT auto-allow, each with the reason, quoted from charly's
+// OWN verb help so the characterization here and the product cannot drift apart:
+//   check run  — "Run a disposable check bed (R10 sequence)": the destructive gate; it
+//                builds, deploys, probes and tears down.
+//   check box  — "Pure-box check (disposable container, build-scope checks)": it starts a
+//                container (read-only about the PROJECT, but not a no-op on the host).
+//   check live — "Full-stack check against a running deployment": it executes checks
+//                against a live deployment.
+// Only the read-only `charly status *` report is granted. `check box *` is guarded here
+// too: an earlier revision claimed three verbs but asserted two, and a claim wider than
+// the assertion is the defect class this gate exists to catch.
+const MUST_NOT_AUTO_ALLOW = [
+  ["charly check run *", "the destructive R10 bed gate — it builds, deploys, probes and tears down"],
+  ["charly check box *", "it starts a disposable container to run build-scope checks"],
+  ["charly check live *", "it executes a full-stack check against a running deployment"],
+];
 
 // ── --self-test: prove the discriminating/structural split by executing it ──────────
 // Copies every surface this gate reads into a temp tree, asserts the gate is GREEN there
@@ -113,7 +130,8 @@ if (argv.includes("--self-test")) {
     [".claude/hooks/pre-commit-gate.sh", (p) => rmSync(p), "pre-commit-gate.sh exists", "2"],
     [".claude/settings.json", (p) => { const s = JSON.parse(readFileSync(p, "utf8")); delete s.hooks; writeFileSync(p, JSON.stringify(s)); }, "retains the PreToolUse hooks block", "3"],
     [".claude/workflows/audit-deploy-configs.js", (p) => rmSync(p), "audit-deploy-configs.js exists", "4"],
-    ["opencode.json", (p) => { const o = JSON.parse(readFileSync(p, "utf8")); o.permission.bash["charly check run *"] = "allow"; writeFileSync(p, JSON.stringify(o)); }, 'does not auto-allow the deploying/destructive "charly check run *"', "5 (negative arm)"],
+    ["opencode.json", (p) => { const o = JSON.parse(readFileSync(p, "utf8")); o.permission.bash["charly check run *"] = "allow"; writeFileSync(p, JSON.stringify(o)); }, 'does not auto-allow "charly check run *"', "5 (negative arm, run — the destructive R10 gate)"],
+    ["opencode.json", (p) => { const o = JSON.parse(readFileSync(p, "utf8")); o.permission.bash["charly check box *"] = "allow"; writeFileSync(p, JSON.stringify(o)); }, 'does not auto-allow "charly check box *"', "5 (negative arm, box — the arm an earlier revision claimed but did not assert)"],
     [".claude/hooks/pre-push-gate.sh", (p) => chmodSync(p, 0o644), "pre-push-gate.sh is executable", "2 (a lost exec bit must FAIL, not pass)"],
     [".claude/settings.json", (p) => { const s = JSON.parse(readFileSync(p, "utf8")); s.enabledPlugins = {}; writeFileSync(p, JSON.stringify(s)); }, "enables the plugin set", "3 (plugin-set arm)"],
     ["opencode.json", (p) => { const o = JSON.parse(readFileSync(p, "utf8")); delete o.permission.bash["charly status *"]; writeFileSync(p, JSON.stringify(o)); }, 'grants "charly status *"', "5 (positive arm)"],
@@ -200,15 +218,16 @@ for (const h of [".claude/hooks/pre-commit-gate.sh", ".claude/hooks/pre-push-gat
 // 4. The Claude workflow exists (invoked by name — nothing lists it).
 ok(existsSync(join(root, ".claude/workflows/audit-deploy-configs.js")), ".claude/workflows/audit-deploy-configs.js exists");
 
-// 5. opencode.json auto-allows the read-only status report and NOTHING that deploys or
-//    destroys. The negative arm is the point: an auto-allow on `charly check run` would
-//    let an agent run the destructive R10 bed gate with no approval prompt.
+// 5. opencode.json auto-allows the read-only status report and NOTHING that runs code an
+//    operator would want to approve. The negative arm is the point: an auto-allow on
+//    `charly check run` would let an agent run the destructive R10 bed gate with no
+//    approval prompt, and one on `check box` would let it start containers unprompted.
 {
   const o = jsonOr("opencode.json");
   const bash = o.permission?.bash ?? {};
   ok(Object.hasOwn(bash, "charly status *"), 'opencode.json grants "charly status *" (read-only)');
-  for (const g of MUST_NOT_AUTO_ALLOW) {
-    ok(!Object.hasOwn(bash, g), `opencode.json does not auto-allow the deploying/destructive "${g}"`);
+  for (const [g, why] of MUST_NOT_AUTO_ALLOW) {
+    ok(!Object.hasOwn(bash, g), `opencode.json does not auto-allow "${g}" — ${why}`);
   }
 }
 
