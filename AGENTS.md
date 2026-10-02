@@ -46,15 +46,14 @@ someone else's repo.
 7. When a task touches a subrepo, read that subrepo's own rulebook (`AGENTS.md`)
    first — its policy applies inside it. Charly's R0–R10 rulebook lives in
    `charly/AGENTS.md`; this file owns only the umbrella's policy.
-8. **Harness config belongs ONLY in this umbrella.** Every harness configuration —
-   `.claude/`, `.opencode/`, `.codex/`, `.pi/`, `.reasonix/`, and `opencode.json` —
-   belongs HERE (the umbrella root) and must exist NOWHERE else. A submodule or sibling
-   repo carrying a copy is a defect: DELETE it, never mirror it (no parity gate). Sessions
-   root at this checkout (rule 4), and harness config resolves from the session's project
-   root, so config elsewhere binds a situation that cannot legally occur — one root, one
-   config home. An AGENTS.md rulebook is NOT harness config and stays in its own repo. The
-   umbrella carries its own clone-level git hook (installed per clone by
-   `./charly/bin/charly task hooks`).
+8. **Harness config: a shared neutral core plus deliberate per-harness forks.** The
+   harness configuration at the root mirrors the source repo's. A shared, neutral core
+   is kept byte-identical and drift-checked by `./charly/bin/charly task harness`; each
+   harness additionally carries its own deliberately-forked settings and workflows that
+   adapt the umbrella's reality, and the umbrella carries its own clone-level git hook
+   (installed per clone by `./charly/bin/charly task hooks`). Which concrete files make
+   up the shared core, the forks, and the hook live in the per-harness config itself;
+   harness names and file locations never appear in this file's policy prose.
 
    The gate scripts guard mechanics only; policy is judged by the `pr-validator` at merge.
 9. **Session-scoped ownership — never touch another session's files.** The
@@ -523,8 +522,10 @@ the routing.
   genuinely out of scope, stop and ask the operator.
 - **Umbrella-native mechanics are the sanctioned path for umbrella work:**
   `./charly/bin/charly task sync`, `./charly/bin/charly task verify`,
-  `git -C <absolute-path>` (rule 2), and `bash scripts/*`. These are the
-  umbrella's own commands, not ad-hoc substitutes.
+  `./charly/bin/charly task harness`, `bash
+  scripts/*`, and submodule git through
+  `git -C <absolute-path>` (rule 2). These are the umbrella's own commands, not
+  ad-hoc substitutes.
 
 ### Umbrella maintenance commands
 
@@ -538,6 +539,7 @@ task), then run the umbrella's maintenance from the umbrella root:
 | `./charly/bin/charly task sync` | bump pins per policy B (preview; does not commit) |
 | `./charly/bin/charly task hooks` | install `hooks/pre-commit` for this clone (once) |
 | `./charly/bin/charly task verify` | the full pinning audit, on demand |
+| `./charly/bin/charly task harness` | harness config parity vs `charly/` |
 | `./charly/bin/charly task org-map` | verify the README org-map tables vs `.gitmodules` |
 | `./charly/bin/charly task skills` | splice the generated R0 dispatcher into this file |
 

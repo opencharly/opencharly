@@ -10,11 +10,12 @@
 #
 #   1. policy B          — distro-* gitlinks must equal charly's box/* gitlinks
 #                          (`charly task policy-b` → verb:git-submodules verify)
-#   2. harness config    — every absorbed harness-config surface parses and is
-#                          wired (`scripts/check-harness-config.mjs`, and its
+#   2. harness config    — the 5 files byte-identical to charly's by design
+#                          (`charly task harness` → verb:file-parity), AND every
+#                          absorbed harness-config surface parses and is wired
+#                          (`scripts/check-harness-config.mjs`, and its
 #                          `--self-test`, which proves on mutated copies that each
-#                          check is live and which of them discriminate; the former
-#                          charly-side parity task is gone with the copies)
+#                          check is live and which of them discriminate)
 #   3. self-tests        — the committed CI body/pin-evidence builders AND the
 #                          dispatcher splice logic (`charly task self-test`, each
 #                          script's own --self-test)
@@ -47,6 +48,7 @@ fi
 echo "pre-commit: running the umbrella gate…"
 
 "$CHARLY" task policy-b
+"$CHARLY" task harness
 node "$ROOT/scripts/check-harness-config.mjs"
 node "$ROOT/scripts/check-harness-config.mjs" --self-test
 "$CHARLY" task self-test

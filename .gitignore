@@ -32,9 +32,8 @@ plan/*
 
 # Local-state classes — per-machine / per-run ephemera that live IN the project
 # tree but must never be version-controlled. Modelled on charly/.gitignore (the
-# same class list; the gate that compared only the 5 byte-identical shared files
-# is retired with rule 8, so nothing scans this file), adapted to what the umbrella
-# root actually produces:
+# same class list; charly's parity gate checks only the 5 byte-identical shared
+# files, not this file), adapted to what the umbrella root actually produces:
 #   .check/        — `charly check run check-all-beds` (the root roster) writes its
 #                    run artifacts + NOTES.md here; without this the root tree reads
 #                    dirty after every roster run (and risks an accidental commit of

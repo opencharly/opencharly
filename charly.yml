@@ -121,7 +121,7 @@ self-test:
 # -----------------------------------------------------------------------------
 hooks:
   task:
-    description: Install the pre-commit gate for this clone (policy B + the harness-config gate)
+    description: Install the pre-commit gate for this clone (policy B + harness parity + the harness-config gate)
     dir: .
     plan:
       - run: set core.hooksPath and report it
@@ -201,8 +201,27 @@ verify:
       - check: the session tracker plugin — the durable ledger (rule 11 invariant), the three tools, and the real-binary load
         command: node scripts/check-issue-tracker.mjs
         context: [runtime]
-      - check: every harness-config surface parses and is wired (rule 8 — the umbrella is the sole home)
+      - check: every harness-config surface parses and is wired (rule 8)
         command: node scripts/check-harness-config.mjs
+        context: [runtime]
+
+# -----------------------------------------------------------------------------
+# harness — harness config parity with charly/ (shared files identical).
+# -----------------------------------------------------------------------------
+harness:
+  task:
+    description: Check harness config parity with charly/ (shared files identical)
+    dir: .
+    plan:
+      - check: the byte-identical-by-design harness files match their charly/ twins
+        file-parity:
+          mode: check
+          pairs:
+            - {left: .claude/hooks/pre-commit-gate.sh, right: charly/.claude/hooks/pre-commit-gate.sh}
+            - {left: .claude/hooks/pre-push-gate.sh, right: charly/.claude/hooks/pre-push-gate.sh}
+            - {left: .claude/hooks/gitcmd.py, right: charly/.claude/hooks/gitcmd.py}
+            - {left: .claude/hooks/gate_test.py, right: charly/.claude/hooks/gate_test.py}
+            - {left: .reasonix/settings.json, right: charly/.reasonix/settings.json}
         context: [runtime]
 
 # -----------------------------------------------------------------------------
