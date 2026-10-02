@@ -1,4 +1,3 @@
-version: 2026.261.1747
 # The umbrella root project — a view over the org's submodules. It declares the
 # check-bed ROSTER (which disposable beds run together as one gate), reached via the
 # local-path import below, AND the maintenance TASK surface (`charly task <name>`).
