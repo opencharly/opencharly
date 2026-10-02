@@ -69,7 +69,7 @@ From the fix in effect, an agent session must observe:
 - `/proc/self/uid_map` → the root mapping (no nested namespace),
 - `/run` mounted `rw` for the invoking user, with `/run/user/<uid>` writable,
 - `podman run --rm alpine:latest echo ok` printing `ok`,
-- `./bin/charly box validate` exiting 0.
+- `charly box validate` exiting 0.
 
 Any of these failing means the session is still jailed — the override did not
 take effect (it requires a fresh session launch) or a lower-precedence config

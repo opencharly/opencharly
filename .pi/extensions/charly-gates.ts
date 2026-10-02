@@ -330,7 +330,9 @@ export default function (pi: ExtensionAPI) {
     }),
     async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
       const slug = params.slug.replace(/[^a-z0-9-]/g, "_");
-      const worktreePath = join(ctx.cwd, ".claude", "worktrees", slug);
+      // AGENTS.md rule 9 / "The development model": a session worktree lives at
+      // `<umbrella>/.worktrees/<slug>/` (NOT `.claude/worktrees/`).
+      const worktreePath = join(ctx.cwd, ".worktrees", slug);
       const branch = `feat/${slug}`;
 
       // Check if worktree already exists
@@ -351,8 +353,8 @@ export default function (pi: ExtensionAPI) {
         // Step 3: Init submodules
         await pi.exec("git", ["submodule", "update", "--init", "--recursive"], { cwd: worktreePath });
 
-        // Step 4: Build binary
-        await pi.exec("task", ["build:binary"], { cwd: worktreePath });
+        // Step 4: Build the worktree-local binary (the ONE non-charly entrypoint).
+        await pi.exec("bash", ["charly/scripts/bootstrap-charly.sh"], { cwd: worktreePath });
 
         // Record for cleanup
         _worktrees.push({ slug, path: worktreePath, branch });
@@ -363,7 +365,7 @@ export default function (pi: ExtensionAPI) {
               type: "text",
               text:
                 `Worktree created at ${worktreePath} on branch ${branch}.\n` +
-                `- Binary built at ${worktreePath}/bin/charly\n` +
+                `- Binary built at ${worktreePath}/charly/bin/charly\n` +
                 `- Submodules initialized\n` +
                 `- Use \`cd ${worktreePath}\` to work in this branch\n` +
                 `- Use charly_worktree_remove when done`,
@@ -398,7 +400,8 @@ export default function (pi: ExtensionAPI) {
     }),
     async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
       const slug = params.slug.replace(/[^a-z0-9-]/g, "_");
-      const worktreePath = join(ctx.cwd, ".claude", "worktrees", slug);
+      // Mirrors charly_worktree_create: `<umbrella>/.worktrees/<slug>/` (rule 9).
+      const worktreePath = join(ctx.cwd, ".worktrees", slug);
       const branch = `feat/${slug}`;
 
       const errors: string[] = [];
@@ -477,9 +480,15 @@ export default function (pi: ExtensionAPI) {
             cwd: ctx.cwd,
           });
         } catch (err) {
-          // Fail-open on unexpected execution errors; only the gate's own
-          // exit 2 is the block signal.
-          continue;
+          // FAIL CLOSED (T3/R4): an unexpected execution error means the gate
+          // could not run — a wiring that silently proceeds on its own script's
+          // failure is a bypass path. Block, naming the error.
+          return {
+            block: true,
+            reason: `charly gate (${rel}) could not run — failing closed: ${
+              err instanceof Error ? err.message : String(err)
+            }`,
+          };
         }
 
         if (result.code === 2) {
@@ -487,6 +496,16 @@ export default function (pi: ExtensionAPI) {
           return {
             block: true,
             reason: `charly gate (${rel}) BLOCKED: ${detail || "command violates a git-workflow mechanic"}`,
+          };
+        }
+        // Any OTHER non-zero exit is also a gate failure (not a clean pass):
+        // the gate scripts are exit-0 (allow) / exit-2 (block); anything else
+        // is a broken gate and must fail CLOSED.
+        if (result.code !== 0) {
+          const detail = (result.stderr ?? "").trim();
+          return {
+            block: true,
+            reason: `charly gate (${rel}) exited ${result.code} (not 0/2) — failing closed: ${detail}`,
           };
         }
       }
