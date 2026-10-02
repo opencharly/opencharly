@@ -46,17 +46,17 @@ someone else's repo.
 7. When a task touches a subrepo, read that subrepo's own rulebook (`AGENTS.md`)
    first — its policy applies inside it. Charly's R0–R10 rulebook lives in
    `charly/AGENTS.md`; this file owns only the umbrella's policy.
-8. **Harness config: a shared neutral core plus deliberate per-harness forks.** The
-   harness configuration at the root mirrors the source repo's. A shared, neutral core
-   is kept byte-identical and drift-checked by `./charly/bin/charly task harness`; each
-   harness additionally carries its own deliberately-forked settings and workflows that
-   adapt the umbrella's reality, and the umbrella carries its own clone-level git hook
-   (installed per clone by `./charly/bin/charly task hooks`). Which concrete files make
-   up the shared core, the forks, and the hook live in the per-harness config itself;
-   harness names and file locations never appear in this file's policy prose. The
-   harness-specific skill (`/charly-internals:agents`) documents the mechanism.
+8. **Harness config lives ONLY in the umbrella — the sole home (rule 8 reversal).**
+   Every harness's configuration — Claude Code, Codex, opencode, pi, Kimi/reasonix —
+   lives at THIS repo's root and ONLY here. No submodule carries a copy; there is no
+   mirror, no parity gate, and no drift check. This follows from rule 4: a session
+   roots at the umbrella, and harness config resolves from the session's project root,
+   so config inside a submodule binds a situation that cannot legally occur.
 
-   The gate scripts guard mechanics only; policy is judged by the `pr-validator` at merge.
+   The umbrella carries its own clone-level git hook (installed once per clone by
+   `./charly/bin/charly task hooks`). The gate scripts guard mechanics only; policy is
+   judged by the `pr-validator` at merge. The harness-specific skill
+   (`/charly-internals:agents`) documents the mechanism.
 9. **Session-scoped ownership — never touch another session's files.** The
    changes you make belong to YOUR session: a file you did not author in this
    session, a branch you did not create, a worktree (`<umbrella>/.worktrees/<slug>/`)
@@ -523,7 +523,7 @@ the routing.
   genuinely out of scope, stop and ask the operator.
 - **Umbrella-native mechanics are the sanctioned path for umbrella work:**
   `./charly/bin/charly task sync`, `./charly/bin/charly task verify`,
-  `./charly/bin/charly task harness`, `bash
+  `bash
   scripts/*`, and submodule git through
   `git -C <absolute-path>` (rule 2). These are the umbrella's own commands, not
   ad-hoc substitutes.
@@ -540,7 +540,6 @@ task), then run the umbrella's maintenance from the umbrella root:
 | `./charly/bin/charly task sync` | bump pins per policy B (preview; does not commit) |
 | `./charly/bin/charly task hooks` | install `hooks/pre-commit` for this clone (once) |
 | `./charly/bin/charly task verify` | the full pinning audit, on demand |
-| `./charly/bin/charly task harness` | harness config parity vs `charly/` |
 | `./charly/bin/charly task org-map` | verify the README org-map tables vs `.gitmodules` |
 | `./charly/bin/charly task skills` | splice the generated R0 dispatcher into this file |
 | `./charly/bin/charly task policy-b` | assert policy B — every `distro-*` gitlink equals charly's own `box/*` gitlink |
@@ -549,7 +548,7 @@ task), then run the umbrella's maintenance from the umbrella root:
 | `./charly/bin/charly task omarchy-agents` | gate the committed omarchy PR-eval pi agents (tracked + parseable) |
 | `./charly/bin/charly task pi-forks` | sync the opencharly pi-plugin forks from their upstreams (requires `gh` auth) |
 
-`./charly/bin/charly task list` enumerates them — twelve today, and the README's
+`./charly/bin/charly task list` enumerates them — eleven today, and the README's
 `## Maintenance commands` table must match this list row for row. The detailed mechanics — the
 branch/PR loop, policy-B sync order, the after-merge cleanup, and new-repo
 onboarding — are owned by `/charly-internals:git-workflow` and

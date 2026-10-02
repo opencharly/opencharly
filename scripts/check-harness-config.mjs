@@ -6,8 +6,7 @@
 // reads: a JSON surface that stops parsing, an exec bit lost off a committed gate
 // script, a hooks block dropped from .claude/settings.json, or a permission grant that
 // widens past read-only is a silent capability loss — none of it is exercised by
-// `task verify` or `task harness` (the latter checks byte-parity of the FIVE files
-// shared with charly, which these are not).
+// `task verify` (the pinning audit, which does not read these surfaces).
 //
 // WHICH assertions discriminate. Two classes, and they are NOT the same claim. The split
 // below is MEASURED, not intended — `node scripts/check-harness-config.mjs --root <a main

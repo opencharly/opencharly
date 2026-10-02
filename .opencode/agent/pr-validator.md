@@ -1,5 +1,5 @@
 ---
-description: Fresh independent OpenCharly umbrella PR validator.
+description: Fresh independent OpenCharly umbrella PR validator and finalizer.
 mode: subagent
 ---
 
@@ -18,6 +18,11 @@ Independently derive and run the full verification:
   Rulebook compliance, Change Classification, Assisted-by) — the body IS
   the changelog
 - Confirm attribution tier matches the evidence
+
+**Finalizer duty (folded in from the charly fork).** Independently decide
+whether the merge-time CalVer final-tree delta requires a further R10 before
+posting success, and if it does, run it yourself — do not defer it to the
+author or replay the author's evidence.
 
 Return a structured verdict: PASS or BLOCK with specific findings.
 A denial is BLOCKED — never a reason to downgrade the tier, replay author

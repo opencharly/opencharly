@@ -203,24 +203,8 @@ verify:
       - check: every harness-config surface parses and is wired (rule 8)
         command: node scripts/check-harness-config.mjs
         context: [runtime]
-
-# -----------------------------------------------------------------------------
-# harness — harness config parity with charly/ (shared files identical).
-# -----------------------------------------------------------------------------
-harness:
-  task:
-    description: Check harness config parity with charly/ (shared files identical)
-    dir: .
-    plan:
-      - check: the byte-identical-by-design harness files match their charly/ twins
-        file-parity:
-          mode: check
-          pairs:
-            - {left: .claude/hooks/pre-commit-gate.sh, right: charly/.claude/hooks/pre-commit-gate.sh}
-            - {left: .claude/hooks/pre-push-gate.sh, right: charly/.claude/hooks/pre-push-gate.sh}
-            - {left: .claude/hooks/gitcmd.py, right: charly/.claude/hooks/gitcmd.py}
-            - {left: .claude/hooks/gate_test.py, right: charly/.claude/hooks/gate_test.py}
-            - {left: .reasonix/settings.json, right: charly/.reasonix/settings.json}
+      - check: the pi gate extension fails CLOSED, uses the rule-9 worktree path, and wires both gate scripts
+        command: node scripts/check-pi-gates.mjs
         context: [runtime]
 
 # -----------------------------------------------------------------------------
