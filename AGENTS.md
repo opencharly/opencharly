@@ -46,7 +46,7 @@ someone else's repo.
 7. When a task touches a subrepo, read that subrepo's own rulebook (`AGENTS.md`)
    first — its policy applies inside it. Charly's R0–R10 rulebook lives in
    `charly/AGENTS.md`; this file owns only the umbrella's policy.
-8. **Harness config lives ONLY in this umbrella.** Every harness configuration —
+8. **Harness config belongs ONLY in this umbrella.** Every harness configuration —
    `.claude/`, `.opencode/`, `.codex/`, `.pi/`, `.reasonix/`, and `opencode.json` —
    belongs HERE (the umbrella root) and must exist NOWHERE else. A submodule or sibling
    repo carrying a copy is a defect: DELETE it, never mirror it (no parity gate). Sessions
