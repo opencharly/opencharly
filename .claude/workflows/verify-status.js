@@ -48,9 +48,9 @@ const INVARIANTS = [
   },
   {
     id: 'nested',
-    invariant: "charly's nested submodules initialized at their gitlinks",
+    invariant: "charly's nested submodules not drifted off their gitlinks",
     cmd: 'git -C charly submodule status --recursive',
-    proves: 'no +/- prefixes (uninitialized / moved)',
+    proves: '+/U prefixes (moved / unmerged) FAIL; `-` (uninitialized) is a notice (#337)',
   },
 ]
 

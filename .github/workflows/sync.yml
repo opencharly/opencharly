@@ -98,12 +98,14 @@ jobs:
       #
       #   FAIL: charly nested submodules not at their gitlinks
       #
-      # That check is `git -C charly submodule status --recursive | grep '^[+-]'`, and `-`
-      # means UNINITIALISED. `actions/checkout` uses `submodules: true` (non-recursive), so
-      # charly's nested submodules never exist here and the check can only fail — while
-      # initialising them would check each out AT its gitlink, making the check pass by
-      # construction and assert nothing. It is a gate for a human's local tree, where the
-      # nested state can genuinely have drifted; it is vacuous on a fresh clone.
+      # That check WAS `git -C charly submodule status --recursive | grep '^[+-]'`, which
+      # counted `-` — UNINITIALISED, exactly what `actions/checkout` with `submodules: true`
+      # (non-recursive) leaves behind — as drift. opencharly/opencharly#337 fixed that half:
+      # the check now FAILs only on `+`/`U` (real drift) and reports `-` as a notice, so it no
+      # longer fails here for a state that is not a defect. Running `charly task verify` in
+      # this workflow is unchanged by that fix and stays off: it is the local, human-tree
+      # gate (R7), and its nested half asserts nothing on a freshly cloned tree. This note is
+      # kept, corrected, so the reason it is off stays on the record.
       #
       # So the body pastes what IS real evidence in CI: the per-pin index-derived
       # `staged-gitlink` vs remote default-branch HEAD table
