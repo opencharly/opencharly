@@ -331,6 +331,30 @@ pi-forks:
           echo "done. Vendored mirrors (pi-fabric, rpiv-todo, pi-lsp) need manual re-vendor on version bump."
         context: [deploy]
 
+# -----------------------------------------------------------------------------
+# prune — reap the merged-upstream session worktrees + branches the per-session
+# close-out prose never collected. Default MODE=report is a DRY RUN that changes
+# nothing; MODE=prune performs the removal. A branch is pruned only when its merge
+# is PROVEN (tip is an ancestor of origin/main, OR its PR is MERGED and its tip is
+# contained in the merged head — the squash-merge case git ancestry alone cannot
+# see); a branch carrying unmerged commits beyond a merged head is NEVER touched,
+# and a worktree with modified tracked files is skipped. If `gh` is unavailable
+# (no auth / offline) the sweep prunes strictly LESS, never more.
+# -----------------------------------------------------------------------------
+prune:
+  task:
+    description: Reap merged-upstream session worktrees + branches (MODE=report is a dry run)
+    dir: .
+    params:
+      MODE:
+        description: report (dry run) | prune (perform the removal)
+        default: report
+    plan:
+      - run: prune merged-upstream worktrees and branches across the umbrella + submodules
+        prune:
+          mode: "${MODE}"
+        context: [deploy]
+
 # `charly check run check-all-beds` enumerates EVERY disposable bed in EVERY
 # imported namespace (select defaults to '*'), runs them at `lanes` parallelism,
 # serializes exclusive-resource token groups (auto-derived from each bed's own

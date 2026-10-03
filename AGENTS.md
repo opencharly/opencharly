@@ -431,7 +431,10 @@ session on every harness.
   `main` only fast-forwards to `origin/main`. After a PR merges: remove ONLY your own
   session worktree, delete the local branch only if it is `--merged` (never `-D` an
   unmerged branch without operator sign-off), and never touch another session's worktree
-  (rule 9). Full branch/PR/after-merge workflow: `/charly-internals:git-workflow` (B8);
+  (rule 9). **`charly task prune` is the mechanical reaper the per-session contract alone
+  never executed** — it collects merged-upstream worktrees + branches across the umbrella
+  and every submodule (a dry run by default; `MODE=prune` performs it), proven-merged only.
+  Full branch/PR/after-merge workflow: `/charly-internals:git-workflow` (B8);
   new-repo setup: `/charly-internals:repo-setup`.
 - **Invocation.** Build the binary once per clone with `charly/scripts/bootstrap-charly.sh`
   (the one non-charly entrypoint — the build that produces the binary cannot itself be a
@@ -476,7 +479,7 @@ here and keep the refs resolving.
 
 | Trigger (what the user said or you're about to do) | Skill to load |
 |---|---|
-| Git/`gh` workflow — `feat/` branch, commit, PR-only landing (NO direct push to main), branch protection, the `pr-validator` merge/tag, sync-to-upstream | `/charly-internals:git-workflow` |
+| Git/`gh` workflow — `feat/` branch, commit, PR-only landing (NO direct push to main), branch protection, the `pr-validator` merge/tag, sync-to-upstream, branch/worktree prune (`charly task prune`) | `/charly-internals:git-workflow` |
 | Pinning / gitlink policy / `./charly/bin/charly task sync` / `verify` | `/charly-internals:git-workflow` |
 | New repo in the org / org ruleset / dotgithub config + workflows / native auto-merge / tag-on-merge CalVer | `/charly-internals:repo-setup` |
 | Engineering-discipline triggers (failure surfaced / dup pattern / ad-hoc fix tempting / "out of scope" framing) | `/charly-internals:strict-policy` |
@@ -547,8 +550,9 @@ task), then run the umbrella's maintenance from the umbrella root:
 | `./charly/bin/charly task self-test` | self-test the committed CI body/pin-evidence builders + the dispatcher splice |
 | `./charly/bin/charly task omarchy-agents` | gate the committed omarchy PR-eval pi agents (tracked + parseable) |
 | `./charly/bin/charly task pi-forks` | sync the opencharly pi-plugin forks from their upstreams (requires `gh` auth) |
+| `./charly/bin/charly task prune` | reap merged-upstream session worktrees + branches (`MODE=report` is a dry run) |
 
-`./charly/bin/charly task list` enumerates them — eleven today, and the README's
+`./charly/bin/charly task list` enumerates them — twelve today, and the README's
 `## Maintenance commands` table must match this list row for row. The detailed mechanics — the
 branch/PR loop, policy-B sync order, the after-merge cleanup, and new-repo
 onboarding — are owned by `/charly-internals:git-workflow` and
