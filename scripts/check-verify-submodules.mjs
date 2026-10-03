@@ -25,6 +25,8 @@
 //   C. a submodule not at its recorded gitlink still FAILS                   (teeth kept)
 //   D. a .gitmodules path with no gitlink in the index still FAILS           (teeth kept)
 //   F. a nested `box/*` drifted off charly's gitlink still FAILS             (teeth kept)
+//   G. a path whose `.git` EXISTS but is not a checkout of its own — so `git -C`
+//      resolves to the ENCLOSING SUPERPROJECT — still FAILS                  (teeth kept)
 //
 // Usage: node scripts/check-verify-submodules.mjs [--root <dir>] [--self-test]
 // exit 0 clean · 1 finding
@@ -42,7 +44,9 @@ const root = rootIdx === -1 ? resolve(here, "..") : resolve(argv[rootIdx + 1]);
 const yamlRel = "charly.yml";
 
 // The fixture's shape, declared once so the step's own arithmetic can be checked
-// against reality rather than against a remembered number.
+// against reality rather than against a remembered number. Case G adds one further
+// path (mod-020) on top of this base shape; its assertions are about the walk-up
+// FAILING, never about counts.
 const EXTRA = 19; // mod-001..mod-019: declared AND gitlinked, never initialized
 const TOTAL = EXTRA + 2; // + mod-000 + charly
 const CHECKED = 2; // mod-000 (a real checkout) + charly (a real checkout, nested empty)
@@ -174,6 +178,27 @@ function buildFixture(script, opts = {}) {
     git(["checkout", "-q", "FETCH_HEAD"], join(superDir, "mod-000"));
   }
   if (opts.noGitlink) git(["rm", "-q", "--cached", "mod-000"], superDir);
+  if (opts.walkUp) {
+    // THE WALK-UP WITNESS. mod-020 is DECLARED and GITLINKED with a `.git` that is an
+    // EMPTY DIRECTORY, so the step's initialization test (`[ -e "$path/.git" ]`) PASSES
+    // and the `--show-toplevel` guard is the ONLY thing standing between the run and a
+    // superproject comparison. `git -C mod-020 rev-parse --show-toplevel` finds no valid
+    // gitdir AT the path, so discovery CONTINUES UPWARD and returns the enclosing
+    // superproject's root — the exact state the guard refuses, and the state the
+    // pre-#337 `[ -d "$path" ]` guard let through (measured: an empty-directory `.git`
+    // is the construction that reproduces the walk-up; a gitfile or a symlink does not).
+    const name = "mod-020";
+    writeFileSync(
+      join(superDir, ".gitmodules"),
+      readFileSync(join(superDir, ".gitmodules"), "utf8") +
+        `[submodule "${name}"]\n\tpath = ${name}\n\turl = file://${mod.bare}\n\tbranch = main\n`,
+      "utf8",
+    );
+    git(["update-index", "--add", "--cacheinfo", `160000,${modSha},${name}`], superDir);
+    mkdirSync(join(superDir, name, ".git"), { recursive: true });
+    git(["add", ".gitmodules"], superDir);
+    git(["commit", "-qm", "declare the walk-up path"], superDir);
+  }
   if (opts.nestedDrift) {
     writeFileSync(join(nested.seed, "f.txt"), "moved\n");
     git(["commit", "-qam", "moved"], nested.seed);
@@ -202,6 +227,7 @@ function runCases(script) {
     C: buildFixture(script, { wrongHead: true }),
     D: buildFixture(script, { noGitlink: true }),
     F: buildFixture(script, { nestedDrift: true }),
+    G: buildFixture(script, { walkUp: true }),
   };
 }
 
@@ -225,6 +251,9 @@ function judge(cases) {
   need("D", /no gitlink recorded in the index/.test(cases.D.stderr), "the missing-gitlink failure must be reported");
   need("F", cases.F.status !== 0, "a nested `box/*` drifted off charly's gitlink must FAIL (teeth)");
   need("F", /charly nested submodules not at their gitlinks/.test(cases.F.stderr), "the nested drift failure must be reported");
+  need("G", cases.G.status !== 0, "a path git resolves to the ENCLOSING SUPERPROJECT must FAIL (walk-up refused)");
+  need("G", /not a checkout of its own/.test(cases.G.stderr), "the walk-up refusal must say so");
+  need("G", /git resolves to '[^']*\/super'/.test(cases.G.stderr), "the refusal must NAME the path git actually resolved to (the superproject)");
   return found;
 }
 
@@ -263,6 +292,10 @@ if (argv.includes("--self-test")) {
     ["no gitlink comparison", (s) => s.replace(/[ \t]*\[ "\$gitlink" = "\$head" \][^\n]*\n/, ""), "C"],
     ["no gitlink presence check", (s) => s.replace(/[ \t]*\[ -n "\$gitlink" \][^\n]*\n/, ""), "D"],
     ["no nested-drift check", (s) => s.replace(/[ \t]*\[ -z "\$drift" \][^\n]*\n/, ""), "F"],
+    // The walk-up guard this PR adds. Deleting the comparison leaves `top=` assigned and
+    // unused, so the step proceeds into `git -C mod-020 …` and compares the SUPERPROJECT's
+    // HEAD against mod-020's gitlink — case G then fails by NOT naming the walk-up.
+    ["no walk-up refusal (`git -C` may resolve to the enclosing superproject)", (s) => s.replace(/[ \t]*\[ "\$top" = "\$root\/\$path" \][^\n]*\n/, ""), "G"],
   ];
   let stFails = 0;
   for (const [name, mutate, mustCatch] of mutations) {
