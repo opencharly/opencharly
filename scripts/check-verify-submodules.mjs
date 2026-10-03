@@ -8,12 +8,17 @@
 // `git -C <path>` in the step then resolves the ENCLOSING superproject through git's
 // directory walk-up. So the step compared the SUPERPROJECT's HEAD against the
 // SUBMODULE's gitlink and reported `FAIL: sdk: HEAD <enclosing-head> != gitlink
-// <sdk-pin>` — a state that cannot exist, which is the tell. Measured before the fix,
-// 405 of 424 paths at this clone's own root failed that way, in the root and in every
-// worktree; since rule 4 puts every session in a worktree (which materializes no
-// submodules) and R7 mandates running this gate locally on the final tree, the gate
-// was unsatisfiable by construction. charly's nested `box/*` audit carried the same
-// bug in its `grep -E '^[+-]'`: git's `-` marker means NOT INITIALIZED, not drifted.
+// <sdk-pin>` — a state that cannot exist, which is the tell. Every path a root has NOT
+// materialized is such a bogus-FAIL site, and that count is a property of the ROOT it is
+// measured at, because the checkout audit sees only what THAT root materialized — the same
+// metric at two roots gives two numbers. Measured on this clone: 405 of 424 paths at the
+// umbrella ROOT (19 of 424 materialized, HEAD `f96e776`) and 423 of 424 in a session
+// WORKTREE (1 of 424 materialized, `charly`; HEAD `56775ee`). And because `fail` exits at
+// the FIRST offender, the symptom is ONE FAIL line, never 405. Since rule 4 puts every
+// session in a worktree (which materializes no submodules) and R7 mandates running this
+// gate locally on the final tree, the gate was unsatisfiable by construction. charly's
+// nested `box/*` audit carried the same bug in its `grep -E '^[+-]'`: git's `-` marker
+// means NOT INITIALIZED, not drifted.
 //
 // The step is EXTRACTED FROM charly.yml, never copied, so a fixture run always
 // exercises the shipped text and the two cannot drift (R3).
