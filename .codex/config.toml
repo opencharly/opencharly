@@ -8,3 +8,10 @@ approvals_reviewer = "auto_review"
 
 [sandbox_workspace_write]
 network_access = false
+
+# DeepWiki — a remote streamable-HTTP MCP server for architecture questions about a
+# GitHub repository. Codex reads `[mcp_servers.<name>]` with `url` for a streamable HTTP
+# server (https://learn.chatgpt.com/docs/extend/mcp, "Streamable HTTP"). The sandbox's
+# `network_access = false` above gates only Codex's OWN Bash sandbox, not the MCP client.
+[mcp_servers.deepwiki]
+url = "https://mcp.deepwiki.com/mcp"

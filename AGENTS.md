@@ -530,6 +530,11 @@ the routing.
   scripts/*`, and submodule git through
   `git -C <absolute-path>` (rule 2). These are the umbrella's own commands, not
   ad-hoc substitutes.
+- **Ask DeepWiki for architecture, but the code in the repos is the authority.**
+  Where a grep cannot answer *how* a repo is put together, query the `deepwiki`
+  MCP server (tools `read_wiki_structure`, `read_wiki_contents`, `ask_wiki_question`)
+  about its GitHub repo instead of guessing — and treat its answer as a pointer to
+  read, not as truth: when the wiki and the code disagree, the code wins.
 
 ### Umbrella maintenance commands
 
@@ -639,7 +644,10 @@ These are enforced by the fresh `charly/pr-validator` at merge (rule A1).
 Deterministic git-workflow mechanics — bypass flags, force-push, direct-main push,
 untokenizable commands — are enforced by the umbrella's clone-level git hook together
 with the shared neutral gate scripts (installed per clone via
-`./charly/bin/charly task hooks`; see rule 8). The per-harness wiring is owned by the
+`./charly/bin/charly task hooks`; see rule 8). A separate committed gate,
+`scripts/check-harness-config.mjs`, audits the harness-config surfaces themselves — that
+each still parses and stays wired, including the DeepWiki MCP entry — and its `--self-test`
+proves every check live. The per-harness wiring is owned by the
 harness-specific skill (`/charly-internals:agents`). Attribution, change class, and
 rulebook compliance are judged once by the fresh `pr-validator` at merge — never by the
 gates.

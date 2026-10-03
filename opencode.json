@@ -11,6 +11,13 @@
     "paths": ["marketplace"]
   },
   "lsp": true,
+  "mcp": {
+    "deepwiki": {
+      "type": "remote",
+      "url": "https://mcp.deepwiki.com/mcp",
+      "enabled": true
+    }
+  },
   "provider": {
     "ollama-cloud": {
       "models": {
