@@ -13,9 +13,11 @@
 // checkout>` is the measurement, and it is the one to re-run if `main` moves:
 //   * DISCRIMINATING — the assertion FAILS on `main`, so going green is evidence the
 //     surface is present and wired: check 4 in full, check 3's plugin-set arm (main
-//     enables 14 plugins, this branch 28), and check 5's POSITIVE `charly status *` arm
+//     enables 14 plugins, this branch 28), check 5's POSITIVE `charly status *` arm
 //     (main grants no `charly status *` entry and no `charly check *` entry; it DOES grant
-//     `charly task *` and `./charly/bin/charly task *`, which this check does not touch).
+//     `charly task *` and `./charly/bin/charly task *`, which this check does not touch),
+//     and check 6 in full — `main` carries no `.mcp.json` at all and no `mcp`/`mcp_servers`
+//     entry in `opencode.json`/`.codex/config.toml`, so the DeepWiki assertion fails there.
 //   * STRUCTURAL — PASSES on `main` too, and NOT claimed to discriminate: check 1's four
 //     JSON-parse assertions, check 2's four assertions (both gate scripts pre-exist AND
 //     are already executable), check 3's hooks-block arm (main retains it), and check 5's
@@ -39,6 +41,8 @@
 //      destructive R10 bed gate, `check box *` starts a disposable
 //      container, `check live *` checks a running deployment.
 //                                                 [status: disc | negative: struct]
+//   6. Every harness surface that supports MCP declares the DeepWiki
+//      server.                                                       [discriminating]
 //
 // Usage:
 //   node scripts/check-harness-config.mjs                 # check this tree
@@ -89,7 +93,9 @@ if (argv.includes("--self-test")) {
     ".claude/workflows/audit-deploy-configs.js",
     ".claude/hooks/pre-commit-gate.sh",
     ".claude/hooks/pre-push-gate.sh",
+    ".mcp.json",
     "opencode.json",
+    ".codex/config.toml",
     ".reasonix/settings.json",
     ".opencode/package.json",
   ];
@@ -134,6 +140,9 @@ if (argv.includes("--self-test")) {
     [".claude/hooks/pre-push-gate.sh", (p) => chmodSync(p, 0o644), "pre-push-gate.sh is executable", "2 (a lost exec bit must FAIL, not pass)"],
     [".claude/settings.json", (p) => { const s = JSON.parse(readFileSync(p, "utf8")); s.enabledPlugins = {}; writeFileSync(p, JSON.stringify(s)); }, "enables the plugin set", "3 (plugin-set arm)"],
     ["opencode.json", (p) => { const o = JSON.parse(readFileSync(p, "utf8")); delete o.permission.bash["charly status *"]; writeFileSync(p, JSON.stringify(o)); }, 'grants "charly status *"', "5 (positive arm)"],
+    [".mcp.json", (p) => { const m = JSON.parse(readFileSync(p, "utf8")); delete m.mcpServers.deepwiki; writeFileSync(p, JSON.stringify(m)); }, ".mcp.json declares the DeepWiki server", "6"],
+    ["opencode.json", (p) => { const o = JSON.parse(readFileSync(p, "utf8")); delete o.mcp.deepwiki; writeFileSync(p, JSON.stringify(o)); }, "opencode.json declares the DeepWiki server", "6"],
+    [".codex/config.toml", (p) => { const t = readFileSync(p, "utf8").split("\n").filter((l) => !/^\[mcp_servers\.deepwiki\]$/.test(l.trim()) && !/^url\s*=/.test(l.trim())).join("\n"); writeFileSync(p, t); }, ".codex/config.toml declares the DeepWiki server", "6"],
   ];
   for (const [surface, mutate, expect, check] of mutations) {
     stage(); // revert everything, then apply exactly this mutation
@@ -173,6 +182,26 @@ const jsonOr = (p) => {
   } catch {
     return {};
   }
+};
+// A minimal, dependency-free TOML section reader: returns the string value of `key` inside
+// `[table]` of a TOML document, or undefined. It is deliberately narrow — the gate reads
+// ONE scalar (`url`) from ONE table (`mcp_servers.deepwiki`) of `.codex/config.toml` — so
+// check 6 guards the Codex surface without pulling in a TOML library.
+const tomlString = (p, table, key) => {
+  const t = read(p);
+  if (t === null) return undefined;
+  let inTable = false;
+  for (const raw of t.split("\n")) {
+    const line = raw.trim();
+    if (line.startsWith("[") && line.endsWith("]")) {
+      inTable = line === `[${table}]`;
+      continue;
+    }
+    if (!inTable) continue;
+    const m = line.match(new RegExp(`^${key}\\s*=\\s*"([^"]*)"`));
+    if (m) return m[1];
+  }
+  return undefined;
 };
 
 // 1. Every harness JSON parses. STRUCTURAL: all four exist on `main` too, so this class
@@ -227,6 +256,29 @@ ok(existsSync(join(root, ".claude/workflows/audit-deploy-configs.js")), ".claude
   ok(Object.hasOwn(bash, "charly status *"), 'opencode.json grants "charly status *" (read-only)');
   for (const [g, why] of MUST_NOT_AUTO_ALLOW) {
     ok(!Object.hasOwn(bash, g), `opencode.json does not auto-allow "${g}" — ${why}`);
+  }
+}
+
+// 6. Every harness surface that supports MCP declares the DeepWiki server. DISCRIMINATING:
+//    an unmodified `main` carries no `.mcp.json` at all and no `mcp`/`mcp_servers` entry, so
+//    these assertions fail there — going green is evidence the surfaces are wired. The
+//    table is [surface, extractor, who] so adding a harness is ONE row and the guarded set
+//    is legible in one place. Each surface's syntax was verified against its OWN harness:
+//      .mcp.json        — Claude Code's project-scoped HTTP MCP file (a remote server needs
+//                         `type: "http"` + `url`); the SAME file is auto-loaded by pi via
+//                         pi-mcp-adapter and by Reasonix (Claude-Code-compatible);
+//      opencode.json    — opencode's top-level `mcp` map (`{type: "remote", url}`);
+//      .codex/config.toml — Codex `[mcp_servers.<name>]` with `url` (streamable HTTP).
+{
+  const DEEPWIKI_URL = "https://mcp.deepwiki.com/mcp";
+  const MCP_SURFACES = [
+    [".mcp.json", (v) => v.mcpServers?.deepwiki?.url, "Claude Code, pi and Reasonix (project-scoped .mcp.json)"],
+    ["opencode.json", (v) => v.mcp?.deepwiki?.url, "opencode (top-level mcp map)"],
+    [".codex/config.toml", (v, p) => tomlString(p, "mcp_servers.deepwiki", "url"), "Codex ([mcp_servers.deepwiki])"],
+  ];
+  for (const [surface, extract, who] of MCP_SURFACES) {
+    const url = extract(jsonOr(surface), surface);
+    ok(url === DEEPWIKI_URL, `${surface} declares the DeepWiki server for ${who} (deepwiki.url === ${DEEPWIKI_URL})`);
   }
 }
 

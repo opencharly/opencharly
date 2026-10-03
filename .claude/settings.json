@@ -1,5 +1,6 @@
 {
   "includeCoAuthoredBy": false,
+  "enabledMcpjsonServers": ["deepwiki"],
   "permissions": {
     "allow": [
       "Bash(git -C *)",
