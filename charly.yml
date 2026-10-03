@@ -147,9 +147,11 @@ sync:
         context: [deploy]
 
 # -----------------------------------------------------------------------------
-# verify — the FULL pinning gate (every pin, incl. the 408-remote branch audit).
-# The policy-B half is verb:git-submodules verify; the default-branch audit,
-# worktree cleanliness, and charly's nested-submodule check are inline.
+# verify — the FULL pinning gate (every pin, incl. the per-submodule remote
+# branch audit). The policy-B half is verb:git-submodules verify; the
+# default-branch audit, checkout cleanliness, and charly's nested-submodule
+# check are inline. The submodule step is exercised by
+# scripts/check-verify-submodules.mjs (which reads the step out of THIS file).
 # -----------------------------------------------------------------------------
 verify:
   task:
@@ -162,14 +164,20 @@ verify:
           param: [MODE=verify]
         context: [runtime]
       - check: every submodule is clean and checked out at its recorded gitlink, and its branch equals the remote default
-        # 408 submodules × `git ls-remote` — legitimately minutes, so raise the
-        # per-step never-hang bound above the default.
+        # One `git ls-remote` per submodule — legitimately minutes, so raise the
+        # per-step never-hang bound above the default. The PIN audit covers every
+        # submodule; the CHECKOUT audit covers the ones that are initialized (a
+        # session worktree initializes none), and its coverage is printed, never
+        # assumed.
         timeout: 20m
         command: |
           set -eu
           fail() { echo "FAIL: $*" >&2; exit 1; }
+          root="$(git rev-parse --show-toplevel)"
           mapfile -t MODULES < <(git config -f .gitmodules --get-regexp '^submodule\..*\.path$' | awk '{print $2}')
           [ "${#MODULES[@]}" -ge 20 ] || fail "suspiciously few submodules (${#MODULES[@]})"
+          checked=0
+          uninit=()
           for path in "${MODULES[@]}"; do
             url="$(git config -f .gitmodules --get "submodule.$path.url" 2>/dev/null || true)"
             branch="$(git config -f .gitmodules --get "submodule.$path.branch" 2>/dev/null || true)"
@@ -177,16 +185,49 @@ verify:
             [ -n "$branch" ] || fail "$path: missing branch= in .gitmodules"
             default="$(git ls-remote --symref "$url" HEAD | sed -n 's/^ref: refs\/heads\/\(.*\)\tHEAD/\1/p')"
             [ "$branch" = "$default" ] || fail "$path: branch=$branch but remote default is $default"
-            [ -d "$path" ] || fail "$path: not checked out"
-            [ -z "$(git -C "$path" status --porcelain)" ] || fail "$path: dirty working tree"
             gitlink="$(git ls-files -s "$path" | awk '{print $2}')"
+            [ -n "$gitlink" ] || fail "$path: no gitlink recorded in the index"
+            # An uninitialized submodule path is an EMPTY DIRECTORY (`git worktree
+            # add` creates the paths and initializes nothing), so `[ -d ]` cannot
+            # tell it apart from a checkout. Test initialization POSITIVELY: no
+            # `.git` means there is no checkout to audit. Not a failure — its pin
+            # is audited above — but reported, never silent.
+            if [ ! -e "$path/.git" ]; then
+              uninit+=("$path")
+              continue
+            fi
+            # Refuse git's directory walk-up: `git -C <path>` must land on the
+            # submodule ITSELF, never on the enclosing superproject (whose HEAD
+            # would then be compared against the submodule's gitlink).
+            top="$(git -C "$path" rev-parse --show-toplevel 2>/dev/null || true)"
+            [ "$top" = "$root/$path" ] || fail "$path: not a checkout of its own (git resolves to '${top:-<none>}')"
+            [ -z "$(git -C "$path" status --porcelain)" ] || fail "$path: dirty working tree"
             head="$(git -C "$path" rev-parse HEAD)"
             [ "$gitlink" = "$head" ] || fail "$path: HEAD $head != gitlink $gitlink"
+            checked=$((checked + 1))
           done
-          dirty="$(git -C charly submodule status --recursive | grep -E '^[+-]' || true)"
-          [ -z "$dirty" ] || fail "charly nested submodules not at their gitlinks:
-          $dirty"
-          echo "verify: OK — ${#MODULES[@]} submodules at their gitlinks, branches == remote defaults"
+          # charly's OWN nested submodules: same split. `+` (drifted off charly's
+          # gitlink) and `U` (unmerged) are failures; `-` (declared, not
+          # initialized) is not a violation, only reported.
+          if [ -e charly/.git ]; then
+            nested="$(git -C charly submodule status --recursive || true)"
+            drift="$(printf '%s\n' "$nested" | grep -E '^[+U]' || true)"
+            [ -z "$drift" ] || fail "charly nested submodules not at their gitlinks:
+          $drift"
+            notinit="$(printf '%s\n' "$nested" | grep -cE '^-' || true)"
+            [ "$notinit" = "0" ] || echo "verify: notice — ${notinit} of charly's nested submodules are NOT INITIALIZED (no checkout); a + or U drift would still FAIL."
+          else
+            echo "verify: notice — charly/ is NOT INITIALIZED: its nested-submodule check is EMPTY (git submodule update --init charly)."
+          fi
+          if [ "${#uninit[@]}" -gt 0 ]; then
+            echo "verify: notice — ${#uninit[@]} of ${#MODULES[@]} submodule paths are NOT INITIALIZED (no checkout): the checkout audit covered ${checked}."
+            echo "verify: notice — their pins ARE audited (gitlink recorded + branch == remote default). First 5: ${uninit[*]:0:5}"
+          fi
+          [ "$checked" -gt 0 ] || echo "verify: notice — NO submodule is initialized in this tree: the checkout audit is EMPTY (pins audited only)."
+          echo "verify: OK — ${#MODULES[@]} submodule(s): branch == remote default for every one; ${checked} checkout(s) at their gitlinks; ${#uninit[@]} not initialized"
+        context: [runtime]
+      - check: the submodule-cleanliness step above — uninitialized paths are a NOTICE, real defects still FAIL (fixtures)
+        command: node scripts/check-verify-submodules.mjs
         context: [runtime]
       - check: the opencode gate plugin contract (the check-opencode-plugin gate the former verify-pins.sh ran)
         command: node scripts/check-opencode-plugin.mjs
