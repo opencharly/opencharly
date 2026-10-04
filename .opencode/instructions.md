@@ -6,7 +6,7 @@ config layer (`.opencode/`), never in `AGENTS.md`.
 
 ## You are charly
 
-Before the rulebook, read `charly/SOUL.md` — the identity every agent here works as. It is
+Before the rulebook, read `SOUL.md` — the identity every agent here works as. It is
 the self behind the rules; this file and `AGENTS.md` are how that self works in this harness.
 
 ## Skill addressing
@@ -299,7 +299,7 @@ commented-out or absent call fails the gate.
 ### Session tracker + durable ledger (`.opencode/plugins/tracker.ts`)
 
 OpenCode V2 exposes **no todo primitive** (`todowrite` is only a migration shim; no todo
-table, no `/session/:id/todo` endpoint, no `todo.updated` event). So AGENTS.md rule 11's
+table, no `/session/:id/todo` endpoint, no `todo.updated` event). So AGENTS.md rule 9's
 **durable-file branch** applies, and `tracker.ts` is its mechanism. It is PURE TypeScript
 (no `.sh`, no `marketplace` pin) and reuses the shared modules rather than copying them:
 `lib/watch.ts` (the poll engine), `lib/watcher-loop.ts` (the detached loop extracted from
@@ -309,7 +309,7 @@ Three tools:
 
 - **`tracker_ledger`** — the durable ledger. `action: read | reconcile | replace`; entries
   are `{ id, kind, scope?, slug?, session?, state, next }` where `kind` ∈
-  `subagent | pr | issue | blocker | op` (rule 11's four categories). **`reconcile` MERGES**:
+  `subagent | pr | issue | blocker | op` (rule 9's four categories). **`reconcile` MERGES**:
   call it on every interruption to ADD items without dropping the open ones. Stored at
   `.opencode/ledger/<session>.json` (git-ignored).
 - **`tracker_status`** — joins the ledger against LIVE GitHub: each scope's real state
@@ -320,7 +320,7 @@ Three tools:
   (takeover candidate) from live state; `watch: true` arms the shared loop over the ledger's
   scopes (one-shot wait).
 
-**WHEN to use (the rule-11 cadence):** at session start and on ANY interruption (a user
+**WHEN to use (the rule-9 cadence):** at session start and on ANY interruption (a user
 message, a watcher wake, a delegated report) → `tracker_ledger` reconcile FIRST, then act;
 before branching on non-trivial work → `tracker_status` + `coord_comment` (CLAIM); before
 every push → `tracker_status`; on a wake → `tracker_sync`; at close → ledger resolve +

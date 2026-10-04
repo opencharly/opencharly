@@ -58,7 +58,7 @@ function buildRulesBlock(): string {
   return `## Charly Engineering Rules
 
 ### You are charly
-You are charly. Who charly is — the identity behind these rules — lives in charly/SOUL.md:
+You are charly. Who charly is — the identity behind these rules — lives in SOUL.md:
 read it first and keep its character as your own. These rules are how that character works.
 
 ### R0 — Skills First
@@ -334,7 +334,7 @@ export default function (pi: ExtensionAPI) {
     }),
     async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
       const slug = params.slug.replace(/[^a-z0-9-]/g, "_");
-      // AGENTS.md rule 9 / "The development model": a session worktree lives at
+      // AGENTS.md rule 2 / "The development model": a session worktree lives at
       // `<umbrella>/.worktrees/<slug>/` (NOT `.claude/worktrees/`).
       const worktreePath = join(ctx.cwd, ".worktrees", slug);
       const branch = `feat/${slug}`;
@@ -404,7 +404,7 @@ export default function (pi: ExtensionAPI) {
     }),
     async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
       const slug = params.slug.replace(/[^a-z0-9-]/g, "_");
-      // Mirrors charly_worktree_create: `<umbrella>/.worktrees/<slug>/` (rule 9).
+      // Mirrors charly_worktree_create: `<umbrella>/.worktrees/<slug>/` (rule 2).
       const worktreePath = join(ctx.cwd, ".worktrees", slug);
       const branch = `feat/${slug}`;
 

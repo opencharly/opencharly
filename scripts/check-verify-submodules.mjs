@@ -14,7 +14,7 @@
 // metric at two roots gives two numbers. Measured on this clone: 405 of 424 paths at the
 // umbrella ROOT (19 of 424 materialized, HEAD `f96e776`) and 423 of 424 in a session
 // WORKTREE (1 of 424 materialized, `charly`; HEAD `56775ee`). And because `fail` exits at
-// the FIRST offender, the symptom is ONE FAIL line, never 405. Since rule 4 puts every
+// the FIRST offender, the symptom is ONE FAIL line, never 405. Since rule 2 puts every
 // session in a worktree (which materializes no submodules) and R7 mandates running this
 // gate locally on the final tree, the gate was unsatisfiable by construction. charly's
 // nested `box/*` audit carried the same bug in its `grep -E '^[+-]'`: git's `-` marker

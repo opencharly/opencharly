@@ -13,7 +13,7 @@
 //   A  the real module is a V2 definition with BOTH loader entry points, and `setup()`
 //      registers exactly the three tools (with a when-to-use description each).
 //   B  the pure helpers behave — `normaliseEntry` (kind validation + scope canonicalisation)
-//      and `reconcile` (the rule-11 core invariant: an interruption ADDS, never resets).
+//      and `reconcile` (the rule-9 core invariant: an interruption ADDS, never resets).
 //   B2 the tool HANDLERS actually RUN — `tracker_ledger` writes/merges the ledger FILE
 //      (reconcile-on-interruption preserved on disk), and `tracker_status`/`tracker_sync`
 //      execute the LIVE GitHub join (`liveScope`) against a LOCAL capture server
@@ -119,10 +119,10 @@ if (mod) {
   }
   const HANDLERS = Object.fromEntries(added.map((t) => [t.name, t.execute]));
 
-  // --- Layer B: the pure helpers — the rule-11 invariant -------------------
+  // --- Layer B: the pure helpers — the rule-9 invariant -------------------
   const { normaliseEntry, reconcile, LEDGER_KINDS } = mod;
   ok(Array.isArray(LEDGER_KINDS) && LEDGER_KINDS.includes("subagent") && LEDGER_KINDS.includes("pr"),
-    `LEDGER_KINDS covers rule 11's categories (${LEDGER_KINDS})`);
+    `LEDGER_KINDS covers rule 9's categories (${LEDGER_KINDS})`);
   ok(normaliseEntry({ id: "x", kind: "nope" }) === null, "normaliseEntry rejects an unknown kind");
   const e = normaliseEntry({ kind: "pr", scope: "https://github.com/o/r/pull/7", state: "open", next: "watch" });
   ok(e && e.scope === "o/r#7" && e.id === "o/r#7", "normaliseEntry canonicalises a URL scope to owner/repo#num");
@@ -131,7 +131,7 @@ if (mod) {
     { id: "b", kind: "blocker", state: "blocked", next: "ask", updated: 1 },
   ];
   const after = reconcile(before, [{ id: "c", kind: "subagent", state: "running", next: "monitor", updated: 2 }]);
-  eq(after.map((x) => x.id).sort(), ["a", "b", "c"], "reconcile KEEPS every in-flight item and ADDS the new one (rule 11: add, never reset)");
+  eq(after.map((x) => x.id).sort(), ["a", "b", "c"], "reconcile KEEPS every in-flight item and ADDS the new one (rule 9: add, never reset)");
   const updated = reconcile(before, [{ id: "a", kind: "pr", state: "merged", next: "close issue", updated: 9 }]);
   eq(updated.length, 2, "reconcile does not duplicate a same-id entry");
   eq(updated.find((x) => x.id === "a").state, "merged", "reconcile updates a same-id entry's state");
@@ -140,7 +140,7 @@ if (mod) {
   const session = "ses_tracker_gate";
   const ctx = { sessionID: session };
 
-  // tracker_ledger WRITES the durable file; a second reconcile MERGES (rule-11 on disk).
+  // tracker_ledger WRITES the durable file; a second reconcile MERGES (rule-9 on disk).
   {
     const r1 = await HANDLERS.tracker_ledger(
       { action: "reconcile", slug: "gate", entries: [{ id: "o/r#7", kind: "pr", scope: "o/r#7", state: "open", next: "watch" }] },
@@ -156,7 +156,7 @@ if (mod) {
     );
     const onDisk = JSON.parse(readFileSync(file, "utf8"));
     const ids = onDisk.entries.map((x) => x.id).sort();
-    eq(ids, ["b1", "o/r#7"], "a second tracker_ledger reconcile ADDED the new entry and KEPT the open one (rule 11 on disk)");
+    eq(ids, ["b1", "o/r#7"], "a second tracker_ledger reconcile ADDED the new entry and KEPT the open one (rule 9 on disk)");
   }
 
   // A LOCAL capture server stands in for the GitHub API at the HTTP boundary; the

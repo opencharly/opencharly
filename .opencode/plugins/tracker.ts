@@ -1,7 +1,7 @@
 /**
  * tracker.ts — the OpenCode-native session issue/PR tracker + durable ledger.
  *
- * WHY THIS EXISTS (AGENTS.md rule 11). The rulebook requires a session to keep a
+ * WHY THIS EXISTS (AGENTS.md rule 9). The rulebook requires a session to keep a
  * DURABLE ledger so an interruption never drops in-flight work, and it names two
  * branches: a structured todo primitive when the harness exposes one, else a durable
  * file. The OpenCode V2 harness exposes NO todo primitive — `todowrite` survives only
@@ -27,7 +27,7 @@
  *
  * TOOLS
  *   tracker_ledger  the durable ledger: read / reconcile / replace the session's
- *                   itemized entries (rule 11's four categories: running subagents,
+ *                   itemized entries (rule 9's four categories: running subagents,
  *                   open PRs, blockers, long ops) plus the issue<->PR<->slug binding.
  *                   RECONCILE MERGES — an interruption ADDS, it never resets.
  *   tracker_status  join the ledger against LIVE GitHub: what this session is on, the
@@ -57,11 +57,11 @@ import { VERBS, parseAgent, parseVerb } from "./coord.ts";
 /** The default validator workflow — the progress signal (a COMPLETED run). */
 export const DEFAULT_WORKFLOW = "charly/pr-validator";
 
-/** Rule 11's four ledger categories + the blocking marker. */
+/** Rule 9's four ledger categories + the blocking marker. */
 export const LEDGER_KINDS = ["subagent", "pr", "issue", "blocker", "op"] as const;
 export type LedgerKind = (typeof LEDGER_KINDS)[number];
 
-/** One durable ledger entry (rule 11: one entry per in-flight thing). */
+/** One durable ledger entry (rule 9: one entry per in-flight thing). */
 export interface LedgerEntry {
   /** Stable id within the ledger (a slug for a subagent, a scope for a PR/issue). */
   id: string;
@@ -74,7 +74,7 @@ export interface LedgerEntry {
   session?: string;
   /** Free-form state: running / open / merged / blocked / … */
   state: string;
-  /** The ONE named next action (rule 11: a PR with no next action is undriven). */
+  /** The ONE named next action (rule 9: a PR with no next action is undriven). */
   next: string;
   /** Last touched (unix seconds). */
   updated: number;
@@ -118,7 +118,7 @@ export function normaliseEntry(raw: any): LedgerEntry | null {
 
 /**
  * Reconcile `incoming` into `current`: every current entry survives unless an incoming
- * entry names it (same id); incoming entries are added/updated. This is rule 11's
+ * entry names it (same id); incoming entries are added/updated. This is rule 9's
  * core invariant — an interruption is an ADDITION, never a reset.
  */
 export function reconcile(current: LedgerEntry[], incoming: LedgerEntry[]): LedgerEntry[] {
@@ -280,7 +280,7 @@ export default {
       draft.add({
         name: "tracker_ledger",
         description:
-          "The durable session ledger (AGENTS.md rule 11) — REPLACES the missing V2 todo " +
+          "The durable session ledger (AGENTS.md rule 9) — REPLACES the missing V2 todo " +
           "primitive on this harness. Read or reconcile the session's itemized in-flight " +
           "state: every running subagent, every open PR, every blocker, every long-running " +
           "op, plus the issue<->PR<->slug binding. RECONCILE MERGES: call it on every " +
