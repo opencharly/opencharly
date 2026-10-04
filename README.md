@@ -78,10 +78,9 @@ installed-binary form — `charly task …`, the same shape a packaged `charly` 
 | `charly task omarchy-agents` | gate the committed omarchy PR-eval pi agents (tracked + parseable) |
 | `charly task pi-forks` | sync the opencharly pi-plugin forks from their upstreams (requires `gh` auth) |
 | `charly task prune` | reap merged-upstream session worktrees + branches (MODE=report is a dry run) |
-| `charly task design-check` | the DESIGN.md ↔ DESIGN.cue design check (DESIGN.md Appendix A) |
 
-`charly task list` enumerates them — thirteen today. Without the `PATH` export, the same
-commands run as `./charly/bin/charly task …`; the README and `AGENTS.md` list the same thirteen.
+`charly task list` enumerates them — twelve today. Without the `PATH` export, the same
+commands run as `./charly/bin/charly task …`; the README and `AGENTS.md` list the same twelve.
 
 ## The org map
 

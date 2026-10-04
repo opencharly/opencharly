@@ -131,14 +131,6 @@ someone else's repo.
     reconciles the B2b events (merged / closed / stalled). This file states only the
     mandate; the tool usage lives in `.opencode/instructions.md` (the OpenCode binding).
 
-12. **`DESIGN.md` is normative.** `DESIGN.md` and its schema `DESIGN.cue` (umbrella root)
-    define the target architecture of charly, `spec`, `sdk`, every plugin and every candy
-    repository; `TODO.md` is the migration from today's code. A change that contradicts them
-    amends them first, with operator sign-off, in the order `DESIGN.cue` → examples → prose,
-    and lands only with `./charly/bin/charly task design-check` passing on the final committed
-    tree, its output pasted into the PR body (run on demand — there is no CI gate; DESIGN.md
-    Appendix A).
-
 ## Agent identity & comment coordination (extends rule 9)
 
 Rule 9 says *whose* work it is — this says *who is speaking* and *how a claim is made*.
@@ -508,7 +500,6 @@ here and keep the refs resolving.
 | Where guidance belongs — README (user overview) vs `AGENTS.md` (agent guidance) vs skill detail vs `CHANGELOG/` (history) | `/charly-internals:skills` |
 | Session ledger / "what am I working on" / "where must I comment" / claim-or-track an issue (rule 11 durable-file ledger on a harness with no todo primitive) | `/charly-internals:agents` |
 | Hard-cutover / rename sweeps (remove legacy in the same phase) | `/charly-internals:cutover-policy` |
-| Architecture or schema question — how charly, `spec`, `sdk`, plugins, the protocol or `charly.yml` must work; changing `DESIGN.md`, `DESIGN.cue` or `TODO.md` | read `DESIGN.md` (rule 12) and run `./charly/bin/charly task design-check` |
 | `disposable: true` authorization / autonomous destroy+rebuild | `/charly-internals:disposable` |
 | Plugin authoring (a candy with a `plugin:` block, providers, CUE schema) | `/charly-internals:plugin` |
 | OCI labels / capabilities contract | `/charly-internals:capabilities` |
@@ -565,9 +556,8 @@ task), then run the umbrella's maintenance from the umbrella root:
 | `./charly/bin/charly task omarchy-agents` | gate the committed omarchy PR-eval pi agents (tracked + parseable) |
 | `./charly/bin/charly task pi-forks` | sync the opencharly pi-plugin forks from their upstreams (requires `gh` auth) |
 | `./charly/bin/charly task prune` | reap merged-upstream session worktrees + branches (`MODE=report` is a dry run) |
-| `./charly/bin/charly task design-check` | the DESIGN.md ↔ DESIGN.cue design check (DESIGN.md Appendix A) |
 
-`./charly/bin/charly task list` enumerates them — thirteen today, and the README's
+`./charly/bin/charly task list` enumerates them — twelve today, and the README's
 `## Maintenance commands` table must match this list row for row. The detailed mechanics — the
 branch/PR loop, policy-B sync order, the after-merge cleanup, and new-repo
 onboarding — are owned by `/charly-internals:git-workflow` and

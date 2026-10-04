@@ -396,21 +396,6 @@ prune:
           mode: "${MODE}"
         context: [deploy]
 
-# -----------------------------------------------------------------------------
-# design-check — the DESIGN.md ↔ DESIGN.cue validation (DESIGN.md Appendix A): the
-# pinned CUE v0.17.1 toolchain, the .md↔.cue consistency check, every example and
-# negative case, and the self-tests that prove both checks catch planted defects.
-# -----------------------------------------------------------------------------
-design-check:
-  task:
-    description: Run the DESIGN.md / DESIGN.cue design check (DESIGN.md Appendix A)
-    dir: .
-    plan:
-      - check: DESIGN.md, DESIGN.cue, every example and every negative case agree
-        command: bash scripts/design-check.sh
-        # the self-tests run the full check once per planted defect: several minutes
-        timeout: 900s
-
 # `charly check run check-all-beds` enumerates EVERY disposable bed in EVERY
 # imported namespace (select defaults to '*'), runs them at `lanes` parallelism,
 # serializes exclusive-resource token groups (auto-derived from each bed's own

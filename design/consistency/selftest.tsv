@@ -20,3 +20,5 @@ duplicate-id	DESIGN.md	s~^\(| D-CODE-5 | .*\)$~\1\n\1~	D-CODE-5 is defined twice
 val-without-negative	design/negative/misspelled-field.yaml	s~^# rule: D-VAL-8~# rule: D-VAL-1~	§5.4 rule D-VAL-8 is checked by rules.cue but has no design/negative case
 ref-drift	design/example/rules.cue	s~want: \["os"\]~want: ["os", "init"]~	want: lists that match no @ref attribute of DESIGN.cue
 rules-emit-drift	design/example/rules.cue	s~rule: "D-VAL-8"~rule: "D-VAL-9"~	emits rules §5.4 does not mark rules.cue: D-VAL-9
+pattern-range	TODO.md	s~the schema patterns are S1–S9 of §3.1~the schema patterns are S1–S8 of §3.1~	S1–S8 — the pattern range ends at S9
+pattern-unknown	DESIGN.md	s~derived from them, and the S8 name scalars.~derived from them, and the S12 name scalars.~	S12 is not a schema pattern of §3.1

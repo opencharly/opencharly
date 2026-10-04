@@ -19,7 +19,8 @@
 #              every ID (ranges D-X-a..b included) in DESIGN.md, TODO.md, DESIGN.cue and the
 #              design/ files resolves, and every § reference in DESIGN.md, TODO.md and DESIGN.cue
 #   5 words    no "Not" term of the §2 registry (or its plural) appears outside §2; every key in DESIGN.cue is
-#              singular (keys ending in `s` must be listed in D-NAME-1); a backticked
+#              singular (keys ending in `s` must be listed in D-NAME-1); every S<n> pattern
+#              reference is defined in §3.1 and a range S1–S<n> ends at the last; a backticked
 #              protocol method is spelled as its word list spells it; kind words,
 #              directives and the field names of node-bearing bodies are disjoint (D-SCH-6)
 #
@@ -246,6 +247,22 @@ for w in $(words _methodWord; words _hostMethodWord; words _pluginMethodWord); d
 	done
 done > "$work/spelling"
 if [[ -s "$work/spelling" ]]; then cat "$work/spelling"; fail=1; fi
+
+# schema-pattern references: every S<n> is a pattern §3.1 defines; a range S1–S<n> ends at the last
+awk '/^### 3\.1 /{s=1} /^### 3\.2 /{s=0} s && /^\| S[0-9]+ \|/ { sub(/^\| S/, ""); sub(/ \|.*/, ""); print }' "$md" | sort -n > "$work/patterns"
+last="$(tail -1 "$work/patterns")"
+for f in "$md" "$schema" "$root/TODO.md"; do
+	[[ -f "$f" ]] || continue
+	g -no 'S[0-9][0-9]*\(–S[0-9][0-9]*\)\?' "$f" | while IFS=: read -r ln ref; do
+		for n in $(sed 's/S//g; s/–/ /' <<<"$ref"); do
+			grep -qx "$n" "$work/patterns" || echo "FAIL ${f#"$root"/}:$ln: S$n is not a schema pattern of §3.1"
+		done
+		if [[ "$ref" == *–* && "${ref##*S}" != "$last" ]]; then
+			echo "FAIL ${f#"$root"/}:$ln: $ref — the pattern range ends at S$last (§3.1)"
+		fi
+	done
+done > "$work/patref"
+if [[ -s "$work/patref" ]]; then cat "$work/patref"; fail=1; fi
 
 # disjointness (D-SCH-6)
 words _kindWord | sort -u > "$work/k"

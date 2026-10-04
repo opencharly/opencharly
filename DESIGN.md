@@ -106,8 +106,8 @@ forms included). A registered term has one meaning; a second meaning gets its ow
 
 ### 3.1 The schema patterns
 
-Every shape in charly — authored, sent between processes, or stored — is written with these nine
-CUE patterns and nothing else. They come first: the authoring language is designed so every
+Every shape in charly — authored, sent between processes, or stored — is written with these CUE
+patterns and nothing else. They come first: the authoring language is designed so every
 statement is one of them. A statement that cannot be written with them is redesigned; the schema
 is never bent.
 
@@ -1534,10 +1534,10 @@ binding, need grants, destroy, fresh rebuild; every box as both `pod` and `vm`);
 
 This document and `DESIGN.cue` state the same design twice: once in prose and tables for readers,
 once as schema for machines. Two statements of one thing drift unless something compares them.
-The design check is that comparison. Like `task verify`, it runs locally and on demand — there is
-no CI gate — and a change to `DESIGN.md`, `DESIGN.cue`, `TODO.md` or the check itself lands only
-with its output on the final committed tree pasted into the PR body (umbrella `AGENTS.md` rule
-12). It relies on CUE v0.17.1 alone; no Go, Python or other toolchain is needed.
+The design check is that comparison. It runs locally and on demand — there is no CI gate — and a
+change to `DESIGN.md`, `DESIGN.cue`, `TODO.md` or the check itself lands only with its output on
+the final committed tree pasted into the PR body. It relies on CUE v0.17.1 alone; no Go, Python or
+other toolchain is needed.
 
 `DESIGN.cue`, beside this document, is the single copy of the schema, in two parts: the authoring
 schema of Part III, and the core↔plugin protocol of §8. It is written with the patterns of §3.1.
@@ -1593,9 +1593,8 @@ Five checks. Each failure names the file, the line, and the two disagreeing side
    `cue exp gengotypes`, the generator of §6, whose Go structs carry every field, optional ones
    included, as `json` tags; the CUE language itself cannot enumerate optional fields. A marker
    with no table under it fails; marker-shaped lines inside fenced code are illustrations and
-   are skipped. The marked tables are: roles and methods (§8.2), host methods (§8.6), kinds
-   (§10), the candy body (§11.1), the `os` body (§11.4), deployment and machine-only fields
-   (§12.1), and verbs (§20).
+   are skipped. Every table that mirrors the schema carries a marker; the markers themselves are
+   the list of checked tables.
 2. **Word lists and references.** The word lists in `DESIGN.cue` that mirror definitions —
    `_candyField`, `_deployField`, `_directiveWord` — equal the fields of those definitions; and
    every kind list of an `@ref` attribute (S9) in `DESIGN.cue` equals a `want:` list of
@@ -1615,8 +1614,9 @@ Five checks. Each failure names the file, the line, and the two disagreeing side
    document or in DESIGN.cue (only the text is matched, never a file path). A backticked protocol
    method is spelled as its word list spells it. Every key in DESIGN.cue — fields, tag-table
    keys, word lists — is singular: a key ending in `s` must be one of the singular nouns and
-   predicates listed in D-NAME-1. Kind words, directives and the field names of node-bearing
-   bodies are disjoint (D-SCH-6).
+   predicates listed in D-NAME-1. Every schema-pattern reference `S<n>` in DESIGN.md, DESIGN.cue
+   and TODO.md names a pattern §3.1 defines, and a range `S1–S<n>` ends at the last one. Kind
+   words, directives and the field names of node-bearing bodies are disjoint (D-SCH-6).
 
 ### A.5 `scripts/design-examples.sh` — examples and negative cases
 
@@ -1633,8 +1633,7 @@ A YAML block with no marker, a ```` ```yml ```` fence and an indented YAML fence
 check, so no example escapes validation; example IDs are unique. Each `alone` and `context`
 example is a document of its own. The `context` blocks (the imports of §13.2 and the plugins of
 §14.1) and every `uses-context` block together form **one** project, validated as one document —
-so a name defined twice across examples, or a declared plugin no example uses, is caught as in a
-real project. Every document is extracted into a temporary directory — no copy is kept — and must
+so a name defined twice across examples is caught as in a real project. Every document is extracted into a temporary directory — no copy is kept — and must
 pass three stages:
 
 1. **The loader's view** (`design/example/load.cue`), as §4.1 stage 3 and D-LOAD-5 specify: the
