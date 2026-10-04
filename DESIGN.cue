@@ -392,8 +392,9 @@ _intentWord: ["run", "check", "agent-check", "agent-run"]
 #Pod: {#MachineFields}
 #Vm:  {#MachineFields, firmware: *"uefi" | "bios" | "uefi-secure"}
 
-// D-NEST-2: what each body admits, as tag tables keyed by kind word (a `candy` entry is the
-// default: an inner node with no kind key).
+// D-NEST-2: what each body admits, as tag tables keyed by kind word. Only #InnerOfLocalAlt and
+// #InnerOfAndroidAlt carry a `candy` entry — the default, selected for an inner node with no kind
+// key; the pod/vm, kubernetes and alongside tables admit no keyless node.
 #InnerOfMachineAlt: {
 	pod:        #PodNode
 	vm:         #VmNode
@@ -402,6 +403,8 @@ _intentWord: ["run", "check", "agent-check", "agent-run"]
 	android:    #AndroidNode
 }
 #InnerOfMachine: or([for _, a in #InnerOfMachineAlt {a}])
+// The deployment kinds (§2, §12.1) are exactly the nodes a pod or vm admits inside it.
+_deploymentKind: [for k, _ in #InnerOfMachineAlt {k}]
 #InnerOfKubernetesAlt: {
 	pod: #PodNode
 	vm:  #VmNode

@@ -138,7 +138,7 @@ is never bent.
 | D-PAT-1 | Every schema uses only S1–S9 and nothing from the "never" table. |
 | D-PAT-2 | Each kind, verb, origin and capability type is one S1 definition in its owning plugin's CUE module; core composes the document schema from the registry with the same patterns (§3.3). |
 | D-PAT-3 | The authoring language follows the patterns: a choice is a key the author writes (S4) — the candy is the default node, selected when no kind key is written — a collection with identities is a map (S5), and no two concepts are told apart by a missing field. |
-| D-PAT-4 | Every schema-enforced rule is tagged with its ID at its enforcing line in the schema; each tag has at least one negative case that fails with its expected error; every rule the schema cannot express is indexed in §5.4 with where it is proven. |
+| D-PAT-4 | Every rule about an authored document or a protocol message is either enforced by the schema — tagged with its ID at its enforcing line, with at least one negative case that fails with its expected error — or indexed in §5.4 with where it is proven. Rules about schemas themselves (D-PAT-1..3) are enforced on `DESIGN.cue` by the design check (Appendix A.4 check 6) and, once implemented, on every module by the §22 gates. |
 
 ### 3.2 Where shapes are defined
 
@@ -497,6 +497,7 @@ plugin repository runs it in CI (§22).
 
 `from:` names the starting point of a stack, by one node name.
 
+<!-- schema: _deploymentKind -->
 | Node | `from:` names | Meaning |
 |---|---|---|
 | box | a source, a box, or a `pod` or `vm` | start the stack there; from a deployment it is a capture |
@@ -541,6 +542,7 @@ deployment lock (D-DEP-4); no command has a private path.
 
 ### 9.4 The IR
 
+<!-- schema: keys(#ActionAlt) -->
 | Action | Produced by | Scope |
 |---|---|---|
 | `package` | `package:` (OS manager, or a `<manager>:` prefix, §7.1) | system |
@@ -733,6 +735,7 @@ systemd:
 
 ### 12.1 Deployment kinds
 
+<!-- schema: _deploymentKind -->
 | Kind | Takes | Realization | Venue |
 |---|---|---|---|
 | `pod` | `from:` a box or source | the image form, run rootless | container exec |
@@ -793,9 +796,12 @@ Kind-specific fields: `pod` and `vm` take `from`; `vm` adds `firmware` (default 
   the parent's lifecycle and network.
 
 Each body's admitted nodes are a tag table keyed by kind word (`#InnerOfMachineAlt`,
-`#InnerOfLocalAlt`, `#InnerOfAndroidAlt`, `#InnerOfKubernetesAlt`, `#AlongsideAlt`); a `candy`
-entry is the default, selected for an inner node with no kind key.
+`#InnerOfLocalAlt`, `#InnerOfAndroidAlt`, `#InnerOfKubernetesAlt`, `#AlongsideAlt`). Only
+`#InnerOfLocalAlt` and `#InnerOfAndroidAlt` carry a `candy` entry — the default, selected for an
+inner node with no kind key; a `pod`, `vm` or `kubernetes` body, and the place beside a `pod` or
+`vm` kind key, admit no keyless node.
 
+<!-- schema: _deploymentKind -->
 | Written inside a… | Admits | Meaning |
 |---|---|---|
 | candy or box | candies | content composed into it |
@@ -1579,7 +1585,7 @@ A digest or version mismatch fails; there is no fallback to another version.
 
 ### A.4 `scripts/design-consistency.sh` — DESIGN.md ↔ DESIGN.cue
 
-Five checks. Each failure names the file, the line, and the two disagreeing sides.
+Six checks. Each failure names the file, the line, and the two disagreeing sides.
 
 1. **Tables.** A table whose content mirrors the schema is preceded by a marker:
 
@@ -1593,8 +1599,9 @@ Five checks. Each failure names the file, the line, and the two disagreeing side
    `cue exp gengotypes`, the generator of §6, whose Go structs carry every field, optional ones
    included, as `json` tags; the CUE language itself cannot enumerate optional fields. A marker
    with no table under it fails; marker-shaped lines inside fenced code are illustrations and
-   are skipped. Every table that mirrors the schema carries a marker; the markers themselves are
-   the list of checked tables.
+   are skipped. An unmarked table whose backticked first column equals the names of any source
+   (any struct definition, word list or tag table of DESIGN.cue) fails too, so a table cannot
+   mirror the schema without being checked.
 2. **Word lists and references.** The word lists in `DESIGN.cue` that mirror definitions —
    `_candyField`, `_deployField`, `_directiveWord` — equal the fields of those definitions; and
    every kind list of an `@ref` attribute (S9) in `DESIGN.cue` equals a `want:` list of
@@ -1617,6 +1624,8 @@ Five checks. Each failure names the file, the line, and the two disagreeing side
    predicates listed in D-NAME-1. Every schema-pattern reference `S<n>` in DESIGN.md, DESIGN.cue
    and TODO.md names a pattern §3.1 defines, and a range `S1–S<n>` ends at the last one. Kind
    words, directives and the field names of node-bearing bodies are disjoint (D-SCH-6).
+6. **Patterns (D-PAT-1).** `DESIGN.cue` contains no `close(`, no `matchN`, no forbidden field
+   written as `?: _|_`, and exactly one open struct `{...}` — the `#Opaque` definition.
 
 ### A.5 `scripts/design-examples.sh` — examples and negative cases
 

@@ -22,3 +22,6 @@ ref-drift	design/example/rules.cue	s~want: \["os"\]~want: ["os", "init"]~	want: 
 rules-emit-drift	design/example/rules.cue	s~rule: "D-VAL-8"~rule: "D-VAL-9"~	emits rules §5.4 does not mark rules.cue: D-VAL-9
 pattern-range	TODO.md	s~the schema patterns are S1–S9 of §3.1~the schema patterns are S1–S8 of §3.1~	S1–S8 — the pattern range ends at S9
 pattern-unknown	DESIGN.md	s~derived from them, and the S8 name scalars.~derived from them, and the S12 name scalars.~	S12 is not a schema pattern of §3.1
+unmarked-mirror	DESIGN.md	/^<!-- schema: keys(#ActionAlt) -->$/d	but has no <!-- schema: … --> marker
+pattern-close	DESIGN.cue	$a\\n#Bad: close({a: int})	a construct §3.1 rules out
+pattern-open	DESIGN.cue	$a\\n#Loose: {...}	2 open structs {...}; exactly one (#Opaque) is allowed

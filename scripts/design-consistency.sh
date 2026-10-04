@@ -23,6 +23,8 @@
 #              reference is defined in §3.1 and a range S1–S<n> ends at the last; a backticked
 #              protocol method is spelled as its word list spells it; kind words,
 #              directives and the field names of node-bearing bodies are disjoint (D-SCH-6)
+#   6 patterns DESIGN.cue uses only §3.1's constructs (D-PAT-1): no close(), no matchN, no
+#              forbidden field ?: _|_, exactly one open struct {...} (#Opaque)
 #
 # Usage: scripts/design-consistency.sh [root]
 # Self-test: scripts/design-selftest.sh scripts/design-consistency.sh design/consistency/selftest.tsv
@@ -115,6 +117,39 @@ while IFS=$'\t' read -r mline spec; do
 	[[ -z "$extra" ]] || bad "DESIGN.md:$mline: table column $col names what ${srcs[*]} does not define: $extra"
 done < "$work/markers"
 
+# an UNMARKED table whose backticked first column equals a source mirrors the schema unchecked
+awk '
+	/^ *```/ { fence = !fence; next }
+	fence { next }
+	/^<!-- schema: .* -->$/ { marked = 1; next }
+	/^\|/ {
+		if (!intable) { intable = 1; start = NR; rows = 0; words = "" }
+		rows++
+		if (rows > 2) { n = split($0, c, "|"); cell = c[2]
+			while (match(cell, /`[a-z][a-z0-9_-]*`/)) { words = words substr(cell, RSTART + 1, RLENGTH - 2) "\n"; cell = substr(cell, RSTART + RLENGTH) } }
+		next
+	}
+	intable { if (!marked) printf "%d\t%s%c", start, words, 0; intable = 0; marked = 0; next }
+	NF { marked = 0 }
+' "$md" > "$work/unmarked"
+: > "$work/sources"
+for t in $(g -o '^type [A-Za-z0-9]* struct' "$gotypes" | awk '{print $2}'); do
+	fields "$t" | sort -u | paste -sd, | sed "s/^/#$t\t/" >> "$work/sources"
+done
+for alt in $(g -o '^#[A-Za-z]*Alt:\|^#KindNode:\|^#Verb:' "$schema" | tr -d ':'); do
+	words "keys($alt)" | g -v '^!' | sort -u | paste -sd, | sed "s/^/keys($alt)\t/" >> "$work/sources"
+done
+for w in $(g -o '^_[a-zA-Z]*:' "$schema" | tr -d ':'); do
+	out="$(words "$w" | g -v '^!' | sort -u | paste -sd,)"
+	[[ -n "$out" ]] && printf '%s\t%s\n' "$w" "$out" >> "$work/sources"
+done
+while IFS=$'\t' read -r -d '' start list; do
+	set="$(printf '%s' "$list" | g -v '^$' | sort -u | paste -sd,)"
+	[[ "$set" == *,* ]] || continue
+	src="$(awk -F'\t' -v s="$set" '$2 == s { print $1; exit }' "$work/sources")"
+	[[ -z "$src" ]] || bad "DESIGN.md:$start: this table lists exactly the names of $src but has no <!-- schema: … --> marker"
+done < "$work/unmarked"
+
 # ── 2 word lists that mirror definitions ─────────────────────────────────────────
 LIST_PAIRS=(
 	"_candyField=#Candy #BoxFields"
@@ -134,7 +169,9 @@ done
 
 # ── 4 ids (defined set first; checks 3 and 4 use it) ─────────────────────────────
 g -no '^| D-[A-Z]*-[0-9]* |' "$md" | sed 's/| //; s/ |$//' > "$work/defs" # line:ID
-cut -d: -f2 "$work/defs" | sort | uniq -d | while read -r id; do bad "DESIGN.md: $id is defined twice"; done
+# the loop reads a file in THIS shell: a `| while … bad` pipeline would set fail in a subshell
+cut -d: -f2 "$work/defs" | sort | uniq -d > "$work/dupids"
+while read -r id; do bad "DESIGN.md: $id is defined twice"; done < "$work/dupids"
 awk -F: '{ split($2, p, "-"); a = p[2]; n = p[3] + 0
 	if (n != ++next_[a]) printf "DESIGN.md:%s: %s out of order (expected D-%s-%d)\n", $1, $2, a, next_[a] }' "$work/defs" > "$work/order"
 while read -r l; do bad "$l"; done < "$work/order"
@@ -271,6 +308,15 @@ for other in _directiveWord _candyField _deployField; do
 	both="$(comm -12 "$work/k" "$work/o" | tr '\n' ' ')"
 	[[ -z "$both" ]] || bad "DESIGN.cue: kind words and $other overlap: $both"
 done
+
+# ── 6 patterns (D-PAT-1) ─────────────────────────────────────────────────────────
+g -n 'close(\|matchN\|?: *_|_' "$schema" | g -v '^[0-9]*:[[:space:]]*//' | while IFS=: read -r ln _; do
+	echo "FAIL DESIGN.cue:$ln: a construct §3.1 rules out (close(), matchN or a forbidden field ?: _|_)"
+done > "$work/patterns-out"
+open="$(g -c '{\.\.\.}' "$schema")"
+[[ "$open" == 1 ]] || echo "FAIL DESIGN.cue: $open open structs {...}; exactly one (#Opaque) is allowed" >> "$work/patterns-out"
+g -q '^#Opaque: {\.\.\.}' "$schema" || echo "FAIL DESIGN.cue: the one open struct is not the #Opaque definition" >> "$work/patterns-out"
+if [[ -s "$work/patterns-out" ]]; then cat "$work/patterns-out"; fail=1; fi
 
 if ((fail)); then exit 1; fi
 echo "consistency: tables, word lists, rule tags, ids and § references, vocabulary — all agree"
