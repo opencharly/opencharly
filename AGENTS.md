@@ -135,7 +135,9 @@ someone else's repo.
     define the target architecture of charly, `spec`, `sdk`, every plugin and every candy
     repository; `TODO.md` is the migration from today's code. A change that contradicts them
     amends them first, with operator sign-off, in the order `DESIGN.cue` → examples → prose,
-    and lands only with `./charly/bin/charly task design-check` passing (DESIGN.md Appendix A).
+    and lands only with `./charly/bin/charly task design-check` passing on the final committed
+    tree, its output pasted into the PR body (run on demand — there is no CI gate; DESIGN.md
+    Appendix A).
 
 ## Agent identity & comment coordination (extends rule 9)
 

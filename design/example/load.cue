@@ -5,9 +5,9 @@
 //   cue vet -c DESIGN.cue design/example/load.cue -l '"doc"' example.yaml     (shape)
 //   cue export … -e dispatch                                                  ("exactly one of" list)
 //
-// Dispatch reaches top-level nodes, their steps, and the inner and alongside nodes of their kind
-// bodies; deeper nodes are unified through their parent's definition (CUE cannot recurse over
-// data). The loader in core dispatches at every depth.
+// Dispatch reaches top-level nodes, their steps, the inner nodes of their kind bodies, and the
+// nodes beside a top-level pod or vm kind key; deeper nodes are unified through their parent's
+// definition (CUE cannot recurse over data). The loader in core dispatches at every depth.
 package design
 
 import "strings"
@@ -38,20 +38,29 @@ _innerTable: {
 	android:    #InnerOfAndroidAlt
 }
 _deployFieldSet: {for f in _deployField {(f): true}}
-_inner: [
+// Every placed node: inside a kind body (its nesting table), or beside a pod or vm kind key
+// (#AlongsideAlt). One dispatch handles both.
+_placed: [
 	for n, v in _node for k, b in v if _innerTable[k] != _|_ for name, x in b if _deployFieldSet[name] == _|_ {
-		let tbl = _innerTable[k]
-		let tags = [for t, _ in tbl if t != "candy" for f, _ in x if f == t {t}]
+		{at: "\(n).\(name)", where: "a \(k) admits inside it", table: _innerTable[k], value: x}
+	},
+	for n, v in _node for k, _ in v if k == "pod" || k == "vm" for name, x in v if name != k {
+		{at: "\(n).\(name)", where: "beside a \(k) stands", table: #AlongsideAlt, value: x}
+	},
+]
+_inner: [
+	for p in _placed {
+		let tags = [for t, _ in p.table if t != "candy" for f, _ in p.value if f == t {t}]
 		{
-			at:    "\(n).\(name)"
-			value: x
+			at:    p.at
+			value: p.value
+			table: p.table
 			if len(tags) == 1 {key: tags[0]}
-			if len(tags) == 0 && tbl.candy != _|_ {key: "candy"}
-			if len(tags) == 0 && tbl.candy == _|_ {
-				error: "\(n).\(name): a \(k) admits inside it exactly one of: \(strings.Join([for t, _ in tbl {t}], ", "))"
+			if len(tags) == 0 && p.table.candy != _|_ {key: "candy"}
+			if len(tags) == 0 && p.table.candy == _|_ {
+				error: "\(p.at): \(p.where) exactly one of: \(strings.Join([for t, _ in p.table {t}], ", "))"
 			}
-			if len(tags) > 1 {error: "\(n).\(name): exactly one kind key, found \(strings.Join(tags, ", "))"}
-			table: tbl
+			if len(tags) > 1 {error: "\(p.at): exactly one kind key, found \(strings.Join(tags, ", "))"}
 		}
 	},
 ]

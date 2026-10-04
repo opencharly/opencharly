@@ -13,7 +13,8 @@
 #      kind key selects —  cue vet -c DESIGN.cue load.cue -l '"doc"' <doc>
 #   2. the same verdict from the root union —  cue vet -d '#Document' DESIGN.cue <doc>
 #      (proves the user-facing command and the loader dispatch agree)
-#   3. design/example/rules.cue: an empty `violation` list         (D-VAL-1, D-VAL-2, D-VAL-4)
+#   3. design/example/rules.cue: an empty `violation` list (the §5.4 rules whose "Design check"
+#      column says rules.cue)
 #
 # Negatives. Each design/negative/*.yaml starts with header comments:
 #   # rule: D-…            the rule it breaks (a DESIGN.cue tag or a §5.4 rule)

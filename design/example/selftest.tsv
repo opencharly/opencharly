@@ -16,3 +16,4 @@ indented-fence	DESIGN.md	$a\\n1. an item\n   ```yaml\n   x: 1\n   ```	a yaml exa
 union-disagrees	DESIGN.cue	/^#Document: {/,/^}/s~repo?:     #Repo~repo!: #Repo~	passes the loader dispatch but not #Document
 inner-dispatch	DESIGN.md	s~^            pod:$~            local:~	a kubernetes admits inside it exactly one of: pod, vm
 shared-duplicate	DESIGN.md	s~^dev-box:$~web-shell:~	example 'project' does not validate
+alongside-dispatch	DESIGN.md	$a\\n<!-- example: alongside-probe -->\n```yaml\nx:\n    pod:\n        description: A pod.\n        from: b\n    extra:\n        description: A candy beside the kind key.\n```	beside a pod stands exactly one of: pod, vm, local

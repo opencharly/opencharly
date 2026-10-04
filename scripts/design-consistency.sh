@@ -12,8 +12,9 @@
 #   2 lists    the word lists that mirror definitions equal them (the pairs in LIST_PAIRS), and the
 #              @ref kind lists of DESIGN.cue equal the `want:` lists of design/example/rules.cue
 #   3 rules    every `// D-…` tag in DESIGN.cue names a requirement of DESIGN.md and has a
-#              negative case; every negative names a tag or a §5.4 rule; every §5.4 rule has a
-#              negative and an owner from the §7.1 ownership table
+#              negative case; every negative names a tag or a §5.4 rule; rules.cue emits exactly
+#              the §5.4 rules marked `rules.cue`, each with a negative; every §5.4 owner is an
+#              owner in the §7.1 ownership table
 #   4 ids      requirement IDs are unique and numbered 1..n per area in order of appearance;
 #              every ID (ranges D-X-a..b included) in DESIGN.md, TODO.md, DESIGN.cue and the
 #              design/ files resolves, and every § reference in DESIGN.md, TODO.md and DESIGN.cue
@@ -185,6 +186,12 @@ done < "$work/tags"
 while read -r r; do
 	grep -qx "$r" "$work/negrules" || bad "DESIGN.md: §5.4 rule $r is checked by rules.cue but has no design/negative case"
 done < "$work/valrules"
+# the rules rules.cue emits are exactly the §5.4 rules marked `rules.cue`
+g -o 'rule: "D-VAL-[0-9]*"' "$root/design/example/rules.cue" | sed 's/rule: "//; s/"//' | sort -u > "$work/emitted"
+missing="$(setdiff "$work/valrules" "$work/emitted" | tr '\n' ' ')"
+extra="$(setdiff "$work/emitted" "$work/valrules" | tr '\n' ' ')"
+[[ -z "$missing" ]] || bad "design/example/rules.cue: emits no violation for the §5.4 rules marked rules.cue: $missing"
+[[ -z "$extra" ]] || bad "design/example/rules.cue: emits rules §5.4 does not mark rules.cue: $extra"
 cut -d: -f2 "$work/tags" | cat - "$work/valrules" | sort -u > "$work/testable"
 while read -r r; do
 	grep -qx "$r" "$work/testable" || bad "design/negative: '# rule: $r' is neither a DESIGN.cue tag nor a §5.4 rule"

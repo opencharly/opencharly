@@ -1,5 +1,6 @@
-// rules.cue — the whole-document rules of DESIGN §5.4 that design-examples.sh checks on every
-// example: D-VAL-1, D-VAL-2, D-VAL-4, D-VAL-8. Run together with load.cue (it shares `doc`,
+// rules.cue — the whole-document rules of DESIGN §5.4 whose "Design check" column says
+// `rules.cue` (that column is the one list; design-consistency.sh checks this file emits exactly
+// those rules). Run together with load.cue (it shares `doc`,
 // `_node`, `_kindOf` and `_deployFieldSet`):
 //
 //   cue export DESIGN.cue design/example/load.cue design/example/rules.cue -l '"doc"' example.yaml -e violation

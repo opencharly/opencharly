@@ -17,7 +17,6 @@
 | 0.2 | **RDD spike — CUE modules (D-SCH-2, §3.3).** Prove on a disposable target that: a plugin CUE module imports `spec` packages; it is published as an OCI artifact and fetched by digest; core composes `spec` plus N plugin modules into one instance at runtime, with registry-derived unions (`or()` over a registry definition, S4); `cue exp gengotypes` emits usable Go across a module import. Everything in sections 2–6 depends on this. If it fails, stop and bring the evidence to the operator. |
 | 0.3 | **RDD spike — schema-first parse (§4.2, D-LOAD-5).** Prove that the field-versus-node rule classifies the whole fresh corpus without ambiguity, that tag dispatch selects exactly one alternative for every node, step and file, and that YAML→CUE decoding keeps `file:line` for every diagnostic. |
 | 0.4 | **CUE v0.17.1 defect.** Embedding a definition inside `close()` and unifying it with a comprehension-bound value leaves a key-tagged disjunction unresolved: `#S: close({a!: string}) \| close({c!: string})`, `#F: {s: [...#S]}`, `doc: x: {s: [{c: "1"}]}` — `close({#F}) & doc.x` resolves, `{for k, v in doc {(k): close({#F}) & v}}` reports `s.0: incomplete value {c:"1",a!:string} \| {c:"1"}`. DESIGN §3.1 removes `close()` (definitions are closed by CUE), so the design does not depend on it. |
-| 0.5 | **Adopt the design check.** Land `DESIGN.md`, `DESIGN.cue`, `scripts/design-*.sh` and `design/` in the umbrella; add `bash scripts/design-check.sh` to the umbrella's maintenance commands and run it on every change to these files (Appendix A). |
 
 ## 1. Decisions
 

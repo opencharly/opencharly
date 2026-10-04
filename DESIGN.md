@@ -1534,9 +1534,10 @@ binding, need grants, destroy, fresh rebuild; every box as both `pod` and `vm`);
 
 This document and `DESIGN.cue` state the same design twice: once in prose and tables for readers,
 once as schema for machines. Two statements of one thing drift unless something compares them.
-The design check is that comparison, and it is the only way a change to either file is accepted:
-it runs on every change and must pass. It relies on CUE v0.17.1 alone; no Go, Python or other
-toolchain is needed.
+The design check is that comparison. Like `task verify`, it runs locally and on demand — there is
+no CI gate — and a change to `DESIGN.md`, `DESIGN.cue`, `TODO.md` or the check itself lands only
+with its output on the final committed tree pasted into the PR body (umbrella `AGENTS.md` rule
+12). It relies on CUE v0.17.1 alone; no Go, Python or other toolchain is needed.
 
 `DESIGN.cue`, beside this document, is the single copy of the schema, in two parts: the authoring
 schema of Part III, and the core↔plugin protocol of §8. It is written with the patterns of §3.1.
@@ -1601,9 +1602,9 @@ Five checks. Each failure names the file, the line, and the two disagreeing side
    `design/example/rules.cue`, in both directions, so the executable reference rule cannot drift
    from the schema.
 3. **Rules.** Every `// D-…` tag in `DESIGN.cue` names a requirement of this document and has a
-   negative case. Every negative case names a tag or a §5.4 rule. Every §5.4 rule whose "Design
-   check" column says `rules.cue` has a negative case, and every owner it names is an owner in the
-   §7.1 table. The check proves traceability — a tag, a case and an expected error that belong
+   negative case. Every negative case names a tag or a §5.4 rule. The rules `rules.cue` emits are
+   exactly the §5.4 rules whose "Design check" column says `rules.cue`; each has a negative case,
+   and every owner a §5.4 rule names is an owner in the §7.1 table. The check proves traceability — a tag, a case and an expected error that belong
    together — not that the tagged line is the whole enforcement; that is what review of the tag
    and the case's expected text is for.
 4. **Identifiers.** Requirement IDs are unique and numbered `1..n` per area in order of
@@ -1649,8 +1650,9 @@ pass three stages:
    it assert the field CUE reports. The loader in core dispatches at every depth.
 2. **The root union.** `cue vet -d '#Document'` must give the same verdict. This proves that the
    one-line command of A.1 and the loader's view agree, and it covers nested nodes completely.
-3. **Whole-document rules** (`design/example/rules.cue`): D-VAL-1, D-VAL-2, D-VAL-4 and D-VAL-8,
-   over top-level nodes and the candies one level inside them; references are walked through up
+3. **Whole-document rules** (`design/example/rules.cue`): the §5.4 rules whose "Design check"
+   column says `rules.cue` (A.4 check 3 keeps the two in step), over top-level nodes and the
+   candies one level inside them; references are walked through up
    to three dotted segments, and a namespaced reference to its import namespace. The check fails
    on any entry in the resulting `violation` list and prints each with its node.
 
