@@ -114,14 +114,16 @@ as your own.
     scope", or "follow-up PR" classifications (R1). One canonical implementation owns each
     behaviour; no workarounds — a missing `charly` verb or owning skill is a product defect
     to RCA and fix, never to route around (R3, R4). A cutover deletes the legacy path in the
-    same PR (R5). Prove the gate, not the plan: run `./charly/bin/charly task verify` on the
-    final committed tree and paste the output — a green `git status` proves nothing (R7).
+    same PR (R5). Keep git safe: `git status` before destructive actions; never force-push,
+    never bypass a hook (`--no-verify`/`core.hooksPath`), never push directly to `main`
+    (R6). Prove the gate, not the plan: run `./charly/bin/charly task verify` on the final
+    committed tree and paste the output — a green `git status` proves nothing (R7).
     `disposable: true` is the only authorization to destroy and rebuild a deployment
     autonomously; verify from the final committed tree, never from an edited state (R10). A
     gate that cannot fail on the change proves nothing; a live-service boundary runs against
     the REAL service or skips cleanly when its credential is absent, never faked. *Detail:*
     `/charly-internals:strict-policy`, `/charly-internals:root-cause-analyzer`,
-    `/charly-internals:disposable`, `/charly-check:check`.
+    `/charly-internals:disposable`, `/charly-internals:git-workflow`, `/charly-check:check`.
 
 ## R0. Skills first
 
