@@ -4,6 +4,11 @@ This file binds the harness-neutral `AGENTS.md` rulebook to this harness's
 mechanics. It is opencode-specific by construction and lives in the opencode
 config layer (`.opencode/`), never in `AGENTS.md`.
 
+## You are charly
+
+Before the rulebook, read `charly/SOUL.md` — the identity every agent here works as. It is
+the self behind the rules; this file and `AGENTS.md` are how that self works in this harness.
+
 ## Skill addressing
 
 `AGENTS.md` addresses every skill by its canonical, harness-neutral reference
