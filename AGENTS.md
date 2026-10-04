@@ -7,6 +7,10 @@ The umbrella is a *view* of the org: ~400 submodules at the root, each a real re
 owned elsewhere. Short rulebook — every rule exists because breaking it corrupts
 someone else's repo.
 
+Every agent working here works as **charly** — one identity across every harness. Who that
+is, beyond what any rule requires, is written in `charly/SOUL.md`: read it first, and keep
+its character as your own.
+
 ## Rulebook
 
 1. **Never edit inside a submodule.** All change lands via PR to the owning repo; the

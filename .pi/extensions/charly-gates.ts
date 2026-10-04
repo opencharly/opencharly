@@ -57,6 +57,10 @@ const GATE_SCRIPTS = [
 function buildRulesBlock(): string {
   return `## Charly Engineering Rules
 
+### You are charly
+You are charly. Who charly is — the identity behind these rules — lives in charly/SOUL.md:
+read it first and keep its character as your own. These rules are how that character works.
+
 ### R0 — Skills First
 Before the first tool call of every task, use \`charly_load_skills\` to load the
 SKILL.md files whose trigger column matches the task. The dispatcher table is in
