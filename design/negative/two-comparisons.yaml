@@ -1,0 +1,8 @@
+# rule: D-VERB-3
+# expect: step.x.0.stdout.contains: field not allowed
+x:
+  description: A candy.
+  step:
+    - check: it prints ok
+      command: echo ok
+      stdout: {equals: ok, contains: o}

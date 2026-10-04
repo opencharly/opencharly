@@ -1,0 +1,7 @@
+# rule: D-SRC-1
+# expect: node.x.source.disk.sha256: field is required but not present
+x:
+  source:
+    description: A source.
+    disk: {url: https://x/y.qcow2}
+    os: arch

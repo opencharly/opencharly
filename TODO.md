@@ -1,0 +1,182 @@
+# TODO.md — from today's code to DESIGN.md
+
+> Every item gives the current state (with evidence at `origin/main`, fetched 2026-10-03), the
+> target (a DESIGN requirement or section), the config migration (before → after; `charly migrate`
+> performs every rewrite listed) and the code work. Items run in dependency order — producer first:
+> spec → sdk → charly → plugins → candy and OS repositories → umbrella. Each item becomes one
+> tracking issue, issue-first per `AGENTS.md`. TODO.md is deleted when the last item lands.
+>
+> This file describes the current state, so it uses current names (`plan:`, `distro:`, …); DESIGN.md
+> never does.
+
+## 0. Preconditions
+
+| # | Item |
+|---|---|
+| 0.1 | **Source of truth.** Every inventory is taken from fetched `origin/main`, never from the umbrella's pinned checkouts. On 2026-10-03, 31 of 424 checkouts lagged `origin/main` (`distro-cachyos` 43 commits, `distro-fedora` 31, `distro-omarchy` 28, `charly` 16, `sdk` 16, `distro-arch` 16, `spec` 8). The evidence in this file was re-verified against `origin/main` of `charly`, `sdk` and `spec` on that date. Repeat the fetch before each item starts. |
+| 0.2 | **RDD spike — CUE modules (D-SCH-2, §3.3).** Prove on a disposable target that: a plugin CUE module imports `spec` packages; it is published as an OCI artifact and fetched by digest; core composes `spec` plus N plugin modules into one instance at runtime, with registry-derived unions (`or()` over a registry definition, S4); `cue exp gengotypes` emits usable Go across a module import. Everything in sections 2–6 depends on this. If it fails, stop and bring the evidence to the operator. |
+| 0.3 | **RDD spike — schema-first parse (§4.2, D-LOAD-5).** Prove that the field-versus-node rule classifies the whole fresh corpus without ambiguity, that tag dispatch selects exactly one alternative for every node, step and file, and that YAML→CUE decoding keeps `file:line` for every diagnostic. |
+| 0.4 | **CUE v0.17.1 defect.** Embedding a definition inside `close()` and unifying it with a comprehension-bound value leaves a key-tagged disjunction unresolved: `#S: close({a!: string}) \| close({c!: string})`, `#F: {s: [...#S]}`, `doc: x: {s: [{c: "1"}]}` — `close({#F}) & doc.x` resolves, `{for k, v in doc {(k): close({#F}) & v}}` reports `s.0: incomplete value {c:"1",a!:string} \| {c:"1"}`. DESIGN §3.1 removes `close()` (definitions are closed by CUE), so the design does not depend on it. |
+| 0.5 | **Adopt the design check.** Land `DESIGN.md`, `DESIGN.cue`, `scripts/design-*.sh` and `design/` in the umbrella; add `bash scripts/design-check.sh` to the umbrella's maintenance commands and run it on every change to these files (Appendix A). |
+
+## 1. Decisions
+
+Decided by the operator in the design session:
+- `step:` replaces `plan:`;
+- one `kubernetes:` kind; local clusters are created with `create: kind` or `create: k3s`;
+- the stack model of DESIGN §9: a keyless node is a candy, or a box when it has `from:`; `source` is
+  the only external starting point; `from:` is the only start key; a box whose `from:` is a
+  deployment is a capture; there are no templates;
+- `pod` and `vm` are written and driven identically: every box runs as either, and the `os` owns
+  the conversion between image and disk;
+- the definition kind `distro` becomes `os`; the candy field `distro:` becomes `os_override:`; the
+  box field `builder:` becomes `builder_box:`;
+- tree-position nesting for every kind;
+- every plugin is declared in `plugin:`, with no built-in set and no catalog;
+- state is declared only in fields, so a `run:` step carries only `command`;
+- host access comes only through host needs (§16), never raw runtime settings;
+- singular keys; `description:` stays a field;
+- everything is provided by plugins over the protocol of §8;
+- the schema patterns are S1–S8 of §3.1: no `close()`, no forbidden-field construct, every union
+  derived from a registry definition.
+
+Still open:
+
+| # | Decision | Recommendation |
+|---|---|---|
+| 1.1 | **Repository topology (D-REPO-1).** The operator chose aggressive collapse. | The exact repository list (candy families, plugin concepts) needs sign-off before item 9.1. |
+
+## 2. Schema (Part I)
+
+| # | Current state (evidence) | Target | Config migration | Code work |
+|---|---|---|---|---|
+| 2.1 | Kind schemas (`#Candy`, `#Box`, `#Deploy`, `#Vm`, `#Pod`, `#Local`, `#Kubernetes`, `#Android`, `#LibvirtDomain`, …) live in `spec/schema`, with `#<Kind>Value` twins; plugin-substrate and plugin-candy only echo host-decoded values (`spec/schema/node.cue`). | D-SCH-1, D-SCH-3 | none | Move each schema into its plugin's CUE module; delete the twins and the echo plugins. |
+| 2.2 | 104 of 117 plugin schemas are "self-contained" and copy shared shapes (`#HttpMatcherList`, `#FileMatcher`, `#MountMatcher`, …). | D-SCH-2 | none | Import `spec/envelope`; delete the copies. |
+| 2.3 | 442 `@go(…,type=…)` overrides, 103 `@go(-)` uses and hand-written Go types in `spec` (e.g. `hand_state_types.go`). | D-SCH-1, D-GEN-3 | none | Generate every type; keep only behaviour methods. |
+| 2.4 | A second field gate: the loader's `candyKnownFields` still admits the removed `version` (`sdk/loaderkit/parse_candy_manifest.go:224`). | D-CANDY-1, D-LOAD-2 | none | Delete it. |
+| 2.5 | The runtime schema is assembled by text: `schemaconcat`, plus the `base ++ served` splice in `charly/charly/plugin_loader.go`. | §3.3 | none | Compose one instance through CUE imports. |
+| 2.6 | `#NodeDoc` carries state and vocabulary keys (`cache`, `ledger`, `system`, `providers`, `compiled_plugins`, `context_ignore_baseline`, `ovmf_*`, `verb_primaries`, `provides`). | D-STORE-2, D-KIND-2, D-CORE-3 | `~/.config/charly/charly.yml` splits: settings → user configuration; `cache`/`ledger`/`system` → state or cache | Remove the keys from the envelope. |
+| 2.7 | Cross-field rules in Go: ephemeral→disposable fill, android `box`⊻`adb`, preemptible checks, check-bed checks, member checks (`sdk/loaderkit` `LoadSeams`). | D-LOAD-3 | none | Move each into CUE or into the owning kind's `validate` (§5.4). |
+| 2.8 | Verb primaries in three places: `verb_primaries` (`charly/charly.yml`, `spec/schema/node.cue`), manifest `plugin.primary`, and `ProvidedCapability.Primary`. | D-VERB-5, D-LOAD-5 | `plugin.primary` is removed from manifests | Delete all three: a verb input has one shape and the step is dispatched by its keys. |
+| 2.9 | Kind words collide with field names: the `distro` kind vs the candy `distro:` field (whose box form is a third, list-typed use), and the `builder` kind vs the box `builder:` field. | D-SCH-6 | `name: {distro: {…}}` definition nodes → `name: {os: {…}}`; candy `distro: {arch: {…}}` → `os_override: {arch: {…}}`; the box `distro: [fedora, "fedora:43"]` list → `os: fedora-43` on the `source` the stack starts from; box `builder: {…}` → `builder_box: {…}` | Add the disjointness gate (Appendix A.4 check 5). |
+| 2.10 | Box starting points come in four spellings: `base:` (a box or an OCI ref), `from: builder:<word>` plus `bootstrap_builder_image`, a VM template `source:` block (`cloud_image`, `iso`, `bootstrap`, `container_disk`, `bootc`, `clone`, `imported`), and `distro:` identity lists. | §9.1, §11.3, D-SRC-1..2 | external `base: <oci-ref>` → a `source: {oci: …, os: …}` node with the box's `from:` naming it; `base: <box>` → `from: <box>`; `from: builder:pacstrap` + `bootstrap_builder_image` → `source: {bootstrap: {builder: arch.pacstrap, …}, os: arch.arch}`; vm `source: {kind: cloud_image, url, checksum}` → `source: {disk: {url, sha256}, os: …}`; `iso` → `source: {iso: …}`; `container_disk` and `bootc` → a box `from:` the OCI source; unused `clone` and `imported` are deleted | One `from:` resolver; a `source` kind in the build plugin; the machine plugin builds disks from boxes. |
+| 2.11 | A deployment names what it realizes with `from:` (a template, or `name:snapshot`) or `image:` (an image node). | §9.1, §12.1 | `image: <node>` → `from: <node>`; `from: <template>` → `from:` the box or source the template's disk came from (2.14) | Update the deployment schemas. |
+| 2.12 | Image build fields `build`, `builder`, `produce`, `bootstrap_builder_image`, `platform`, `enabled`, `tag`, `entrypoint`, `network`: purpose and overlaps unreviewed. | D-LAW-1, D-LAW-2 | per the review | Review them against the fresh corpus and record the result in DESIGN §11.1 (with DESIGN.cue first, Appendix A.7) before implementing. |
+| 2.13 | Unused fields and kinds. Kinds: `theme`, `session`, `displaymanager`, `desktopentry`, `agent-team`, the `kubevirt` kind, the `pod` template form. Fields: most of `#Kubernetes`; deploy `kind`, `replica`, `restart`, `schedule`, `tunnel`, `dns`, `acme_email`, `port`, `resources`, `expose`, `storage`, `probes`; vm sources `bootc`, `clone`, `imported`; most libvirt device lists; unused `#Box` and service fields (full list from inventory 0.1). | D-LAW-2 | none (unused) | Delete them from the schemas. |
+| 2.14 | Deployment templates. `vm:` templates (109 nodes) carry the disk source, `disk_size`, `ram`, `cpu`, `firmware`, `network`, `ssh`, `cloud_init` and `libvirt`; `local:` templates carry a candy list; `kubernetes:`/`android:` templates carry access and device settings; `pod:` templates are unused. Template versus deployment is decided by whether `from:`/`image:` is present. | §9, §12.1 | per vm template `T`: its `source` block → a `source` node (2.10); `cloud_init` packages, users and runcmd → a candy, and a box `T` = that source plus that candy; `ram`/`cpu`/`disk_size` → the fields of every deployment that used `T`; `firmware` → the deployment's `firmware`; `ssh`/`network` → machine plugin behaviour (port forwards → `port:`); `libvirt` devices → host needs (3.26) or the machine plugin; `local` templates → a box or the deployment's `require:`; android → 3.23 | Delete the template form from every deployment schema. |
+| 2.15 | Pod and VM are built differently: a pod runs an image built from a box; a VM boots a template disk and applies candies over ssh at deploy time. Snapshots, consoles and many commands exist only for VMs. | §9.2, D-DEP-1, D-FORM-1 | none beyond 2.10, 2.14 and 3.27 | Each `os` gains its boot content and root-filesystem export; build a disk from any box and an image from any disk start; both kinds share one field set and one command set; the conformance bed runs every box as both. |
+| 2.16 | Schemas use `close()`, open definitions, absence-discriminated unions, unions written out alternative by alternative, mixed lists and validators embedded in structs (the self-contained plugin schemas, `#CandyValue: (*#Candy \| #Image)`, `#<Kind>Value: (#Template \| #DeployValue)`). | §3.1, D-PAT-1..4 | none | Rewrite every schema with S1–S8: definitions without `close()`, every union derived from a registry definition, enums from word lists. Every enforcing line carries its requirement tag with a negative case (Appendix A). |
+
+## 3. Parsing and validation (§4–§5)
+
+| # | Current state (evidence) | Target | Config migration | Code work |
+|---|---|---|---|---|
+| 3.1 | The parser classifies keys from `Threaded` word sets (`Kinds`, `DeploySubstrates`, `StructuralKinds`, `ExternalDeploySubstrates`) plus `resourceKindSet`, a value-shape scan (`discEntityPairs`/`isEntityValue`) and declared-field side lists with fallbacks (`sdk/loaderkit/parse.go`). | §4.2, D-LOAD-2 | none | Rewrite the parse rules on the composed schema. |
+| 3.2 | Three validate-and-fold paths (`foldSubstrateKind`, `foldCandyKind`, plugin input) (`charly/charly/provider_kind_invoke.go`). | §5.1, D-LOAD-3 | none | One unification per node with the definition its kind key selects, plus `validate`. |
+| 3.3 | Steps are typed only by `charly box validate` (`ValidateNodeFormSteps`); unions are tried alternative by alternative, so diagnostics list every alternative's failure. | D-LOAD-3, D-LOAD-5 | none | Validate steps on every load; dispatch every key-tagged union on its tag keys and report "exactly one of …". |
+| 3.4 | The `/etc/charly/charly.yml` project layer (`config_stack.go`) and the bootstrap phase (used only by an example plugin). | §4.3 | the `/etc` layer becomes system configuration | Delete both. |
+| 3.5 | Per-kind typed maps in `spec.UnifiedFile` (`Box`, `Candy`, `Deploy`, `Pod`, `VM`, `PluginKinds`, …). | §5.2 | none | A generic resolved table; typed views move into the consuming plugins. |
+| 3.6 | The `candy:` kind key. | §4.2 rule 3 | `name: {candy: {…}}` → `name: {…}` | Make the keyless node the candy. |
+| 3.7 | Three composition keys: image `candy:` list, candy-in-candy `candy:`, deployment `add_candy:`. | D-CANDY-2 | each → `require:` | Update the schemas. |
+| 3.8 | Two reference forms: inline `@github.com/…:tag` references inside fields (`require:`, `candy:`, `base:`) and `import:` namespaces. | D-REF-1, D-REF-2 | each inline reference → an `import:` namespace plus `<namespace>.<name>`, with the digest added | Delete inline-reference parsing (`spec.ParseRemoteRef` in field position). |
+| 3.9 | An `import:` entry is a bare string or `{alias: ref}`, with `@host/org/repo[/sub]:version` pinned by tag only, and a flat-merge form exists. | D-REF-3..6 | `- alias: '@github.com/o/r:vT'` → `alias: {repo: github.com/o/r, release: vT, digest: <computed>}`; the flat-merge form → a namespace plus namespaced references; local paths → `{path: …}`; `box reconcile` computes the digests | Verify the digest at fetch. |
+| 3.10 | Nesting by position exists only for deployment kinds (`PROGRAM/nested-deploy-members.md`); sidecars are referenced by name. | §12.2, D-NEST-1..6 | sidecar references → inner `pod:` nodes; members written beside the kind key but meant to run inside → inner nodes | Each kind's nesting definition declares what it admits; delete the core nesting sets. |
+| 3.11 | PATH can be set three ways (`path_append`, `shell.path_append`, `shell.path`). | §11.1 | the `shell.*` path keys → `path_append` | Update the schemas. |
+| 3.12 | Provides and requires come in six mechanisms: 11 `*_provide`/`*_require`/`*_accept` fields, `plugin.requires`, `requires_exclusive`/`requires_shared`, init `depends_candy`/`requires_capability`, candy `capability`, and the `provides:` write-back. | §15, D-CAP-1..5 | `env_provide: {X: v}` → `provide: {env: {X: {value: v}}}`; `env_require: [X]` → `need: {env: {X: {}}}`; `*_accept` → `{optional: true}` on the need; `mcp_provide`, `agent_provide`, `terminal_profile` → `provide:` types; `requires_exclusive: [g]` → `need: {gpu: {<vendor>: {lease: exclusive}}}`; `plugin.providers` → `provide:` role types | Build the solver and the `type` role; delete the write-back and `--update-all`. |
+| 3.13 | `plan:` names the steps list; `charly check plan`. | §2, §4.2 rule 5 | every `plan:` key → `step:` (candies, boxes, deployments, tasks, beds) | Rename it in the schemas, the loader, the labels and the commands; there is no alias. |
+| 3.14 | `kindcluster:` is a separate kind; a local k3s cluster is built from candies (`k3s-server`) plus `kube` post-provisioning; `kind-host` profiles exist. | §10, §12.1, §12.2, D-DEP-6 | `x: {kindcluster: {node_image, nodes}}` → `x: {kubernetes: {create: kind, cluster_node: {<name>: {control_plane: true}}}}`; k3s on a vm or local node → an inner `kubernetes: {create: k3s}` node; workloads → inner `pod:`/`vm:` nodes | Merge the plugins into the kubernetes plugin; implement `create: kind` and `create: k3s` as one kind with lifecycle methods. |
+| 3.15 | "image" names both a candy with `base:` and the OCI artifact; the docs say "box", "image" and "image-candy". | §2, §9 | none (wording only) | Rename identifiers, help, docs and skills: box = candy with `from:`; image and disk = the two artifact forms. |
+| 3.16 | `--repo OWNER/REPO[@REF]` flag, the `DefaultProjectRepo` fallback (`spec/ref_parse.go`, `spec/repo_identity.go`), and the `@…:ver` CLI form. | D-REF-7..8 | scripts and docs: `--repo o/r@v box build x` → `box build o/r@v:x` | One positional reference grammar; delete the flag and the default-repository fallback. |
+| 3.17 | Import namespaces and top-level node names can clash. | D-VAL-4 | rename clashing nodes (report produced in 0.1) | Add the disjointness check to core. |
+| 3.18 | A `command` step that runs on the host is written `in_container: false`, which misreads on VMs and hosts. | D-VERB-3 | `in_container: false` → `on_host: true` | Rename the step modifier. |
+| 3.19 | `kube` steps name a hand-made cluster context (`cluster: check-k3s-vm-ctx`, `kube_context: kind-…`). | D-NEST-4 | drop the context keys from `kube` steps written inside a `kubernetes` node | Derive the context from the identity of the enclosing `kubernetes` node. |
+| 3.20 | Beds add plugins by hand through `add_candy: ['@github.com/opencharly/plugin-adb/…']`; Android apps are installed through the `apk:` field. | D-PLUG-4, §7.1 | each plugin entry in `add_candy:` → a `plugin:` declaration; `apk: [{apk: url}]` → `package: ["android:<url>"]` | The `plugin:` directive; the `android:` manager. |
+| 3.21 | Android devices are `android:` templates naming their host with `box:` xor `adb:` (the xor is enforced in Go). | §12.1, §12.2 | the template's `device`, `api_level` and `adb` move onto the `android` node; an emulator device is written inside the pod that hosts it, so `box:` is dropped | Hosting comes from position. |
+| 3.22 | Plural authored keys and directives: `defaults`, kubernetes `nodes`, `install_opts`, and further plural field names (list from inventory 0.1). | D-NAME-1 | `defaults:` → removed (user configuration, D-STORE-2); `nodes:` → `cluster_node:`; `install_opts:` → `install_opt:`; each further plural key → its singular | Rename them in the schemas. |
+| 3.23 | Every pod receives every device the host probe finds (GPU via CDI, `/dev/dri/renderD*`, `/dev/kfd`, `/dev/kvm`, `/dev/vhost-*`, `/dev/fuse`, `/dev/net/tun`, `/dev/hwrng`) unless `--no-auto-detect` is passed. Candies and deployments carry raw `security:` blocks (`cap_add`, `security_opt`, `devices`, `shm_size`, `group_add`, `privileged`). The `resource` kind defines lease tokens. | §16, D-HW-1..5 | `security: {devices: [/dev/fuse, /dev/net/tun], cap_add: [ALL], security_opt: [unmask=/proc/*]}` → `need: {nesting: {container: {}}}`; `/dev/kvm` + vhost → `need: {nesting: {vm: {}}}`; a render node → `need: {device: {render: {}}}`; `shm_size: 1g` → the candy field `shm_size: 1Gi`; `requires_exclusive: [nvidia-gpu]` → `need: {gpu: {nvidia: {lease: exclusive}}}`; `resource:` nodes → leasable GPUs in user configuration; podman/docker/libvirt socket bind mounts → `need: {engine_api: {<engine>: {}}}` | Delete auto-detection and the `--no-auto-detect` flag; implement `grant` in each deployment kind as the minimal grant; `charly doctor <node>`. |
+| 3.24 | Snapshots are VM-only, spelled as a capture policy (`snapshot: {on_finalize, mode, keep_venue}`), restored with `from: <deployment>:<snapshot>`, plus an unused `from_snapshot:` field and an unused `clone` source. Pods cannot snapshot. | §9.3, §12.3, D-CAPTURE-1..3 | for a deployment `X` with `snapshot: {on_finalize: golden}`, add a box `X-checked: {description: …, from: X}` and rewrite every `from: X:golden` to `from: X-checked`; `mode` and `keep_venue` are dropped (a capture never stops its deployment) | Pod captures as committed images; captures as boxes; delete the snapshot fields and the colon grammar. |
+| 3.25 | Multi-operation verbs take a `method:` string and prefixed fields (`kube: {method: wait-nodes, kube_count: 1}`, `kube_kind`, `kube_resource`, …). | D-VERB-4 | `kube: {method: wait-nodes, kube_count: 1}` → `kube: {wait_node: {count: 1}}`; likewise for `adb`, `appium`, `cdp`, `wl`, `vnc`, `spice`, `dbus`, `record`, `jetkvm`, `libvirt`, `mcp`, `helm` (per-verb tables from inventory 0.1) | Each verb input becomes an operation registry with a derived union (S4). |
+| 3.26 | State changes are written two ways: candy fields (`package`, `service`, `extract`, `data`, `shell`) and `run:` steps using `mkdir`, `copy`, `write`, `link`, `download`, `setcap` and `config` (which renders `${VAR}`/`var:` substitutions at build time). There is an `include` intent (3 uses). | §9.4, D-VERB-1, D-IR-1 | `run: … mkdir: P` → `file: {P: {dir: true}}`; `write: P, content: C` → `file: {P: {content: C}}`; `copy`/`link`/`download` → `file:` entries keyed by target path; `setcap` → `capability:` on the file entry; `extract:` and `data:` fields → `file:` `extract`/`copy` entries; `shell:` snippets → `file:` writes into the profile directory plus `path_append`; `config` steps and `var:` → literal `file:` writes, with runtime values from `env`; `include` steps → `require:` of the candy that carries those steps | Delete the act verbs, `var`, `include`, `extract`, `data` and `shell`; the `file` action owns every file effect. |
+| 3.27 | Field names that collide or mislead: the candy `plugin:` block (vs the `plugin:` directive), the `artifact:` field (vs the artifact concept), `apk:` (vs the `android:` manager), `reboot:`, and the `security:` block. | D-NAME-4, §11.1 | `plugin: {source: M, providers: […]}` → `module: M` plus `provide:` with role types; `artifact:` → `export:`; `apk:` → `package: [android:…]`; `reboot: true` → removed (the deployment kind reboots when an action requires it); `security:` → 3.23 | Rename the schema fields. |
+| 3.28 | Verb inputs: `command` is `{command: …, in_container: …}`; `file`, `service`, `package` and `process` repeat the verb name as their primary field; some verbs accept a scalar shorthand as well as a map; matchers are written as scalars and as maps; `http` matchers sit beside the verb (`body:` as a step key). | D-VERB-3, D-VERB-5 | `command: {command: X, in_container: false}` → `command: X` plus `on_host: true`; `file: {file: P, …}` → `file: {path: P, …}`; `service: {service: N}` → `service: {name: N}` (likewise `package`, `process`); every other scalar shorthand → the verb's full input; `stdout: X` → `stdout: {equals: X}`; `http: U` + `body: M` → `http: {url: U, body: M}`; a redundant `exit_status: 0` is dropped | Rewrite the verb inputs; delete the primary-field machinery (2.8). |
+| 3.29 | `provide:` items are written as lists (`providers: [verb:http]`) and as maps. | D-CAP-1, S5 | lists → maps of name → attributes (`verb: {http: {}}`) | Update the schema. |
+| 3.30 | Collections with identities are lists of maps with a `name:` field: `service:`, `user:`, `volume:`, `alias:`, `export:`, package `repo:`; files are a list of one-key entries. | S5 | `service: [{name: N, …}]` → `service: {N: {…}}` (likewise `user`, `volume`, `export`); package `repo: [{name: N, …}]` → `package_repo: {N: {…}}`; `alias:` → the operations plugin's configuration; `file: [{write: P, content: C}]` → `file: {P: {content: C}}` | Rewrite the schemas as maps; duplicate names become impossible by construction. |
+| 3.31 | Candies list capabilities and candies in one `require:` list, mixing one-key capability maps into a list of names. | §15, D-CANDY-2 | `require: [a, {env: X}, {gpu: nvidia, lease: exclusive}]` → `require: [a]` plus `need: {env: {X: {}}, gpu: {nvidia: {lease: exclusive}}}` | Split the field; the solver reads `need:`. |
+| 3.32 | Field names that carry a second meaning: the step modifier `context:` (also the kube context and the protocol call), the `http` input's `method` (also a protocol method), the android `adb.host` (also the host), the `os` node's `release` (also a repository release), a file's `capability` (also a capability), and node names containing `--`. | D-NAME-4, §2, D-NEST-4 | step `context: [build, runtime]` → `phase: any` (omitted), `context: [runtime]` → `phase: runtime`, `context: [build]` → `phase: build`; `http: {method: M}` → `http: {request_method: M}`; `adb: {host: A}` → `adb: {address: A}`; `release: "43"` on an `os` node → `version: "43"`; file `capability: [c]` → `linux_capability: [c]`; a node name with `--` → the same name with single hyphens, references rewritten | Rename the fields in the schemas. |
+| 3.33 | References are not visible to core: the loader resolves them inside kind code, so validation cannot run on a linked graph and cycles are found late. | §4.1 stage 4, §5.1, S9, D-VAL-2..3 | none | Mark every reference field with `@ref(<kinds>)` in its plugin's schema; core builds, checks and orders the reference graph before validation. |
+
+## 4. Generation (§6)
+
+| # | Current state (evidence) | Target | Code work |
+|---|---|---|---|
+| 4.1 | Three pipelines: `schemagen` concat/retag/vocab with a shell task; ad-hoc per-plugin gengotypes (64 of 117 plugins generate, 1 through `go:generate`); `wiregen` for the protocol. | D-GEN-1 | One pinned generator and one task in every repository; delete the vocabulary generator and the YAML retag. |
+| 4.2 | Hand-written `json.Unmarshal` of `params_json`, and 33 hand-written `{Args}` envelopes. | D-GEN-6, D-PROTO-6 | Generate the typed role and api wrappers; validate every payload on receipt. |
+| 4.3 | Four command models: Kong structs, reflected `#CLIModel`, the `CLISubcommand` catalog and `command_model_json`. | D-CLI-4, §6 | Command arguments as CUE definitions in the owning plugin's module; generate the grammar and MCP tools from them. |
+| 4.4 | No generation gate in plugin repositories. | D-GEN-2 | A reproducibility gate in every repository. |
+
+## 5. Modules and the plugin protocol (§7, §8)
+
+| # | Current state (evidence) | Target | Code work |
+|---|---|---|---|
+| 5.1 | `spec` holds mechanisms: `exec` (3.6k lines), `container`, `sshx`, `proc`, `poll`, `lock`, `cache`, `refs`, `hostenv`. | D-SPEC-1 | Move them to sdk. |
+| 5.2 | `sdk` holds domain code (`deploykit` 18.8k lines, `loaderkit` 7.6k, `vmshared` 3.5k, `buildkit`, `packagekit`) and about 635 alias lines. | D-SDK-2, D-MOD-2 | Move the domain code into the owning plugins and the loader into core; delete the aliases. |
+| 5.3 | Symbols defined twice: `buildPluginBinary`, `QuadletDir`, `StepDoMode`, `DeployExecutor`, `ComputeCalVer`, `CheckVerbProvider`. | D-MOD-2 | Give each one owner. |
+| 5.4 | Core holds about 3.5k lines of domain logic: pod lifecycle options, VNC port 5900, `libvirt` forced into beds, the podman fallback, GPU allocation, the `""`/`"container"`→`"pod"` rewrite. It embeds a 2,085-line `charly.yml` (distros, builders, inits, OVMF, verb primaries) and runs about 30 `HostBuild` seams. | D-CORE-1, D-CORE-2, §7.1 | Move each into its owning plugin (§7.1); replace the seams with the host service methods (§8.6) and `api` calls. OS, init and builder nodes become data in the OS repositories. |
+| 5.5 | Five placement paths, three serve styles (`sdk.Serve`, `sdk.Main`, `ServeCheckVerb`), two serve commands (`__plugin`, `__agent-target`), three verb-dispatch branches, two executor APIs. | D-PROTO-1..4 | One transport: `<binary> serve` with an empty environment and the two sockets; compiled-in plugins on an in-memory listener; one generated server. |
+| 5.6 | Capabilities are declared in three places: manifest `providers:`, Go `NewMeta`, and the generated refs map; CalVer literals in plugin Go (`"2026.181.0001"` ×12). | §8.1, §8.4, D-PLUG-3 | The plugin candy's `provide:` is the manifest; `describe` reports its digest and the handshake verifies it; release stamped from the tag. |
+| 5.7 | Twelve provider classes and 43 string operations over an untyped `Invoke`; capability flags (`structural`, `lifecycle`, `preresolve`, `validates`, `primary`, `interactive`, `command_parent`, 10 `DeployTraits`). | §8.2, D-ROLE-1..5 | The five roles and their methods, with typed inputs and outputs; optional behaviour = a method left out of `describe`. `step`, `builder`, `build`, `engine`, `loader`, `refs`, `agent-runtime` and `terminal` map onto `verb`, data nodes or `api` (mapping table produced per class in this item). |
+| 5.8 | Helpers copied across plugins: `session_method`/`recorder` ×6, `setCommandContext` ×8, `shellQuote` ×4, 20 private CheckEnv subsets. | D-SDK-1, D-CODE-3 | sdk mechanisms. |
+| 5.9 | No error model or deadline on plugin calls; plugins reach the engine, ssh and secrets directly; deployment locks are taken inside plugins. | D-PROTO-6..13 | `#Request`/`#Reply` with `#Error` codes; deadlines and cancellation; locks taken by core before mutating methods; the host service as the only reach for venues, store, project, other plugins and secrets, with permissions from the call. |
+| 5.10 | No protocol conformance suite. | §8.7 | The in-memory harness in sdk with the conformance cases; run in every plugin repository's CI. |
+| 5.11 | Deployment plugins keep records in their own files, generate ssh keys on disk, and read engine endpoints from the environment; the candy is built by core-side code. | §8.2, §8.6, D-PROTO-4, D-PROTO-13 | `state_get`/`state_put` for kind records, `secret_put` for generated secrets, `config_get` for engine endpoints; the candy kind (`kind:candy`) with `build` in the build plugin. |
+
+## 6. Plugins and the install IR
+
+| # | Current state (evidence) | Target | Config migration | Code work |
+|---|---|---|---|---|
+| 6.1 | Three install emitters (`EmitTasks`, `OCITarget`, `WalkPlans`) and two plugin step mechanisms (`ExternalPluginStep`, `external:<word>`). | §9.4, D-IR-1 | `run: … helm-release:` → the `helm:` manager prefix or the `helm` verb | One IR consumer per output; plugins contribute only through kinds and verbs. |
+| 6.2 | `plugin-builder-{aur,cargo,npm,pixi}` are the same code with one word changed; `external_builder` is used once. | D-PLUG-2 | `external_builder: mise` → a `builder` node | One builder implementation over `builder` nodes. |
+| 6.3 | One concept spread across many plugins: pod (plugin-pod, deploy-pod, substrate, deploykit); vm (plugin-vm, deploy-vm, substrate, vmshared); check (14k lines) and vm (17k) god-modules. | D-PLUG-1, §7.1 | none | Consolidate per concept as §7.1 assigns; split by sub-concept inside a plugin. |
+| 6.4 | Fourteen example repositories; five examples are compiled into the release. | D-REPO-3, D-CORE-4 | none | One examples repository. |
+| 6.5 | Verb duplicates: `addr` vs `port`; `matching` vs the matchers; the `helm` verb vs the `helm-release` step. | D-LAW-1 | `addr: h:p` → `port: {host: h, port: p, reachable: true}`; `matching` steps → matchers | Merge them. |
+| 6.6 | Application verbs: `qdrant`, `openclaw`, `crabbox`, `punktfunk`, `agentteams`, `dsh`, `herdr`, `quickshell`, `cstream`, `omarchy`. | D-VERB-1 | each step → `http:` with JSON-path matchers or `command:` (per-verb mapping tables from inventory 0.1) | Add the `json` matcher to `http`; move the plugins out of the first-party set. |
+| 6.7 | Internal operations exposed as verbs: `enc`, `egress`, `gpu`, `k8sgen`, `oci`, `arbiter`, `retention`, `credential`, `nerdctl`, `gh`, `tunnel`, `transcode`. Unused: `splice-region`, `module-pins`, the `build` operation, `bpf`. | D-ROLE-3, D-LAW-2 | none | Turn them into `api` calls or delete them. |
+| 6.8 | Plugins are found implicitly: a word→repository map generated into core (`plugins_refs_generated.go`, 195 entries) with lazy connect on a registry miss, `compiled_plugins:` deciding which words exist, `plugin.requires` + `extra_ref` fetches, and plugins built from source on the host. | §14, D-PLUG-4..6 | every project gains a `plugin:` directive listing the plugin repositories its words need (generated by `charly migrate` from the words the project uses); `box reconcile` pins releases and digests | Registry from declarations only; prebuilt per-platform binaries with each plugin release; an embedded plugin runs only on an exact match; delete the refs map and lazy connect. |
+
+## 7. Store (§17)
+
+| # | Current state (evidence) | Target | Code work |
+|---|---|---|---|
+| 7.1 | Plugin binaries are keyed by absolute source path (19 GB, 2,025 binaries, 1,762 test stubs in the user cache). | D-STORE-4, D-STORE-8 | Key by content; inject test roots. |
+| 7.2 | Five cache environment variables (`CHARLY_CACHE_DIR`, `_REPO_CACHE`, `_BUILD_CACHE`, `_GH_CACHE`, `_MATERIALIZED_CACHE`) and about 9 hand-built `.cache` paths mixing `UserCacheDir` and `UserHomeDir`. | D-STORE-1 | One sdk package. |
+| 7.3 | Five stores: per-ref repository exports (about 11k) that also cache the mutable `@main`, `materialized/` JSON with timestamps and temporary paths, `vm-images/` with sidecar files, lock files never collected, and the OCI-layout store with 6 callers. | D-STORE-3, D-STORE-5..7 | One content-addressed store, garbage collection, and a `charly clean` purge of the old roots. |
+
+## 8. Command line (§19)
+
+| # | Current → target | Migration |
+|---|---|---|
+| 8.1 | Duplicated and kind-specific commands: `remove` → `deploy del`; `config setup` → `deploy add`; `config mount/unmount/passwd/status` → `volume`; `box labels` → `box inspect`; `box generate` → `box build --emit`; `box fetch/refresh` and `cache clear` → `cache` and `clean`; `candy set/add-*` → `box set`, `box add-candy`; `feature` and `box feature` → `check agent`; `deploy status` → `status`; `logs` → `log`; `deploy from-box` → a project with a `source: {oci: …}` node; `tmux` → `agent terminal`; `reap-orphans` → `clean`; `ssh tunnel` → `display`; the `vm` group: `vm build`/`bake` → `box build --form disk`; `vm clone`/`vm snapshot` → capture boxes; `vm ssh`/`vm scp` → `shell`/`cp`; `vm console` → `console`; `vm screenshot`/`sendkey`/`type` → `display` and the display verbs; `vm cp-box` → `box load`; `vm import` → `deploy adopt`; `vm gpu`, `vm seed` and `vm retag` are removed (GPU modes are leases and `doctor`); `vm start/stop/destroy` and `kubevirt …` → the shared lifecycle commands; `secrets` → `secret`; `settings` → `config` (freed by the moves above); `docs generate` → `doc generate`; `generate-packages` → `release-package` | Docs, skills and scripts are updated in the same change. No aliases remain. |
+| 8.2 | Application commands (`agentteams`, `herdr`, `dsh`, `qdrant`, `ollama`, `nerdctl`) → `charly cmd <deployment> <tool>`; `bpf`, `cardwire` and `udev` leave the first-party set. | Same. |
+| 8.3 | Writes to `~/.config/charly/charly.yml` by `deploy add`, `config` and `remove` → records in the state root (D-DEP-5, D-LAW-6). | The one-shot conversion of 2.6. |
+
+## 9. Repositories (§21, decision 1.1)
+
+| # | Item |
+|---|---|
+| 9.1 | Create the decided candy-family and plugin-concept repositories. Move the content, preserving history where practical, and archive `layer-*`, `pod-*`, `distro-*`, `vm-*`, the superseded `plugin-*`, `charly-<distro>` and `pkg-*`. |
+| 9.2 | Update the umbrella: submodules, policy B (the OS repository set), `task map`, `org-map`, the README tables, and the `AGENTS.md` dispatcher. |
+
+## 10. Documentation
+
+| # | Item |
+|---|---|
+| 10.1 | `charly/AGENTS.md`, `spec/AGENTS.md` and `sdk/AGENTS.md`: replace the architecture prose (boundary law, SDD) with pointers to DESIGN.md; add the umbrella rule that DESIGN.md is normative. |
+| 10.2 | Rewrite the skills to the DESIGN vocabulary. Delete the measured contradictions: 5 vs 7 substrates, `target:` present or absent, `fleet` vs `deploy`, the dot rule, `source: builtin`, `EmitTarget`, the operation counts. |
+| 10.3 | Rewrite `PROGRAM/nested-deploy-members.md` as completed by §12.2, or retire it once 3.10 lands. |
+
+## 11. Final proof
+
+| # | Item |
+|---|---|
+| 11.1 | Every §22 gate passes, and the conformance bed passes on every deployment kind. |
+| 11.2 | Fresh R10 beds on every affected deployment; a `check-roster` of all beds; `charly box validate` clean with zero warnings; `bash scripts/design-check.sh` passes. Then delete TODO.md. |

@@ -1,0 +1,8 @@
+# rule: D-NEST-2
+# expect: a pod admits inside it exactly one of: pod, vm, local, kubernetes, android
+x:
+  pod:
+    description: A pod.
+    from: b
+    extra:
+      description: A candy.

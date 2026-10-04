@@ -1,0 +1,9 @@
+# rule: D-IR-4
+# expect: node.x.file."/etc/a": incomplete value
+x:
+  description: A candy.
+  file:
+    /etc/a: {mode: "0644"}
+  step:
+    - check: it runs
+      command: "true"

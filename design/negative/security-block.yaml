@@ -1,0 +1,8 @@
+# rule: D-HW-5
+# expect: node.x.security.cap_add: field not allowed
+x:
+  description: A candy.
+  security: {cap_add: [ALL]}
+  step:
+    - check: it runs
+      command: "true"

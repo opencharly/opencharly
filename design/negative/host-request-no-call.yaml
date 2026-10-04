@@ -1,0 +1,4 @@
+# rule: D-PROTO-12
+# expect: call_id: field is required but not present
+# def: #HostRequest
+secret_get: {name: openai-key}

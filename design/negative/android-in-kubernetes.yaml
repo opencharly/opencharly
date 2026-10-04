@@ -1,0 +1,9 @@
+# rule: D-NEST-2
+# expect: a kubernetes admits inside it exactly one of: pod, vm
+x:
+  kubernetes:
+    description: A cluster.
+    create: kind
+    phone:
+      android:
+        description: A device.

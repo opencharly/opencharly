@@ -1,0 +1,5 @@
+# rule: D-SCH-5
+# expect: node.x.base: conflicting values "fedora"
+x:
+  description: A box.
+  base: fedora

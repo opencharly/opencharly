@@ -1,0 +1,9 @@
+# rule: D-IR-4
+# expect: node.x.file."${HOME}/a": field not allowed
+x:
+  description: A candy.
+  file:
+    ${HOME}/a: {content: a}
+  step:
+    - check: it runs
+      command: "true"

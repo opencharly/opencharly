@@ -1,0 +1,6 @@
+# rule: D-PROTO-7
+# expect: error: field not allowed
+# def: #Reply
+call_id: 0123456789abcdef0123456789abcdef
+check: {stdout: ok}
+error: {code: internal, message: boom}

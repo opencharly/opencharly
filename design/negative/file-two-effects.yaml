@@ -1,0 +1,9 @@
+# rule: D-IR-4
+# expect: node.x.file."/etc/a".copy: field not allowed
+x:
+  description: A candy.
+  file:
+    /etc/a: {content: a, copy: b}
+  step:
+    - check: it runs
+      command: "true"

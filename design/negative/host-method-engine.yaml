@@ -1,0 +1,4 @@
+# rule: D-PROTO-13
+# expect: and "engine_socket"
+# def: #HostMethod
+engine_socket

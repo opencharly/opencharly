@@ -1,0 +1,10 @@
+# rule: D-SCH-6
+# expect: node.x.pod.network: conflicting values
+x:
+  pod:
+    description: A pod.
+    from: b
+    network:
+      pod:
+        description: An inner pod named like a field.
+        from: b

@@ -1,0 +1,7 @@
+# rule: D-VAL-4
+# expect: import alias tools is also a top-level node name
+import:
+  tools: {path: ../tools}
+tools:
+  description: A composition.
+  require: [tools.ripgrep]

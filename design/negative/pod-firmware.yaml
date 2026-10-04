@@ -1,0 +1,7 @@
+# rule: D-DEP-1
+# expect: node.x.pod.firmware: field not allowed
+x:
+  pod:
+    description: A pod.
+    from: b
+    firmware: uefi

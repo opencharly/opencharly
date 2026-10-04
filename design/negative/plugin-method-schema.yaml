@@ -1,0 +1,4 @@
+# rule: D-PROTO-1
+# expect: schema: field not allowed
+# def: #PluginRequest
+schema: {}

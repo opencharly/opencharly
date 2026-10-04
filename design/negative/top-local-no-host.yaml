@@ -1,0 +1,6 @@
+# rule: D-NEST-6
+# expect: node.x.local.host: field is required but not present
+x:
+  local:
+    description: This host.
+    require: [c]

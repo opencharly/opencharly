@@ -1,0 +1,8 @@
+# rule: D-SRC-1
+# expect: node.x.source.disk: field not allowed
+x:
+  source:
+    description: A source.
+    oci: quay.io/x
+    disk: {url: https://x/y.qcow2, sha256: a99844dda491606f81f463ce96851ae03d90ca8fa727671cac2da86a07a7cd61}
+    os: arch

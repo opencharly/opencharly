@@ -1,0 +1,6 @@
+# rule: D-SRC-2
+# expect: node.x.source.os: field is required but not present
+x:
+  source:
+    description: A source.
+    oci: quay.io/x

@@ -1,0 +1,7 @@
+# rule: D-DEP-2
+# expect: node.x.kubernetes.require: field not allowed
+x:
+  kubernetes:
+    description: A cluster.
+    create: kind
+    require: [c]

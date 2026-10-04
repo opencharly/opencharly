@@ -1,0 +1,4 @@
+# rule: D-ROLE-6
+# expect: invalid value "kind:Pod"
+# def: #Key
+kind:Pod
