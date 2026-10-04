@@ -49,7 +49,7 @@ import (
 #EnvName:  =~"^[A-Za-z_][A-Za-z0-9_]*$"
 #Platform: =~"^linux/(amd64|arm64)$"
 #FileMode: =~"^0[0-7]{3}$"
-#AbsPath:  =~"^/[^$]*$" // a literal absolute path: no variables
+#AbsPath:  =~"^/[^$]*$" // D-SCH-7: a literal absolute path, no variables
 // A package: an OS package name, or `<manager>:<locator>` for a non-OS manager (§7.1), where the
 // locator is whatever that manager installs from (a name, or a URL for `android:`).
 #Manager: or(_managerWord)
@@ -220,7 +220,7 @@ _alt: {
 #User: {uid?: #Count, group?: #NameSet, shell?: #AbsPath}
 
 // ── capabilities (§15, §16) — S5 ──────────────────────────────────────────────
-#Optional: {optional: *false | bool}
+#Optional: {optional: *false | bool} // D-CAP-1
 
 #Need: {
 	env?:        {[#EnvName]: #Optional}

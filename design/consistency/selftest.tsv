@@ -25,3 +25,4 @@ pattern-unknown	DESIGN.md	s~derived from them, and the S8 name scalars.~derived 
 unmarked-mirror	DESIGN.md	/^<!-- schema: keys(#ActionAlt) -->$/d	but has no <!-- schema: … --> marker
 pattern-close	DESIGN.cue	$a\\n#Bad: close({a: int})	a construct §3.1 rules out
 pattern-open	DESIGN.cue	$a\\n#Loose: {...}	2 open structs {...}; exactly one (#Opaque) is allowed
+unmarked-superset	DESIGN.md	/^<!-- schema: _deploymentKind -->$/{N;s/^[^\n]*\n\(| Kind | Cycle |\)$/\1/};s/^| `kubernetes` that creates its cluster |/| `kubernetes` with `create` |/	this table lists every name of

@@ -117,7 +117,9 @@ while IFS=$'\t' read -r mline spec; do
 	[[ -z "$extra" ]] || bad "DESIGN.md:$mline: table column $col names what ${srcs[*]} does not define: $extra"
 done < "$work/markers"
 
-# an UNMARKED table whose backticked first column equals a source mirrors the schema unchecked
+# an UNMARKED table whose backticked first column contains every name of a source (three or
+# more names), those names being more than half of the column, mirrors the schema unchecked,
+# whether or not it adds words of its own
 awk '
 	/^ *```/ { fence = !fence; next }
 	fence { next }
@@ -146,8 +148,12 @@ done
 while IFS=$'\t' read -r -d '' start list; do
 	set="$(printf '%s' "$list" | g -v '^$' | sort -u | paste -sd,)"
 	[[ "$set" == *,* ]] || continue
-	src="$(awk -F'\t' -v s="$set" '$2 == s { print $1; exit }' "$work/sources")"
-	[[ -z "$src" ]] || bad "DESIGN.md:$start: this table lists exactly the names of $src but has no <!-- schema: … --> marker"
+	src="$(awk -F'\t' -v s="$set" '
+		BEGIN { n = split(s, t, ","); for (i = 1; i <= n; i++) have[t[i]] = 1 }
+		{ m = split($2, w, ","); if (m < 3 || 2 * m <= n) next
+		  for (i = 1; i <= m; i++) if (!(w[i] in have)) next
+		  print $1; exit }' "$work/sources")"
+	[[ -z "$src" ]] || bad "DESIGN.md:$start: this table lists every name of $src but has no <!-- schema: … --> marker"
 done < "$work/unmarked"
 
 # ── 2 word lists that mirror definitions ─────────────────────────────────────────

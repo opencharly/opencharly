@@ -1,0 +1,9 @@
+# rule: D-CAP-1
+# expect: node.x.need.env.OPENAI_API_KEY.optional: conflicting values "yes" and bool
+x:
+  description: A candy.
+  need:
+    env: {OPENAI_API_KEY: {optional: "yes"}}
+  step:
+    - check: it runs
+      command: "true"

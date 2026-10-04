@@ -1,4 +1,4 @@
-# rule: D-IR-4
+# rule: D-SCH-7
 # expect: node.x.file."${HOME}/a": field not allowed
 x:
   description: A candy.

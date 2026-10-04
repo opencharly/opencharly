@@ -159,6 +159,7 @@ is never bent.
 | D-SCH-4 | A definition's doc comments are its documentation; reference docs, CLI help and MCP tool descriptions are generated from them. |
 | D-SCH-5 | No schema version stamp exists. Compatibility is CUE unification against the current schema; a removed field is reported by the loader as not a field of its kind, naming the nearest declared field (§4.2 rule 4), and `charly migrate` rewrites it through the owning kind's `migrate`. |
 | D-SCH-6 | Kind words, directives, and the field names of every body that can hold nodes are disjoint sets. |
+| D-SCH-7 | Every path an author writes is a literal absolute path: it starts with `/` and contains no variable. |
 
 ### 3.3 Composition at runtime
 
@@ -509,12 +510,13 @@ plugin repository runs it in CI (§22).
 A box is target-neutral; the deployment decides which form is built. The `os` of the stack's
 source owns both conversions.
 
+<!-- schema: keys(#SourceAlt) -->
 | Origin of the stack's source | Image form (`pod`, workloads) | Disk form (`vm`) |
 |---|---|---|
 | `oci`, `bootstrap` | the IR applied on the image | the image plus the os's boot content, converted to a disk |
 | `disk`, `iso` | the root filesystem exported from the disk, plus the IR | the disk (an `iso` installed first), the IR applied in a disposable build VM |
-| a capture of a `pod` | the committed image | as `oci` |
-| a capture of a `vm` | as `disk` | the captured disk |
+| a capture of a pod deployment | the committed image | as `oci` |
+| a capture of a vm deployment | as `disk` | the captured disk |
 
 | ID | Requirement |
 |---|---|
@@ -831,12 +833,13 @@ host's container engine; a top-level `local` names its host explicitly.
 
 A bed is a deployment with `disposable: true`; `charly check run <bed>` runs its cycle:
 
+<!-- schema: _deploymentKind -->
 | Kind | Cycle |
 |---|---|
 | `pod`, `vm` | build the artifact → build-phase checks in a disposable realization of that artifact by the same kind → realize → runtime checks → destroy → rebuild fresh → realize → runtime checks → destroy |
 | `local`, `android` | apply → checks → reverse (replay reverse records) → apply → checks → reverse |
-| `kubernetes` with `create` | create → workloads → checks → destroy → recreate → checks → destroy |
-| `kubernetes` with `connect` | apply workloads → checks → delete workloads → reapply → checks → delete workloads |
+| `kubernetes` that creates its cluster | create → workloads → checks → destroy → recreate → checks → destroy |
+| `kubernetes` that connects to a cluster | apply workloads → checks → delete workloads → reapply → checks → delete workloads |
 
 `iterate:` turns a bed into an agent-driven loop, `instrument:` attaches recorders, and a
 `check-roster` runs many beds as one gate. Steps receive `CHARLY_BIN`, the path of the running
@@ -1529,8 +1532,8 @@ CI gates: the import graph (D-MOD-1, D-MOD-2); schema patterns on every plugin C
 `describe` (§8.4); typed protocol (D-ROLE-2, D-PROTO-6); protocol conformance in every plugin repository (§8.7); generation reproducibility (D-GEN-2); store roots
 only via sdk (D-STORE-1); test roots (D-STORE-8); no unused kinds or fields (D-LAW-2); the
 deployment conformance bed (every deployment kind: realize, venue exec, service start, port
-binding, need grants, destroy, fresh rebuild; every box as both `pod` and `vm`); and
-`bash scripts/design-check.sh` (Appendix A).
+binding, need grants, destroy, fresh rebuild; every box as both `pod` and `vm`). The design
+check (Appendix A) is not a CI gate: it runs locally and on demand (A.1).
 
 ---
 
@@ -1599,9 +1602,11 @@ Six checks. Each failure names the file, the line, and the two disagreeing sides
    `cue exp gengotypes`, the generator of §6, whose Go structs carry every field, optional ones
    included, as `json` tags; the CUE language itself cannot enumerate optional fields. A marker
    with no table under it fails; marker-shaped lines inside fenced code are illustrations and
-   are skipped. An unmarked table whose backticked first column equals the names of any source
-   (any struct definition, word list or tag table of DESIGN.cue) fails too, so a table cannot
-   mirror the schema without being checked.
+   are skipped. An unmarked table fails too when its backticked first column contains every name
+   of a source of three or more names (any struct definition, word list or tag table of
+   DESIGN.cue) and those names are more than half of the column's words, so a table cannot
+   mirror the schema, with or without words of its own, without being checked. A table that
+   names words of many sources, such as the ownership table of §7.1, mirrors none of them.
 2. **Word lists and references.** The word lists in `DESIGN.cue` that mirror definitions —
    `_candyField`, `_deployField`, `_directiveWord` — equal the fields of those definitions; and
    every kind list of an `@ref` attribute (S9) in `DESIGN.cue` equals a `want:` list of
