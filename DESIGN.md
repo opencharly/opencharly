@@ -138,7 +138,7 @@ is never bent.
 | D-PAT-1 | Every schema uses only S1–S9 and nothing from the "never" table. |
 | D-PAT-2 | Each kind, verb, origin and capability type is one S1 definition in its owning plugin's CUE module; core composes the document schema from the registry with the same patterns (§3.3). |
 | D-PAT-3 | The authoring language follows the patterns: a choice is a key the author writes (S4) — the candy is the default node, selected when no kind key is written — a collection with identities is a map (S5), and no two concepts are told apart by a missing field. |
-| D-PAT-4 | Every rule about an authored document or a protocol message is either enforced by the schema — tagged with its ID at its enforcing line, with at least one negative case that fails with its expected error — or indexed in §5.4 with where it is proven. Rules about schemas themselves (D-PAT-1..3) are enforced on `DESIGN.cue` by the design check (Appendix A.4 check 6) and, once implemented, on every module by the §22 gates. |
+| D-PAT-4 | Every rule about an authored document or a protocol message is either enforced by the schema — tagged with its ID at its enforcing line, with at least one negative case that fails with its expected error — or indexed in §5.4 with where it is proven. Rules about schemas themselves are proven by gates, not by negative cases: D-PAT-1 on `DESIGN.cue` by the design check (Appendix A.4 check 6), and D-PAT-1..3 on every plugin CUE module by the §22 schema-pattern gate. |
 
 ### 3.2 Where shapes are defined
 
@@ -1525,7 +1525,7 @@ needed, then captures it.
 | D-CODE-4 | Comments describe present code; history goes to `CHANGELOG/`. |
 | D-CODE-5 | Live boundaries are tested against the real service or skipped visibly. |
 
-CI gates: the import graph (D-MOD-1, D-MOD-2); no domain words in core (D-CORE-2); manifest ≡
+CI gates: the import graph (D-MOD-1, D-MOD-2); schema patterns on every plugin CUE module (D-PAT-1..3); no domain words in core (D-CORE-2); manifest ≡
 `describe` (§8.4); typed protocol (D-ROLE-2, D-PROTO-6); protocol conformance in every plugin repository (§8.7); generation reproducibility (D-GEN-2); store roots
 only via sdk (D-STORE-1); test roots (D-STORE-8); no unused kinds or fields (D-LAW-2); the
 deployment conformance bed (every deployment kind: realize, venue exec, service start, port
