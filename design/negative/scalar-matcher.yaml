@@ -1,0 +1,8 @@
+# rule: D-VERB-3
+# expect: step.x.0.stdout: conflicting values "ok" and {equals!
+x:
+  description: A candy.
+  step:
+    - check: it prints ok
+      command: echo ok
+      stdout: ok

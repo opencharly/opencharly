@@ -1,0 +1,8 @@
+# rule: D-CANDY-1
+# expect: node.x.platform: field not allowed
+x:
+  description: A candy.
+  platform: [linux/amd64]
+  step:
+    - check: it runs
+      command: "true"

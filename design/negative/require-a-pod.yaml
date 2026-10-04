@@ -1,0 +1,10 @@
+# rule: D-VAL-2
+# expect: require: p is a pod, want candy
+p:
+  pod:
+    description: A pod.
+    from: x
+x:
+  description: A box.
+  from: p
+  require: [p]

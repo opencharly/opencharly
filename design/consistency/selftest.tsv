@@ -1,0 +1,28 @@
+# name<TAB>file<TAB>sed expression planting one defect<TAB>text the check must report
+table-missing-row	DESIGN.md	/^| `mount` | mount names/d	table column 1 lacks what #Need defines: mount
+table-new-field	DESIGN.cue	s~^\tboot?:            #Opaque$~\tboot?: #Opaque\n\tkernel?: #Text~	lacks what #Os defines: kernel
+table-word-list	DESIGN.md	s~^| `jetkvm` | an IP-KVM device |~| `kvm` | an IP-KVM device |~	names what _kindWord does not define: kvm
+list-mirror	DESIGN.cue	s~"entrypoint", "tag"\]~"entrypoint"]~	_candyField lacks fields of #Candy #BoxFields: tag
+tag-without-negative	DESIGN.cue	s~// D-DEP-6:~// D-DEP-6, D-DEP-4:~	D-DEP-4 is enforced here but no design/negative case tests it
+negative-unknown-rule	design/negative/pod-require.yaml	s~^# rule: D-DEP-2~# rule: D-CODE-1~	is neither a DESIGN.cue tag nor a §5.4 rule
+val-owner	DESIGN.md	s~^\(| D-VAL-3 | References form no cycle. |\) core |~\1 kernel |~	names owner 'kernel', which is not an owner in §7.1
+id-order	DESIGN.md	s~^| D-SRC-2 |~| D-SRC-3 |~	D-SRC-3 out of order (expected D-SRC-2)
+id-dangling	DESIGN.md	s~^| D-CODE-5 | Live~| D-CODE-5 | (D-FOO-1) Live~	D-FOO-1 is not a requirement of DESIGN.md
+section-dangling	DESIGN.md	s~(§7.1)~(§75)~	§75 names no section of DESIGN.md
+banned-term	DESIGN.md	s~^| D-CODE-4 | Comments~| D-CODE-4 | In the workspace, comments~	'workspace' is a §2 "Not" term
+plural-key	DESIGN.cue	s~^\ttag?:         #Text~\ttag?: #Text\n\tlabels?: #Text~	key 'labels' ends in s and is not listed as singular in D-NAME-1
+disjoint	DESIGN.cue	s~"description", "from", "step", "require"~"description", "from", "step", "pod", "require"~	kind words and _candyField overlap: pod
+method-spelling	DESIGN.md	s~each kind's `resolve` returns~each kind's `Resolve` returns~	`Resolve` — the method is spelled `resolve`
+banned-plural	DESIGN.md	s~^| D-CODE-4 | Comments~| D-CODE-4 | Never workspaces. Comments~	'workspace' is a §2 "Not" term
+cue-section-ref	DESIGN.cue	s~^// In charly the tag tables~// See §99.4. In charly the tag tables~	§99.4 names no section of DESIGN.md
+orphan-marker	DESIGN.md	s~^Every deployment kind takes these fields:$~<!-- schema: #Need -->\nEvery deployment kind takes these fields:~	a schema marker with no table under it
+duplicate-id	DESIGN.md	s~^\(| D-CODE-5 | .*\)$~\1\n\1~	D-CODE-5 is defined twice
+val-without-negative	design/negative/misspelled-field.yaml	s~^# rule: D-VAL-8~# rule: D-VAL-1~	§5.4 rule D-VAL-8 is checked by rules.cue but has no design/negative case
+ref-drift	design/example/rules.cue	s~want: \["os"\]~want: ["os", "init"]~	want: lists that match no @ref attribute of DESIGN.cue
+rules-emit-drift	design/example/rules.cue	s~rule: "D-VAL-8"~rule: "D-VAL-9"~	emits rules §5.4 does not mark rules.cue: D-VAL-9
+pattern-range	TODO.md	s~the schema patterns are S1–S9 of §3.1~the schema patterns are S1–S8 of §3.1~	S1–S8 — the pattern range ends at S9
+pattern-unknown	DESIGN.md	s~derived from them, and the S8 name scalars.~derived from them, and the S12 name scalars.~	S12 is not a schema pattern of §3.1
+unmarked-mirror	DESIGN.md	/^<!-- schema: keys(#ActionAlt) -->$/d	but has no <!-- schema: … --> marker
+pattern-close	DESIGN.cue	$a\\n#Bad: close({a: int})	a construct §3.1 rules out
+pattern-open	DESIGN.cue	$a\\n#Loose: {...}	2 open structs {...}; exactly one (#Opaque) is allowed
+unmarked-superset	DESIGN.md	/^<!-- schema: _deploymentKind -->$/{N;s/^[^\n]*\n\(| Kind | Cycle |\)$/\1/};s/^| `kubernetes` that creates its cluster |/| `kubernetes` with `create` |/	this table lists every name of

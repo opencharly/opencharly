@@ -1,0 +1,4 @@
+# rule: D-PLUG-4
+# expect: doc.plugin."plugin-check": conflicting values "github.com/opencharly/plugin-check" and {repo!
+plugin:
+  plugin-check: github.com/opencharly/plugin-check

@@ -1,0 +1,8 @@
+# rule: D-CANDY-3
+# expect: node.x.env.HOME_DIR: invalid value "%(ENV_HOME)s"
+x:
+  description: A candy.
+  env: {HOME_DIR: "%(ENV_HOME)s"}
+  step:
+    - check: it runs
+      command: "true"

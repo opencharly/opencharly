@@ -1,0 +1,8 @@
+# rule: D-NEST-7
+# expect: inner."x.k".kubernetes.connect: field not allowed
+x:
+  vm:
+    description: A VM.
+    from: b
+    k:
+      kubernetes: {description: A cluster., connect: prod}

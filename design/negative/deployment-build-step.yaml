@@ -1,0 +1,10 @@
+# rule: D-DEP-8
+# expect: node.x.pod.step.0.phase: conflicting values "runtime" and "build"
+x:
+  pod:
+    description: A pod.
+    from: b
+    step:
+      - check: it runs
+        phase: build
+        command: "true"

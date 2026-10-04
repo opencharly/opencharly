@@ -1,0 +1,4 @@
+# rule: D-DEP-7
+# expect: node.x.local.cpu: field not allowed
+x:
+  local: {description: This host., host: local, cpu: 64}

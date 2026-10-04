@@ -1,0 +1,8 @@
+# rule: D-NEST-2
+# expect: x.extra: beside a pod stands exactly one of: pod, vm, local
+x:
+  pod:
+    description: A pod.
+    from: b
+  extra:
+    description: A candy written beside the pod kind key.

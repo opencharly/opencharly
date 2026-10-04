@@ -1,0 +1,5 @@
+# rule: D-VAL-2
+# expect: from: nowhere does not resolve to a node or an import namespace
+x:
+  description: A box.
+  from: nowhere

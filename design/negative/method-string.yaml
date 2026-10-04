@@ -1,0 +1,7 @@
+# rule: D-VERB-4
+# expect: step.x.0.kube.method: field not allowed
+x:
+  description: A candy.
+  step:
+    - check: a node is ready
+      kube: {method: wait-node, count: 1}

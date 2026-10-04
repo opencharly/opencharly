@@ -1,0 +1,19 @@
+# name<TAB>file<TAB>sed expression planting one defect<TAB>text the check must report
+unmarked-block	DESIGN.md	$a\\n```yaml\nx: 1\n```	a yaml block without an <!-- example: … --> marker
+duplicate-id	DESIGN.md	s~<!-- example: bed-local uses-context -->~<!-- example: bed-pod uses-context -->~	example id 'bed-pod' is used twice
+unknown-mode	DESIGN.md	s~<!-- example: host-need -->~<!-- example: host-need sometimes -->~	has unknown mode 'sometimes'
+shape	DESIGN.md	s~^        port: \[{host: 18080, guest: 8080}\]~        port: [{host: 18080, box: 8080}]~	example 'complete-project' does not validate
+step-dispatch	DESIGN.md	s~^        - check: the page is served~        - check: the page is served\n          run: twice~	write exactly one intent of
+unresolved	DESIGN.md	s~^        from: hello-box$~        from: hello-boxx~	from: hello-boxx does not resolve
+no-check	DESIGN.md	/^nested-podman:/,/^gpu-stream:/{/^    step:/,/^          command: podman run/d}	has content of its own (package, need) but no check: step
+negative-accepted	design/negative/pod-require.yaml	s~^    require: \[c\]~    disposable: true~	accepted by the loader dispatch, but must be rejected
+negative-wrong-reason	design/negative/pod-require.yaml	s~^# expect: .*~# expect: some other reason~	rejected, but not with 'some other reason'
+negative-no-header	design/negative/pod-require.yaml	/^# expect:/d	missing '# rule:' or '# expect:' header
+val-negative	design/negative/unresolved-from.yaml	s~from: nowhere~require: [x]~	expected a D-VAL-2 violation
+fenced-marker-ignored	DESIGN.md	$a\\n```text\n<!-- example: fake -->\n```\n\n```yaml\nx: 1\n```	a yaml block without an <!-- example: … --> marker
+yml-fence	DESIGN.md	$a\\n```yml\nx: 1\n```	a yaml example starts with
+indented-fence	DESIGN.md	$a\\n1. an item\n   ```yaml\n   x: 1\n   ```	a yaml example starts with
+union-disagrees	DESIGN.cue	/^#Document: {/,/^}/s~repo?:     #Repo~repo!: #Repo~	passes the loader dispatch but not #Document
+inner-dispatch	DESIGN.md	s~^            pod:$~            local:~	a kubernetes admits inside it exactly one of: pod, vm
+shared-duplicate	DESIGN.md	s~^dev-box:$~web-shell:~	example 'project' does not validate
+alongside-dispatch	DESIGN.md	$a\\n<!-- example: alongside-probe -->\n```yaml\nx:\n    pod:\n        description: A pod.\n        from: b\n    extra:\n        description: A candy beside the kind key.\n```	beside a pod stands exactly one of: pod, vm, local

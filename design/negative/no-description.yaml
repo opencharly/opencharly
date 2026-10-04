@@ -1,0 +1,7 @@
+# rule: D-KIND-3
+# expect: node.x.description: field is required but not present
+x:
+  package: [jq]
+  step:
+    - check: it runs
+      command: "true"

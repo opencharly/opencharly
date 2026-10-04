@@ -1,0 +1,4 @@
+# rule: D-ROLE-1
+# expect: and "schema"
+# def: #Method
+schema

@@ -1,0 +1,5 @@
+# rule: D-KIND-3
+# expect: node.x.description: field is required but not present
+x:
+  candy:
+    description: A candy.

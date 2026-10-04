@@ -1,0 +1,9 @@
+# rule: D-NEST-6
+# expect: inner."x.side".local.host: field is required but not present
+x:
+  pod:
+    description: A pod.
+    from: b
+  side:
+    local:
+      description: An alongside local that does not name its host.

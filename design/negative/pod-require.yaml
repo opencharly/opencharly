@@ -1,0 +1,7 @@
+# rule: D-DEP-2
+# expect: node.x.pod.require: field not allowed
+x:
+  pod:
+    description: A pod.
+    from: b
+    require: [c]

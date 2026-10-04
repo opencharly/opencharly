@@ -1,0 +1,9 @@
+# rule: D-NAME-2
+# expect: node."plugin-x".provide.type."engine-api": field not allowed
+plugin-x:
+  description: A plugin.
+  module: m
+  provide: {type: {engine-api: {}}}
+  step:
+    - check: it runs
+      command: "true"

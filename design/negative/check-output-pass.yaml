@@ -1,0 +1,5 @@
+# rule: D-ROLE-5
+# expect: pass: field not allowed
+# def: #CheckOutput
+pass: true
+stdout: ok

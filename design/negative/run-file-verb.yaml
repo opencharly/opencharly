@@ -1,0 +1,10 @@
+# rule: D-VERB-1
+# expect: a run step carries only `command`
+x:
+  description: A candy.
+  step:
+    - run: write a file
+      file: {path: /etc/a}
+      guard: {creates: /etc/a}
+    - check: it runs
+      command: "true"

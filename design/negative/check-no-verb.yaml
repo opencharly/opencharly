@@ -1,0 +1,6 @@
+# rule: D-VERB-5
+# expect: a check carries exactly one verb of
+x:
+  description: A candy.
+  step:
+    - check: it runs

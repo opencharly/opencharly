@@ -1,0 +1,8 @@
+# rule: D-VERB-5
+# expect: write exactly one intent of
+x:
+  description: A candy.
+  step:
+    - check: it runs
+      run: it runs
+      command: "true"

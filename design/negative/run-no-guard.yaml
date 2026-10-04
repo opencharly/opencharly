@@ -1,0 +1,9 @@
+# rule: D-IR-2
+# expect: step.x.0.guard: field is required but not present
+x:
+  description: A candy.
+  step:
+    - run: set it up
+      command: make install
+    - check: it runs
+      command: "true"

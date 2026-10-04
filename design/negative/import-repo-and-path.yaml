@@ -1,0 +1,4 @@
+# rule: D-REF-3
+# expect: doc.import.fedora.path: field not allowed
+import:
+  fedora: {repo: github.com/opencharly/fedora, path: ../fedora}

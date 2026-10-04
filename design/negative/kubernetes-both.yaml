@@ -1,0 +1,7 @@
+# rule: D-DEP-6
+# expect: node.x.kubernetes.connect: field not allowed
+x:
+  kubernetes:
+    description: A cluster.
+    create: kind
+    connect: prod
