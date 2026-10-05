@@ -67,11 +67,47 @@ class PostStub:
 
 
 class TestHandshake(unittest.TestCase):
-    def test_initialize_names_only_manifest_declared_tools(self):
+    """The reply must match the host's registered `InitializeResult` EXACTLY.
+
+    The required fields and the rejection of unknown fields are MEASURED
+    against the installed reasonix v2.28.0; see README.md "Wire contract".
+    """
+
+    def test_initialize_emits_the_hosts_required_result_fields(self):
         result = sidecar.handle_initialize({"tools": ["web_search", "web_fetch"]})
-        self.assertEqual(result["protocolVersion"], "reasonix.extension.v2")
-        self.assertEqual(result["capabilities"], ["tools"])
+        # Required by the host (validate:"nonempty"/"min=0").
+        self.assertEqual(result["name"], "ollama-websearch")
+        self.assertEqual(result["version"], "1.0.0")
+        self.assertEqual(result["stateSchemaVersion"], 0)
+        # The wire VALUE is the numeric major as a string, never the protocol ID.
+        self.assertEqual(result["protocolVersion"], "2")
         self.assertEqual(result["tools"], ["web_search", "web_fetch"])
+
+    def test_initialize_omits_the_unregistered_capabilities_field(self):
+        # `capabilities` is not a registered InitializeResult field; the host
+        # rejects the whole result with `params do not match the registered
+        # type` when it is present (MEASURED).
+        result = sidecar.handle_initialize({"tools": ["web_search", "web_fetch"]})
+        self.assertNotIn("capabilities", result)
+
+    def test_initialize_reads_the_expectation_from_the_host_params_shape(self):
+        # The host sends the tool expectation under `manifest.tools`, not the
+        # bare `params.tools` the earlier revision read.
+        host_params = {
+            "protocolVersion": "2",
+            "protocolId": "reasonix.extension.v2",
+            "manifest": {"tools": ["web_search", "web_fetch"], "capabilities": ["tools"]},
+            "session": {"sessionId": "boot-1", "workspaceRoot": "/w", "generation": 1},
+            "capabilities": {"contentRefs": True, "uiHost": "headless", "protocolVersion": "2"},
+        }
+        result = sidecar.handle_initialize(host_params)
+        self.assertEqual(result["tools"], ["web_search", "web_fetch"])
+
+    def test_initialize_narrows_manifest_tools_to_the_declared_set(self):
+        # A manifest declaring a subset must narrow the served tools; naming a
+        # tool outside the manifest would fail with `capability_not_declared`.
+        result = sidecar.handle_initialize({"manifest": {"tools": ["web_search"]}})
+        self.assertEqual(result["tools"], ["web_search"])
 
     def test_initialize_never_offers_a_tool_outside_the_manifest(self):
         # The host rejects any name beyond `runtime.tools` with
@@ -256,6 +292,32 @@ class TestKeyResolution(unittest.TestCase):
 class TestStdioLoop(unittest.TestCase):
     """Drive the real process over stdin/stdout — the actual wire contract."""
 
+    # The exact `extension/initialize` params the installed reasonix v2.28.0
+    # host sends at boot. This is the oracle the suite lacked: a result that
+    # does not satisfy THIS shape fails the real handshake.
+    HOST_INITIALIZE_PARAMS = {
+        "protocolVersion": "2",
+        "protocolId": "reasonix.extension.v2",
+        "manifest": {
+            "tools": ["web_search", "web_fetch"],
+            "capabilities": ["tools"],
+            "provides": [{
+                "namespace": "plugin/ollama-websearch",
+                "kind": "tools",
+                "id": "default",
+                "version": "1.0.0",
+            }],
+        },
+        "session": {"sessionId": "boot-1", "workspaceRoot": "/w", "generation": 1},
+        "capabilities": {
+            "contentRefs": True,
+            "uiHost": "headless",
+            "protocolVersion": "2",
+            "dependencySchemaVersion": 1,
+        },
+        "dependencySchemaVersion": 1,
+    }
+
     def _run(self, lines, env=None):
         proc = subprocess.run(
             [sys.executable, str(SIDECAR)],
@@ -266,6 +328,23 @@ class TestStdioLoop(unittest.TestCase):
             env={**os.environ, **(env or {})},
         )
         return [json.loads(l) for l in proc.stdout.splitlines() if l.strip()]
+
+    def test_real_host_initialize_params_decode_against_the_contract(self):
+        # The regression this test exists for: the previous result failed the
+        # real handshake with `params.name is required`. Every host-required
+        # field must be present, `capabilities` absent, and `tools` a list of
+        # STRINGS.
+        out = self._run([
+            {"jsonrpc": "2.0", "id": 1, "method": "extension/initialize",
+             "params": self.HOST_INITIALIZE_PARAMS},
+            {"jsonrpc": "2.0", "id": 2, "method": "extension/shutdown", "params": {}},
+        ])
+        result = out[0]["result"]
+        for required in ("name", "version", "stateSchemaVersion", "protocolVersion"):
+            self.assertIn(required, result, f"{required} is host-required")
+        self.assertEqual(result["protocolVersion"], "2")
+        self.assertNotIn("capabilities", result)
+        self.assertTrue(all(isinstance(t, str) for t in result["tools"]))
 
     def test_handshake_undeclared_tool_and_shutdown(self):
         out = self._run([

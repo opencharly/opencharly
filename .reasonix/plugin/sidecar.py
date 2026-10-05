@@ -21,13 +21,22 @@ PROTOCOL
     Reasonix Extension Protocol v2 (`reasonix.extension.v2`), JSON-RPC 2.0 over
     stdio, newline-delimited. The host:
       1. spawns this process (exec form) and sends `extension/initialize`;
-      2. validates the reply against the manifest — every tool named in
-         `InitializeResult.tools` must be declared under `runtime.tools`;
+      2. validates the reply against the host's registered `InitializeResult`
+         and the manifest — `name`, `version`, `stateSchemaVersion` and
+         `protocolVersion` are REQUIRED, any unregistered field is REJECTED,
+         and every tool named in `InitializeResult.tools` must be declared
+         under `runtime.tools`;
       3. sends `extension/initialized` (no reply);
       4. calls `extension/tool/call` per invocation;
       5. ends with `extension/shutdown`.
     A reply is `{"jsonrpc":"2.0","id":<id>,"result":...}`; a protocol error is
     `{"jsonrpc":"2.0","id":<id>,"error":{"code":...,"message":...}}`.
+
+    The `InitializeResult` shape is the host's, not this file's, to define: it
+    is MEASURED against the installed host (v2.28.0) in `README.md` "Wire
+    contract" and locked by `sidecar_test.py::TestHandshake` plus the offline
+    handshake assertion in `scripts/check-harness-config.mjs`. Do not add fields
+    to the reply — the host decodes strictly and rejects an unknown field.
 
 CREDENTIALS — in this order
     1. `OLLAMA_API_KEY` in the inherited environment. A code extension runs
@@ -49,7 +58,16 @@ import sys
 import urllib.error
 import urllib.request
 
-PROTOCOL_VERSION = "reasonix.extension.v2"
+PROTOCOL_ID = "reasonix.extension.v2"
+# The wire VALUE of `protocolVersion`. It is the numeric MAJOR as a string, NOT
+# the protocol ID — the host rejects `"reasonix.extension.v2"` here with
+# `protocol error`, and rejects `3`/`"3"` with `unsupported_version` (MEASURED).
+PROTOCOL_VERSION = "2"
+MANIFEST_NAME = "ollama-websearch"
+MANIFEST_VERSION = "1.0.0"
+# The host's `stateSchemaVersion` is a required integer (validate:"min=0"). This
+# extension keeps no state, so 0 is the correct value.
+STATE_SCHEMA_VERSION = 0
 API_BASE = "https://ollama.com/api"
 # The manifest's declared tools. The host rejects any name returned from
 # `extension/initialize` that is not in `runtime.tools`, so this list is the
@@ -196,15 +214,35 @@ def fail(req_id, code, message):
 
 
 def handle_initialize(params):
-    """Answer the handshake. Only manifest-declared tools may be named."""
-    expectation = params.get("tools")
+    """Answer the handshake with the host's registered `InitializeResult`.
+
+    The host decodes the result STRICTLY: `name`, `version`,
+    `stateSchemaVersion` and `protocolVersion` are required, and any
+    unregistered field (`capabilities` among them) is rejected with
+    `params do not match the registered type` — MEASURED on reasonix v2.28.0.
+    Only manifest-declared tools may be named.
+
+    The host sends its tool expectation under `params.manifest.tools`; the
+    bare `params.tools` fallback is kept for the offline/direct invocation
+    documented in README.md. Names outside the manifest would fail the
+    handshake with `capability_not_declared`, so the intersection is the
+    answer when the host names a subset, and the full declared set when it
+    names none.
+    """
+    manifest = params.get("manifest")
+    manifest = manifest if isinstance(manifest, dict) else {}
+    expectation = manifest.get("tools")
+    if not (isinstance(expectation, list) and expectation):
+        expectation = params.get("tools")
     if isinstance(expectation, list) and expectation:
         accepted = [t for t in DECLARED_TOOLS if t in expectation]
     else:
         accepted = list(DECLARED_TOOLS)
     return {
         "protocolVersion": PROTOCOL_VERSION,
-        "capabilities": ["tools"],
+        "name": MANIFEST_NAME,
+        "version": MANIFEST_VERSION,
+        "stateSchemaVersion": STATE_SCHEMA_VERSION,
         "tools": accepted,
     }
 
