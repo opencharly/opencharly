@@ -2,14 +2,28 @@
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "Bash",
+        "match": "Bash",
+        "description": "OpenCharly commit gate (hook bypass, untokenizable commits, Go lint on staged modules, the zero-aliases gate)",
         "command": "bash -c '[ -f \"$PWD/.claude/hooks/pre-commit-gate.sh\" ] && exec bash \"$PWD/.claude/hooks/pre-commit-gate.sh\" || exit 0'",
         "timeout": 30000
       },
       {
-        "matcher": "Bash",
+        "match": "Bash",
+        "description": "OpenCharly push gate (force-push, direct push to main)",
         "command": "bash -c '[ -f \"$PWD/.claude/hooks/pre-push-gate.sh\" ] && exec bash \"$PWD/.claude/hooks/pre-push-gate.sh\" || exit 0'",
         "timeout": 30000
+      }
+    ],
+    "SessionStart": [
+      {
+        "description": "Inject the SOUL.md identity (reasonix's additive session-context mechanism)",
+        "command": "bash -c '[ -x \"$PWD/.reasonix/soul-inject.sh\" ] && exec \"$PWD/.reasonix/soul-inject.sh\" || exit 0'",
+        "timeout": 10000
+      },
+      {
+        "description": "Arm the PR watcher for .reasonix/watch.items (inert when no item is armed)",
+        "command": "bash -c '[ -x \"$PWD/.reasonix/watch-arm.sh\" ] && exec \"$PWD/.reasonix/watch-arm.sh\" || exit 0'",
+        "timeout": 10000
       }
     ]
   }

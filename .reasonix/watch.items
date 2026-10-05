@@ -1,0 +1,25 @@
+# watch.items — the PR/issue items a reasonix session watches through the
+# harness-INDEPENDENT watcher, `marketplace/scripts/gh_watch.sh`.
+#
+# One item per line: `owner/repo#num`, `owner/repo/pull/num`,
+# `owner/repo/issues/num`, or a full https://github.com/owner/repo/(pull|issues)/num
+# URL. Blank lines and lines starting with `#` are ignored. This is the SAME
+# grammar `.opencode/pr-watch.items` uses and the same grammar the watcher
+# parses, so an item list is portable between harnesses.
+#
+# This shipped file is comment-only, so the watcher is INERT by default.
+# Uncomment (or add) a line below to arm it, then start a new reasonix session
+# (the SessionStart hook in `.reasonix/settings.json` reads this file).
+#
+# WHY A SHELL WATCHER AND NOT A PLUGIN. The watcher is deliberately NOT a
+# reasonix code extension: `gh_watch.sh` is harness-independent, already carries
+# the rate-limit discipline (one batched GraphQL poll per minute, a free
+# /rate_limit guard, a 60s poll floor), the stall alarm, and `--auto-rearm`.
+# Wrapping it in a sidecar would duplicate that logic in a second place. The
+# SessionStart hook below only ARMS it.
+#
+# WHY NOT `[progress_watch]`. That block (in `reasonix.toml`) is the in-session
+# LOOP guard: it detects a model repeating itself and can pause or retry. It
+# cannot see a GitHub PR. The two are different mechanisms and both are wanted.
+#
+# acme/widget#12
