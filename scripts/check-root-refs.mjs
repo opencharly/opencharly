@@ -11,18 +11,16 @@
 // .pi/extensions/charly-gates.ts) pointed at `charly/SOUL.md`, a path that no longer
 // resolved. Nothing in `task verify` read those surfaces, so no gate saw the loss.
 //
-// This gate closes that class: it asserts the canonical narratives exist at the umbrella
-// root, AND that every root-file reference an agent surface carries RESOLVES — a
-// reference to `charly/<Name>.md` whose file has moved to the umbrella root is a FAIL,
-// not a silent dangling pointer. It runs inside `charly task verify`.
+// This gate closes that class. It runs inside `charly task verify`.
 //
 // Checks:
-//   1. The four canonical root narratives exist at <root>.        [discriminating]
-//   2. Every PREFIXED reference (`<prefix>/<Name>.md`, `Name` a canonical narrative) in
-//      the agent surfaces resolves: the file must exist at its path, and a prefixed
-//      reference whose file instead exists at <root> is a STALE reference (the #356
-//      shape). A bare `<Name>.md` is check 1's business, not walked here.
-//                                                                    [discriminating]
+//   1. The four canonical root narratives exist at <root>.                [discriminating]
+//   2. A PREFIXED reference to a canonical narrative (`<prefix>/<Name>.md`) whose file
+//      lives at the umbrella root is a STALE reference — the #356 shape; the pointer
+//      must be repointed. A prefixed reference that resolves at its own path is fine.
+//      (A canonical missing at the root is check 1's failure, so this walk does not
+//      duplicate it — that would be dead weight, not a second witness.)
+//                                                                          [discriminating]
 //
 // Usage:
 //   node scripts/check-root-refs.mjs                 # check this tree
@@ -62,22 +60,10 @@ const SURFACES = [
 // references.
 const REF = /(?:^|[\s`'"([{<])((?:[A-Za-z0-9._-]+\/)*)([A-Z][A-Z0-9_-]*)\.md\b/g;
 
-function submodulePaths(dir) {
-  const out = new Set();
-  const f = join(dir, ".gitmodules");
-  if (!existsSync(f)) return out;
-  for (const line of readFileSync(f, "utf8").split("\n")) {
-    const m = line.match(/^\s*path\s*=\s*(.+?)\s*$/);
-    if (m) out.add(m[1]);
-  }
-  return out;
-}
-
 // check(dir) — the ONE implementation. `dir` defaults to the resolved root; the
 // self-test drives the SAME code path against a mutated temp tree.
 function check(dir = root) {
   const failures = [];
-  const notices = [];
 
   // Check 1 — the canonical narratives exist at the umbrella root.
   for (const name of CANONICAL) {
@@ -86,13 +72,11 @@ function check(dir = root) {
     }
   }
 
-  // Check 2 — every reference to a CANONICAL root narrative resolves. Scoped to the
-  // four canonical files on purpose: a bare `SKILL.md` or `charly/AGENTS.md` is a
-  // different, legitimate file, and matching every `<Uppercase>.md` produced exactly
-  // those false positives. The #356 class is a reference to a NARRATIVE whose file
-  // moved; this walk covers that class and nothing else.
+  // Check 2 — a prefixed reference to a canonical narrative whose file is at the
+  // umbrella root is STALE (the #356 shape). Scoped to canonical basenames on purpose:
+  // a bare `SKILL.md` or `charly/AGENTS.md` is a different, legitimate file, and
+  // matching every `<Uppercase>.md` produced exactly those false positives.
   const canon = new Set(CANONICAL);
-  const subs = submodulePaths(dir);
   const seen = new Set();
   for (const rel of SURFACES) {
     const abs = join(dir, rel);
@@ -107,31 +91,22 @@ function check(dir = root) {
       if (seen.has(key)) continue;
       seen.add(key);
 
-      if (existsSync(join(dir, prefix, base))) continue;
-      // A prefixed reference whose file exists at the umbrella root is the #356 STALE
-      // shape: the file moved and the pointer was never repointed.
+      if (existsSync(join(dir, prefix, base))) continue; // resolves at its own path
+      // The file is not at the prefixed path but IS at the umbrella root: the #356
+      // relocation moved it and left the pointer behind.
       if (existsSync(join(dir, base))) {
         failures.push(
           `${rel}: STALE reference \`${prefix}${base}\` — the file lives at the umbrella root \`${base}\`; repoint the reference`,
         );
-        continue;
       }
-      const top = prefix.replace(/\/$/, "").split("/")[0];
-      if (subs.has(top) && !existsSync(join(dir, top, ".git"))) {
-        notices.push(
-          `${rel}: \`${prefix}${base}\` — submodule \`${top}\` is not initialized; cannot resolve here (its pin is audited by the submodule step)`,
-        );
-        continue;
-      }
-      failures.push(`${rel}: DANGLING reference \`${prefix}${base}\` — resolves to no file`);
+      // else: absent at the root too — check 1 already FAILs that canonical.
     }
   }
 
-  return { failures, notices };
+  return failures;
 }
 
-function report({ failures, notices }) {
-  for (const n of notices) console.log(`check-root-refs: notice — ${n}`);
+function report(failures) {
   if (failures.length) {
     for (const f of failures) console.error(`check-root-refs: FAIL — ${f}`);
     console.error(`check-root-refs: ${failures.length} failure(s)`);
@@ -143,7 +118,9 @@ function report({ failures, notices }) {
 
 // selfTest — proves the gate DISCRIMINATES by EXECUTING it against mutated copies of a
 // temp tree (never asserting the claim). Every mutation must turn it RED carrying the
-// mutated condition; a restored tree must turn it GREEN.
+// mutated condition; a restored tree must turn it GREEN. Each surviving arm of check()
+// has a mutation that fails without it: check 1 by the SOUL.md-removed case, the STALE
+// arm by the charly/SOUL.md case.
 function selfTest() {
   const tmp = mkdtempSync(join(tmpdir(), "check-root-refs-"));
   let ok = 0;
@@ -155,8 +132,7 @@ function selfTest() {
     writeFileSync(p, body);
   };
   const expect = (label, wantFail) => {
-    const { failures } = check(tmp);
-    const failed = failures.length > 0;
+    const failed = check(tmp).length > 0;
     const good = failed === wantFail;
     console.log(`  ${good ? "pass" : "FAIL"} — ${label} (expected ${wantFail ? "RED" : "GREEN"}, got ${failed ? "RED" : "GREEN"})`);
     if (good) ok++; else bad++;
@@ -167,21 +143,16 @@ function selfTest() {
   write("AGENTS.md", "read `SOUL.md` first\n");
   expect("baseline: narratives + a bare ref present", false);
 
-  // mutation 1: remove SOUL.md → RED (canonical missing)
+  // mutation 1 — check 1: remove SOUL.md → RED (canonical missing at root)
   rmSync(join(tmp, "SOUL.md"));
-  expect("SOUL.md removed", true);
+  expect("SOUL.md removed (check 1)", true);
   write("SOUL.md", "# SOUL\n");
 
-  // mutation 2: stale prefixed reference → RED (file at root, pointer at charly/)
+  // mutation 2 — check 2 STALE arm: a prefixed ref whose file is at the umbrella root
   write("AGENTS.md", "read `charly/SOUL.md` first\n");
-  expect("stale charly/SOUL.md reference", true);
+  expect("stale charly/SOUL.md reference (STALE arm)", true);
 
-  // mutation 3: prefixed DANGLING reference → RED (prefix exists nowhere: not a file,
-  // not a submodule). Exercises the DANGLING arm so it has a test that fails without it.
-  write("AGENTS.md", "see `notes/SOUL.md` for the identity\n");
-  expect("dangling notes/SOUL.md reference", true);
-
-  // mutation 4: SCOPING — a non-canonical uppercase ref (`SKILL.md`) and a prefixed
+  // mutation 3 — SCOPING: a non-canonical uppercase ref (`SKILL.md`) and a prefixed
   // non-narrative ref (`charly/AGENTS.md`) must NOT fire (the false positives the first
   // implementation produced). All narratives stay at root → expected GREEN.
   write("AGENTS.md", "see `SKILL.md` and `charly/AGENTS.md`\n");
