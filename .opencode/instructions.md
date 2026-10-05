@@ -291,7 +291,8 @@ commented-out or absent call fails the gate.
 
 OpenCode V2 exposes **no todo primitive** (`todowrite` is only a migration shim; no todo
 table, no `/session/:id/todo` endpoint, no `todo.updated` event). So AGENTS.md rule 9's
-**durable-file branch** applies, and `tracker.ts` is its mechanism. It is PURE TypeScript
+durable ledger is kept in a durable file on this harness, and `tracker.ts` is its mechanism.
+It is PURE TypeScript
 (no `.sh`, no `marketplace` pin) and reuses the shared modules rather than copying them:
 `lib/watch.ts` (the poll engine), `lib/watcher-loop.ts` (the detached loop extracted from
 `pr-watch.ts`), and `coord.ts` (the closed `VERBS` set).

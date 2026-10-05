@@ -2,13 +2,11 @@
  * tracker.ts — the OpenCode-native session issue/PR tracker + durable ledger.
  *
  * WHY THIS EXISTS (AGENTS.md rule 9). The rulebook requires a session to keep a
- * DURABLE ledger so an interruption never drops in-flight work, and it names two
- * branches: a structured todo primitive when the harness exposes one, else a durable
- * file. The OpenCode V2 harness exposes NO todo primitive — `todowrite` survives only
- * as a migration shim that maps it into the tool-removed list; there is no todo table,
- * no `/session/:id/todo` endpoint, and no `todo.updated` plugin event. So on this
- * harness the durable-file branch is the ONLY honest one, and this plugin is its
- * mechanism. It does NOT restate the rule, the verb grammar, or the GitHub workflow —
+ * DURABLE ledger so an interruption never drops in-flight work. The OpenCode V2 harness
+ * exposes NO todo primitive — `todowrite` survives only as a migration shim that maps it
+ * into the tool-removed list; there is no todo table, no `/session/:id/todo` endpoint, and
+ * no `todo.updated` plugin event. So a durable file is this harness's mechanism, and this
+ * plugin is it. It does NOT restate the rule, the verb grammar, or the GitHub workflow —
  * it IMPLEMENTS them and LINKS to their owners (R3: no duplication of rules or code).
  *
  * R3 — this plugin builds on the ALREADY-SHARED modules rather than copying them:

@@ -50,9 +50,12 @@ as your own.
 
 3. **Pins are gitlinks; Policy B is the contract.** The umbrella records a commit and
    checks it out detached and clean — exactly what `./charly/bin/charly task verify`
-   asserts. `distro-*` must equal charly's own gitlinks. Pin only MERGED refs (default
-   branches or gitlinks charly records), never a PR branch; a dangling pin is a failure.
-   Never branch-checkout a submodule to "catch up" — advance a pin only with
+   asserts. `distro-*` must equal charly's own gitlinks. `sdk` and `spec` are recorded as
+   gitlinks too, but charly no longer pins them — its builds resolve them from the Go proxy
+   at pinned `go.mod` requires. `marketplace`, `docs`, and every `plugin-*` repo are
+   recorded at their own default-branch HEAD. Pin only MERGED refs (default branches or
+   gitlinks charly records), never a PR branch; a dangling pin is a failure. Never
+   branch-checkout a submodule to "catch up" — advance a pin only with
    `./charly/bin/charly task sync` + PR, never a hand-pin or a checkout. *Detail:*
    `/charly-internals:git-workflow` (pinning).
 
@@ -130,7 +133,9 @@ as your own.
     `disposable: true` is the only authorization to destroy and rebuild a deployment
     autonomously; verify from the final committed tree, never from an edited state (R10). A
     gate that cannot fail on the change proves nothing; a live-service boundary runs against
-    the REAL service or skips cleanly when its credential is absent, never faked. *Detail:*
+    the REAL service or skips cleanly when its credential is absent, never faked. There is
+    no R10 class exemption: a plugin-library or schema change runs the full assembled
+    `disposable: true` bed — a bed-exemption sign-off is never an accepted route. *Detail:*
     `/charly-internals:strict-policy`, `/charly-internals:root-cause-analyzer`,
     `/charly-internals:disposable`, `/charly-internals:git-workflow`, `/charly-check:check`.
 
