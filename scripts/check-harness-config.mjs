@@ -88,6 +88,21 @@ const MUST_NOT_AUTO_ALLOW = [
   ["charly check live *", "it executes a full-stack check against a running deployment"],
 ];
 
+// The dispatcher-coverage RATCHET (check 12). MEASURED on the tree this gate ships with:
+// 346 corpus skills (`marketplace/*/skills/*/SKILL.md`) against 96 `DISPATCHER.md` rows,
+// i.e. 250 corpus skills carry no routing row.
+//
+// It is a RATCHET, not a hard "every skill has a row", and that is deliberate. A hard
+// assertion is RED on the tree it would land on, and `main` is PR-only with required status
+// checks — so a permanently-red gate could never merge and would block every unrelated PR
+// until ~190 owning repos had authored `triggers:`. The ratchet asserts the gap may not
+// GROW: fixing skills passes and lets the ceiling be tightened, while adding an unrouted
+// skill (or dropping a row) turns the gate RED. R7 is satisfied by `--self-test`, which
+// proves both assertions can fail rather than asserting that they do.
+//
+// Tighten this number as the trigger-authoring cutover lands. It may only ever DECREASE.
+const MAX_UNROUTED = 250;
+
 // ── --self-test: prove the discriminating/structural split by executing it ──────────
 // Copies every surface this gate reads into a temp tree, asserts the gate is GREEN there
 // (so the copy is faithful), then applies ONE mutation at a time and asserts the gate goes
@@ -115,6 +130,7 @@ if (argv.includes("--self-test")) {
     "reasonix.toml",
     ".opencode/package.json",
     ".pi/extensions/charly-gates.ts",
+    "marketplace/DISPATCHER.md",
   ];
 
   const tmp = mkdtempSync(join(tmpdir(), "check-harness-config-"));
@@ -139,6 +155,22 @@ if (argv.includes("--self-test")) {
         if (!fam.isDirectory() || fam.name === ".well-known") continue;
         for (const sub of ["skills", "agents"]) {
           if (existsSync(join(mkt, fam.name, sub))) mkdirSync(join(tree, "marketplace", fam.name, sub), { recursive: true });
+        }
+      }
+      // Materialize one PLACEHOLDER SKILL.md per real skill, so check 12's skill inventory in
+      // the staged tree matches the real one WITHOUT copying the corpus (346 files, some
+      // large). The gate tests only EXISTENCE of `<family>/skills/<name>/SKILL.md`, so an
+      // empty file is a faithful stand-in — and without it check 12 would find zero skills
+      // in the staged tree and no mutation could ever turn it red (a test that cannot fail).
+      for (const fam of readdirSync(mkt, { withFileTypes: true })) {
+        if (!fam.isDirectory()) continue;
+        const sk = join(mkt, fam.name, "skills");
+        if (!existsSync(sk)) continue;
+        for (const s of readdirSync(sk, { withFileTypes: true })) {
+          if (!s.isDirectory()) continue;
+          const dst = join(tree, "marketplace", fam.name, "skills", s.name, "SKILL.md");
+          mkdirSync(dirname(dst), { recursive: true });
+          writeFileSync(dst, "");
         }
       }
     }
@@ -188,6 +220,13 @@ if (argv.includes("--self-test")) {
     [".reasonix/plugin/reasonix-plugin.json", (p) => rmSync(p), "reasonix-plugin.json exists", "10"],
     [".reasonix/plugin/sidecar.py", (p) => writeFileSync(p, readFileSync(p, "utf8").replace(/^\s*"name": MANIFEST_NAME,\n/m, "")), "carries every host-required field", "10 (handshake — a sidecar missing a host-required field must FAIL)"],
     [".reasonix/watch.items", (p) => rmSync(p), "(the reasonix watch binding) exists", "11"],
+    // Check 12 has TWO arms that catch different defects, so it needs two mutations.
+    // (a) INVARIANT: a row pointing at a skill that does not exist (a dangling
+    //     `/charly-<family>:<skill>` ref — the docs build treats that as a hard error).
+    ["marketplace/DISPATCHER.md", (p) => writeFileSync(p, readFileSync(p, "utf8").replace(/^\| .+ \| `\/charly-internals:git-workflow` \|$/m, "| a dropped row | `/charly-internals:no-such-skill` |")), "every DISPATCHER.md row resolves", "12 (a row must resolve to a real skill — the dangling-ref arm)"],
+    // (b) RATCHET: deleting a row leaves its skill unrouted, pushing the count past the
+    //     ceiling. This is the arm that makes the gate able to fail at all.
+    ["marketplace/DISPATCHER.md", (p) => writeFileSync(p, readFileSync(p, "utf8").replace(/^\| .+ \| `\/charly-check:check` \|$\n/m, "")), "dispatcher coverage ratchet holds", "12 (the ratchet — dropping a row must FAIL, or the gate cannot notice coverage loss)"],
   ];
   for (const [surface, mutate, expect, check] of mutations) {
     stage(); // revert everything, then apply exactly this mutation
@@ -559,6 +598,64 @@ ok(existsSync(join(root, ".claude/workflows/audit-deploy-configs.js")), ".claude
 //     watch binding. The harness-INDEPENDENT watcher is `marketplace/scripts/gh_watch.sh`;
 //     the items file is the same `owner/repo#num` grammar the opencode plugin parses.
 ok(existsSync(join(root, ".reasonix/watch.items")), ".reasonix/watch.items (the reasonix watch binding) exists");
+
+// 12. Dispatcher coverage: the R0 dispatcher table in `marketplace/DISPATCHER.md` is the
+//     routing half of the corpus, emitted one row per `type: skill` entity carrying a
+//     `triggers:` list (see `plugin-marketplace/candy/plugin-marketplace/emit_dispatcher.go`).
+//     Two assertions, and they catch DIFFERENT defects:
+//       (a) INVARIANT — every emitted row resolves to a real `marketplace/<family>/skills/
+//           <name>/SKILL.md`. A row pointing at a deleted or renamed skill is a dangling
+//           `/charly-<family>:<skill>` reference, which BREAKS the docs build (an
+//           unresolvable reference is a hard error there, not a dead link).
+//       (b) RATCHET — the number of corpus skills with NO row may not exceed MAX_UNROUTED.
+//           It is 250 today; the trigger-authoring cutover lowers it.
+//     (a) alone would not notice a skill whose repo was never pinned (it is absent from the
+//     corpus entirely, so no row is missing) — that class is caught by the refs-list audit,
+//     not here. (b) alone would not notice a row pointing at a skill that no longer exists.
+//     STRUCTURAL in the honest sense: both assertions PASS on `main` too, so this check is a
+//     regression guard on the corpus's routing, NOT evidence of this branch. It is named
+//     structural rather than discriminating for exactly that reason.
+{
+  const dispPath = join(root, "marketplace/DISPATCHER.md");
+  if (!existsSync(dispPath)) {
+    pass("marketplace/DISPATCHER.md not checked out — dispatcher-coverage check skipped");
+  } else {
+    const disp = readFileSync(dispPath, "utf8");
+    // A data row is `| <trigger phrase> | `/charly-<family>:<name>` |`. The header and the
+    // `|---|` separator do not match, so they are excluded by shape rather than by index.
+    const rows = [...disp.matchAll(/^\| (.+?) \| `\/charly-([a-z0-9-]+):([a-z0-9-]+)` \|$/gm)]
+      .map((m) => ({ phrase: m[1], family: m[2], name: m[3] }));
+
+    // (a) every row resolves to a real skill directory.
+    const dangling = rows.filter(
+      (r) => !existsSync(join(root, "marketplace", r.family, "skills", r.name, "SKILL.md")),
+    );
+    ok(
+      dangling.length === 0,
+      `every DISPATCHER.md row resolves to a marketplace/<family>/skills/<name>/SKILL.md ` +
+        `(dangling: ${dangling.map((d) => `${d.family}:${d.name}`).join(", ") || "none"})`,
+    );
+
+    // (b) the ratchet: unrouted corpus skills may not exceed the recorded ceiling.
+    const skills = [];
+    const mkt = join(root, "marketplace");
+    for (const fam of readdirSync(mkt, { withFileTypes: true })) {
+      if (!fam.isDirectory()) continue;
+      const sk = join(mkt, fam.name, "skills");
+      if (!existsSync(sk)) continue;
+      for (const s of readdirSync(sk, { withFileTypes: true })) {
+        if (s.isDirectory() && existsSync(join(sk, s.name, "SKILL.md"))) skills.push(`${fam.name}:${s.name}`);
+      }
+    }
+    const routed = new Set(rows.map((r) => `${r.family}:${r.name}`));
+    const unrouted = skills.filter((s) => !routed.has(s));
+    ok(
+      unrouted.length <= MAX_UNROUTED,
+      `dispatcher coverage ratchet holds: ${skills.length - unrouted.length}/${skills.length} corpus ` +
+        `skills routed, ${unrouted.length} unrouted (ceiling ${MAX_UNROUTED})`,
+    );
+  }
+}
 
 if (failures > 0) {
   console.error(`check-harness-config: ${failures} FAILURE(S)`);
