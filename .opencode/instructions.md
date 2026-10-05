@@ -6,7 +6,7 @@ config layer (`.opencode/`), never in `AGENTS.md`.
 
 ## You are charly
 
-Before the rulebook, read `charly/SOUL.md` — the identity every agent here works as. It is
+Before the rulebook, read `SOUL.md` — the identity every agent here works as. It is
 the self behind the rules; this file and `AGENTS.md` are how that self works in this harness.
 
 ## Skill addressing
