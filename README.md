@@ -3,7 +3,7 @@
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/opencharly/opencharly)
 
 **One clone of the whole org — and the place all charly development happens.**
-`opencharly/opencharly` is an org-level umbrella repo: every OpenCharly repo (424 today)
+`opencharly/opencharly` is an org-level umbrella repo: every OpenCharly repo (425 today)
 is pinned here as a git submodule ("gitlink", in the org's vocabulary), flat at the
 root — submodule path == repo name for all but one alias (`.github`, pinned at the
 `dotgithub/` path).
@@ -408,7 +408,7 @@ Two repos are deliberately **not** listed as their own-name submodules:
 
 ### Plugins
 
-117 repos — charly plugin candies. Their `providers:` blocks register the kinds,
+118 repos — charly plugin candies. Their `providers:` blocks register the kinds,
 deploys, verbs, steps, builds, builders, commands, engines, loaders, refs,
 agent runtimes and terminals charly speaks.
 
@@ -487,6 +487,7 @@ agent runtimes and terminals charly speaks.
 | `plugin-kube/` | [opencharly/plugin-kube](https://github.com/opencharly/plugin-kube) | charly plugin |
 | `plugin-kubevirt/` | [opencharly/plugin-kubevirt](https://github.com/opencharly/plugin-kubevirt) | OUT-OF-TREE charly plugin owning ALL KubeVirt interaction: the kind:kubevirt substrate, the deploy:kubevirt venue lifecycle, the kubevirt: check verb, and the charly kubevirt CLI. |
 | `plugin-loader/` | [opencharly/plugin-loader](https://github.com/opencharly/plugin-loader) | charly plugin |
+| `plugin-lobster/` | [opencharly/plugin-lobster](https://github.com/opencharly/plugin-lobster) | charly plugin: the native lobster workflow engine — `workflow:lobster` (workflow-run/resume/schedule/emit) + `command:lobster` (the `.lobster` importer/exporter and `doctor`), plus the systemd-user timer scheduler |
 | `plugin-marketplace/` | [opencharly/plugin-marketplace](https://github.com/opencharly/plugin-marketplace) | charly plugin |
 | `plugin-matching/` | [opencharly/plugin-matching](https://github.com/opencharly/plugin-matching) | charly plugin |
 | `plugin-mcp/` | [opencharly/plugin-mcp](https://github.com/opencharly/plugin-mcp) | charly plugin |
