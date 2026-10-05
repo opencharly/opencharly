@@ -125,5 +125,6 @@ is documented only for the DeepSeek / OpenCode-Go presets, and the capability
 does not exist for the `ollama-cloud` endpoint. The Ollama web-search and
 web-fetch REST APIs are reached through the code extension in
 `.reasonix/plugin/`, which exposes them as the model-callable tools
-`ext__ollama__web_search` and `ext__ollama__web_fetch`. See that directory's
+`ext__ollama-websearch__web_search` and `ext__ollama-websearch__web_fetch`
+(the manifest `name` is `ollama-websearch`). See that directory's
 `README.md` for installation and the credential path.

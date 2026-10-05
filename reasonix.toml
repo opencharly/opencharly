@@ -10,7 +10,9 @@ mode = "ask"
 # rather than left to imply a policy this harness never applied. Widening, if
 # wanted, belongs in the user config.
 #
-# `deny` and `ask` DO take effect here (MEASURED: deny_rules: 2, ask_rules: 1)
+# `deny` and `ask` DO take effect here (MEASURED on this file: `reasonix doctor
+# --json` reports deny_rules: 5, ask_rules: 3 — the 5 deny + 3 ask entries
+# below, none dropped)
 # and hold in every mode, which makes them stronger than the gate scripts: the
 # hooks run your own code before a call, these refuse it outright.
 deny = [
