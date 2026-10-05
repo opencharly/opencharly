@@ -26,8 +26,10 @@
  * ## System prompt injection (before_agent_start)
  *
  * Injects condensed R0–R10 rules, PR body requirements, and attribution
- * tiers into the system prompt every turn. This survives compaction because
- * it is re-injected before every LLM call.
+ * tiers into the system prompt every turn — AND the full SOUL.md identity
+ * (read from the project root) at every turn, so the injected text is the
+ * soul itself, not a pointer to it. This survives compaction because it is
+ * re-injected before every LLM call.
  *
  * ## Custom tools
  *
@@ -182,13 +184,28 @@ function parseDispatcherTable(content: string): Array<{ triggers: string[]; path
   return result;
 }
 
+/** Read the project-root SOUL.md — the identity every charly agent works as. */
+async function readSoul(cwd: string): Promise<string | null> {
+  try {
+    return await readFile(join(cwd, "SOUL.md"), "utf8");
+  } catch {
+    return null;
+  }
+}
+
 export default function (pi: ExtensionAPI) {
   // =========================================================================
   // Layer 1: System prompt injection — every turn
   // =========================================================================
-  pi.on("before_agent_start", async (event) => {
+  pi.on("before_agent_start", async (event, ctx) => {
+    const soul = await readSoul(ctx.cwd);
+    const soulBlock = soul
+      ? `## Who you are — SOUL.md\n\n${soul.trim()}\n`
+      : `## Who you are — SOUL.md\n\n⚠ SOUL.md is NOT present at the project root, so the identity is ` +
+        `NOT injected this session. That is the opencharly/opencharly#356 content-loss signature — ` +
+        `restore SOUL.md at the umbrella root (opencharly/opencharly#357).\n`;
     return {
-      systemPrompt: event.systemPrompt + "\n\n" + buildRulesBlock(),
+      systemPrompt: event.systemPrompt + "\n\n" + soulBlock + "\n" + buildRulesBlock(),
     };
   });
 

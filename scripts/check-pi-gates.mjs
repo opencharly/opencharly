@@ -73,7 +73,12 @@ function check() {
   if (!/pre-commit-gate\.sh/.test(code) || !/pre-push-gate\.sh/.test(code))
     fail(`wires both pre-commit-gate.sh and pre-push-gate.sh`);
 
-  if (failures === 0) ok(`${rel}: fails closed, rule-9 paths, gate wiring present`);
+  // 4. SOUL injection (#359): the `before_agent_start` handler reads the project-root
+  //    SOUL.md and injects the IDENTITY itself (not a pointer to it) every turn.
+  if (!/readSoul/.test(code) || !/SOUL\.md/.test(code)) fail(`injects the project-root SOUL.md identity (readSoul)`);
+  if (!/pi\.on\(\s*["'`]before_agent_start["'`]/.test(code)) fail(`injects SOUL.md via the before_agent_start handler`);
+
+  if (failures === 0) ok(`${rel}: fails closed, rule-9 paths, gate wiring + SOUL injection present`);
 }
 
 // ── --self-test: prove each assertion goes RED on a mutation ──────────────────
@@ -96,6 +101,7 @@ if (argv.includes("--self-test")) {
     ["worktree path", (s) => s.replace(/join\(ctx\.cwd, "\.worktrees", slug\)/, 'join(ctx.cwd, ".claude", "worktrees", slug)'), `.worktrees`],
     ["no gate wiring", (s) => s.replace(/pre-push-gate\.sh/g, "pre-push-gate-XXX.sh"), `pre-push-gate.sh`],
     ["no tool_call", (s) => s.replace(/pi\.on\(\s*"tool_call"/g, 'pi.on("tool_calls"'), `tool_call`],
+    ["no SOUL injection", (s) => s.replace(/readSoul/g, "__soul_removed__"), `SOUL.md`],
   ];
   let stFails = 0;
   for (const [name, mutate, expect] of mutations) {
