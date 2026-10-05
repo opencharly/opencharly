@@ -1833,3 +1833,7 @@
 	path = rpiv-todo
 	url = https://github.com/opencharly/rpiv-todo.git
 	branch = main
+[submodule "plugin-lobster"]
+	path = plugin-lobster
+	url = https://github.com/opencharly/plugin-lobster.git
+	branch = main
