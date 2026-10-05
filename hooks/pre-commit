@@ -40,7 +40,11 @@ if [ ! -x "$CHARLY" ]; then
   exit 1
 fi
 
-echo "pre-commit: running the umbrella gate…"
+# ASCII `...`, never `…`: this banner opens the transcript a PR pastes as its gate
+# evidence, and the org's body linter (marketplace/scripts/pr_body_lint.py) fails a fenced
+# block containing `…` as "pasted output is verbatim, never ellipsized" — so the gate's own
+# progress line made every pasted umbrella-gate transcript a body finding.
+echo "pre-commit: running the umbrella gate..."
 
 "$CHARLY" task policy-b
 "$CHARLY" task self-test
