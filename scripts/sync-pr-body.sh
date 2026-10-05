@@ -1,17 +1,21 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# sync-pr-body.sh — build the sync PR's body + the `sync-evidence` artifact file, so the
+# sync-pr-body.sh — build the sync PR's body + the evidence file, so the
 # 65536-char body cap is enforced by TESTED code, not by an untestable inline workflow
 # block.
 #
-# WHY THIS IS ITS OWN SCRIPT: `.github/workflows/sync.yml` used to build the body in a
-# large inline `printf`/`echo` block. That block had a real defect (measured 2026-09-22):
-# the org-wide ruleset cutover advanced 393 pins in one sync, the body exceeded GitHub's
-# 65536-char limit, and `gh pr create` failed "Body is too long". Extracting the builder
-# here makes the bounding + the hard guard + the artifact assembly exerciseable in-tree
-# (`--self-test`), exactly as `sync-pin-evidence.sh` is — the same "testable committed
-# script, not a string nobody can exercise" rule the workflow's own comments invoke.
+# WHY THIS IS ITS OWN SCRIPT: the sync PR's body was once built inline in the (since
+# removed) `.github/workflows/sync.yml` as a large `printf`/`echo` block. That block had a
+# real defect (measured 2026-09-22): the org-wide ruleset cutover advanced 393 pins in one
+# sync, the body exceeded GitHub's 65536-char limit, and `gh pr create` failed "Body is
+# too long". Extracting the builder here makes the bounding + the hard guard + the
+# evidence-file assembly exerciseable in-tree (`--self-test`), exactly as
+# `sync-pin-evidence.sh` is.
+#
+# The sync is now run BY HAND (`./charly/bin/charly task sync` + a PR); nothing schedules
+# it. The Assisted-by footer is therefore caller-supplied via SYNC_ASSISTED_BY — the run
+# that opens the PR records its own identity, never a canned one.
 #
 # Modes:
 #   <root> <moved-file> <producer-log> <policy-b-log> <out-body> <out-evidence>
@@ -60,9 +64,9 @@ build_body() {
   MOVED="$(cat "$moved_file")"
   COUNT=$(printf '%s\n' "$MOVED" | grep -c . || true); COUNT=${COUNT:-0}
 
-  # Full evidence for the artifact (a convenience copy — the BODY carries the complete
-  # changed-path list via the per-pin table below, so the artifact is no longer the home
-  # of the evidence and the body never points at it as if it were).
+  # Full evidence for the caller's evidence file (a convenience copy — the BODY carries the
+  # complete changed-path list via the per-pin table below, so that file is not the home of
+  # the evidence and the body never points at it as if it were).
   {
     echo "== moved paths (${COUNT}) =="
     printf '%s\n' "$MOVED"
@@ -77,9 +81,9 @@ build_body() {
   {
     echo "## Summary"
     echo
-    echo "Automated gitlink sync: every umbrella submodule pin advanced to what **policy B**"
-    echo "requires — \`charly\` to its own default-branch HEAD, \`distro-*\` to exactly the commits"
-    echo "charly's own gitlinks pin, everything else to its own default branch."
+    echo "Gitlink sync: every umbrella submodule pin advanced to what **policy B** requires"
+    echo "— \`charly\` to its own default-branch HEAD, \`distro-*\` to exactly the commits charly's"
+    echo "own gitlinks pin, everything else to its own default branch."
     echo
     echo "**${COUNT}** gitlink(s) moved. Every one is named, with its proof, in the"
     echo "complete per-pin evidence table below (no elision)."
@@ -89,8 +93,8 @@ build_body() {
     echo "The **\`${COUNT}\`** moved paths are named in full — each with its \`staged-gitlink\`"
     echo "vs remote default-branch \`HEAD\` proof — in the complete per-pin evidence table in"
     echo "**How tested** below. That one table IS the changed-path list and the evidence: no"
-    echo "separate list is emitted and no row is elided, so nothing points at the"
-    echo "\`sync-evidence\` artifact for evidence that must be pasted here."
+    echo "separate list is emitted and no row is elided, so nothing points at a"
+    echo "file for evidence that must be pasted here."
     echo
     echo "Each entry is a **submodule pointer**, not file content: the umbrella records which"
     echo "commit of each repo the snapshot means. The content behind every one of them was"
@@ -115,7 +119,7 @@ build_body() {
     echo
     # The per-pin evidence section — the COMPLETE table (compact rows), inlined here in
     # the BODY, naming every changed path. The full table is also appended to the
-    # artifact as a convenience copy via SYNC_EVIDENCE_OUT.
+    # caller's evidence file as a convenience copy via SYNC_EVIDENCE_OUT.
     printf '%s\n' "$MOVED" | SYNC_EVIDENCE_OUT="$out_evidence" \
       bash "$SCRIPT_DIR/sync-pin-evidence.sh" "$root" "$policy_b_log"
     echo
@@ -127,10 +131,10 @@ build_body() {
     echo "## Harness rulebook compliance"
     echo
     echo "- **R0 skills:** the sync is owned by \`/charly-internals:git-workflow\`; this PR is"
-    echo "  produced by the workflow that skill describes."
+    echo "  produced by \`charly task sync\`, the verb that skill names."
     echo "- **R1 RCA + zero warnings:** the producer resolves each pin and names any repo it"
     echo "  cannot resolve rather than guessing; no warning appears in the pasted output."
-    echo "- **R2 no parking:** a defect found in THIS workflow is fixed here; content behind a"
+    echo "- **R2 no parking:** a defect found in THIS sync is fixed here; content behind a"
     echo "  moved gitlink belongs to its OWNING repo (which gated it before tagging)."
     echo "- **R3 no duplication:** policy B is asserted by \`charly task policy-b\` — the ONE"
     echo "  implementation \`charly task verify\` also composes."
@@ -143,7 +147,7 @@ build_body() {
     echo "  \`git ls-remote\` default-branch evidence above; \`distro-*\` pins (when any move) are"
     echo "  additionally asserted by policy B."
     echo "- **R8 artifact invariants:** \`N/A — no generated artifact/OCI label.\`"
-    echo "- **R9 binary == source:** \`N/A — no binary is built by this workflow.\`"
+    echo "- **R9 binary == source:** \`N/A — no binary is built by this sync.\`"
     echo "- **R10 disposable + coverage:** the coverage is the per-pin \`git ls-remote\`"
     echo "  default-branch evidence above (it fails if a pin is a PR branch or a non-HEAD"
     echo "  commit); policy B additionally gates any moved \`distro-*\` pin."
@@ -157,10 +161,10 @@ build_body() {
     echo "## Attribution"
     echo
     echo "This body is emitted by the tested, model-free \`scripts/sync-pr-body.sh\`"
-    echo "(invoked by \`.github/workflows/sync.yml\`), whose \`--self-test\` the pre-commit gate"
-    echo "runs. The runtime identity is the GitHub Actions runner itself."
+    echo "from a manual \`charly task sync\` run; its \`--self-test\` runs in the pre-commit"
+    echo "gate. \`SYNC_ASSISTED_BY\` carries the identity of the run that opened the PR."
     echo
-    echo "*Assisted-by: GitHub Actions ubuntu-latest (fully tested and validated)*"
+    echo "*Assisted-by: ${SYNC_ASSISTED_BY:?set SYNC_ASSISTED_BY to the Assisted-by footer for the run opening this PR}*"
   } > "$out_body"
 
   # HARD GUARD: GitHub rejects a body over the cap. Fail LOUD here, naming the size, so a
@@ -176,6 +180,9 @@ build_body() {
 if [ "${1:-}" = "--self-test" ]; then
   fail() { echo "FAIL: sync-pr-body self-test: $*" >&2; exit 1; }
   tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
+  # The Assisted-by footer is caller-supplied (no workflow owns the sync any more), so
+  # the self-test supplies a fixed fixture value for the build_body calls below.
+  export SYNC_ASSISTED_BY="Self-test fixture (fully tested and validated)"
   # Make the fixture a real git repo: sync-pin-evidence.sh's staged_gitlink()/`git config`
   # run under `set -e`, and a non-repo would spew `fatal: not a git repository` per row.
   git -C "$tmp" init -q
@@ -236,9 +243,13 @@ if [ "${1:-}" = "--self-test" ]; then
   for p in $(sed -n "1p;212p;${FLEET}p" "$moved"); do
     grep -q "  ${p}  " "$tmp/body" || fail "changed path '${p}' must be named in the body"
   done
-  # The artifact keeps a convenience copy of the full table (no longer its reason to exist).
-  grep -q "per-pin evidence table (full, all ${FLEET} rows)" "$tmp/ev" || fail "artifact must carry the full rendered table (all ${FLEET} rows)"
-  [ "$(grep -cE "$ROW_RE" "$tmp/ev")" -eq "$FLEET" ] || fail "artifact table must have exactly ${FLEET} rows"
+  # The caller's evidence file keeps a convenience copy of the full table (no longer its
+  # reason to exist).
+  grep -q "per-pin evidence table (full, all ${FLEET} rows)" "$tmp/ev" || fail "the evidence file must carry the full rendered table (all ${FLEET} rows)"
+  [ "$(grep -cE "$ROW_RE" "$tmp/ev")" -eq "$FLEET" ] || fail "the evidence-file table must have exactly ${FLEET} rows"
+  # No CI run artifact exists any more (the sync is hand-run), so the body must never
+  # promise one.
+  grep -q 'sync-evidence' "$tmp/body" "$tmp/ev" && fail "no file may name a 'sync-evidence' run artifact (the sync is hand-run; no workflow uploads one)"
 
   # The producer excerpt is carried VERBATIM for BOTH historical shapes — the
   # retired scripts/sync-gitlinks.sh per-pin form and the current `charly task sync`
@@ -267,7 +278,7 @@ if [ "${1:-}" = "--self-test" ]; then
     && fail "over-cap body must trip the hard guard (non-zero)"
   grep -q '65536\|100' "$tmp/err" || fail "guard must name the offending size/cap on stderr"
 
-  echo "sync-pr-body: self-test OK (fleet-scale 424-pin BODY carries the COMPLETE compact evidence table — every path named, no elision — and stays under the 65536 cap; artifact keeps a convenience copy; small input names its paths with no elision; the producer excerpt is verbatim for BOTH the retired per-pin and current summary shapes; over-cap trips the hard guard)"
+  echo "sync-pr-body: self-test OK (fleet-scale 424-pin BODY carries the COMPLETE compact evidence table — every path named, no elision — and stays under the 65536 cap; the caller's evidence file keeps a convenience copy; neither names a CI run artifact; small input names its paths with no elision; the producer excerpt is verbatim for BOTH the retired per-pin and current summary shapes; over-cap trips the hard guard)"
   exit 0
 fi
 
