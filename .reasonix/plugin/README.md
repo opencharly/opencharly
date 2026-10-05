@@ -68,20 +68,25 @@ After installing, `/reload` while idle, then confirm with
 
 ## Verifying without a key
 
-The handshake and error paths are testable offline — this is the check the
-harness-config gate's own self-test relies on:
+The handshake and error paths are testable offline. The handshake reply is
+decoded against the host's registered `InitializeResult` by
+`sidecar_test.py::TestHandshake` and by the offline handshake assertion in
+`scripts/check-harness-config.mjs` check 10 — not by a human eyeballing the
+output:
 
 ```bash
 cd .reasonix/plugin
 printf '%s\n' \
-  '{"jsonrpc":"2.0","id":1,"method":"extension/initialize","params":{"tools":["web_search","web_fetch"]}}' \
+  '{"jsonrpc":"2.0","id":1,"method":"extension/initialize","params":{"manifest":{"tools":["web_search","web_fetch"]}}}' \
   '{"jsonrpc":"2.0","id":2,"method":"extension/tool/call","params":{"name":"web_search","arguments":{"query":"test"}}}' \
   '{"jsonrpc":"2.0","id":3,"method":"extension/shutdown","params":{}}' | ./sidecar.py
 ```
 
-Expected: an `initialize` result naming both tools, a `tool/call` result that is
-a readable `isError` when no key is present, and an empty `shutdown` result. An
-undeclared tool name answers with a JSON-RPC error, not a tool failure.
+Expected: an `initialize` result carrying `name`, `version`,
+`stateSchemaVersion` and `protocolVersion:"2"` (and naming both tools), a
+`tool/call` result that is a readable `isError` when no key is present, and an
+empty `shutdown` result. An undeclared tool name answers with a JSON-RPC error,
+not a tool failure.
 
 ## Wire contract
 
@@ -90,10 +95,26 @@ stdio, newline-delimited:
 
 | Direction | Method | Notes |
 |---|---|---|
-| host → sidecar | `extension/initialize` | reply names only manifest-declared tools |
+| host → sidecar | `extension/initialize` | reply must satisfy the host's registered `InitializeResult` (below) and name only manifest-declared tools |
 | host → sidecar | `extension/initialized` | notification, no reply |
 | host → sidecar | `extension/tool/call` | params: `name`, `arguments`, `timeoutMillis` |
 | host → sidecar | `extension/shutdown` | reply, then exit |
+
+The host decodes `InitializeResult` **strictly**. MEASURED against reasonix
+v2.28.0:
+
+| Field | Required | Value this extension sends |
+|---|---|---|
+| `name` | yes (nonempty) | `"ollama-websearch"` |
+| `version` | yes (nonempty) | `"1.0.0"` |
+| `stateSchemaVersion` | yes (int, ≥ 0) | `0` (stateless) |
+| `protocolVersion` | yes | `"2"` — the numeric MAJOR as a string, **never** the protocol ID |
+| `tools` | no | the manifest-declared tools, as an array of **strings** |
+
+Every other field — including `capabilities` — is unregistered: the host
+rejects the whole result with `params do not match the registered type`. The
+tool expectation arrives under `params.manifest.tools`; naming a tool the
+manifest does not declare fails the handshake with `capability_not_declared`.
 
 A tool's own failure is `{"content": …, "isError": true}`; a call the extension
 cannot run at all (an undeclared name) is a JSON-RPC `error` instead.

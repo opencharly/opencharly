@@ -47,8 +47,11 @@
 //                                                                     [discriminating]
 //   8. reasonix.toml wires the marketplace skill root.               [discriminating]
 //   9. .reasonix/settings.json uses reasonix's OWN hook key.          [discriminating]
-//  10. The Ollama web-search code extension ships as a v2 plugin package.
-//                                                                     [discriminating]
+//  10. The Ollama web-search code extension ships as a v2 plugin package AND
+//      its sidecar answers `extension/initialize` with the host's registered
+//      `InitializeResult` (MEASURED against reasonix v2.28.0: `name`,
+//      `version`, `stateSchemaVersion`, `protocolVersion:"2"`, string
+//      `tools`; no `capabilities`).                              [discriminating]
 //  11. The PR watcher is bound for reasonix.                          [discriminating]
 //
 // Usage:
@@ -56,7 +59,8 @@
 //   node scripts/check-harness-config.mjs --root <dir>    # check another tree
 //   node scripts/check-harness-config.mjs --self-test     # prove the split above
 
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { dirname, join, resolve } from "node:path";
 
@@ -106,6 +110,7 @@ if (argv.includes("--self-test")) {
     ".reasonix/settings.json",
     ".reasonix/soul-inject.sh",
     ".reasonix/plugin/reasonix-plugin.json",
+    ".reasonix/plugin/sidecar.py",
     ".reasonix/watch.items",
     "reasonix.toml",
     ".opencode/package.json",
@@ -122,6 +127,23 @@ if (argv.includes("--self-test")) {
       cpSync(join(root, p), dst);
       chmodSync(dst, statSync(join(root, p)).mode & 0o777);
     }
+    // Give check 8's COVERAGE assertion an independent oracle in the staged tree. The
+    // expected layout is materialized from the PRISTINE `reasonix.toml` in `root` (whose
+    // paths are not mutated — mutations edit the staged `tree`), so a mutation that DROPS
+    // a path still finds the directory present and fails coverage. When the real
+    // `marketplace` submodule is checked out, its family/{skills,agents} dirs are used
+    // instead, which additionally exercises a family ADDED upstream but not yet listed.
+    const mkt = join(root, "marketplace");
+    if (existsSync(mkt)) {
+      for (const fam of readdirSync(mkt, { withFileTypes: true })) {
+        if (!fam.isDirectory() || fam.name === ".well-known") continue;
+        for (const sub of ["skills", "agents"]) {
+          if (existsSync(join(mkt, fam.name, sub))) mkdirSync(join(tree, "marketplace", fam.name, sub), { recursive: true });
+        }
+      }
+    }
+    const pristine = readFileSync(join(root, "reasonix.toml"), "utf8");
+    for (const m of pristine.matchAll(/"marketplace\/[^"]+"/g)) mkdirSync(join(tree, JSON.parse(m[0])), { recursive: true });
   };
   const runGate = () => {
     const r = spawnSync(process.execPath, [fileURLToPath(import.meta.url), "--root", tree], {
@@ -159,9 +181,12 @@ if (argv.includes("--self-test")) {
     [".pi/extensions/charly-gates.ts", (p) => writeFileSync(p, readFileSync(p, "utf8").replace(/readSoul/g, "__soul_removed__")), "injects the SOUL.md identity", "7 (pi arm)"],
     [".reasonix/soul-inject.sh", (p) => writeFileSync(p, readFileSync(p, "utf8").replace(/cat "\$SOUL"/, "true")), "injects SOUL.md for reasonix", "7 (reasonix arm — a wired hook whose script stopped emitting must FAIL)"],
     [".reasonix/settings.json", (p) => { const s = JSON.parse(readFileSync(p, "utf8")); s.hooks.SessionStart = s.hooks.SessionStart.filter((h) => !h.command.includes("soul-inject")); writeFileSync(p, JSON.stringify(s)); }, "injects SOUL.md for reasonix", "7 (reasonix arm — an UNWIRED hook must FAIL)"],
-    ["reasonix.toml", (p) => writeFileSync(p, readFileSync(p, "utf8").replace(/^paths\s*=\s*\[[^\]]*\]/m, "paths = []")), "wires the marketplace skill root", "8"],
+    ["reasonix.toml", (p) => writeFileSync(p, readFileSync(p, "utf8").replace(/^paths = \[\n[\s\S]*?\n\]/m, "paths = []")), "wires", "8 (empty [skills] paths must FAIL)"],
+    ["reasonix.toml", (p) => writeFileSync(p, readFileSync(p, "utf8").replace(/^paths = \[/m, 'paths = [\n    "marketplace",')), "bare `marketplace` root", "8 (the bare-family-root regression must FAIL)"],
+    ["reasonix.toml", (p) => writeFileSync(p, readFileSync(p, "utf8").replace(/^    "marketplace\/vm\/skills",\n/m, "")), "covers every marketplace skill/agent dir", "8 (a dropped skill path must FAIL on coverage)"],
     [".reasonix/settings.json", (p) => { const s = JSON.parse(readFileSync(p, "utf8")); s.hooks.PreToolUse[0].match = "*"; writeFileSync(p, JSON.stringify(s)); }, 'native reasonix "match" key', "9 (the Claude `matcher` spelling must not satisfy it)"],
     [".reasonix/plugin/reasonix-plugin.json", (p) => rmSync(p), "reasonix-plugin.json exists", "10"],
+    [".reasonix/plugin/sidecar.py", (p) => writeFileSync(p, readFileSync(p, "utf8").replace(/^\s*"name": MANIFEST_NAME,\n/m, "")), "carries every host-required field", "10 (handshake — a sidecar missing a host-required field must FAIL)"],
     [".reasonix/watch.items", (p) => rmSync(p), "(the reasonix watch binding) exists", "11"],
   ];
   for (const [surface, mutate, expect, check] of mutations) {
@@ -223,26 +248,77 @@ const tomlString = (p, table, key) => {
   }
   return undefined;
 };
-// The companion array reader: the string elements of a SINGLE-LINE `key = ["a", "b"]`
-// inside `[table]`, or []. Narrow by design — the gate reads ONE array (`[skills] paths`)
-// — so it does not pull in a TOML library. A multi-line array reads as [] (a loud FAIL on
-// the assertion that uses it, never a silent pass).
+// The companion array reader: the string elements of `key = ["a", "b"]` inside `[table]`,
+// or []. It handles BOTH a single-line array and a multi-line one — `[skills] paths` grew
+// past one line, and a line-scoped regex would silently read it as [] (a false FAIL on the
+// assertion that uses it). Narrow by design — the gate reads ONE array, so it does not pull
+// in a TOML library.
 const tomlArray = (p, table, key) => {
   const t = read(p);
   if (t === null) return [];
   let inTable = false;
+  let body = null; // the array body, once `key = [` is seen and until its `]`
   for (const raw of t.split("\n")) {
     const line = raw.trim();
-    if (line.startsWith("[") && line.endsWith("]")) {
-      inTable = line === `[${table}]`;
-      continue;
+    if (body === null) {
+      // A table header is a line that is entirely `[name]`. (A bare `]` close-line only
+      // appears once `body !== null`, so it is never mistaken for a header here.)
+      if (line.startsWith("[") && line.endsWith("]")) {
+        inTable = line === `[${table}]`;
+        continue;
+      }
+      if (!inTable) continue;
+      const m = line.match(new RegExp(`^${key}\\s*=\\s*\\[(.*)$`));
+      if (!m) continue;
+      body = m[1];
+    } else {
+      body += " " + line;
     }
-    if (!inTable) continue;
-    const m = line.match(new RegExp(`^${key}\\s*=\\s*\\[(.*)\\]`));
-    if (m) return [...m[1].matchAll(/"([^"]*)"/g)].map((x) => x[1]);
+    if (body.includes("]")) {
+      return [...body.slice(0, body.indexOf("]")).matchAll(/"([^"]*)"/g)].map((x) => x[1]);
+    }
   }
   return [];
 };
+
+// Drive the Ollama web-search sidecar through `extension/initialize` over its real stdio
+// wire and return the decoded `InitializeResult`, or null when it cannot be produced. This
+// is the ONE offline oracle the gate lacked: the installed reasonix host decodes this
+// result STRICTLY, so a sidecar that answers with the wrong shape boots to a hard error.
+// The params below are the exact shape the installed reasonix v2.28.0 host sends (MEASURED).
+const sidecarInitialize = (rootDir) => {
+  const script = join(rootDir, ".reasonix/plugin/sidecar.py");
+  if (!existsSync(script)) return null;
+  const params = {
+    protocolVersion: "2",
+    protocolId: "reasonix.extension.v2",
+    manifest: { tools: ["web_search", "web_fetch"], capabilities: ["tools"] },
+    session: { sessionId: "gate-1", workspaceRoot: rootDir, generation: 1 },
+    capabilities: { contentRefs: true, uiHost: "headless", protocolVersion: "2" },
+  };
+  const input =
+    JSON.stringify({ jsonrpc: "2.0", id: 1, method: "extension/initialize", params }) + "\n" +
+    JSON.stringify({ jsonrpc: "2.0", id: 2, method: "extension/shutdown", params: {} }) + "\n";
+  const r = spawnSync("python3", [script], { input, encoding: "utf8", timeout: 30000 });
+  if (r.status !== 0 || !r.stdout) return null;
+  for (const line of r.stdout.split("\n")) {
+    if (!line.trim()) continue;
+    try {
+      const msg = JSON.parse(line);
+      if (msg.id === 1 && msg.result) return msg.result;
+    } catch {
+      /* a malformed frame is not the handshake result */
+    }
+  }
+  return null;
+};
+
+// The fields the host's registered `InitializeResult` REQUIRES, and the one field an
+// earlier revision wrongly sent. MEASURED against the installed reasonix v2.28.0: the
+// host rejects a result missing any required field or carrying any unregistered field
+// with `invalid initialize result`, aborting boot for a `runtime.required: true` plugin.
+const INITIALIZE_RESULT_REQUIRED = ["name", "version", "stateSchemaVersion", "protocolVersion"];
+const INITIALIZE_RESULT_FORBIDDEN = ["capabilities"];
 
 // 1. Every harness JSON parses. STRUCTURAL: all four exist on `main` too, so this class
 //    is not the branch's evidence — read it as "an existing surface stays valid".
@@ -381,15 +457,49 @@ ok(existsSync(join(root, ".claude/workflows/audit-deploy-configs.js")), ".claude
   }
 }
 
-// 8. reasonix.toml wires the marketplace skill root. DISCRIMINATING: an unmodified `main`
-//    carries no `[skills]` table at all, so Reasonix resolves only its builtin + global
-//    skills (MEASURED: 12) and none of the `/charly-<family>:<skill>` references in
-//    AGENTS.md resolve. With the root wired, the SAME binary reports the marketplace as a
-//    `custom` root and 365 winners (MEASURED, reasonix v2.28.0).
-ok(
-  tomlArray("reasonix.toml", "skills", "paths").includes("marketplace"),
-  "reasonix.toml wires the marketplace skill root ([skills] paths)",
-);
+// 8. reasonix.toml wires the marketplace SKILL roots — and NOT the bare marketplace root.
+//    DISCRIMINATING: an unmodified `main` carries no `[skills]` table at all, so Reasonix
+//    resolves only its builtin + global skills (MEASURED: 12) and none of the
+//    `/charly-<family>:<skill>` references in AGENTS.md resolve. The fix scopes `paths` to
+//    the directories that actually HOLD skills — every `<family>/skills/` plus the two
+//    `<family>/agents/` roster dirs. Pointing at the bare `marketplace` root (the earlier
+//    revision) is the regression this asserts against: `marketplace/` is a multi-FAMILY
+//    root, so reasonix scans family prose as skills and prints ~3,500 `skill.missing_description`
+//    warning lines per boot (MEASURED, reasonix v2.28.0).
+{
+  const paths = tomlArray("reasonix.toml", "skills", "paths");
+  ok(paths.length > 0, "reasonix.toml wires marketplace skill roots ([skills] paths)");
+  ok(
+    !paths.includes("marketplace"),
+    "reasonix.toml does NOT point [skills] paths at the bare `marketplace` root (which scans CHANGELOG/docs prose as skills)",
+  );
+  const malformed = paths.filter((p) => !/^marketplace\/[^/]+\/(skills|agents)$/.test(p));
+  ok(
+    malformed.length === 0,
+    `every [skills] paths entry is a marketplace <family>/{skills,agents} dir (offenders: ${malformed.join(", ") || "none"})`,
+  );
+  // Coverage: when the marketplace tree is checked out, every skill-bearing directory
+  // must be listed — a family added upstream with a `skills/` dir and no path entry would
+  // otherwise load silently as zero skills. Skipped (not faked) when the submodule is
+  // absent, e.g. a worktree that did not populate it.
+  const mkt = join(root, "marketplace");
+  if (existsSync(mkt)) {
+    const expected = [];
+    for (const fam of readdirSync(mkt, { withFileTypes: true })) {
+      if (!fam.isDirectory() || fam.name === ".well-known") continue;
+      for (const sub of ["skills", "agents"]) {
+        if (existsSync(join(mkt, fam.name, sub))) expected.push(`marketplace/${fam.name}/${sub}`);
+      }
+    }
+    const missing = expected.filter((e) => !paths.includes(e));
+    ok(
+      missing.length === 0,
+      `[skills] paths covers every marketplace skill/agent dir (missing: ${missing.join(", ") || "none"})`,
+    );
+  } else {
+    pass("marketplace submodule not checked out — [skills] coverage check skipped (structural assertions above still hold)");
+  }
+}
 
 // 9. .reasonix/settings.json uses reasonix's OWN hook key. DISCRIMINATING: `main` uses
 //    Claude Code's `"matcher"`, which reasonix does not read — MEASURED, it silently
@@ -405,11 +515,14 @@ ok(
   );
 }
 
-// 10. The Ollama web-search code extension ships as a v2 plugin package. DISCRIMINATING:
-//     `main` has no `.reasonix/plugin/` at all. Reasonix supports NO provider-side web
-//     search for Ollama Cloud (MEASURED: no `IsOllamaCloud*WebSearch` symbol; the docs
-//     document `web_search = true` only for the DeepSeek/OpenCode-Go presets), so the
-//     capability is a code extension whose runtime serves the tools.
+// 10. The Ollama web-search code extension ships as a v2 plugin package AND its sidecar
+//     answers `extension/initialize` with the host's registered `InitializeResult`.
+//     DISCRIMINATING: `main` has no `.reasonix/plugin/` at all. Reasonix supports NO
+//     provider-side web search for Ollama Cloud (MEASURED: no `IsOllamaCloud*WebSearch`
+//     symbol; the docs document `web_search = true` only for the DeepSeek/OpenCode-Go
+//     presets), so the capability is a code extension whose runtime serves the tools. The
+//     handshake is the half that was WRONG once: the result must satisfy the host's
+//     registered DTO exactly, so the sidecar is driven over its real stdio wire here.
 {
   ok(existsSync(join(root, ".reasonix/plugin/reasonix-plugin.json")), ".reasonix/plugin/reasonix-plugin.json exists");
   const m = jsonOr(".reasonix/plugin/reasonix-plugin.json");
@@ -419,6 +532,27 @@ ok(
     tools.includes("web_search") && tools.includes("web_fetch"),
     "the reasonix plugin declares the web_search and web_fetch runtime tools",
   );
+
+  const result = sidecarInitialize(root);
+  if (result === null) {
+    fail("the reasonix sidecar answers extension/initialize over its real stdio wire");
+  } else {
+    const missing = INITIALIZE_RESULT_REQUIRED.filter((k) => !(k in result));
+    ok(
+      missing.length === 0,
+      `the reasonix sidecar's InitializeResult carries every host-required field (missing: ${missing.join(", ") || "none"})`,
+    );
+    const extra = INITIALIZE_RESULT_FORBIDDEN.filter((k) => k in result);
+    ok(
+      extra.length === 0,
+      `the reasonix sidecar's InitializeResult sends no unregistered field (unregistered present: ${extra.join(", ") || "none"})`,
+    );
+    ok(result.protocolVersion === "2", 'the reasonix sidecar sends protocolVersion "2" (the wire major, not the protocol ID)');
+    ok(
+      Array.isArray(result.tools) && result.tools.every((t) => typeof t === "string"),
+      "the reasonix sidecar's InitializeResult.tools is an array of strings",
+    );
+  }
 }
 
 // 11. The PR watcher is bound for reasonix. DISCRIMINATING: `main` carries no reasonix

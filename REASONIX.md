@@ -12,12 +12,21 @@ policy that `AGENTS.md` owns.
 references are also the marketplace-wide cross-reference syntax the docs build
 resolves, so they are kept verbatim.
 
-reasonix loads every skill under a configured `[skills] paths` entry — here
-`marketplace` in `reasonix.toml` — and exposes it by its **bare frontmatter
-`name`**, which is globally unique across the corpus. reasonix's own
-`/<plugin>:<skill>` qualified form belongs to *installed plugin packages*, not
-to a skill root, so a marketplace skill is **not** invoked as
-`/charly-internals:git-workflow`.
+reasonix loads every skill under a configured `[skills] paths` entry — the 40
+`marketplace/<family>/{skills,agents}` directories in `reasonix.toml` — and
+exposes it by its **bare frontmatter `name`**, which is globally unique across
+the corpus. reasonix's own `/<plugin>:<skill>` qualified form belongs to
+*installed plugin packages*, not to a skill root, so a marketplace skill is
+**not** invoked as `/charly-internals:git-workflow`.
+
+The paths are the **skill-bearing** directories, deliberately NOT the bare
+`marketplace` root: `marketplace/` is a multi-*family* root, while reasonix
+expects a multi-*skill* root, so pointing at it makes reasonix scan family
+prose as skills (`CHANGELOG/*.md`, `*/README.md`, the root `AGENTS.md`/
+`DISPATCHER.md`) and print ~3,500 `skill.missing_description` warning lines per
+boot (MEASURED, reasonix v2.28.0). `scripts/check-harness-config.mjs` check 8
+asserts the scoped list covers every skill root and that the bare root is not
+present.
 
 **Resolve a dispatcher reference as follows:**
 
