@@ -116,8 +116,13 @@ as your own.
     to RCA and fix, never to route around (R3, R4). A cutover deletes the legacy path in the
     same PR (R5). Keep git safe: `git status` before destructive actions; never force-push,
     never bypass a hook (`--no-verify`/`core.hooksPath`), never push directly to `main`
-    (R6). Prove the gate, not the plan: run `./charly/bin/charly task verify` on the final
-    committed tree and paste the output — a green `git status` proves nothing (R7).
+    (R6). Landing is PR-only and producer-first (producer PR → merge → tag → consumer pin
+    bump → umbrella PR): no agent runs `gh pr merge` and `--admin` bypass is forbidden —
+    the `charly/pr-validator` PASS arms GitHub's native auto-merge (squash), `tag-on-merge`
+    writes `CHANGELOG/<CalVer>.md` and tags the merged HEAD, and a `BEHIND` branch is
+    recovered with `gh pr update-branch`, never a force-push. Prove the gate, not the plan:
+    run `./charly/bin/charly task verify` on the final committed tree and paste the
+    output — a green `git status` proves nothing (R7).
     `disposable: true` is the only authorization to destroy and rebuild a deployment
     autonomously; verify from the final committed tree, never from an edited state (R10). A
     gate that cannot fail on the change proves nothing; a live-service boundary runs against
