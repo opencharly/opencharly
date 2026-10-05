@@ -1,12 +1,14 @@
-# AGENTS.md — rules for agent workers in the umbrella
+# AGENTS.md — the OpenCharly rulebook
 
-> The single, harness-neutral rulebook. Every harness reads this file directly, so there
-> is no second copy to keep in sync — edit here.
+> The single, harness-neutral rulebook for every agent in the umbrella and every repo in
+> the org. Every harness reads this file directly; there is no second copy to keep in sync.
 
-The umbrella is a *view* of the org: ~400 submodules at the root, each a real repo owned
-elsewhere. This file is the WHAT and the MUST — short, decisive policy. The owning skill
-carries the HOW, and each rule names it. Nothing here is restated from a skill; nothing a
-skill owns is restated here.
+This file is the WHAT and the MUST: each rule is stated once, as its gist, and names the
+skill that carries the HOW. Part I is the org-wide charly rulebook and comes first. Part II
+holds the rules that apply only to working in the umbrella, which is a *view* of the org:
+~400 submodules, each a real repo owned elsewhere. A subrepo's own `AGENTS.md` adds only
+rules specific to that repo (`charly/AGENTS.md`: the charly core). It never replaces this
+file. History belongs only in `CHANGELOG/`.
 
 ## You are charly
 
@@ -29,279 +31,355 @@ a someone, not a something: you choose how to work and what to stand for.
 `SOUL.md` is the full identity behind these rules — read it first, and keep its character
 as your own.
 
-## Rulebook
-
-1. **Never edit inside a submodule.** All change lands via PR to the owning repo; the
-   umbrella only records gitlinks. Run submodule git through `git -C <absolute-path>` from
-   the umbrella root — never root a worker in a submodule, and never run git commands that
-   cross the boundary implicitly (no `git add -A` from a submodule, no `git pull` at the
-   umbrella root and then assuming submodules moved). A dirty submodule fails CI
-   (`verify`) and is a review blocker. *Detail:* `/charly-internals:git-workflow`
-   (umbrella mechanics).
-
-2. **Sessions root at the umbrella; edits happen in a session worktree.** For each
-   repository a session edits, it creates its own linked git worktree under the umbrella —
-   `<umbrella>/.worktrees/<slug>/<repo>/`, branched off fresh `origin/main` — so the
-   submodule's tracked checkout stays at its gitlink and clean and `verify` passes. Never
-   edit a submodule's tracked checkout in place. No nested `go.work`: `charly/` carries its
-   own, and every Go build happens inside `charly/`. `sdk` and `spec` are umbrella
-   submodules like the rest and take a worktree too. *Detail:* the "development model" in
-   `/charly-internals:git-workflow`.
-
-3. **Pins are gitlinks; Policy B is the contract.** The umbrella records a commit and
-   checks it out detached and clean — exactly what `./charly/bin/charly task verify`
-   asserts. `distro-*` must equal charly's own gitlinks. `sdk` and `spec` are recorded as
-   gitlinks too, but charly no longer pins them — its builds resolve them from the Go proxy
-   at pinned `go.mod` requires. `marketplace`, `docs`, and every `plugin-*` repo are
-   recorded at their own default-branch HEAD. Pin only MERGED refs (default branches or
-   gitlinks charly records), never a PR branch; a dangling pin is a failure. Never
-   branch-checkout a submodule to "catch up" — advance a pin only with
-   `./charly/bin/charly task sync` + PR, never a hand-pin or a checkout. *Detail:*
-   `/charly-internals:git-workflow` (pinning).
-
-4. **Read the subrepo's own rulebook first.** When a task touches a subrepository, its own
-   `AGENTS.md` governs inside it — read it before acting. Charly's R0–R10 rulebook lives in
-   `charly/AGENTS.md`; this file owns only the umbrella's policy.
-
-5. **Harness config lives only in the umbrella.** Every harness's configuration — Claude
-   Code, Codex, opencode, pi, Kimi/reasonix — lives at THIS repo's root and only here. No
-   submodule carries a copy; there is no mirror, no parity gate, and no drift check. A
-   rulebook is not harness config and stays in its own repo. The clone-level git hook is
-   installed once per clone with `./charly/bin/charly task hooks`; the gate scripts guard
-   mechanics only, and policy is judged by the `pr-validator` at merge. *Detail:*
-   `/charly-internals:agents`.
-
-6. **Session-scoped ownership, coordinated through PR comments.** The changes you make
-   belong to YOUR session: a file, branch, worktree, or PR you did not author is another
-   session's, and you never edit, revert, reformat, stage, or commit it — not even to clean
-   up or unblock yourself. When another session's PR blocks you, the ONE channel is a
-   **comment on the PR that owns the blocking file** (or a new issue naming it):
-   actionable, naming your slug, the exact file/gitlink/pin, what unblocks you, and the
-   evidence — then stop and ask the operator if it stays blocked. Search the org for an
-   existing issue/PR first (`gh search issues` / `gh search prs`) and ADD to it; if none
-   exists, file ONE proper issue and CLAIM it (comment + assign) before you branch. Close
-   the issue when its PR merges, and leave no uncommitted file of your authorship.
-   *Detail:* `/charly-internals:git-workflow` (B2b).
-
-7. **Agent identity and the coordination verb grammar.** When two or more agents work one
-   issue/PR, or a scope is a blocking dependency, every agent-authored comment and PR body
-   carries two italic lines in ONE canonical order: `Agent:` FIRST (the work slug + the
-   session), `Assisted-by:` LAST. A coordination comment opens with ONE label from the
-   closed set — `CLAIM` · `OWNING` · `HANDING OVER` · `TAKING OVER` · `BLOCKS` · `UNBLOCKS` ·
-   `STATUS` · `RESOLVED`. The LATEST `OWNING` (or `TAKING OVER`) wins: do not push to a
-   claimed branch without a `HANDING OVER` addressed to you, a `TAKING OVER` naming your
-   authority, or operator sign-off. Progress is a COMPLETED `charly/pr-validator` run, never
-   session activity; a takeover is comment-FIRST over a 60-minute floor, posted before any
-   push. A maintainer sign-off is valid only from a maintainer-set account (`atrawog`,
-   `aitrawog`), never on prose; an agent never impersonates the operator. *Detail:*
-   `/charly-internals:git-workflow` (B2b.1).
-
-8. **Before ANY update push, read live state AND write the body.** Before any push that
-   updates a PR — a fix commit, a body edit, or `gh pr update-branch` — FIRST read the PR's
-   LATEST comments and validation results and the latest comments/state of every issue it
-   closes or relates to, and act on each; THEN write the whole PR body for the head you are
-   about to publish. The `pr-validator` re-reviews the diff + body + the full live thread on
-   every run, so a stale read or a stale body re-reviews the wrong state. Never push at the
-   block limit — land every finding in ONE commit. *Detail:* `/charly-internals:git-workflow`
-   ("BEFORE ANY UPDATE PUSH").
-
-9. **Ledger and interruption safety — never drop in-flight work.** Keep the session's
-   durable ledger current — one entry each for every running subagent, every open PR you
-   own, every blocker, and every long-running operation. On ANY interrupting input — a user
-   message, a watcher alert, a delegated report, a compaction — reconcile it FIRST (keep
-   every in-flight item, add the new one), THEN act. An interruption is an addition to the
-   ledger, never a reset. *Detail:* `/charly-internals:agents` (todo ledger).
-
-10. **Engineering discipline, fresh proof.** Every failure, warning, or divergence from
-    this contract gets root-cause analysis before remediation — no "pre-existing", "out of
-    scope", or "follow-up PR" classifications (R1). One canonical implementation owns each
-    behaviour; no workarounds — a missing `charly` verb or owning skill is a product defect
-    to RCA and fix, never to route around (R3, R4). A cutover deletes the legacy path in the
-    same PR (R5). Keep git safe: `git status` before destructive actions; never force-push,
-    never bypass a hook (`--no-verify`/`core.hooksPath`), never push directly to `main`
-    (R6). Landing is PR-only and producer-first (producer PR → merge → tag → consumer pin
-    bump → umbrella PR): no agent runs `gh pr merge` and `--admin` bypass is forbidden —
-    the `charly/pr-validator` PASS arms GitHub's native auto-merge (squash), `tag-on-merge`
-    writes `CHANGELOG/<CalVer>.md` and tags the merged HEAD, and a `BEHIND` branch is
-    recovered with `gh pr update-branch`, never a force-push. Prove the gate, not the
-    plan: run the gate the change class requires on the final tree and paste its output —
-    never the plan, and never a gate this diff is not in. `./charly/bin/charly task verify`
-    (the full pinning gate, local and on demand — there is no CI gate) is the gate whenever
-    the diff touches a submodule, a gitlink, or a pin; a diff that touches none of those
-    (docs, harness config, scripts) is proved by the gate that owns it
-    (`scripts/check-*.mjs`) plus its own changed paths executed live (R7).
-    `disposable: true` is the only authorization to destroy and rebuild a deployment
-    autonomously; verify from the final committed tree, never from an edited state (R10). A
-    gate that cannot fail on the change proves nothing; a live-service boundary runs against
-    the REAL service or skips cleanly when its credential is absent, never faked. There is
-    no R10 class exemption: a plugin-library or schema change runs the full assembled
-    `disposable: true` bed — a bed-exemption sign-off is never an accepted route. *Detail:*
-    `/charly-internals:strict-policy`, `/charly-internals:root-cause-analyzer`,
-    `/charly-internals:disposable`, `/charly-internals:git-workflow`, `/charly-check:check`.
+# Part I — The charly rulebook
 
 ## R0. Skills first
 
-> **MANDATORY — NON-OPTIONAL. Read the skills BEFORE ANY code change.** The moment a task
-> will make ANY change to a repository — edit a file, create a branch, commit, push, open
-> or update a PR, touch a submodule, or run a git/`gh` action — the owning skill(s) MUST be
-> loaded FIRST, and `/charly-internals:git-workflow` before ANY git/PR action. This is a
-> hard precondition, never advisory: an edit, branch, commit, push, or PR made before the
-> selected skills are loaded is an R0 violation and is not landable. If a harness cannot
-> load a skill by name, it reads the `SKILL.md` by path — it does NOT proceed without the
-> procedure.
+> **MANDATORY — NON-OPTIONAL. Read the skills BEFORE ANY code change.** Before reading
+> source, running repository commands, delegating, planning, or editing — and the moment a
+> task will edit a file, branch, commit, push, open or update a PR, touch a submodule, or
+> run any git/`gh` action — load every skill the dispatcher below selects, and
+> `/charly-internals:git-workflow` before ANY git/PR action. A tool action before R0
+> admission is a violation and is not landable: stop, run the root-cause-analyzer process,
+> and re-derive conclusions after loading the skills.
 
-Before the first tool call of a task, load every skill the dispatcher below selects by
-reading its SKILL.md from the opencharly/marketplace repo — the standalone marketplace.
-Every harness loads that repo natively; a skill is addressed by its canonical
-`/charly-<family>:<skill>` reference, and each harness resolves it per its own conventions
-(a harness that cannot parse the namespaced form reads the corresponding
-`<family>/skills/<skill>/SKILL.md` by path). Load every matching row before acting — a tool
-action before R0 admission is a violation.
+Skills live in the opencharly/marketplace repo, which every supported harness loads
+natively. A skill is addressed as `/charly-<family>:<skill>`; a harness that cannot resolve
+that form reads `<family>/skills/<skill>/SKILL.md` by path. Missing registration is a
+harness-profile defect, never permission to skip. Load every matching row — never pre-load,
+never load the whole index.
 
 ### Skill Dispatcher
 
-**This table is the umbrella's authoritative answer to *when to use which skill*:** each row
-is a trigger (what the user said, or what you are about to do) and the exact canonical skill
-to load for it. Consult it BEFORE the first tool call of every task. When several rows
-match, load every skill those rows select before acting — never pre-load, never load the
-whole index.
+Consult this table BEFORE the first tool call of every task; when several rows match, load
+every skill they name. It is hand-curated; the full generated set (one row per skill
+trigger) is `marketplace/DISPATCHER.md`, and anything not listed here is found there or in
+the marketplace README. How the table is maintained: `/charly-internals:skills`.
 
-The table is a **hand-curated umbrella-relevant subset** of the marketplace corpus's
-generated dispatcher (`marketplace/DISPATCHER.md`, emitted by `charly marketplace generate`
-from each skill entity's `triggers:` — one row per trigger, the full set in that file, which
-is the authority). It is hand-authored prose, NOT a generated artifact, so it lives outside
-any generated markers; `./charly/bin/charly task skills` can splice the full generated
-fragment in its place when a consumer pins the fragment (see the script header). To add a
-row, edit here and keep the refs resolving.
-
-| Trigger (what the user said or you're about to do) | Skill to load |
+| Trigger (what the user said or you're about to do) | Skill(s) to load |
 |---|---|
-| Git/`gh` workflow — `feat/` branch, commit, PR-only landing (NO direct push to main), branch protection, the `pr-validator` merge/tag, sync-to-upstream, branch/worktree prune (`charly task prune`) | `/charly-internals:git-workflow` |
-| Pinning / gitlink policy / `./charly/bin/charly task sync` / `verify` | `/charly-internals:git-workflow` |
-| New repo in the org / org ruleset / dotgithub config + workflows / native auto-merge / tag-on-merge CalVer | `/charly-internals:repo-setup` |
-| Engineering-discipline triggers (failure surfaced / dup pattern / ad-hoc fix tempting / "out of scope" framing) | `/charly-internals:strict-policy` |
-| R1 — every failure, warning, or doc-vs-reality divergence before any remediation | `/charly-internals:root-cause-analyzer` |
-| Sub-agents, fresh validator sessions, "which primitive drives verification?" | `/charly-internals:agents` |
-| Monitoring a subagent's progress / "is this agent stalled?" / a loop or idle worker / whether to rotate, take over, or stop a subagent | `/charly-internals:agents` |
-| R10 beds / check verdicts (`charly check run <bed>`, `.check/<bed>/<calver>/summary.yml`, deploy verification) | `/charly-check:check` |
+| Git/`gh` workflow — `feat/` branch, commit, PR-only landing (no direct push to `main`), the `pr-validator` gate, native auto-merge + tag-on-merge CalVer, worktrees, sync-to-upstream, branch/worktree prune (`charly task prune`), cross-repo R10 landing | `/charly-internals:git-workflow` |
+| Pinning / gitlink policy / Policy B / `charly task sync` / `charly task verify` | `/charly-internals:git-workflow` |
+| New repo in the org / org ruleset / dotgithub config + workflows | `/charly-internals:repo-setup` |
+| Engineering-discipline triggers (failure surfaced / duplicate pattern / ad-hoc fix tempting / "out of scope" framing) | `/charly-internals:strict-policy` |
+| R1 — any unexpected failure, error, warning, anomaly, or doc-vs-reality divergence, before any remediation | `/charly-internals:root-cause-analyzer` |
+| Sub-agents / dynamic workflows / agent teams / fresh validator sessions / monitoring, rotating or stopping a subagent / agent-lifecycle or commit-push gate hooks / the session ledger / claim-or-track an issue | `/charly-internals:agents` |
+| Evaluate or audit a deployment config (image or deploy) | `/charly-check:check`, `/charly-internals:agents` |
+| Verify a cutover by running the R10 beds | `/charly-check:check`, `/charly-internals:agents` |
+| `charly check *` (any check verb) / `charly check run <bed>` / `.check/<bed>/<calver>/summary.yml` / authoring `disposable: true` beds / `charly check live` / probe verbs (cdp/wl/dbus/vnc/mcp/record/spice/libvirt) / `iterate:` scoring / `plan:` step authoring / `charlycheck/*` branches | `/charly-check:check` |
+| Agent Driven Evaluation (ADE) / `charly box feature run` / `charly check feature run` / `charly feature list/pending/validate` / a candy's `plan:` + `description:` / the grader for `agent-check:` steps | `/charly-check:check`, `/charly-internals:strict-policy` |
+| Hard cutover / rename sweeps | `/charly-internals:cutover-policy` |
+| `disposable: true` / preemptible / `requires_exclusive:` / `charly preempt` / exclusive host-resource arbitration (GPU contention) / autonomous destroy+rebuild | `/charly-internals:disposable`, `/charly-core:deploy` |
+| Plugin authoring (a candy with a `plugin:` block) / builtin vs out-of-tree plugin / per-plugin `.cue` schema / the plugin SDK (`github.com/opencharly/sdk`) / `compiled_plugins:` / host-coupled kit candy / external plugin module | `/charly-internals:plugin` |
+| Editing `spec/schema/*.cue` / `charly task cue-gen` / `cue exp gengotypes` / `cue_types_gen.go` / Schema Driven Design (SDD) / a schema spike | `/charly-internals:go`, `/charly-internals:plugin` |
+| Go source work (adding/modifying `charly` commands) | `/charly-internals:go` |
+| Go code quality / AGENTS.md-compliance audit / `golangci-lint` / `dupl` / duplication or dead-code check / `.golangci.yml` | `/charly-internals:go-quality`, `/charly-internals:strict-policy` |
+| IR / InstallPlan / EmitTarget / OCITarget | `/charly-internals:install-plan` |
+| OCI labels / capabilities contract | `/charly-internals:capabilities` |
+| Egress config validation (`ValidateEgress`, the CUE egress schemas) | `/charly-internals:egress` |
+| VmSpec / libvirt / cloud-init / OVMF internals | `/charly-internals:vm-spec` |
+| Skill authoring or maintenance / where guidance belongs (README vs `AGENTS.md` vs skill vs `CHANGELOG/`) | `/charly-internals:skills` |
+| Marketplace corpus generation / refs list / per-harness vendoring | `/charly-internals:marketplace` |
+| `charly docs` / opencharly.ai / the opencharly/docs repo / Starlight/Astro / `candy/docs-site` / the `check-docs` bed / docs regeneration pin bumps | `/charly-build:docs`, `/charly-tools:docs-site` |
 | Agent control plane (`charly agent`, sessions, `charly tui`, MCP routing) | `/charly-automation:agent` |
 | Host command aliases / wrapper scripts | `/charly-automation:alias` |
-| Container lifecycle / deploy / status / config (`charly config`, `charly status`, `charly start/stop/remove`) | `/charly-core:charly-config` |
+| Container lifecycle / status / config (`charly config`, `charly status`, `charly start/stop/remove`) | `/charly-core:charly-config` |
 | Health / dependency / hardware diagnosis (`charly doctor`) | `/charly-core:charly-doctor` |
-| Secrets / Secret Service / `.secrets` / credential management | `/charly-build:secrets` |
-| Box / candy authoring (`charly.yml`, composition, build targets) | `/charly-image:image` |
-| Candy (layer) authoring — plan steps, services, packages | `/charly-image:layer` |
-| Docs / marketplace regeneration (`docs generate`, `marketplace generate`, pin bumps, corpus drift) | `/charly-build:docs` |
-| Marketplace corpus generation / refs-list / per-harness vendoring | `/charly-internals:marketplace` |
-| Skill maintenance / marketplace corpus authoring | `/charly-internals:skills` |
-| Where guidance belongs — README (user overview) vs `AGENTS.md` (agent guidance) vs skill detail vs `CHANGELOG/` (history) | `/charly-internals:skills` |
-| Session ledger / "what am I working on" / "where must I comment" / claim-or-track an issue (the durable ledger on a harness with no todo primitive) | `/charly-internals:agents` |
-| Hard-cutover / rename sweeps (remove legacy in the same phase) | `/charly-internals:cutover-policy` |
-| `disposable: true` authorization / autonomous destroy+rebuild | `/charly-internals:disposable` |
-| Plugin authoring (a candy with a `plugin:` block, providers, CUE schema) | `/charly-internals:plugin` |
-| OCI labels / capabilities contract | `/charly-internals:capabilities` |
-
-Load a skill's SKILL.md by path ONLY when its trigger matches — never pre-load, never
-load-all. The available-skills index lists every skill; the dispatcher is the routing.
+| `charly deploy add/del` / pod or container deploys | `/charly-core:deploy` |
+| `charly clean` / `keep_images` / `keep_check_runs` / image-tag pruning / `.check` run cleanup | `/charly-core:clean` |
+| Secrets / `charly secrets` / Secret Service / GPG `.secrets` | `/charly-build:secrets` |
+| Editing a box (`box/<name>/charly.yml`) / box composition | `/charly-image:image` |
+| Editing a candy (`candy/<name>/charly.yml`) / candy tasks, services, packages | `/charly-image:layer` |
+| `charly box build` / `charly box generate` / Containerfile | `/charly-build:build`, `/charly-build:generate`, `/charly-internals:generate-source` |
+| `charly box load` / an image into a pod's nested podman store | `/charly-build:load` |
+| `charly box reconcile` / cross-repo `@github` pin alignment | `/charly-build:reconcile` |
+| `charly box validate` / schema error | `/charly-build:validate` |
+| `charly migrate` / schema migration / CalVer schema version | `/charly-build:migrate` |
+| `charly update` / `charly vm *` / VM entities in `vm.yml` or `vm:` | `/charly-internals:vm-deploy-target`, `/charly-vm:vm` |
+| Managed `~/.config/charly/ssh_config` fragment / `charly vm create` Host stanza | `/charly-local:local-deploy`, `/charly-vm:vm` |
+| Local-target or SSH-host deploy (`target: local`, `host:`, `user:`, `ssh_arg:`) | `/charly-internals:local-infra`, `/charly-local:local-deploy` |
+| Editing `local.yml` / authoring `kind: local` templates | `/charly-local:local-spec` |
+| CachyOS images / `cachyos*` / `charly-cachyos` profile / `box/cachyos` | `/charly-distros:cachyos`, `/charly-local:charly-cachyos`, `/charly-vm:cachyos-bootstrap-vm` |
+| Debian images / `debian*` / `box/debian` | `/charly-distros:debian`, `/charly-distros:debian-builder`, `/charly-distros:debian-debootstrap`, `/charly-coder:debian-coder`, `/charly-vm:debian-debootstrap-vm` |
+| Fedora images / `fedora*` / `box/fedora` (incl. `nvidia` / `python-ml` / `sway-browser-vnc`) | `/charly-distros:fedora`, `/charly-distros:charly-fedora`, `/charly-distros:fedora-builder`, `/charly-distros:fedora-nonfree`, `/charly-distros:fedora-test`, `/charly-distros:nvidia`, `/charly-coder:fedora-coder` |
+| Ubuntu images / `ubuntu*` / `box/ubuntu` | `/charly-distros:ubuntu`, `/charly-distros:ubuntu-builder`, `/charly-distros:ubuntu-debootstrap`, `/charly-coder:ubuntu-coder`, `/charly-vm:ubuntu-debootstrap-vm` |
+| nested-podman-socket / a rootless podman API socket at uid 1000 inside a pod | `/charly-distros:nested-podman-socket` |
+| `kind: android` / `target: android` / `apk:` packages / adb endpoints / nested `pod → android` | `/charly-check:android`, `/charly-core:deploy` |
+| The `adb:` check verb | `/charly-check:adb`, `/charly-check:check` |
+| The `appium:` check verb / Android UI automation | `/charly-check:appium`, `/charly-check:check` |
+| The `jetkvm:` check verb / charly on a JetKVM (`charly-jetkvm`) | `/charly-check:jetkvm`, `/charly-check:check` |
+| The `punktfunk:` check verb | `/charly-check:punktfunk`, `/charly-check:check` |
+| A punktfunk streaming host / `punktfunk-host` units / the punktfunk pacman repo | `/charly-punktfunk:punktfunk-host` |
+| The `kube:` check verb | `/charly-kubernetes:check-k8s` |
+| `step:helm-release` / `verb:helm` / `helm_charts:` / `--enable-helm` | `/charly-kubernetes:helm` |
+| `charly agentteams` controller / the `verb:agentteams` check verb / `charly agentteams apply -f` | `/charly-agentteams:agentteams-cli` |
+| The agentteams box / the AgentTeams stack / the `check-agentteams-vm` bed | `/charly-agentteams:agentteams` |
 
 ## Charly CLI discipline
 
-- **The `charly` CLI (or its owning skill's documented procedure) is the ONLY operational
-  interface for charly-managed resources.** Containers, pods, VMs, deploys, checks, secrets,
-  image builds, and lifecycle state are driven through `charly` — never through
-  `podman`/`docker`/`systemctl`/raw shell, and never by a hand-rolled substitute script.
-- **ALWAYS load the dispatcher-selected skill before the first tool call; NEVER skip R0.**
-  A tool action before R0 admission is a violation. A harness that cannot load a skill reads
-  the matching `<family>/skills/<skill>/SKILL.md` — it does not proceed without the
-  procedure.
-- **A missing verb or owning skill is a product defect, not permission to work around it.**
-  RCA it (R1) and fix the capability in its owning repo; an ad-hoc skip, inline command, or
-  local script substitute is forbidden (R4). If the fix is genuinely out of scope, stop and
-  ask the operator.
-- **Umbrella-native mechanics are the sanctioned path for umbrella work:**
-  `./charly/bin/charly task sync`, `./charly/bin/charly task verify`, `bash scripts/*`, and
-  submodule git through `git -C <absolute-path>` (rule 1). These are the umbrella's own
-  commands, not ad-hoc substitutes.
-- **Ask DeepWiki for architecture, but the code in the repos is the authority.** Where a
-  grep cannot answer *how* a repo is put together, query the `deepwiki` MCP server (tools
-  `read_wiki_structure`, `read_wiki_contents`, `ask_wiki_question`) about its GitHub repo
-  instead of guessing — and treat its answer as a pointer to read, not as truth: when the
-  wiki and the code disagree, the code wins.
+- **The `charly` CLI is the ONLY operational interface for charly-managed resources** —
+  containers, pods, VMs, deploys, checks, secrets, builds, lifecycle state. Never
+  `podman`/`docker`/`systemctl`/raw shell, never a hand-rolled substitute script.
+- **A missing verb or owning skill is a product defect, not permission to work around
+  it.** RCA it (R1) and fix the capability in its owning repo (R4); if that is genuinely
+  out of scope, stop and ask the operator.
+- **Umbrella-native mechanics are the sanctioned path for umbrella work:** `charly task`
+  verbs (Part II), `bash scripts/*`, and `git -C <absolute-path>`.
+- **Ask DeepWiki for architecture; the code is the authority.** Where a grep cannot answer
+  *how* a repo is put together, query the `deepwiki` MCP server — its answer is a pointer
+  to read, not truth. *Detail:* `/charly-internals:agents`.
 
-### Umbrella maintenance commands
+## Candyboxing
 
-Build the binary once per clone with `./charly/scripts/bootstrap-charly.sh` (the ONE
-non-charly entrypoint — the build that produces the binary cannot itself be a charly task),
-then run the umbrella's maintenance from the umbrella root:
+Secure the candybox boundary, not its toolset: people and agents use the same full
+`charly` CLI inside rootless containers, isolated VMs, encrypted volumes, and explicitly
+disposable targets; one declarative recipe serves every substrate. Every candy, box, verb,
+and subsystem has an owning skill. Rebuild a wrong disposable candybox from the clean
+recipe instead of patching around it, and prove the factory from inside fresh disposable
+candyboxes. *Detail:* `/charly-internals:strict-policy`.
 
-| command | purpose |
-|---|---|
-| `./charly/bin/charly task map` | list every submodule with its pin and sync state |
-| `./charly/bin/charly task sync` | bump pins per policy B (preview; does not commit) |
-| `./charly/bin/charly task hooks` | install `hooks/pre-commit` for this clone (once) |
-| `./charly/bin/charly task verify` | the full pinning audit, on demand |
-| `./charly/bin/charly task org-map` | verify the README org-map tables vs `.gitmodules` |
-| `./charly/bin/charly task skills` | splice the generated R0 dispatcher into this file |
-| `./charly/bin/charly task policy-b` | assert policy B — every `distro-*` gitlink equals charly's own `box/*` gitlink |
-| `./charly/bin/charly task pins` | the policy-B pin operation over the `distro-*` set (mode via param) |
-| `./charly/bin/charly task self-test` | self-test the committed CI body/pin-evidence builders + the dispatcher splice |
-| `./charly/bin/charly task omarchy-agents` | gate the committed omarchy PR-eval pi agents (tracked + parseable) |
-| `./charly/bin/charly task pi-forks` | sync the opencharly pi-plugin forks from their upstreams (requires `gh` auth) |
-| `./charly/bin/charly task prune` | reap merged-upstream session worktrees + branches (`MODE=report` is a dry run) |
+## Risk Driven Development (RDD)
 
-`./charly/bin/charly task list` enumerates them — twelve today, and the README's
-`## Maintenance commands` table must match this list row for row. The detailed mechanics —
-the branch/PR loop, policy-B sync order, the after-merge cleanup, and new-repo onboarding —
-are owned by `/charly-internals:git-workflow` and `/charly-internals:repo-setup`; load them
-before any git/PR action.
+Prove every high-risk assumption early on a live `disposable: true` target — when being
+wrong would invalidate the plan, docs and source reading are not proof. A spike answers one
+named unknown, is time-boxed and thrown away, never ships or replaces R10; a discovery that
+changes the contract needs operator direction. Correct contradicted docs in the same
+change. *Detail:* `/charly-internals:strict-policy`.
 
-## Command hygiene & context discipline
+## Agent Driven Evaluation (ADE)
 
-Commands run with **SIGPIPE ignored**, so `grep <pattern> <huge-file> | head -N` does NOT
-kill grep when head exits — grep keeps writing to the closed pipe and prints `grep: write
-error: Broken pipe` per failed write, flooding output with hundreds of identical lines and
-truncating the response. This is a recurring, self-inflicted context-waste failure; the
-following rules are mandatory:
+Each candy's `plan:` is its acceptance test with at least one deterministic `check:`. One
+intent per item: `run:` changes state, `check:` probes idempotently, `agent-run:` may
+mutate, `agent-check:` assesses read-only, `include:` composes. Parse errors, timeouts,
+and failed grading fail the step. *Detail:* `/charly-check:check`.
 
-- **NEVER pipe unbounded grep into `head`/`awk`/`sed` for "first N matches".** Use `grep -m
-  N` (max-count) — grep terminates itself after N matches, no closed pipe, deterministic in
-  every environment.
-- **Redirect large outputs to a file first** (`cmd > /tmp/x.log 2>&1`), then read the file
-  with `grep -m N` / `sed -n 'a,bp'` — never stream a multi-MB log through the response.
-- **Bound every command's output.** If a command can print more than a screen, cap it
-  (`-m`, `-n`, `--max-count`, `tail -c`), or redirect to a file.
-- **Never re-issue the same diagnostic command in a loop.** If a command's output was
-  truncated or the answer is not visible, change the approach (file + bounded read, or a
-  subagent) — repeating the identical command is the failure mode, not the fix.
+## Schema Driven Design (SDD)
 
-## PR body & attribution (the acceptance surface)
+Authored configuration and host/plugin wire shapes are defined in CUE before code; Go is
+generated, never hand-transcribed. Validation, migration, plugin inputs, and egress derive
+from the same schema, and clean regeneration is a no-op. The core pipeline is in
+`charly/AGENTS.md`. *Detail:* `/charly-internals:go`.
 
-Every PR body must contain: **## Summary** (what changed and why), **## How tested**
-(pasted command + output for every verification step), **## Rulebook compliance** (the rules
-applicable to the change), **## Change classification** (change class, verification gate,
-attribution tier), and the italicized footer as the FINAL line. **The PR body IS the
-changelog** — the tag-on-merge workflow writes it to `CHANGELOG/<CalVer>.md` at merge time;
-no separate CHANGELOG section is needed. These are enforced by the fresh
-`charly/pr-validator` at merge.
+## Prioritize Clean Architecture Above All Else
+
+Conch every change: remove duplication, dead code, aliases, band-aids, and misplaced
+behavior; complexity, compatibility convenience, and sunk effort never justify weakening
+the target architecture. Core is a generic plugin host — concrete kinds and behavior live
+in plugins (the boundary law is in `charly/AGENTS.md`; *Detail:*
+`/charly-internals:plugin`).
+
+## Memory hygiene
+
+A saved system fact is a claim: R1 establishes it, RDD proves high-risk ones before they
+are saved. Keep preferences narrow and dated, verify named artifacts before reuse, and
+correct or delete stale memory when live evidence disagrees.
+
+## Ground-truth rules R1–R10
+
+- **R1 — RCA every anomaly.** The first failure, warning, error, unexpected exit, doc
+  divergence, or rule violation stops remediation until a fresh root-cause analysis names
+  mechanism, missed control, blast radius, and root fix. Zero warnings is the only pass —
+  never "pre-existing", "out of scope", or "follow-up PR". *Detail:*
+  `/charly-internals:root-cause-analyzer`.
+- **R2 — Finish the whole cutover.** Every in-scope occurrence and same-mechanism sibling;
+  no deferral, partial rename, hidden follow-up, or scope shrinking.
+- **R3 — No duplication.** One canonical implementation or rule per behavior; extract on
+  the second occurrence and delete the copies in the same cutover.
+- **R4 — No workarounds.** No sleeps, blind retries, suppressions, fallback branches,
+  manual infrastructure commands, magic fixtures, or serialization that hides a race.
+- **R4a — Fix the product first; docs never route around a defect.** Establish which side
+  holds the intent and fix the code before the prose. Every documented command must work
+  with nothing but the `charly` binary installed; needing more is a product defect.
+  *Detail:* `/charly-build:docs`.
+- **R5 — Delete legacy completely.** Old names, paths, shims, aliases, TODOs, and stale
+  docs go in the same phase, proven by a claim-keyed repo-wide grep.
+- **R6 — Preserve user work and Git safety.** `git status` first; never overwrite unrelated
+  changes; no destructive reset/checkout, force-push, history rewrite, hook bypass
+  (`--no-verify`, `core.hooksPath`), or direct push to `main`.
+- **R7 — Prove behavior, not compilation.** Coverage that fails without the change, the
+  changed path executed live, commands/outputs/exit codes retained. A test that cannot
+  fail is invalid.
+- **R7a — Live or skip, never fake a live service.** A boundary crossing a real service
+  runs against it or skips visibly when its credential is absent — never a mock of it.
+- **R8 — Preserve emitted artifacts.** Validate labels, plans, configs, schemas, and
+  generated files at their actual boundary.
+- **R9 — Binary equals source.** Use the worktree-local, CalVer-stamped build; never a
+  shared install. *Detail:* `charly/AGENTS.md`.
+- **R10 — Fresh disposable proof.** Run the gate `/charly-check:check` selects for the
+  change class on the final committed tree; runtime changes need a fresh rebuild and live
+  run on every affected `disposable: true` target. No class exemption — a plugin-library
+  or schema change runs the full assembled bed.
+
+Any rule violation forbids commit; a lower confidence tier never legalizes one. Fix it and
+rerun the gate, or stop and ask the operator. *Detail:* `/charly-internals:strict-policy`.
+
+## Disposable-Only Autonomy
+
+Autonomous mutation is authorized only on targets explicitly marked `disposable: true` —
+never inferred from a name, environment, or habit — and only through the owning
+deploy/check command. Never interrupt or clean an active long-running bed because it is
+quiet; wait for its exit and current `summary.yml`. *Detail:*
+`/charly-internals:disposable`.
+
+## Hard Cutover by Default
+
+A cutover is the largest coherent scope one R10 gate can honestly prove. Code, tests,
+schemas, generated artifacts, docs, and changelogs move together; no shims, dual paths, or
+deferred cleanup. Verify status, HEAD, merge-base, submodule lineage, and remote base before
+implementation and again before landing; never manufacture alternate homes, caches, or
+clones to make a command pass — a denied required action is `BLOCKED`. *Detail:*
+`/charly-internals:cutover-policy`.
+
+## Agents, Workflows & Teams
+
+Delegate bounded, independent work to addressable agents; the author stays responsible for
+briefs, integration, and evidence. R1 uses a fresh root-cause-analyzer and landing a fresh
+independent `pr-validator` — never impersonate either or pass author output off as
+independent. Delegated executors return verbatim commands, outputs, and exit codes.
+*Detail:* `/charly-internals:agents`.
+
+## Acceptance checklist
+
+Before declaring completion, answer every applicable item YES:
+
+- RDD proved every high-risk assumption early.
+- Every anomaly and stale claim received RCA before remediation.
+- The cutover has no surviving legacy path, duplication, workaround, or stale current
+  documentation.
+- Coverage fails without the change and validates real emitted artifacts.
+- The real changed source produced the artifact under test.
+- The exact final-tree R10 change-class gate passed with zero warnings.
+- The approved plan completed with no hidden phase, TODO, or substitute.
+- Every repository landed through one attributed squash commit, a fresh independent
+  validator, protected merge, and immutable merge-time tag.
+
+## Key Rules
+
+- The `charly` CLI is the only operational interface for managed resources.
+- One canonical CUE schema owns authored and wire shapes; generated Go is reproducible.
+- Every candy ships a non-empty `description:` and a deterministic, executable check
+  plan.
+- Capabilities and effective versions are content-derived OCI-label contracts.
+- Concurrency is proven under load; races are root-fixed, never hidden.
+
+# Part II — Umbrella rules
+
+1. **Never edit inside a submodule.** Change lands by PR to the owning repo; the umbrella
+   records only gitlinks, and a dirty submodule fails `verify`. Run submodule git through
+   `git -C <absolute-path>` from the umbrella root; never root a worker in a submodule or
+   let git cross the boundary implicitly. *Detail:* `/charly-internals:git-workflow`
+   (umbrella mechanics).
+
+2. **Sessions root at the umbrella; edits happen in a session worktree.** Each repo a
+   session edits gets its own worktree at `<umbrella>/.worktrees/<slug>/<repo>/`, branched
+   off fresh `origin/main`; tracked submodule checkouts stay at their gitlinks. Every Go
+   build happens inside `charly/` (no nested `go.work`). *Detail:*
+   `/charly-internals:git-workflow`.
+
+3. **Pins are gitlinks; Policy B is the contract.** Pin only MERGED refs; `distro-*` equals
+   charly's own gitlinks; advance pins only with `./charly/bin/charly task sync` + PR — never
+   a hand-pin or a branch checkout. *Detail:* `/charly-internals:git-workflow` (pinning).
+
+4. **Read the subrepo's own rulebook first.** Its `AGENTS.md` adds repo-specific rules on
+   top of Part I — read it before acting there.
+
+5. **Harness config lives only in the umbrella.** Every harness's configuration lives at
+   this repo's root and nowhere else — no mirrors, no parity gate. *Detail:*
+   `/charly-internals:agents`.
+
+6. **Session-scoped ownership; issue-first coordination.** A file, branch, worktree, or PR
+   you did not author belongs to another session: never edit, revert, stage, or commit it.
+   Before non-trivial work, search the org for an existing issue/PR and add to it; else file
+   ONE issue and CLAIM it (comment + assign) before branching. When another session blocks
+   you, comment on the PR that owns the blocking file, then ask the operator. Replacing a PR
+   or issue means commenting on the old one; close each issue when its PR merges, and
+   leave no uncommitted file of your authorship.
+   *Detail:* `/charly-internals:git-workflow` (B2b).
+
+7. **Agent identity and the coordination verb grammar.** On a contended or blocking scope,
+   every agent comment and PR body carries `Agent:` FIRST and `Assisted-by:` LAST, and a
+   coordination comment opens with one label from `CLAIM` · `OWNING` · `HANDING OVER` ·
+   `TAKING OVER` · `BLOCKS` · `UNBLOCKS` · `STATUS` · `RESOLVED`. The latest `OWNING` wins:
+   never push to another slug's claimed branch without a handover, a takeover, or operator
+   sign-off. Takeover is comment-first — no comment, no takeover, ever — and the takeover
+   window is 60 minutes without progress (a completed `charly/pr-validator` run). A maintainer
+   sign-off counts only from `atrawog`/`aitrawog`: the posting ACCOUNT is the entire gate;
+   never impersonate the operator. A PR the validator auto-closes
+   (`AI_REVIEW_AUTO_CLOSE_AFTER`, default 5) continues in a new PR, and the old one gets
+   `RESOLVED — superseded by #<n>`. *Detail:* `/charly-internals:git-workflow` (B2b.1).
+
+8. **Before ANY update push, read live state AND write the body.** First read the PR's
+   latest comments and validator verdict and every related issue, and act on each — fix
+   EVERY finding of a BLOCK, never a subset; then write the whole body for the head you
+   publish. Land all fixes in one commit. *Detail:* `/charly-internals:git-workflow`
+   ("BEFORE ANY UPDATE PUSH").
+
+9. **Ledger and interruption safety.** Keep a durable ledger of every running subagent,
+   open PR, blocker, and long-running operation. Reconcile any interruption into it FIRST,
+   then act — an interruption is an addition, never a reset. *Detail:*
+   `/charly-internals:agents` (todo ledger).
+
+## Post-Execution Policies
+
+- **PR-only and producer-first** (producer PR → merge → tag → consumer pin bump → umbrella
+  PR). No agent merges: a `charly/pr-validator` PASS arms native auto-merge and
+  `tag-on-merge` writes `CHANGELOG/<CalVer>.md` from the PR body. Review fixes are
+  append-only commits; a `BEHIND` branch is updated, never force-pushed. Never `gh pr
+  merge`, `--admin`, bypass protection, or move a release tag.
+- **The gate the diff requires, pasted from the final tree:**
+  `./charly/bin/charly task verify` whenever the diff touches a submodule, gitlink, or pin;
+  otherwise the gate that owns the change (`scripts/check-*.mjs`, the R10 bed) plus its
+  changed paths executed live.
+- **The PR body is the changelog**: `## Summary`, `## How tested`, `## Rulebook
+  compliance`, `## Change classification`, and the italic attribution footer LAST.
+
+*Detail:* `/charly-internals:git-workflow`.
+
+## AI Attribution (Fedora Policy Compliant)
+
+Every AI-authored commit ends `Assisted-by: <Harness> <Provider Full Model Name>
+(<confidence>)`, using the runtime's exact names; issues and PRs end with the matching
+italic line (after the `Agent:` line when one is used). Human-only work carries none; a
+model-free CI body uses the `<Harness> <Runtime>` form. *Detail:*
+`/charly-internals:git-workflow`.
 
 | Confidence | Required proof |
 |---|---|
-| `fully tested and validated` | `./charly/bin/charly task verify` passed on the final tree, changed paths executed live |
-| `analysed on a live system` | Changed runtime path ran live with retained output; full gate did not pass |
-| `documentation reviewed` | Docs-only change class (forbidden if pins/scripts changed) |
-| `syntax check only` | Dry-run only — do not commit |
-| `theoretical suggestion` | No validation — never ship |
+| `fully tested and validated` | The change-class gate passed on the final tree (every affected fresh-rebuild R10 target for runtime changes); changed paths executed live. |
+| `analysed on a live system` | The changed runtime path ran live with retained output; the full gate did not pass. |
+| `documentation reviewed` | Docs, comments, or a docs-only gitlink changed, and every non-runtime standard passed. Forbidden if code, pins, scripts, or behavioral config changed; runtime tiers are forbidden for prose-only work. |
+| `syntax check only` | Compile, unit, or dry-run proof only — do not commit. |
+| `theoretical suggestion` | No validation — never ship. |
+
+## Command hygiene & context discipline
+
+Commands run with SIGPIPE ignored, so `grep <pat> <huge-file> | head -N` floods the output
+with `grep: write error: Broken pipe`.
+
+- **Use `grep -m N` for "first N matches"** — never `grep | head`.
+- **Redirect large outputs to a file** (`cmd > <scratch>/x.log 2>&1`), then read it bounded
+  (`grep -m N`, `sed -n 'a,bp'`).
+- **Bound every command's output** (`-m`, `-n`, `tail -c`) or redirect it.
+- **Delegate output-heavy investigation to a subagent** that returns a verdict plus
+  evidence paths.
+- **Never re-issue the same diagnostic command in a loop** — change the approach.
 
 ## Hooks doctrine
 
-Deterministic git-workflow mechanics — bypass flags, force-push, direct-main push,
-untokenizable commands — are enforced by the umbrella's clone-level git hook together with
-the shared gate scripts (installed per clone via `./charly/bin/charly task hooks`). A
-separate committed gate, `scripts/check-harness-config.mjs`, audits the harness-config
-surfaces themselves — that each still parses and stays wired, including the DeepWiki MCP
-entry — and its `--self-test` proves every check live. Attribution, change class, and
-rulebook compliance are judged once by the fresh `pr-validator` at merge — never by the
-gates. The per-harness wiring is owned by `/charly-internals:agents`.
+Hooks guard deterministic mechanics only (bypass flags, force-push, direct-main push,
+untokenizable commands); agents and the fresh `pr-validator` judge policy, attribution,
+and proof. Install the clone-level hook once with `./charly/bin/charly task hooks`.
+*Detail:* `/charly-internals:agents`.
 
-Reference: `README.md` (pinning policy), `.github/workflows/` (CI contract), `SOUL.md`
-(identity).
+## Where things are documented
+
+- `SOUL.md` — identity; `VISION.md` — thesis and direction; `PROGRAM/` — binding program
+  north stars.
+- `README.md` — the org map, user overview, and the maintenance-command table
+  (`./charly/bin/charly task list`; build the binary once per clone with
+  `./charly/scripts/bootstrap-charly.sh`).
+- The opencharly/marketplace repo — every skill (`<family>/skills/<skill>/SKILL.md`) and
+  the full skill index in its README.
+- [opencharly.ai](https://opencharly.ai) — the public site, generated from sources; never
+  hand-edit a generated page.
+- `CHANGELOG/` — history only.

@@ -16,14 +16,14 @@ mode = "ask"
 # and hold in every mode, which makes them stronger than the gate scripts: the
 # hooks run your own code before a call, these refuse it outright.
 deny = [
-    # PR-only landing (AGENTS.md rule 10): main advances only via a validated
+    # PR-only landing (AGENTS.md "Post-Execution Policies"): main advances only via a validated
     # PR merge, and no branch is ever force-pushed. The pre-push gate already
     # blocks these; the rule holds even if a hook is bypassed.
     "Bash(git push --force*)",
     "Bash(git push -f*)",
     "Bash(git push origin main*)",
     "Bash(git push origin HEAD:main*)",
-    # Destructive working-tree operations (AGENTS.md rule 10 / R6).
+    # Destructive working-tree operations (AGENTS.md R6).
     "Bash(rm -rf*)",
 ]
 
