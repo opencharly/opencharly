@@ -1,6 +1,6 @@
 /**
  * coord.ts — the OpenCode-native coordination surface (`AGENTS.md` "Agent identity
- * & comment coordination", extends rule 9), implemented in PURE TypeScript.
+ * & comment coordination", extends rule 7), implemented in PURE TypeScript.
  *
  * HARNESS SPLIT (operator directive, 2026-09-29; supersedes the earlier
  * "co-locate the .sh" brief). Harness-INDEPENDENT tooling is SHELL — the coordination

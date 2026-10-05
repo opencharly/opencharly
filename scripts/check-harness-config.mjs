@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// check-harness-config.mjs — validates the umbrella's harness-config surfaces (rule 8:
+// check-harness-config.mjs — validates the umbrella's harness-config surfaces (rule 5:
 // harness config lives at this root, not in a submodule) and the wiring between them.
 //
 // It exists because the root carries several per-harness surfaces that nothing else

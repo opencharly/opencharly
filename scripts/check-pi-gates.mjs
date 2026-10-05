@@ -12,7 +12,7 @@
 //
 //   1. FAIL-CLOSED — a gate whose script ERRORS must BLOCK, never `continue`. A
 //      fail-open wiring is a bypass path (the gate silently does not run).
-//   2. RULE-9 PATHS — the worktree tool must use `<umbrella>/.worktrees/<slug>/`,
+//   2. RULE-2 PATHS — the worktree tool must use `<umbrella>/.worktrees/<slug>/`,
 //      not `.claude/worktrees/`, and name the binary `charly/bin/charly`.
 //   3. REGISTERED — the `tool_call` hook and both gate scripts are present.
 //
@@ -62,10 +62,10 @@ function check() {
     fail(`fails CLOSED on an unexpected gate error (the exec catch must block with the fail-closed reason)`);
   if (!/block:\s*true/.test(code)) fail(`returns a block on a gate failure`);
 
-  // 2. rule-9 paths
+  // 2. rule-2 paths
   if (/\.claude["'`,\s]*,\s*["'`]worktrees/.test(code) || /join\([^)]*\.claude[^)]*worktrees/.test(code))
-    fail(`uses <umbrella>/.worktrees/<slug>/ (rule 9), not .claude/worktrees`);
-  if (!/\.worktrees/.test(code)) fail(`uses <umbrella>/.worktrees/<slug>/ (rule 9)`);
+    fail(`uses <umbrella>/.worktrees/<slug>/ (rule 2), not .claude/worktrees`);
+  if (!/\.worktrees/.test(code)) fail(`uses <umbrella>/.worktrees/<slug>/ (rule 2)`);
   if (!/charly\/bin\/charly/.test(code)) fail(`names the worktree binary charly/bin/charly`);
 
   // 3. registered
@@ -78,7 +78,7 @@ function check() {
   if (!/readSoul/.test(code) || !/SOUL\.md/.test(code)) fail(`injects the project-root SOUL.md identity (readSoul)`);
   if (!/pi\.on\(\s*["'`]before_agent_start["'`]/.test(code)) fail(`injects SOUL.md via the before_agent_start handler`);
 
-  if (failures === 0) ok(`${rel}: fails closed, rule-9 paths, gate wiring + SOUL injection present`);
+  if (failures === 0) ok(`${rel}: fails closed, rule-2 paths, gate wiring + SOUL injection present`);
 }
 
 // ── --self-test: prove each assertion goes RED on a mutation ──────────────────
