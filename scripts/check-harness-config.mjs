@@ -43,6 +43,13 @@
 //                                                 [status: disc | negative: struct]
 //   6. Every harness surface that supports MCP declares the DeepWiki
 //      server.                                                       [discriminating]
+//   7. SOUL.md is injected into every harness that has an additive mechanism.
+//                                                                     [discriminating]
+//   8. reasonix.toml wires the marketplace skill root.               [discriminating]
+//   9. .reasonix/settings.json uses reasonix's OWN hook key.          [discriminating]
+//  10. The Ollama web-search code extension ships as a v2 plugin package.
+//                                                                     [discriminating]
+//  11. The PR watcher is bound for reasonix.                          [discriminating]
 //
 // Usage:
 //   node scripts/check-harness-config.mjs                 # check this tree
@@ -97,6 +104,10 @@ if (argv.includes("--self-test")) {
     "opencode.json",
     ".codex/config.toml",
     ".reasonix/settings.json",
+    ".reasonix/soul-inject.sh",
+    ".reasonix/plugin/reasonix-plugin.json",
+    ".reasonix/watch.items",
+    "reasonix.toml",
     ".opencode/package.json",
     ".pi/extensions/charly-gates.ts",
   ];
@@ -146,6 +157,12 @@ if (argv.includes("--self-test")) {
     [".codex/config.toml", (p) => { const t = readFileSync(p, "utf8").split("\n").filter((l) => !/^\[mcp_servers\.deepwiki\]$/.test(l.trim()) && !/^url\s*=/.test(l.trim())).join("\n"); writeFileSync(p, t); }, ".codex/config.toml declares the DeepWiki server", "6"],
     ["opencode.json", (p) => { const o = JSON.parse(readFileSync(p, "utf8")); o.instructions = [".opencode/instructions.md"]; writeFileSync(p, JSON.stringify(o)); }, "injects SOUL.md for opencode", "7 (opencode arm)"],
     [".pi/extensions/charly-gates.ts", (p) => writeFileSync(p, readFileSync(p, "utf8").replace(/readSoul/g, "__soul_removed__")), "injects the SOUL.md identity", "7 (pi arm)"],
+    [".reasonix/soul-inject.sh", (p) => writeFileSync(p, readFileSync(p, "utf8").replace(/cat "\$SOUL"/, "true")), "injects SOUL.md for reasonix", "7 (reasonix arm — a wired hook whose script stopped emitting must FAIL)"],
+    [".reasonix/settings.json", (p) => { const s = JSON.parse(readFileSync(p, "utf8")); s.hooks.SessionStart = s.hooks.SessionStart.filter((h) => !h.command.includes("soul-inject")); writeFileSync(p, JSON.stringify(s)); }, "injects SOUL.md for reasonix", "7 (reasonix arm — an UNWIRED hook must FAIL)"],
+    ["reasonix.toml", (p) => writeFileSync(p, readFileSync(p, "utf8").replace(/^paths\s*=\s*\[[^\]]*\]/m, "paths = []")), "wires the marketplace skill root", "8"],
+    [".reasonix/settings.json", (p) => { const s = JSON.parse(readFileSync(p, "utf8")); s.hooks.PreToolUse[0].match = "*"; writeFileSync(p, JSON.stringify(s)); }, 'native reasonix "match" key', "9 (the Claude `matcher` spelling must not satisfy it)"],
+    [".reasonix/plugin/reasonix-plugin.json", (p) => rmSync(p), "reasonix-plugin.json exists", "10"],
+    [".reasonix/watch.items", (p) => rmSync(p), "(the reasonix watch binding) exists", "11"],
   ];
   for (const [surface, mutate, expect, check] of mutations) {
     stage(); // revert everything, then apply exactly this mutation
@@ -205,6 +222,26 @@ const tomlString = (p, table, key) => {
     if (m) return m[1];
   }
   return undefined;
+};
+// The companion array reader: the string elements of a SINGLE-LINE `key = ["a", "b"]`
+// inside `[table]`, or []. Narrow by design — the gate reads ONE array (`[skills] paths`)
+// — so it does not pull in a TOML library. A multi-line array reads as [] (a loud FAIL on
+// the assertion that uses it, never a silent pass).
+const tomlArray = (p, table, key) => {
+  const t = read(p);
+  if (t === null) return [];
+  let inTable = false;
+  for (const raw of t.split("\n")) {
+    const line = raw.trim();
+    if (line.startsWith("[") && line.endsWith("]")) {
+      inTable = line === `[${table}]`;
+      continue;
+    }
+    if (!inTable) continue;
+    const m = line.match(new RegExp(`^${key}\\s*=\\s*\\[(.*)\\]`));
+    if (m) return [...m[1].matchAll(/"([^"]*)"/g)].map((x) => x[1]);
+  }
+  return [];
 };
 
 // 1. Every harness JSON parses. STRUCTURAL: all four exist on `main` too, so this class
@@ -295,10 +332,18 @@ ok(existsSync(join(root, ".claude/workflows/audit-deploy-configs.js")), ".claude
 //                  file needed, which is the whole point.
 //      pi        — `.pi/extensions/charly-gates.ts` reads the project-root SOUL.md inside
 //                  its `before_agent_start` handler and injects it every turn.
-//    DEFERRED (named, not silently dropped): Codex and reasonix have no documented
-//    ADDITIVE session-context mechanism at their config surfaces (Codex's
-//    `model_instructions_file` REPLACES the base system prompt; reasonix's documented
-//    hooks are Bash-only) — a companion issue tracks them rather than guessing a config.
+//      reasonix  — a `SessionStart` hook whose STDOUT is injected into the next user turn
+//                  (`.reasonix/soul-inject.sh`, wired in `.reasonix/settings.json`).
+//    CORRECTED (opencharly/opencharly#367): this check previously DEFERRED reasonix on the
+//    stated ground that "reasonix's documented hooks are Bash-only". That premise is
+//    MEASURABLY FALSE — reasonix's hook events include `SessionStart`, and its documented
+//    contract is that a `SessionStart` hook's stdout ("plain text, or JSON with
+//    `hookSpecificOutput.additionalContext`") "is injected once into the next real user
+//    turn", which the host wraps as `<hook-context event="SessionStart">…</hook-context>`.
+//    That IS an additive session-context mechanism, so the arm is wired here rather than
+//    deferred again. (reasonix has no additive `instructions` config key — opencode's
+//    mechanism — so a hook is the right primitive, not a config field.)
+//    Codex stays deferred: its `model_instructions_file` REPLACES the base system prompt.
 //    Claude Code stays on the `AGENTS.md` pointer (operator decision): no new hook here.
 {
   const SOUL_SURFACES = [
@@ -315,11 +360,71 @@ ok(existsSync(join(root, ".claude/workflows/audit-deploy-configs.js")), ".claude
       },
       "pi (the before_agent_start handler injects the SOUL.md identity)",
     ],
+    [
+      ".reasonix/settings.json",
+      (v) => {
+        // The hook must be WIRED (a SessionStart entry naming the script)…
+        const hooks = Array.isArray(v.hooks?.SessionStart) ? v.hooks.SessionStart : [];
+        const wired = hooks.some((h) => typeof h?.command === "string" && h.command.includes("soul-inject.sh"));
+        // …and the script must actually READ SOUL.md and emit it on stdout, which is
+        // what reasonix injects. Both halves are asserted: a wired hook pointing at a
+        // script that no longer injects is exactly the silent capability loss here.
+        const t = read(".reasonix/soul-inject.sh") ?? "";
+        const injects = /SOUL\.md/.test(t) && /cat "\$SOUL"/.test(t) && !/exit 2/.test(t);
+        return wired && injects;
+      },
+      "reasonix (a SessionStart hook whose stdout is injected as <hook-context>)",
+    ],
   ];
   for (const [surface, asserts, who] of SOUL_SURFACES) {
     ok(asserts(jsonOr(surface), surface), `${surface} injects SOUL.md for ${who}`);
   }
 }
+
+// 8. reasonix.toml wires the marketplace skill root. DISCRIMINATING: an unmodified `main`
+//    carries no `[skills]` table at all, so Reasonix resolves only its builtin + global
+//    skills (MEASURED: 12) and none of the `/charly-<family>:<skill>` references in
+//    AGENTS.md resolve. With the root wired, the SAME binary reports the marketplace as a
+//    `custom` root and 365 winners (MEASURED, reasonix v2.28.0).
+ok(
+  tomlArray("reasonix.toml", "skills", "paths").includes("marketplace"),
+  "reasonix.toml wires the marketplace skill root ([skills] paths)",
+);
+
+// 9. .reasonix/settings.json uses reasonix's OWN hook key. DISCRIMINATING: `main` uses
+//    Claude Code's `"matcher"`, which reasonix does not read — MEASURED, it silently
+//    widens to `match: "*"`, so the commit/push gates fire on EVERY tool call instead of
+//    only Bash. A hook that cannot be matched is a capability loss nothing else reports.
+{
+  const s = jsonOr(".reasonix/settings.json");
+  const hooks = Array.isArray(s.hooks?.PreToolUse) ? s.hooks.PreToolUse : [];
+  ok(hooks.length > 0, ".reasonix/settings.json declares PreToolUse hooks");
+  ok(
+    hooks.length > 0 && hooks.every((h) => h.match === "Bash"),
+    'reasonix/settings.json uses the native reasonix "match" key with value "Bash"',
+  );
+}
+
+// 10. The Ollama web-search code extension ships as a v2 plugin package. DISCRIMINATING:
+//     `main` has no `.reasonix/plugin/` at all. Reasonix supports NO provider-side web
+//     search for Ollama Cloud (MEASURED: no `IsOllamaCloud*WebSearch` symbol; the docs
+//     document `web_search = true` only for the DeepSeek/OpenCode-Go presets), so the
+//     capability is a code extension whose runtime serves the tools.
+{
+  ok(existsSync(join(root, ".reasonix/plugin/reasonix-plugin.json")), ".reasonix/plugin/reasonix-plugin.json exists");
+  const m = jsonOr(".reasonix/plugin/reasonix-plugin.json");
+  ok(m.apiVersion === "reasonix.io/plugin/v2", 'the reasonix plugin declares apiVersion "reasonix.io/plugin/v2"');
+  const tools = (m.runtime?.tools ?? []).map((t) => t.name);
+  ok(
+    tools.includes("web_search") && tools.includes("web_fetch"),
+    "the reasonix plugin declares the web_search and web_fetch runtime tools",
+  );
+}
+
+// 11. The PR watcher is bound for reasonix. DISCRIMINATING: `main` carries no reasonix
+//     watch binding. The harness-INDEPENDENT watcher is `marketplace/scripts/gh_watch.sh`;
+//     the items file is the same `owner/repo#num` grammar the opencode plugin parses.
+ok(existsSync(join(root, ".reasonix/watch.items")), ".reasonix/watch.items (the reasonix watch binding) exists");
 
 if (failures > 0) {
   console.error(`check-harness-config: ${failures} FAILURE(S)`);

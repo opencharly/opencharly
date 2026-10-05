@@ -62,3 +62,11 @@ scratchpad/
 .worktrees/
 bin/
 *.sync-conflict-*
+
+# Python bytecode. The reasonix code extension (`.reasonix/plugin/sidecar.py`) is
+# Python, so running its own handshake test — the check documented in
+# `.reasonix/plugin/README.md` — leaves a `__pycache__/` directory behind. Left
+# untracked-but-unignored it shows up as dirt in `git status` and `verify`, a
+# self-inflicted failure with no tracked file to explain it.
+__pycache__/
+*.pyc
