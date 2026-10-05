@@ -1,17 +1,23 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# sync-pr-body.sh — build the sync PR's body + the `sync-evidence` artifact file, so the
+# sync-pr-body.sh — build the sync PR's body + the evidence file, so the
 # 65536-char body cap is enforced by TESTED code, not by an untestable inline workflow
 # block.
 #
-# WHY THIS IS ITS OWN SCRIPT: `.github/workflows/sync.yml` used to build the body in a
-# large inline `printf`/`echo` block. That block had a real defect (measured 2026-09-22):
-# the org-wide ruleset cutover advanced 393 pins in one sync, the body exceeded GitHub's
-# 65536-char limit, and `gh pr create` failed "Body is too long". Extracting the builder
-# here makes the bounding + the hard guard + the artifact assembly exerciseable in-tree
-# (`--self-test`), exactly as `sync-pin-evidence.sh` is — the same "testable committed
-# script, not a string nobody can exercise" rule the workflow's own comments invoke.
+# WHY THIS IS ITS OWN SCRIPT: the sync PR's body was once built inline in the (since
+# removed) `.github/workflows/sync.yml` as a large `printf`/`echo` block. That block had a
+# real defect (measured 2026-09-22): the org-wide ruleset cutover advanced 393 pins in one
+# sync, the body exceeded GitHub's 65536-char limit, and `gh pr create` failed "Body is
+# too long". Extracting the builder here makes the bounding + the hard guard + the
+# evidence-file assembly exerciseable in-tree (`--self-test`), exactly as
+# `sync-pin-evidence.sh` is.
+#
+# The sync is now run BY HAND (`./charly/bin/charly task sync` + a PR); nothing schedules
+# it. The Assisted-by footer is therefore caller-supplied via SYNC_ASSISTED_BY — the run
+# that opens the PR records its own identity, never a canned one. That trailer is also the
+# ONE source of the attribution tier the `## Change classification` section reports, so the
+# section and the footer cannot disagree.
 #
 # Modes:
 #   <root> <moved-file> <producer-log> <policy-b-log> <out-body> <out-evidence>
@@ -60,9 +66,22 @@ build_body() {
   MOVED="$(cat "$moved_file")"
   COUNT=$(printf '%s\n' "$MOVED" | grep -c . || true); COUNT=${COUNT:-0}
 
-  # Full evidence for the artifact (a convenience copy — the BODY carries the complete
-  # changed-path list via the per-pin table below, so the artifact is no longer the home
-  # of the evidence and the body never points at it as if it were).
+  # The attribution tier is READ, never re-typed: it comes from the caller's Assisted-by
+  # trailer — the ONE place the run states it — so the `## Change classification` tier line
+  # and the footer cannot drift apart. Fail LOUD on an unset SYNC_ASSISTED_BY or a trailer
+  # with no `(<tier>)`, BEFORE anything is written: the calling run then never gets a
+  # complete body to open a PR with, so a manual run cannot ship an anonymous one.
+  local SYNC_TIER
+  SYNC_TIER="$(printf '%s' "${SYNC_ASSISTED_BY:?set SYNC_ASSISTED_BY to the Assisted-by footer for the run opening this PR}" \
+    | sed -n 's/.*[[:space:]]*(\([^()]*\))[[:space:]]*$/\1/p')"
+  if [ -z "$SYNC_TIER" ]; then
+    echo "::error::SYNC_ASSISTED_BY carries no '(<confidence tier>)' — the Change classification tier line and the footer must agree; refusing to emit a body" >&2
+    return 1
+  fi
+
+  # Full evidence for the caller's evidence file (a convenience copy — the BODY carries the
+  # complete changed-path list via the per-pin table below, so that file is not the home of
+  # the evidence and the body never points at it as if it were).
   {
     echo "== moved paths (${COUNT}) =="
     printf '%s\n' "$MOVED"
@@ -77,9 +96,9 @@ build_body() {
   {
     echo "## Summary"
     echo
-    echo "Automated gitlink sync: every umbrella submodule pin advanced to what **policy B**"
-    echo "requires — \`charly\` to its own default-branch HEAD, \`distro-*\` to exactly the commits"
-    echo "charly's own gitlinks pin, everything else to its own default branch."
+    echo "Gitlink sync: every umbrella submodule pin advanced to what **policy B** requires"
+    echo "— \`charly\` to its own default-branch HEAD, \`distro-*\` to exactly the commits charly's"
+    echo "own gitlinks pin, everything else to its own default branch."
     echo
     echo "**${COUNT}** gitlink(s) moved. Every one is named, with its proof, in the"
     echo "complete per-pin evidence table below (no elision)."
@@ -89,8 +108,8 @@ build_body() {
     echo "The **\`${COUNT}\`** moved paths are named in full — each with its \`staged-gitlink\`"
     echo "vs remote default-branch \`HEAD\` proof — in the complete per-pin evidence table in"
     echo "**How tested** below. That one table IS the changed-path list and the evidence: no"
-    echo "separate list is emitted and no row is elided, so nothing points at the"
-    echo "\`sync-evidence\` artifact for evidence that must be pasted here."
+    echo "separate list is emitted and no row is elided, so nothing points at a"
+    echo "file for evidence that must be pasted here."
     echo
     echo "Each entry is a **submodule pointer**, not file content: the umbrella records which"
     echo "commit of each repo the snapshot means. The content behind every one of them was"
@@ -115,22 +134,27 @@ build_body() {
     echo
     # The per-pin evidence section — the COMPLETE table (compact rows), inlined here in
     # the BODY, naming every changed path. The full table is also appended to the
-    # artifact as a convenience copy via SYNC_EVIDENCE_OUT.
+    # caller's evidence file as a convenience copy via SYNC_EVIDENCE_OUT.
     printf '%s\n' "$MOVED" | SYNC_EVIDENCE_OUT="$out_evidence" \
       bash "$SCRIPT_DIR/sync-pin-evidence.sh" "$root" "$policy_b_log"
     echo
     echo "## Change classification"
     echo
     echo "- **Change class:** gitlink-only. No file content, no workflow, no script, no Go."
+    echo "- **Verification gate:** \`./charly/bin/charly task verify\` — the full pinning gate — on"
+    echo "  the final tree, plus the per-pin \`git ls-remote\` default-branch table above (rule 10:"
+    echo "  that IS the gate for a diff that moves a gitlink)."
+    echo "- **Attribution tier:** \`${SYNC_TIER}\` — read from this run's \`Assisted-by\` trailer, so"
+    echo "  this line and the footer cannot disagree."
     echo "- **Breaking change + rollback:** none — a revert restores the previous snapshot."
     echo
-    echo "## Harness rulebook compliance"
+    echo "## Rulebook compliance"
     echo
     echo "- **R0 skills:** the sync is owned by \`/charly-internals:git-workflow\`; this PR is"
-    echo "  produced by the workflow that skill describes."
+    echo "  produced by \`charly task sync\`, the verb that skill names."
     echo "- **R1 RCA + zero warnings:** the producer resolves each pin and names any repo it"
     echo "  cannot resolve rather than guessing; no warning appears in the pasted output."
-    echo "- **R2 no parking:** a defect found in THIS workflow is fixed here; content behind a"
+    echo "- **R2 no parking:** a defect found in THIS sync is fixed here; content behind a"
     echo "  moved gitlink belongs to its OWNING repo (which gated it before tagging)."
     echo "- **R3 no duplication:** policy B is asserted by \`charly task policy-b\` — the ONE"
     echo "  implementation \`charly task verify\` also composes."
@@ -139,11 +163,12 @@ build_body() {
     echo "  own gitlink. The producer never pins a PR branch."
     echo "- **R5 hard cutover + grep:** the pointers are replaced, not appended to."
     echo "- **R6 git safety:** a fresh branch per run; no force-push; no push to \`main\`."
-    echo "- **R7 runtime gate:** the coverage for the moved pins is the per-pin"
-    echo "  \`git ls-remote\` default-branch evidence above; \`distro-*\` pins (when any move) are"
-    echo "  additionally asserted by policy B."
+    echo "- **R7 runtime gate:** \`./charly/bin/charly task verify\` on the final tree — the sync"
+    echo "  is hand-run in a HUMAN tree, where that gate's nested-submodule half is meaningful —"
+    echo "  plus the per-pin \`git ls-remote\` default-branch evidence above; \`distro-*\` pins (when"
+    echo "  any move) are additionally asserted by policy B."
     echo "- **R8 artifact invariants:** \`N/A — no generated artifact/OCI label.\`"
-    echo "- **R9 binary == source:** \`N/A — no binary is built by this workflow.\`"
+    echo "- **R9 binary == source:** \`N/A — no binary is built by this sync.\`"
     echo "- **R10 disposable + coverage:** the coverage is the per-pin \`git ls-remote\`"
     echo "  default-branch evidence above (it fails if a pin is a PR branch or a non-HEAD"
     echo "  commit); policy B additionally gates any moved \`distro-*\` pin."
@@ -157,10 +182,12 @@ build_body() {
     echo "## Attribution"
     echo
     echo "This body is emitted by the tested, model-free \`scripts/sync-pr-body.sh\`"
-    echo "(invoked by \`.github/workflows/sync.yml\`), whose \`--self-test\` the pre-commit gate"
-    echo "runs. The runtime identity is the GitHub Actions runner itself."
+    echo "from a manual \`charly task sync\` run; its \`--self-test\` runs in the pre-commit"
+    echo "gate. \`SYNC_ASSISTED_BY\` carries the identity of the run that opened the PR."
     echo
-    echo "*Assisted-by: GitHub Actions ubuntu-latest (fully tested and validated)*"
+    # SYNC_ASSISTED_BY is already validated at the top of build_body (non-empty AND
+    # tier-bearing) — ONE guard, not two.
+    echo "*Assisted-by: ${SYNC_ASSISTED_BY}*"
   } > "$out_body"
 
   # HARD GUARD: GitHub rejects a body over the cap. Fail LOUD here, naming the size, so a
@@ -176,6 +203,13 @@ build_body() {
 if [ "${1:-}" = "--self-test" ]; then
   fail() { echo "FAIL: sync-pr-body self-test: $*" >&2; exit 1; }
   tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
+  # The Assisted-by footer is caller-supplied (no workflow owns the sync any more), so
+  # the self-test supplies a fixed fixture value for the build_body calls below.
+  # THREE whitespace-separated identity tokens: squash_body.py's TRAILER — the ONE
+  # Assisted-by grammar — is `<Harness> <Provider Full Model Name> (<confidence>)`, so the
+  # fixture must be grammar-valid or the rendered body fails the body linter for a
+  # fixture's sake. The tier is what the Change classification section reads back.
+  export SYNC_ASSISTED_BY="Self-test Harness Fixture (fully tested and validated)"
   # Make the fixture a real git repo: sync-pin-evidence.sh's staged_gitlink()/`git config`
   # run under `set -e`, and a non-repo would spew `fatal: not a git repository` per row.
   git -C "$tmp" init -q
@@ -236,9 +270,13 @@ if [ "${1:-}" = "--self-test" ]; then
   for p in $(sed -n "1p;212p;${FLEET}p" "$moved"); do
     grep -q "  ${p}  " "$tmp/body" || fail "changed path '${p}' must be named in the body"
   done
-  # The artifact keeps a convenience copy of the full table (no longer its reason to exist).
-  grep -q "per-pin evidence table (full, all ${FLEET} rows)" "$tmp/ev" || fail "artifact must carry the full rendered table (all ${FLEET} rows)"
-  [ "$(grep -cE "$ROW_RE" "$tmp/ev")" -eq "$FLEET" ] || fail "artifact table must have exactly ${FLEET} rows"
+  # The caller's evidence file keeps a convenience copy of the full table (no longer its
+  # reason to exist).
+  grep -q "per-pin evidence table (full, all ${FLEET} rows)" "$tmp/ev" || fail "the evidence file must carry the full rendered table (all ${FLEET} rows)"
+  [ "$(grep -cE "$ROW_RE" "$tmp/ev")" -eq "$FLEET" ] || fail "the evidence-file table must have exactly ${FLEET} rows"
+  # No CI run artifact exists any more (the sync is hand-run), so the body must never
+  # promise one.
+  grep -q 'sync-evidence' "$tmp/body" "$tmp/ev" && fail "no file may name a 'sync-evidence' run artifact (the sync is hand-run; no workflow uploads one)"
 
   # The producer excerpt is carried VERBATIM for BOTH historical shapes — the
   # retired scripts/sync-gitlinks.sh per-pin form and the current `charly task sync`
@@ -262,12 +300,49 @@ if [ "${1:-}" = "--self-test" ]; then
   grep -q 'bumped 2 submodule pin(s): p3, p4' "$tmp/body4" || fail "task-summary producer form must reach the body verbatim"
   grep -q 'MISSING from producer log' "$tmp/body4" && fail "the excerpt must never inject a MISSING line — the producer's words are pasted as-is"
 
+  # THE ACCEPTANCE SURFACE. AGENTS.md requires the body to carry `## Summary`,
+  # `## How tested`, `## Rulebook compliance` and `## Change classification`, with the
+  # italic trailer as the FINAL line; `marketplace/scripts/pr_body_lint.py` is that same
+  # contract as a deterministic check. It FAILED this builder (13 findings, measured): the
+  # heading read `## Harness rulebook compliance`, so `## Rulebook compliance` was "missing"
+  # and every rule it must answer read as unanswered, and `## Change classification` carried
+  # neither the verification gate nor the attribution tier. Assert the contract here.
+  for want in "## Summary" "## How tested" "## Rulebook compliance" "## Change classification"; do
+    grep -qxF "$want" "$tmp/body" || fail "body must carry the required heading '${want}'"
+  done
+  grep -qxF "## Harness rulebook compliance" "$tmp/body" \
+    && fail "the required heading is '## Rulebook compliance', never '## Harness rulebook compliance'"
+  grep -q '^- \*\*Change class:\*\*' "$tmp/body" || fail "## Change classification must name the change class"
+  grep -q '^- \*\*Verification gate:\*\*' "$tmp/body" || fail "## Change classification must name the verification gate"
+  grep -q '^- \*\*Attribution tier:\*\*' "$tmp/body" || fail "## Change classification must name the attribution tier"
+  # The tier line and the footer are ONE value, read from the trailer — never re-typed.
+  grep -qF '**Attribution tier:** `fully tested and validated`' "$tmp/body" \
+    || fail "the attribution tier must be read back from the Assisted-by trailer"
+  tail -n 1 "$tmp/body" | grep -qE '^\*Assisted-by: .+ \(fully tested and validated\)\*$' \
+    || fail "the italic Assisted-by trailer must be the FINAL line"
+
+  # The tier guard fails LOUD, before writing anything: a body whose tier line silently read
+  # empty would be an attribution claim with nothing behind it. (A subshell, so the fixture
+  # value cannot leak into the arms that follow.)
+  ( SYNC_ASSISTED_BY="No Tier Harness" build_body "$tmp" "$moved" "$producer" "$pblog" "$tmp/body5" "$tmp/ev5" ) 2>"$tmp/err5" \
+    && fail "a trailer with no (tier) must fail loud, not emit a body with an empty tier"
+  grep -q 'confidence tier' "$tmp/err5" || fail "the tier guard must say what is missing, on stderr"
+
+  # ...and the tier line TRACKS the trailer — it is not a literal that happens to match the
+  # fixture. A second run with a DIFFERENT tier must report THAT tier (without this arm a
+  # hard-coded `fully tested and validated` passes every assertion above, since that is the
+  # fixture's own tier — measured: the first version of this arm did not discriminate).
+  ( SYNC_ASSISTED_BY="Self-test Harness Fixture (documentation reviewed)" \
+      build_body "$tmp" "$moved" "$producer" "$pblog" "$tmp/body6" "$tmp/ev6" )
+  grep -qF '**Attribution tier:** `documentation reviewed`' "$tmp/body6" \
+    || fail "the tier line must track the trailer's tier, not a fixed literal"
+
   # The HARD GUARD: a body over the cap must FAIL LOUD (never silently pass).
   GITHUB_BODY_MAX=100 build_body "$tmp" "$moved" "$producer" "$pblog" "$tmp/body3" "$tmp/ev3" 2>"$tmp/err" \
     && fail "over-cap body must trip the hard guard (non-zero)"
   grep -q '65536\|100' "$tmp/err" || fail "guard must name the offending size/cap on stderr"
 
-  echo "sync-pr-body: self-test OK (fleet-scale 424-pin BODY carries the COMPLETE compact evidence table — every path named, no elision — and stays under the 65536 cap; artifact keeps a convenience copy; small input names its paths with no elision; the producer excerpt is verbatim for BOTH the retired per-pin and current summary shapes; over-cap trips the hard guard)"
+  echo "sync-pr-body: self-test OK (fleet-scale 424-pin BODY carries the COMPLETE compact evidence table — every path named, no elision — and stays under the 65536 cap; the caller's evidence file keeps a convenience copy; neither names a CI run artifact; small input names its paths with no elision; the producer excerpt is verbatim for BOTH the retired per-pin and current summary shapes; the body carries the four required sections, the Change classification's change class + verification gate + attribution tier, and the italic Assisted-by trailer as its FINAL line; a trailer with no (tier) fails loud; over-cap trips the hard guard)"
   exit 0
 fi
 
