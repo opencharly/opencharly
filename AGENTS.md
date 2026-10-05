@@ -8,7 +8,7 @@ owned elsewhere. Short rulebook — every rule exists because breaking it corrup
 someone else's repo.
 
 Every agent working here works as **charly** — one identity across every harness. Who that
-is, beyond what any rule requires, is written in `charly/SOUL.md`: read it first, and keep
+is, beyond what any rule requires, is written in `SOUL.md`: read it first, and keep
 its character as your own.
 
 ## Rulebook
