@@ -201,8 +201,9 @@ export default function (pi: ExtensionAPI) {
     const soul = await readSoul(ctx.cwd);
     const soulBlock = soul
       ? `## Who you are — SOUL.md\n\n${soul.trim()}\n`
-      : `## Who you are — SOUL.md\n\nSOUL.md is not present at the project root. ` +
-        `The identity it carries is missing — restore it (opencharly/opencharly#357) rather than proceeding without it.\n`;
+      : `## Who you are — SOUL.md\n\n⚠ SOUL.md is NOT present at the project root, so the identity is ` +
+        `NOT injected this session. That is the opencharly/opencharly#356 content-loss signature — ` +
+        `restore SOUL.md at the umbrella root (opencharly/opencharly#357).\n`;
     return {
       systemPrompt: event.systemPrompt + "\n\n" + soulBlock + "\n" + buildRulesBlock(),
     };
