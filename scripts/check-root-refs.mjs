@@ -18,10 +18,10 @@
 //
 // Checks:
 //   1. The four canonical root narratives exist at <root>.        [discriminating]
-//   2. Every root-file reference (`<prefix>/<Name>.md` or a bare `<Name>.md`, stem
-//      starting with an uppercase letter) in the agent surfaces resolves: a bare name
-//      must exist at <root>; a prefixed name must exist at its path, and a prefixed name
-//      whose file instead exists at <root> is a STALE reference (the #356 shape).
+//   2. Every PREFIXED reference (`<prefix>/<Name>.md`, `Name` a canonical narrative) in
+//      the agent surfaces resolves: the file must exist at its path, and a prefixed
+//      reference whose file instead exists at <root> is a STALE reference (the #356
+//      shape). A bare `<Name>.md` is check 1's business, not walked here.
 //                                                                    [discriminating]
 //
 // Usage:
@@ -107,28 +107,23 @@ function check(dir = root) {
       if (seen.has(key)) continue;
       seen.add(key);
 
-      if (prefix) {
-        if (existsSync(join(dir, prefix, base))) continue;
-        // A prefixed reference whose file exists at the umbrella root is the #356
-        // STALE shape: the file moved and the pointer was never repointed.
-        if (existsSync(join(dir, base))) {
-          failures.push(
-            `${rel}: STALE reference \`${prefix}${base}\` — the file lives at the umbrella root \`${base}\`; repoint the reference`,
-          );
-          continue;
-        }
-        const top = prefix.replace(/\/$/, "").split("/")[0];
-        if (subs.has(top) && !existsSync(join(dir, top, ".git"))) {
-          notices.push(
-            `${rel}: \`${prefix}${base}\` — submodule \`${top}\` is not initialized; cannot resolve here (its pin is audited by the submodule step)`,
-          );
-          continue;
-        }
-        failures.push(`${rel}: DANGLING reference \`${prefix}${base}\` — resolves to no file`);
-      } else {
-        if (existsSync(join(dir, base))) continue;
-        failures.push(`${rel}: DANGLING reference \`${base}\` — missing at the umbrella root`);
+      if (existsSync(join(dir, prefix, base))) continue;
+      // A prefixed reference whose file exists at the umbrella root is the #356 STALE
+      // shape: the file moved and the pointer was never repointed.
+      if (existsSync(join(dir, base))) {
+        failures.push(
+          `${rel}: STALE reference \`${prefix}${base}\` — the file lives at the umbrella root \`${base}\`; repoint the reference`,
+        );
+        continue;
       }
+      const top = prefix.replace(/\/$/, "").split("/")[0];
+      if (subs.has(top) && !existsSync(join(dir, top, ".git"))) {
+        notices.push(
+          `${rel}: \`${prefix}${base}\` — submodule \`${top}\` is not initialized; cannot resolve here (its pin is audited by the submodule step)`,
+        );
+        continue;
+      }
+      failures.push(`${rel}: DANGLING reference \`${prefix}${base}\` — resolves to no file`);
     }
   }
 
@@ -181,7 +176,12 @@ function selfTest() {
   write("AGENTS.md", "read `charly/SOUL.md` first\n");
   expect("stale charly/SOUL.md reference", true);
 
-  // mutation 3: SCOPING — a non-canonical uppercase ref (`SKILL.md`) and a prefixed
+  // mutation 3: prefixed DANGLING reference → RED (prefix exists nowhere: not a file,
+  // not a submodule). Exercises the DANGLING arm so it has a test that fails without it.
+  write("AGENTS.md", "see `notes/SOUL.md` for the identity\n");
+  expect("dangling notes/SOUL.md reference", true);
+
+  // mutation 4: SCOPING — a non-canonical uppercase ref (`SKILL.md`) and a prefixed
   // non-narrative ref (`charly/AGENTS.md`) must NOT fire (the false positives the first
   // implementation produced). All narratives stay at root → expected GREEN.
   write("AGENTS.md", "see `SKILL.md` and `charly/AGENTS.md`\n");
