@@ -58,14 +58,68 @@ compact_ratio = 0.70
 # --- Skills ------------------------------------------------------------------
 # The ONE thing that makes AGENTS.md's dispatcher usable in this harness. Every
 # `/charly-<family>:<skill>` reference in AGENTS.md resolves to a `SKILL.md`
-# under the `marketplace` submodule; without this root, Reasonix scans only its
-# own project convention dirs (`.reasonix/skills`, `.agents/skills`,
+# under the `marketplace` submodule; without these roots, Reasonix scans only
+# its own project convention dirs (`.reasonix/skills`, `.agents/skills`,
 # `.agent/skills`, `.claude/skills` — none of which exist here) plus the user's
 # global roots, so it resolves a dozen builtin/global skills and NOT ONE of the
-# charly procedures. MEASURED (reasonix v2.28.0): 12 skills without this block,
-# 365 with it. See REASONIX.md for how a reference maps to a call.
+# charly procedures. See REASONIX.md for how a reference maps to a call.
+#
+# These are the 40 directories that actually CONTAIN skills — every
+# `<family>/skills/` (each holding `<skill>/SKILL.md`) plus the two
+# `<family>/agents/` roster dirs (hand-authored `<agent>.md`, loaded as skills).
+# A single `paths = ["marketplace"]` does NOT work: `marketplace/` is a
+# multi-FAMILY root, while reasonix expects a multi-SKILL root, so pointing at
+# it makes reasonix scan family prose as skills — MEASURED (reasonix v2.28.0),
+# 389 files warn `skill.missing_description` and print ~3,500 warning lines per
+# boot (3,447 of them `marketplace/CHANGELOG/*.md`, plus the root
+# AGENTS.md/DISPATCHER.md/README.md and two family READMEs). Scoping to the
+# skill-bearing directories removes every such warning while loading the SAME
+# 362 skills, with no skill lost. Keep this list in step with the marketplace
+# layout; `scripts/check-harness-config.mjs` check 8 asserts it covers every
+# skill root.
 [skills]
-paths = ["marketplace"]
+paths = [
+    "marketplace/agent/skills",
+    "marketplace/agentteams/skills",
+    "marketplace/authoring/skills",
+    "marketplace/automation/agents",
+    "marketplace/automation/skills",
+    "marketplace/bpf/skills",
+    "marketplace/build/skills",
+    "marketplace/cache/skills",
+    "marketplace/candy-cli/skills",
+    "marketplace/cardwire/skills",
+    "marketplace/check/skills",
+    "marketplace/coder/skills",
+    "marketplace/comfyui/skills",
+    "marketplace/core/skills",
+    "marketplace/crabbox/skills",
+    "marketplace/distros/skills",
+    "marketplace/feature/skills",
+    "marketplace/filebrowser/skills",
+    "marketplace/hermes/skills",
+    "marketplace/image/skills",
+    "marketplace/immich/skills",
+    "marketplace/infrastructure/skills",
+    "marketplace/internals/agents",
+    "marketplace/internals/skills",
+    "marketplace/jupyter/skills",
+    "marketplace/kubernetes/skills",
+    "marketplace/languages/skills",
+    "marketplace/local/skills",
+    "marketplace/ollama/skills",
+    "marketplace/openclaw/skills",
+    "marketplace/openwebui/skills",
+    "marketplace/pipeline/skills",
+    "marketplace/pod/skills",
+    "marketplace/pod-verbs/skills",
+    "marketplace/punktfunk/skills",
+    "marketplace/review/skills",
+    "marketplace/selkies/skills",
+    "marketplace/tools/skills",
+    "marketplace/versa/skills",
+    "marketplace/vm/skills",
+]
 
 # --- Sandbox note ------------------------------------------------------------
 # Charly disables reasonix's OS-level Bash sandbox because rootless podman

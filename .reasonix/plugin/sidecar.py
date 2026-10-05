@@ -58,10 +58,10 @@ import sys
 import urllib.error
 import urllib.request
 
-PROTOCOL_ID = "reasonix.extension.v2"
-# The wire VALUE of `protocolVersion`. It is the numeric MAJOR as a string, NOT
-# the protocol ID — the host rejects `"reasonix.extension.v2"` here with
-# `protocol error`, and rejects `3`/`"3"` with `unsupported_version` (MEASURED).
+# The wire VALUE of `InitializeResult.protocolVersion`. It is the numeric MAJOR
+# as a string, NOT the protocol ID (`reasonix.extension.v2` arrives in the
+# request's `protocolId`): the host rejects the ID string here with `protocol
+# error`, and rejects `3`/`"3"` with `unsupported_version` (MEASURED).
 PROTOCOL_VERSION = "2"
 MANIFEST_NAME = "ollama-websearch"
 MANIFEST_VERSION = "1.0.0"
@@ -223,11 +223,11 @@ def handle_initialize(params):
     Only manifest-declared tools may be named.
 
     The host sends its tool expectation under `params.manifest.tools`; the
-    bare `params.tools` fallback is kept for the offline/direct invocation
-    documented in README.md. Names outside the manifest would fail the
-    handshake with `capability_not_declared`, so the intersection is the
-    answer when the host names a subset, and the full declared set when it
-    names none.
+    bare `params.tools` fallback tolerates a direct invocation that omits the
+    wrapper (the unit tests drive the handler both ways). Names outside the
+    manifest would fail the handshake with `capability_not_declared`, so the
+    intersection is the answer when the host names a subset, and the full
+    declared set when it names none.
     """
     manifest = params.get("manifest")
     manifest = manifest if isinstance(manifest, dict) else {}
