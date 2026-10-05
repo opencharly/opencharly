@@ -641,10 +641,10 @@ whole org a single coherent snapshot:
 - every other repo follows its own default-branch HEAD.
 
 This umbrella's `.gitmodules` records `branch = <repo default>` on all of its entries,
-so a future default-branch rename keeps working. A daily `sync` workflow
-(`.github/workflows/sync.yml`, `17 3 * * *`) advances the pins and lands them through
-the org's PR-only validation chain: it opens a PR, and never pushes to the default
-branch.
+so a future default-branch rename keeps working. The pins are advanced with
+`./charly/bin/charly task sync` (the policy-B bump), run by hand and landed through the
+org's PR-only validation chain — it opens a PR and never pushes to the default branch.
+There is no scheduled workflow; `charly task sync` is the one path that moves a pin.
 
 A pin is a gitlink — the recorded commit, checked out detached and clean — and
 `charly task verify` asserts exactly that. A dangling pin is a failure.
