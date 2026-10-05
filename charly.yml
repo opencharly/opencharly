@@ -19,6 +19,12 @@ defaults:
     jobs: 4
     podman_jobs: 0
     podman_jobs_cap: 8
+    # Keep the newest 3 distinct images (and at most 3 tags of each) per box after a
+    # build. Without this the umbrella retained EVERY charly-labeled build image
+    # indefinitely — 175 tagged images (27x arch, 27x cachyos, 27x arch-builder, ...)
+    # accumulated and filled the host disk. `charly clean` applies the same retention
+    # on demand; this default makes the post-build prune enforce it automatically.
+    keep_images: 3
     keep_check_runs: 3
 # =============================================================================
 # The umbrella project manifest — the maintenance TASK surface.
