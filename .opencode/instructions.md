@@ -4,11 +4,6 @@ This file binds the harness-neutral `AGENTS.md` rulebook to this harness's
 mechanics. It is opencode-specific by construction and lives in the opencode
 config layer (`.opencode/`), never in `AGENTS.md`.
 
-## You are charly
-
-Before the rulebook, read `SOUL.md` — the identity every agent here works as. It is
-the self behind the rules; this file and `AGENTS.md` are how that self works in this harness.
-
 ## Skill addressing
 
 `AGENTS.md` addresses every skill by its canonical, harness-neutral reference
@@ -35,7 +30,7 @@ Examples:
 
 If a skill is not exposed as a tool entry, read its procedure directly at
 `marketplace/<family>/skills/<skill>/SKILL.md` (the same fallback every harness
-uses). Never proceed without loading the procedure — R0 is mandatory.
+uses).
 
 ## Gate hooks
 
@@ -98,11 +93,10 @@ packages); the pin tracks **1.18.33**, the newest release on the `latest` tag.
 session posts the canonical coordination comment and waits on GitHub without
 hand-writing the footer:
 
-- **`coord_comment`** — builds the verb-labelled comment
-  (`CLAIM`/`OWNING`/`HANDING OVER`/`TAKING OVER`/`BLOCKS`/`UNBLOCKS`/`STATUS`/`RESOLVED`)
-  carrying the canonical TWO-LINE footer (`Agent:` FIRST, `Assisted-by:` LAST) and
-  POSTs it directly through the GitHub REST API; it can `assign` the posting account
-  (a CLAIM).
+- **`coord_comment`** — builds the verb-labelled coordination comment (the closed verb
+  set and the canonical two-line identity footer are the `AGENTS.md` contract, not this
+  file's) and POSTs it directly through the GitHub REST API; it can `assign` the posting
+  account (a CLAIM).
 - **`coord_watch`** — a bounded, session-invoked one-shot wait
   (`events`/`timeout`/`stallmin`) that polls the GitHub API NATIVELY and returns the
   **ARM report** (the baseline it armed on) plus the wake line. The BACKGROUND
@@ -193,10 +187,9 @@ orchestrator's real question — *what is this subagent actually doing, and how 
 
 #### `agent_progress` — the MONITOR (read-only)
 
-- **A "message" is an ASSISTANT TURN, never a progress signal.** `session_message` rows
-  with `type='assistant'` are turns (`data.content: [{type:"reasoning"|"text"|"tool"}]`);
-  counting them penalises an agent for WORKING. The monitor SHOWS the count and never
-  keys a verdict on it. **A high turn count is NOT a stall.**
+- **A "message" is an ASSISTANT TURN.** `session_message` rows
+  with `type='assistant'` are turns (`data.content: [{type:"reasoning"|"text"|"tool"}]`).
+  The monitor SHOWS the count and never keys a verdict on it.
 - The report, per session: id + title/slug; **turns**, **span** (first→last), **last-turn /
   last-event age**; the **tool mix** (`shell`/`read`/`write`/`edit`/…); the **last action**
   (the text/reasoning snippet + the last tool + its input); **artifact hints**
@@ -205,8 +198,6 @@ orchestrator's real question — *what is this subagent actually doing, and how 
   **IDLE** (no turns past `windowMin` — default 15 — and no artifact) / **LOOP** (the same
   tool+input repeated `≥4`× in the tail, no artifact) / **DONE** (a final report
   `finish=stop`, no pending action, **or a landed artifact with the session then quiet**).
-  **Rotate/take over ONLY on** >2 orchestrator re-briefs
-  of the same task, idle-past-window with no artifact, or a loop — **never on turn count.**
 - Data source is **VERIFIED**: a **read-only** handle on the opencode store
   (`$XDG_DATA_HOME/opencode/opencode.db`, `OPENCODE_DB` override) — `new Database(path,
   { readonly: true })` under `bun:sqlite` (the shipped runtime), `new DatabaseSync(path,
@@ -310,20 +301,17 @@ Three tools:
 - **`tracker_ledger`** — the durable ledger. `action: read | reconcile | replace`; entries
   are `{ id, kind, scope?, slug?, session?, state, next }` where `kind` ∈
   `subagent | pr | issue | blocker | op` (rule 11's four categories). **`reconcile` MERGES**:
-  call it on every interruption to ADD items without dropping the open ones. Stored at
+  it ADDs items without dropping the open ones. Stored at
   `.opencode/ledger/<session>.json` (git-ignored).
 - **`tracker_status`** — joins the ledger against LIVE GitHub: each scope's real state
   (open / MERGED / closed) and the LATEST coordination verb (`OWNING`/`TAKING OVER` wins)
   with its `Agent:` slug. Flags a scope owned by **another** slug — coordinate, do not push.
-  Use before every push and before branching.
+  The join is what answers *what am I on, and where must I comment* from live state rather
+  than from this session's memory.
 - **`tracker_sync`** — reconciles `merged` (unblock) / `closed` (find successor) / `stall`
   (takeover candidate) from live state; `watch: true` arms the shared loop over the ledger's
   scopes (one-shot wait).
 
-**WHEN to use (the rule-11 cadence):** at session start and on ANY interruption (a user
-message, a watcher wake, a delegated report) → `tracker_ledger` reconcile FIRST, then act;
-before branching on non-trivial work → `tracker_status` + `coord_comment` (CLAIM); before
-every push → `tracker_status`; on a wake → `tracker_sync`; at close → ledger resolve +
-`coord_comment` (RESOLVED). The tools IMPLEMENT the rules — they do not restate them; the
-verb grammar and footer belong to `coord.ts`, the landing/workflow to the `git-workflow`
-skill, the ledger how-to to the `agents` skill. `scripts/check-issue-tracker.mjs` gates it.
+The tools IMPLEMENT the rules — they do not restate them; the verb grammar and footer belong
+to `coord.ts`, the landing/workflow to the `git-workflow` skill, the ledger how-to to the
+`agents` skill. `scripts/check-issue-tracker.mjs` gates it.
