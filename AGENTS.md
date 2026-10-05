@@ -52,9 +52,9 @@ never load the whole index.
 ### Skill Dispatcher
 
 Consult this table BEFORE the first tool call of every task; when several rows match, load
-every skill they name. It is hand-curated; the full generated set (one row per skill
-trigger) is `marketplace/DISPATCHER.md`, and anything not listed here is found there or in
-the marketplace README. How the table is maintained: `/charly-internals:skills`.
+every skill they name. It is the **curated priority layer, not the complete set** — the block
+below it says where the full generated table lives, why it is not spliced in here, and how to
+browse it by category. How the table is maintained: `/charly-internals:skills`.
 
 | Trigger (what the user said or you're about to do) | Skill(s) to load |
 |---|---|
@@ -114,6 +114,29 @@ the marketplace README. How the table is maintained: `/charly-internals:skills`.
 | `step:helm-release` / `verb:helm` / `helm_charts:` / `--enable-helm` | `/charly-kubernetes:helm` |
 | `charly agentteams` controller / the `verb:agentteams` check verb / `charly agentteams apply -f` | `/charly-agentteams:agentteams-cli` |
 | The agentteams box / the AgentTeams stack / the `check-agentteams-vm` bed | `/charly-agentteams:agentteams` |
+
+**Beyond the curated rows.** The table above is the *curated* priority layer — the skills a
+session reaches for constantly. It is hand-maintained and is deliberately **not** a strict
+subset of the generated table: a few of its rows name a skill whose owning entity carries no
+`triggers:` yet, so **no generated row exists for it**. That is exactly why this table is not
+replaced by the generated splice — `scripts/sync-dispatcher.sh` splices the FULL table from
+`marketplace/DISPATCHER.md`, which would drop those rows. Keep the table hand-curated; do not
+wrap it in the generated markers.
+
+For everything else, the full set is **generated** — one row per `triggers:`-bearing skill —
+into `marketplace/DISPATCHER.md` by `charly marketplace generate`. When a trigger is not in
+the table above, read it there, and browse it by category:
+
+| Category | Reach for it when | Full set |
+|---|---|---|
+| **commands** | you want to run charly verbs (build, check, core lifecycle, pod verbs, …) | `marketplace/DISPATCHER.md` |
+| **kind** | you want to author the YAML schema for an entity (image, vm, kubernetes, local, pod) | `marketplace/DISPATCHER.md` |
+| **development** | you are a contributor working on the charly source code itself | `marketplace/DISPATCHER.md` |
+| **images** | you want to deploy a specific image (distros, coder, jupyter, selkies, …) | `marketplace/DISPATCHER.md` |
+
+The category → plugin membership lives in `marketplace/README.md` ("How this marketplace is
+organized") — pointed at, never copied, because those counts drift. How the corpus and its
+dispatcher are generated and refreshed: `/charly-internals:marketplace`.
 
 ## Charly CLI discipline
 
