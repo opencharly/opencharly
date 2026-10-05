@@ -290,7 +290,7 @@ commented-out or absent call fails the gate.
 ### Session tracker + durable ledger (`.opencode/plugins/tracker.ts`)
 
 OpenCode V2 exposes **no todo primitive** (`todowrite` is only a migration shim; no todo
-table, no `/session/:id/todo` endpoint, no `todo.updated` event). So AGENTS.md rule 11's
+table, no `/session/:id/todo` endpoint, no `todo.updated` event). So AGENTS.md rule 9's
 **durable-file branch** applies, and `tracker.ts` is its mechanism. It is PURE TypeScript
 (no `.sh`, no `marketplace` pin) and reuses the shared modules rather than copying them:
 `lib/watch.ts` (the poll engine), `lib/watcher-loop.ts` (the detached loop extracted from
@@ -300,7 +300,7 @@ Three tools:
 
 - **`tracker_ledger`** — the durable ledger. `action: read | reconcile | replace`; entries
   are `{ id, kind, scope?, slug?, session?, state, next }` where `kind` ∈
-  `subagent | pr | issue | blocker | op` (rule 11's four categories). **`reconcile` MERGES**:
+  `subagent | pr | issue | blocker | op` (rule 9's four categories). **`reconcile` MERGES**:
   it ADDs items without dropping the open ones. Stored at
   `.opencode/ledger/<session>.json` (git-ignored).
 - **`tracker_status`** — joins the ledger against LIVE GitHub: each scope's real state

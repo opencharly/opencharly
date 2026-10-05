@@ -238,13 +238,13 @@ verify:
       - check: the agent-progress monitor+control plugin — static (no .sh), the classifier (RCA regression), and a read-only store
         command: node scripts/check-agent-progress.mjs
         context: [runtime]
-      - check: the session tracker plugin — the durable ledger (rule 11 invariant), the three tools, and the real-binary load
+      - check: the session tracker plugin — the durable ledger (rule 9 invariant), the three tools, and the real-binary load
         command: node scripts/check-issue-tracker.mjs
         context: [runtime]
-      - check: every harness-config surface parses and is wired (rule 8)
+      - check: every harness-config surface parses and is wired (rule 5)
         command: node scripts/check-harness-config.mjs
         context: [runtime]
-      - check: the pi gate extension fails CLOSED, uses the rule-9 worktree path, and wires both gate scripts
+      - check: the pi gate extension fails CLOSED, uses the rule-2 worktree path, and wires both gate scripts
         command: node scripts/check-pi-gates.mjs
         context: [runtime]
       - check: "every canonical root narrative exists and every root-file reference in the agent surfaces resolves (the #356 content-loss gate)"

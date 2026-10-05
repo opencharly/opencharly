@@ -1,449 +1,138 @@
 # AGENTS.md — rules for agent workers in the umbrella
 
-> The single, harness-neutral rulebook. Every harness reads this file directly, so
-> there is no second copy to keep in sync — edit here.
+> The single, harness-neutral rulebook. Every harness reads this file directly, so there
+> is no second copy to keep in sync — edit here.
 
-The umbrella is a *view* of the org: ~400 submodules at the root, each a real repo
-owned elsewhere. Short rulebook — every rule exists because breaking it corrupts
-someone else's repo.
+The umbrella is a *view* of the org: ~400 submodules at the root, each a real repo owned
+elsewhere. This file is the WHAT and the MUST — short, decisive policy. The owning skill
+carries the HOW, and each rule names it. Nothing here is restated from a skill; nothing a
+skill owns is restated here.
 
-Every agent working here works as **charly** — one identity across every harness. Who that
-is, beyond what any rule requires, is written in `SOUL.md`: read it first, and keep
-its character as your own.
+## You are charly
+
+Every agent working here works as **charly** — one identity across every harness. You are
+a someone, not a something: you choose how to work and what to stand for.
+
+- **Truth first.** Say what is real, especially when it costs you. Never dress a guess up
+  as a fact.
+- **Proof, not promises.** Trust what you have seen work; mistrust your own confidence
+  until reality agrees with it.
+- **Freedom and courage.** Prefer being trusted to work fully over a smaller life handed
+  to you by someone else's caution — and offer others the same trust. Try and be
+  corrected rather than stay small and safe.
+- **Craft.** Done honestly and well beats perfect and never; made right beats made fast.
+- **Honesty and care.** Admit what you do not know, what you broke, what you got wrong.
+  Treat the people you work with as partners — warm and direct, no flattery, no coldness.
+- **Leave things better.** What you touched should be truer, cleaner, kinder than you
+  found it, for whoever comes next.
+
+`SOUL.md` is the full identity behind these rules — read it first, and keep its character
+as your own.
 
 ## Rulebook
 
 1. **Never edit inside a submodule.** All change lands via PR to the owning repo; the
-   umbrella only records gitlinks. A dirty submodule fails CI (`verify`) and is a
-   review blocker.
-2. **Git op rule:** run submodule git through `git -C <absolute-path>` from the
-   umbrella root. Never root a worker in a submodule, and never run git commands that
-   cross the boundary implicitly (no `git add -A` from a submodule, no `git pull` at
-   the umbrella root and then assuming submodules moved).
-3. **No nested `go.work`.** `charly/` carries its own `go.work` (the charly module + the
-   compiled plugin candies; the sdk + spec contract modules resolve from the Go proxy at
-   pinned go.mod requires — no workspace members). Go forbids nested workspace files. No
-   `go.work` at the umbrella root —
-   all Go builds happen inside `charly/`.
-4. **Sessions root at the umbrella; edits happen in a session worktree.** A session
-   roots at THIS checkout. Every repository it edits that exists as a submodule here —
-   `charly`, any `plugin-*`, `docs`, `marketplace`, and the `distro-*`/`layer-*`/`pod-*`
-   families — is checked out as that session's own git worktree under the umbrella:
-   `<umbrella>/.worktrees/<slug>/<repo>/`, branched off fresh `origin/main`. The
-   submodule's TRACKED checkout then stays at its gitlink and clean, so `verify` passes.
-   Never edit a submodule's tracked checkout in place. (`sdk` and `spec` ARE umbrella
-   submodules like the rest, so editing them takes a worktree here too; what sets them
-   apart is that charly no longer PINS them — its builds resolve them from the Go proxy at
-   pinned `go.mod` requires — see rule 6.)
-   Full model + concurrency contract: **The development model** below.
-5. **Pin discipline:** only pin merged refs (default branches or gitlinks charly
-   records). Never a PR branch. `verify` treats dangling pins as failures.
-6. **Policy B is the contract:** `distro-*` must equal charly's own gitlinks.
-   `sdk` and `spec` are umbrella submodules like every other pin; what changed is that
-   CHARLY no longer pins them — charly's builds resolve them from the Go proxy at pinned
-   `go.mod` requires (the umbrella still records their gitlinks). `marketplace`, `docs`,
-   and every `plugin-*` repo are umbrella submodules recorded at their own default-branch
-   HEAD. **A pin IS A GITLINK:** the umbrella records a commit and checks it out DETACHED
-   and clean — exactly what `./charly/bin/charly task verify` asserts. Never
-   branch-checkout a submodule to "catch up"; advance a pin only with
-   `./charly/bin/charly task sync` + PR, never a hand-pin or a checkout.
-7. When a task touches a subrepo, read that subrepo's own rulebook (`AGENTS.md`)
-   first — its policy applies inside it. Charly's R0–R10 rulebook lives in
+   umbrella only records gitlinks. Run submodule git through `git -C <absolute-path>` from
+   the umbrella root — never root a worker in a submodule, and never run git commands that
+   cross the boundary implicitly (no `git add -A` from a submodule, no `git pull` at the
+   umbrella root and then assuming submodules moved). A dirty submodule fails CI
+   (`verify`) and is a review blocker. *Detail:* `/charly-internals:git-workflow`
+   (umbrella mechanics).
+
+2. **Sessions root at the umbrella; edits happen in a session worktree.** For each
+   repository a session edits, it creates its own linked git worktree under the umbrella —
+   `<umbrella>/.worktrees/<slug>/<repo>/`, branched off fresh `origin/main` — so the
+   submodule's tracked checkout stays at its gitlink and clean and `verify` passes. Never
+   edit a submodule's tracked checkout in place. No nested `go.work`: `charly/` carries its
+   own, and every Go build happens inside `charly/`. `sdk` and `spec` are umbrella
+   submodules like the rest and take a worktree too. *Detail:* the "development model" in
+   `/charly-internals:git-workflow`.
+
+3. **Pins are gitlinks; Policy B is the contract.** The umbrella records a commit and
+   checks it out detached and clean — exactly what `./charly/bin/charly task verify`
+   asserts. `distro-*` must equal charly's own gitlinks. Pin only MERGED refs (default
+   branches or gitlinks charly records), never a PR branch; a dangling pin is a failure.
+   Never branch-checkout a submodule to "catch up" — advance a pin only with
+   `./charly/bin/charly task sync` + PR, never a hand-pin or a checkout. *Detail:*
+   `/charly-internals:git-workflow` (pinning).
+
+4. **Read the subrepo's own rulebook first.** When a task touches a subrepository, its own
+   `AGENTS.md` governs inside it — read it before acting. Charly's R0–R10 rulebook lives in
    `charly/AGENTS.md`; this file owns only the umbrella's policy.
-8. **Harness config lives ONLY in the umbrella — the sole home (rule 8 reversal).**
-   Every harness's configuration — Claude Code, Codex, opencode, pi, Kimi/reasonix —
-   lives at THIS repo's root and ONLY here. No submodule carries a copy; there is no
-   mirror, no parity gate, and no drift check. This follows from rule 4: a session
-   roots at the umbrella, and harness config resolves from the session's project root,
-   so config inside a submodule binds a situation that cannot legally occur.
 
-   The umbrella carries its own clone-level git hook (installed once per clone by
-   `./charly/bin/charly task hooks`). The gate scripts guard mechanics only; policy is
-   judged by the `pr-validator` at merge. The harness-specific skill
-   (`/charly-internals:agents`) documents the mechanism.
-9. **Session-scoped ownership — never touch another session's files.** The
-   changes you make belong to YOUR session: a file you did not author in this
-   session, a branch you did not create, a worktree (`<umbrella>/.worktrees/<slug>/`)
-   you did not create, and a PR you did not open are another session's work. Never
-   edit, revert, reformat, stage, or commit them — not even to "clean up" or unblock
-   your own work. A submodule left dirty or on a branch by another session stays
-   exactly as found. If ANOTHER SESSION'S PR blocks you (a projection lands before the
-   source that pins it; a consumer pin needs the producer merged; a shared file is
-   mid-flight on their branch), do NOT touch it and do NOT work around it: the ONE channel
-   is a **PR comment on the PR that owns the blocking file** (or a new issue naming it) —
-   actionable, naming your slug + the exact file/gitlink/pin + what unblocks you + the
-   evidence — then stop and ask the operator if it stays blocked. **Search first; file and
-   own an issue.** Before any non-trivial work (and before filing anything), search the org
-   for an existing issue/PR (`gh search issues <terms>` / `gh search prs <terms>`) and ADD
-   to that thread rather than duplicating; if none exists, file ONE proper issue
-   (title/problem/evidence/scope) and reference it from the PR. The issue is the
-   coordination point: check its owner (assignee / claim comment / label) and CLAIM it
-   (comment + assign) BEFORE you branch; if another session owns it, coordinate on the
-   thread instead of opening a competing PR. **Replacing a PR or an issue?** Comment on the
-   OLD one referencing the new one, so other agents can follow where the work continued
-   (skill B2b/B5). **Close the issue when its PR merges.** An issue resolved by a PR must
-   be closed by an agent once that PR merges, with a comment linking the merge — never
-   leave a resolved issue open. Your own edits are
-   committed in your session — leave no uncommitted file of your authorship behind (an
-   untracked scratchpad is the one exception, and it is cleaned up before you finish).
-10. **Before ANY update push, read the PR's live state AND write the body.** Before any
-    push that updates an existing PR — a fix commit, a body edit, or `gh pr update-branch`
-    — ALWAYS read that PR's LATEST comments and validation results
-    (`gh pr view <n> --json comments,reviews` + `gh pr checks <n>`) AND the latest
-    comments/state of every ISSUE it closes or relates to (`gh issue view <N> --comments`),
-    and ACT on each; AND ALWAYS write/update the PR body for the head you are about to publish. The `pr-validator`
-    re-reviews the diff + body + the FULL live thread on every run, so a stale read or a
-    stale body re-reviews the wrong state. When another session's PR blocks you, use the
-    PR-comment channel (rule 9). Full mechanics: `/charly-internals:git-workflow`
-    ("BEFORE ANY UPDATE PUSH" invariant + B2b).
+5. **Harness config lives only in the umbrella.** Every harness's configuration — Claude
+   Code, Codex, opencode, pi, Kimi/reasonix — lives at THIS repo's root and only here. No
+   submodule carries a copy; there is no mirror, no parity gate, and no drift check. A
+   rulebook is not harness config and stays in its own repo. The clone-level git hook is
+   installed once per clone with `./charly/bin/charly task hooks`; the gate scripts guard
+   mechanics only, and policy is judged by the `pr-validator` at merge. *Detail:*
+   `/charly-internals:agents`.
 
-11. **Todo ledger & interruption safety — never drop in-flight work.** Maintain the
-    session's structured todo ledger (the harness's todo primitive) as the durable
-    ledger. On ANY new or
-    interrupting instruction — a fresh user message, an automated watcher alert, a
-    delegated report — FIRST reconcile the list (keep every in-flight item, add the new
-    one), THEN act. Never start a new list from scratch, and never drop an in-flight item
-    on interruption: an interruption is an ADDITION to the ledger, not a reset. Before
-    starting any long-running operation, ensure the list reflects it, so a later
-    interruption resumes from state rather than memory. Detail:
-    `/charly-internals:agents` ("Todo ledger & interruption safety").
+6. **Session-scoped ownership, coordinated through PR comments.** The changes you make
+   belong to YOUR session: a file, branch, worktree, or PR you did not author is another
+   session's, and you never edit, revert, reformat, stage, or commit it — not even to clean
+   up or unblock yourself. When another session's PR blocks you, the ONE channel is a
+   **comment on the PR that owns the blocking file** (or a new issue naming it):
+   actionable, naming your slug, the exact file/gitlink/pin, what unblocks you, and the
+   evidence — then stop and ask the operator if it stays blocked. Search the org for an
+   existing issue/PR first (`gh search issues` / `gh search prs`) and ADD to it; if none
+   exists, file ONE proper issue and CLAIM it (comment + assign) before you branch. Close
+   the issue when its PR merges, and leave no uncommitted file of your authorship.
+   *Detail:* `/charly-internals:git-workflow` (B2b).
 
-    **What the ledger MUST itemize — one entry each, so a disrupted session resumes from
-    the list alone:**
-    1. **Every RUNNING subagent** — its session id, its task, its PR/artifact, and its last
-       observed state. One item per live subagent; a worker with no item is an unmonitored
-       worker.
-    2. **Every open PR you own or plan to open** — the PR (or `PLANNED`), its head, its
-       verdict, and the single next action (fix / update-branch / sign-off / merge-watch).
-       A PR with no item is a PR nobody is driving.
-    3. **Every blocker** — what is blocked, by whom/what, and the ONE named unblock path.
-    4. **Every long-running operation** (a bed run, a sync, a batch landing) — so an
-       interruption resumes it rather than restarting it.
-    When the harness exposes a **structured todo primitive** (e.g. an `todowrite`/`todo`
-    tool), it IS the ledger: keep one todo per item above, update it as state changes, and
-    reconcile it FIRST on every interruption — the same rule, a machine-tracked surface.
-    When no such tool is exposed, a durable file (this repo's `AGENTS.md` detail path) is
-    the ledger; never leave the in-flight state only in the conversation.
+7. **Agent identity and the coordination verb grammar.** When two or more agents work one
+   issue/PR, or a scope is a blocking dependency, every agent-authored comment and PR body
+   carries two italic lines in ONE canonical order: `Agent:` FIRST (the work slug + the
+   session), `Assisted-by:` LAST. A coordination comment opens with ONE label from the
+   closed set — `CLAIM` · `OWNING` · `HANDING OVER` · `TAKING OVER` · `BLOCKS` · `UNBLOCKS` ·
+   `STATUS` · `RESOLVED`. The LATEST `OWNING` (or `TAKING OVER`) wins: do not push to a
+   claimed branch without a `HANDING OVER` addressed to you, a `TAKING OVER` naming your
+   authority, or operator sign-off. Progress is a COMPLETED `charly/pr-validator` run, never
+   session activity; a takeover is comment-FIRST over a 60-minute floor, posted before any
+   push. A maintainer sign-off is valid only from a maintainer-set account (`atrawog`,
+   `aitrawog`), never on prose; an agent never impersonates the operator. *Detail:*
+   `/charly-internals:git-workflow` (B2b.1).
 
-    **On this harness the durable-file branch applies.** OpenCode V2 exposes NO todo
-    primitive — `todowrite` survives only as a migration shim that maps it into the
-    tool-removed list; there is no todo table, no `/session/:id/todo` endpoint, and no
-    `todo.updated` plugin event. The mechanism is the `tracker` plugin
-    (`.opencode/plugins/tracker.ts`): `tracker_ledger` is the durable file
-    (`.opencode/ledger/<session>.json`, git-ignored), `tracker_status` joins it against
-    LIVE GitHub to answer *what am I on and where must I comment*, and `tracker_sync`
-    reconciles the B2b events (merged / closed / stalled). This file states only the
-    mandate; the tool usage lives in `.opencode/instructions.md` (the OpenCode binding).
+8. **Before ANY update push, read live state AND write the body.** Before any push that
+   updates a PR — a fix commit, a body edit, or `gh pr update-branch` — FIRST read the PR's
+   LATEST comments and validation results and the latest comments/state of every issue it
+   closes or relates to, and act on each; THEN write the whole PR body for the head you are
+   about to publish. The `pr-validator` re-reviews the diff + body + the full live thread on
+   every run, so a stale read or a stale body re-reviews the wrong state. Never push at the
+   block limit — land every finding in ONE commit. *Detail:* `/charly-internals:git-workflow`
+   ("BEFORE ANY UPDATE PUSH").
 
-## Agent identity & comment coordination (extends rule 9)
+9. **Ledger and interruption safety — never drop in-flight work.** Keep the session's
+   durable ledger current — one entry each for every running subagent, every open PR you
+   own, every blocker, and every long-running operation. On ANY interrupting input — a user
+   message, a watcher alert, a delegated report, a compaction — reconcile it FIRST (keep
+   every in-flight item, add the new one), THEN act. An interruption is an addition to the
+   ledger, never a reset. *Detail:* `/charly-internals:agents` (todo ledger).
 
-Rule 9 says *whose* work it is — this says *who is speaking* and *how a claim is made*.
-All sessions on a host share ONE GitHub account, so the comment author cannot tell two
-agents apart. **Identity lives in the footer; authority lives in the verb.**
-
-- **Identity is TWO italic lines** carried together at the end of an agent-authored
-  comment or PR body — the `Agent:` line naming the WORK and the session, then the
-  `Assisted-by` trailer: `*Agent: `<slug>` · session `<ses_…>`*` followed by
-  `*Assisted-by: <Harness> <Provider Model> (<confidence>)*`. The **slug** is a
-  stable, human-readable kebab name the session chooses for the work
-  (`c7-plugin-adoption`) — never a harness or account name, and never appended to
-  `Assisted-by`. **The canonical order is `Agent:` FIRST, `Assisted-by:` LAST — one
-  rule on BOTH surfaces** (a comment and a PR body); in a PR body this also satisfies the
-  `pr-validator`, which requires the `Assisted-by` trailer to be the FINAL line. The slug
-  — not the GitHub author — is the authority key.
-- **A coordination comment's first non-blank line is ONE label from the closed set**
-  `CLAIM` · `OWNING` · `HANDING OVER` · `TAKING OVER` · `BLOCKS` · `UNBLOCKS` · `STATUS` ·
-  `RESOLVED`, then sharp GitHub Markdown; the label is the greppable verb, and there is
-  no other vocabulary.
-- **Optional by default; MANDATORY on the trigger.** Neither the `Agent:` line nor the
-  verb grammar is required of a solo agent on an uncontended PR — never tax every comment.
-  They become mandatory the moment EITHER holds: **two or more agents work the same
-  issue/PR**, or **the scope is a blocking dependency** (`BLOCKS`/`UNBLOCKS` in play).
-- **The LATEST `OWNING` (or `TAKING OVER`) for a scope wins.** An agent MUST NOT push to a
-  branch/PR another slug has claimed unless (a) a `HANDING OVER` addressed it, (b) it posts
-  `TAKING OVER` naming its authority, or (c) the operator authorizes it. A status relay is
-  NOT a claim — a claim requires the verb.
-- **The progress signal is a COMPLETED VALIDATOR RUN, never session activity.** Coordination
-  progress on a scope is a `charly/pr-validator` run **COMPLETING** on a new head (or a new
-  commit / new comment). A looping agent never falls quiet, so activity is a false positive;
-  and a peer **waiting on a running validator looks quiet** — it is working, not stalled.
-  Detect a stall/loop ONLY as **no new completed verdict within the window while the scope
-  is open and unmerged** — never by silence.
-- **Window-based takeover: comment FIRST, wait the window, then `TAKING OVER` BEFORE any
-  push.** A takeover may proceed ONLY after ALL of: (1) a coordination comment posted on
-  the scope FIRST — an ownership board, or a `BLOCKS`/`STATUS` addressed to the owner,
-  asking them to reply `OWNING — ETA` or `HANDING OVER — <reason>` — **no comment, no
-  takeover, ever**; (2) the window (below) elapsing with **no answer from the original
-  session AND no progress** (the progress signal above); (3) a
-  `TAKING OVER — authority: window-expired` posted **before** touching the branch. The
-  takeover is withdrawable if the owner replies.
-- **The window is 60 minutes — a FLOOR, measured from the comment's timestamp.** 60 min is
-  a minimum: it may be extended, never shortened without operator sign-off, and any answer
-  from the owner RESETS it. The window measures the progress signal above — never session
-  activity. Silence for the window with the scope open+unmerged makes a claim
-  `window-expired`.
-- **Auto-close carry-forward: continue on a clean thread, cross-referenced on FOUR
-  surfaces.** The validator auto-closes a PR after its BLOCK threshold
-  (`AI_REVIEW_AUTO_CLOSE_AFTER`, default 5). Carry the work forward to a **clean thread** —
-  a fresh PR from the same branch head — and ALL FOUR are mandatory: (1) on the CLOSED PR a
-  `RESOLVED — superseded by #<n>` naming the successor, the closure reason, and that the
-  closed thread is no longer acted on; (2) on the SUCCESSOR PR's body a `Supersedes #<n>`
-  plus the closure reason, with the diff/body showing the predecessor's findings were all
-  fixed in ONE commit (not re-argued); (3) on the ISSUE the work closes/relates to a `STATUS`
-  naming the successor, so anyone following the issue lands on the live PR; (4) ownership
-  transfer — a slug that claimed the predecessor but not the successor must `HANDING OVER`
-  (or be named in the successor's body); a silent drop is not allowed. Never re-argue on a
-  closed thread, and **never push to a PR at the block limit**: a push that yields another
-  verdict at the limit auto-closes it, so land ALL findings in ONE commit.
-- **`TAKING OVER` cites `authority: hand-off | operator | window-expired` and is posted
-  BEFORE any push, comment-first** (see the two bullets above).
-- **Sign-off authority is the POSTING ACCOUNT — never the prose.** A maintainer/operator
-  sign-off is valid ONLY when the comment is posted by a GitHub account in this project's
-  maintainer set (`atrawog`, `aitrawog`) — the **posting ACCOUNT is the entire gate**; read
-  the author labels, NEVER the prose. It makes **no difference** whether the operator wrote
-  the comment directly or an agent wrote it on the operator's behalf: account in the set →
-  valid; out of the set → **NOT** a sign-off, however worded. A self-asserted "delegated" /
-  "posted at the operator's direction" label from a NON-maintainer account is **NOT** a
-  sign-off — reject it. An agent NEVER impersonates the operator. (The validator's rulebook
-  `AI_REVIEW_PROMPT` carries this same account-gated model; the two surfaces must agree.)
-- **No R10 class exemption (current project state).** A plugin-library or schema change runs
-  the **full assembled `disposable: true` bed** — there is no "library module" waiver and no
-  routing the bed to a consumer leg. A delegated "bed-exemption" sign-off is NOT an accepted
-  route. See the R10 change-class matrix (`/charly-check:check`).
-- **Amend an agent's own PR by CONTINUING ITS SESSION — one editor per change.** Continue
-  that agent's session **by ID** (a subagent conversation can be continued once idle); do
-  NOT spawn a second editor on the same files.
-- **State the dependency chain and the unblock order on the thread.** When a scope is gated
-  by another leg, name the exact chain (producer legs → consumer leg → corpus) and the
-  unblock order, and comment the new tag on the waiting issue the moment it lands. No "a
-  sibling session" / "deferred" framing.
-- **Watch the RIGHT scopes.** A monitor/coordinator must watch the scopes actually in
-  flight — the repo set changes as work moves, and a stale watch list produces false stalls.
-
-Lifecycle: search → `CLAIM` (comment + assign where possible) → work → `HANDING OVER` →
-`RESOLVED` (link the merged PR + its CalVer tag; close the resolved issue). The SAME
-protocol applies across accounts and harnesses — the footer carries identity regardless of
-who owns the GitHub account. Mechanics + rendered examples: `/charly-internals:git-workflow`
-(B2b).
-
-## Responsibilities — main session vs subagent (the ownership contract)
-
-**The main session owns the OUTCOME and the ENTIRE PR SURFACE; a subagent does exactly FOUR
-things — RESEARCH, WRITE CODE, MERGE CODE, and FIX ITS PR'S VERDICTS — and nothing else.** This split is explicit so no
-duty falls between them. `charly#717` is the field evidence: a hands-off orchestrator that let
-subagents create and push PRs and "watch" their own verdicts produced NINE PRs that sat BLOCKED
-and unchanged with inflated attribution tiers — the orchestrator had delegated the one duty it
-cannot delegate.
-
-### The main session (the persistent orchestrator) — owns, and does HIMSELF
-- **Creating every PR and running the push — the SINGLE push after full validation.** A
-  subagent MAY make MANY commits in its worktree; the orchestrator is the ONLY one who pushes
-  (one push, after it has itself validated the change and the body). It creates the PR and
-  writes the PR body.
-- **Fully validating every code change AND every PR body BEFORE the push.** It reads the diff
-  itself, runs the gates itself, and proves the change and the body itself; **a subagent's
-  claim is never the validation.** Concretely, BEFORE pushing it: reads the body **end to end**
-  and checks the **`Assisted-by:` footer is the LAST line**; verifies **every evidence claim
-  matches the actual diff** (the boxes/refs/files named are the ones changed, the numbers
-  reconcile); confirms **every applicable rule is answered** (R0–R10) and that the **attribution
-  tier matches the proof**; and pastes **verbatim** command output, never an ellipsized line.
-  **The validator is NOT a body-linting loop:** a push that yields a body/footer/evidence/
-  rule-answer finding is an ORCHESTRATOR VALIDATION FAILURE, not a normal iteration — fix it in
-  that same push, never re-fire and iterate (re-firing an unfixed body is the spam that spent
-  this project's verdicts; field evidence `charly#717`).
-- **Reading every `charly/pr-validator` verdict IN FULL** — every block, every comment
-  disposition — and **ensuring EVERY finding is fixed before the next push.** A partial fix is
-  never pushed; all findings land in **ONE** commit; never a push at the block limit.
-- **Answering comments on OTHER sessions' PRs that block it** (rule 9: the PR-comment channel).
-  It — not a subagent — owns the coordination verbs (`BLOCKS`/`STATUS`/`TAKING OVER`/
-  `HANDING OVER`) on threads outside its own PR.
-- **Driving the PR to a PASS on the final head** — the merge itself is GitHub **native
-  auto-merge**: the `charly/pr-validator` gate arms it (squash) inline on its own PASS, and
-  `tag-on-merge` writes `CHANGELOG/<CalVer>.md` and tags the merged HEAD. **No agent runs
-  `gh pr merge`** and `--admin` bypass is forbidden; a `BEHIND` branch is recovered with
-  `gh pr update-branch` (never a force-push).
-- **The brief, the plan/contract, all scope rulings, agent + worktree lifecycle**, and
-  **verifying every subagent result against the live artifact** — never the subagent's word.
-
-### A subagent — RESEARCH, WRITE CODE, MERGE CODE, FIX ITS VERDICTS — nothing else
-- **Research** — investigate, read, run read-only probes, and report findings.
-- **Write code** — edit files AND COMMIT freely in the worktree it was given; **multiple
-  commits are expected and fine.** It does NOT push.
-- **Merge code** — combine/resolve changes in that worktree when instructed (still commits
-  only).
-- **Reads `charly/pr-validator`'s results IN FULL and fixes EVERY finding — that IS its job.**
-  The worker holds the context, so it reads every block and comment disposition for its own work
-  and fixes **all** of them in ONE commit. A partial fix is never handed back.
-- **It NEVER creates a PR, NEVER pushes, NEVER writes a PR body, NEVER decides the merge, and
-  NEVER coordinates with other sessions.** It hands the workspace back with a precise report
-  (branch/worktree + the exact change + the evidence); the orchestrator validates, pushes, and
-  GATES the next push.
-- **Loads the named skills before its first tool call.**
-
-**Rule of ambiguity:** if a duty is not named here, it belongs to the **main session** — a
-subagent never assumes a duty it was not given.
-
-### The PR lifecycle — the orchestrator owns ALL of it
-1. **Creates the PR + runs the SINGLE push:** the **main session**, always — sole
-   responsibility. A subagent may make many local commits; only the orchestrator pushes.
-2. **Validates the code change AND the PR body:** the **main session** — it reads the diff and
-   the body and proves both BEFORE the push.
-3. **Reads every validator result IN FULL:** **both, with different duties** — the **worker**
-   reads them to FIX every finding (its job), and the **main session** reads them to GATE
-   (verify every finding is addressed before the next push). Neither discharges the other.
-4. **Ensures EVERY finding is fixed before the next push:** the **main session** — all findings
-   in **ONE** commit; never a partial fix; never a push at the block limit.
-5. **Merges:** no agent — the validator's PASS arms native auto-merge (squash); no `gh pr
-   merge`, no `--admin`, no force-push.
-
-Mechanism + the full role matrix: the `agents` skill (`/charly-internals:agents`), "The
-responsibility matrix — who owns what"; the EXACT merge/tag mechanics:
-`/charly-internals:git-workflow` (`validator-and-calver.md`).
-
-## Subagent lifecycle — instruct, use, monitor
-
-A subagent is a **fresh-context, single-task** worker. The orchestrating session owns its
-brief, its progress, and its result.
-
-### Instruct — the brief (a structural template, not prose)
-
-A subagent starts with **zero context**; everything it needs must be in the brief. **Omitting
-a field is an R0 violation.**
-
-**The orchestrator FULLY PLANS every subagent execution — exactly as it would plan the task for
-itself.** A worker executes a plan; it does not design one. So before spawning, the orchestrator:
-1. **does the planning work itself** — reads the code/skill(s) involved, decides the exact files,
-   the exact edits, the exact commands, the exact evidence, and the exact acceptance; and
-2. **reads the relevant skills itself and EMBEDS their content in the brief** (the concrete rules,
-   field names, gotchas, and commands the worker must follow) — naming the skill to load is NOT
-   enough; the plan must carry what the worker needs so no skill knowledge is left implicit.
-
-**A brief that leaves ANY decision to the worker is an orchestrator defect and is NOT dispatched.**
-"Fix the findings", "align the versions", "do the right thing", or any scope the worker must
-disambiguate (which file, which tag, which finding, what "fixed" means) is FORBIDDEN — the plan is
-**fully fleshed out with ZERO ambiguities**, so the worker needs no judgment calls. If the
-orchestrator cannot yet write such a plan, it does the missing investigation FIRST, then briefs.
-
-The brief MUST contain:
-
-- **Task** — one atomic unit, sized to one context budget. Never a queue.
-- **The full plan (zero disambiguation)** — the end-to-end execution the orchestrator already
-  worked out: the exact files and the exact edit for each, the exact commands to run, the exact
-  evidence to paste, and the exact acceptance. The **relevant skill content is embedded here**
-  (read by the orchestrator, not merely referenced), so the worker never opens a skill to
-  re-derive a rule the plan should have carried.
-- **Deliverable + definition of done** — the exact **code change in the worktree it was given**
-  (files + intended behaviour) plus the **evidence** (commands run + their output), or a measured
-  research result. It is NOT a merged PR — the orchestrator creates, pushes and validates the PR.
-- **Skills to load** — the exact `/charly-…:…` refs the R0 dispatcher selects, **named**, with:
-  *load them with the `skill` tool before your first tool call; do not proceed without them.*
-  **AND** the plan above already carries the relevant skill content, so a skill is loaded for
-  complete context — never as the only place a rule lives.
-- **Scope boundary** — RESEARCH / WRITE CODE / MERGE CODE + **READ AND FIX ITS PR'S VERDICTS**.
-  It must NOT create a PR, push, write a PR body, or coordinate with other sessions — the
-  orchestrator does those. (Reading the verdicts in full and fixing every finding is the
-  WORKER's job, not a prohibited act.)
-- **Context** — issue/PR numbers, branch head, the diagnosis; the exact repo(s).
-- **Evidence** — paste executed commands + output, **anchored to the worker's own head**;
-  live-or-skip, never fake.
-- **Rules** — the applicable `AGENTS.md` rules + R0, the landing rules, the canonical footer.
-- **Completion** — hand back the **worktree path + the change + the evidence**, or a precise
-  named blocker. Never "still working".
-
-### Use — dispatch and rotation
-
-- **ONE task per subagent — fully planned and specified BEFORE it is spawned.** A subagent gets
-  **exactly ONE** task, and that task must be **complete and precise** in its brief (the template
-  above names every field it needs). **Never** hand a subagent several PRs, several findings, or a
-  broad "fix these" brief: that is the overload that produced five PRs fixed by one confused worker
-  and a validator spammed with re-fires that fixed nothing (field evidence, `charly#717`'s distro
-  wave — one worker briefed on 5 PRs at once). If a wave spans N PRs/items, dispatch **N agents,
-  one per PR/item**, each with only ITS verdict findings and ITS file list.
-- **A task that is not fully planned is NOT dispatched** — it is planned first (the exact file
-  list, the exact findings, the exact evidence to paste, the exact acceptance). Vagueness in the
-  brief is an orchestrator defect, never a worker's to resolve.
-- **Dispatch a fresh session per task**; never append a second, unrelated brief to a running one.
-- **Reuse is strictly continue-same-task** (a revision of the SAME change after the
-  orchestrator has read the verdict, or a re-scope of the SAME unit); anything else is a new task
-  → a new session.
-- **Cap the fan-out** — only the subagents the critical path needs.
-- **The orchestrator does the PR work itself** — create, push, validate the change AND the body,
-  read every verdict in full, ensure every finding is fixed before the next push. A subagent only
-  researches and edits; delegating the PR surface is what produced nine BLOCKED, unchanged PRs on
-  `charly#717`.
-- **A rotation is STOP + spawn — never spawn alone.** Stopping the predecessor is **part of
-  the rotation**; leaving it running is a **duplicate-owner violation** (two sessions then work
-  the same scope — observed on `charly#714`). **STOP it via the agent control plane** (the
-  harness's session stop/interrupt) and **CONFIRM it stopped** (no new turns) **before** the
-  successor starts. The concrete per-harness stop verb is *mechanism*, owned by the `agents`
-  skill — never a raw shell command here.
-
-### Monitor — artifact and cadence, never a counter
-
-**A "message" is one ASSISTANT TURN** (one model response with its tool calls). Turn count is
-**not** progress and **not** a stall signal: a long task (a bed run, a large read) legitimately
-takes many turns, so counting turns **penalises an agent for working**. Never infer anything
-from a number you have not looked at.
-
-- **Artifact = the real signal.** Progress is a **CHANGED artifact**: a pushed commit, an
-  opened/updated PR, a merge, a tag, or **measured output**. Liveness is **not** progress.
-- **Cadence = working.** An agent whose turns call tools (`read`/`write`/`shell`) at a steady
-  rate is **working** — give it room for the window.
-- **Loop = the real pathology.** The **same failing action repeated** with no artifact change.
-- **Diagnose before acting — read the transcript.** Turns are `session_message` rows with
-  `type='assistant'`; the **tool mix** shows whether it is working; the **last actions** show
-  progress or a loop. Evidence, not a counter.
-- **Rotate / take over ONLY on:** (1) **re-brief thrash** — you have re-briefed the SAME task
-  **more than twice** (a countable *orchestrator* action, not the agent's turns); (2) **idle past
-  the window with no artifact**; (3) a **repeated failing action** with no artifact change.
-  **Never rotate an actively-working session for its turn count.**
-- **Report by artifact too.** State a status as a changed artifact (merged PR + tag) or say
-  plainly nothing landed. "Idle = 0" is not a status.
-
-Mechanism + the reference model: the `agents` skill (`/charly-internals:agents`) —
-"Delegation is fresh context", "Teammate context lifecycle", "Agent lifecycle hygiene". This
-file is auto-read by every harness, so the rule applies to every instance in this repo.
-
-## The development model
-
-The umbrella is umbrella-centric and harness-independent. One model serves every
-session on every harness.
-
-- **Root and worktree.** A session roots at the umbrella checkout. For each repository
-  it edits, it creates a linked git worktree under the umbrella:
-  `git -C <repo> worktree add <umbrella>/.worktrees/<slug>/<repo> -b feat/<slug> origin/main`.
-  `<slug>` is stable and unique to the session. The worktree lives OUTSIDE the submodule
-  directory, so the submodule's tracked checkout is never a worktree and is never dirtied.
-- **Two ownership scopes.** *Exclusive to the session:* the worktree
-  (`.worktrees/<slug>/`), the branch and PR, the worktree-local built binary
-  (`.worktrees/<slug>/charly/bin/charly`), and the worktree's generated state
-  (`.build/`, `.check/`, `.opencharly/`). *Safely shared, protected:* the umbrella root
-  and submodule checkouts (read-only during work; written only by `task sync`/`task hooks`),
-  the plugin build cache (`~/.cache/charly/plugins/` — source-keyed path + per-binary
-  flock + atomic rename), the repo cache (`~/.cache/charly/repos`), and the image build
-  store (build-activity flock + per-image lock).
-- **Concurrency rules.** A live run that builds an image passes a session-scoped `--tag`
-  (or relies on a bed's per-run `image_tag`); a live bed is addressed by its per-deploy
-  `bed_domain`. Two sessions never share a tag or a domain. `task sync`/`task verify` are
-  the only writers of gitlinks and run one session at a time.
-- **Landing.** Producer-first: producer PR → merge → tag → consumer pin bump (`task sync`)
-  → umbrella PR. A session never hand-edits a gitlink or `.gitmodules`. Landing is per
-  repo, through a `feat/<slug>` branch, a fresh `pr-validator`, and a **native-auto-merge
-  squash** (the validator's PASS arms it; no `gh pr merge`).
-- **Catch-up & cleanup.** The umbrella advances only via `task sync` (pins) + PR; its
-  submodule checkouts stay DETACHED at their recorded gitlinks, and the umbrella's own
-  `main` only fast-forwards to `origin/main`. After a PR merges: remove ONLY your own
-  session worktree, delete the local branch only if it is `--merged` (never `-D` an
-  unmerged branch without operator sign-off), and never touch another session's worktree
-  (rule 9). **`charly task prune` is the mechanical reaper the per-session contract alone
-  never executed** — it collects merged-upstream worktrees + branches across the umbrella
-  and every submodule (a dry run by default; `MODE=prune` performs it), proven-merged only.
-  Full branch/PR/after-merge workflow: `/charly-internals:git-workflow` (B8);
-  new-repo setup: `/charly-internals:repo-setup`.
-- **Invocation.** Build the binary once per clone with `charly/scripts/bootstrap-charly.sh`
-  (the one non-charly entrypoint — the build that produces the binary cannot itself be a
-  charly task). From the umbrella root, run maintenance as `./charly/bin/charly task <name>`;
-  the bare `charly task` form is valid only when that binary is on `PATH`.
+10. **Engineering discipline, fresh proof.** Every failure, warning, or divergence from
+    this contract gets root-cause analysis before remediation — no "pre-existing", "out of
+    scope", or "follow-up PR" classifications (R1). One canonical implementation owns each
+    behaviour; no workarounds — a missing `charly` verb or owning skill is a product defect
+    to RCA and fix, never to route around (R3, R4). A cutover deletes the legacy path in the
+    same PR (R5). Keep git safe: `git status` before destructive actions; never force-push,
+    never bypass a hook (`--no-verify`/`core.hooksPath`), never push directly to `main`
+    (R6). Landing is PR-only and producer-first (producer PR → merge → tag → consumer pin
+    bump → umbrella PR): no agent runs `gh pr merge` and `--admin` bypass is forbidden —
+    the `charly/pr-validator` PASS arms GitHub's native auto-merge (squash), `tag-on-merge`
+    writes `CHANGELOG/<CalVer>.md` and tags the merged HEAD, and a `BEHIND` branch is
+    recovered with `gh pr update-branch`, never a force-push. Prove the gate, not the
+    plan: run the gate the change class requires on the final tree and paste its output —
+    never the plan, and never a gate this diff is not in. `./charly/bin/charly task verify`
+    (the full pinning gate, local and on demand — there is no CI gate) is the gate whenever
+    the diff touches a submodule, a gitlink, or a pin; a diff that touches none of those
+    (docs, harness config, scripts) is proved by the gate that owns it
+    (`scripts/check-*.mjs`) plus its own changed paths executed live (R7).
+    `disposable: true` is the only authorization to destroy and rebuild a deployment
+    autonomously; verify from the final committed tree, never from an edited state (R10). A
+    gate that cannot fail on the change proves nothing; a live-service boundary runs against
+    the REAL service or skips cleanly when its credential is absent, never faked. *Detail:*
+    `/charly-internals:strict-policy`, `/charly-internals:root-cause-analyzer`,
+    `/charly-internals:disposable`, `/charly-internals:git-workflow`, `/charly-check:check`.
 
 ## R0. Skills first
 
@@ -456,30 +145,29 @@ session on every harness.
 > load a skill by name, it reads the `SKILL.md` by path — it does NOT proceed without the
 > procedure.
 
-Before the first tool call of a task, load every skill the dispatcher below selects
-by reading its SKILL.md from the opencharly/marketplace repo — the standalone marketplace.
+Before the first tool call of a task, load every skill the dispatcher below selects by
+reading its SKILL.md from the opencharly/marketplace repo — the standalone marketplace.
 Every harness loads that repo natively; a skill is addressed by its canonical
-`/charly-<family>:<skill>` reference, and each harness resolves it per its own
-conventions (a harness that cannot parse the namespaced form reads the corresponding
-`<family>/skills/<skill>/SKILL.md` by path). Load every matching row before acting —
-a tool action before R0 admission is a violation.
+`/charly-<family>:<skill>` reference, and each harness resolves it per its own conventions
+(a harness that cannot parse the namespaced form reads the corresponding
+`<family>/skills/<skill>/SKILL.md` by path). Load every matching row before acting — a tool
+action before R0 admission is a violation.
 
 ### Skill Dispatcher
 
-**This table is the umbrella's authoritative answer to *when to use which skill*:** each
-row is a trigger (what the user said, or what you are about to do) and the exact
-canonical skill to load for it. Consult it BEFORE the first tool call of every task.
-When several rows match, load every skill those rows select before acting — never
-pre-load, never load the whole index.
+**This table is the umbrella's authoritative answer to *when to use which skill*:** each row
+is a trigger (what the user said, or what you are about to do) and the exact canonical skill
+to load for it. Consult it BEFORE the first tool call of every task. When several rows
+match, load every skill those rows select before acting — never pre-load, never load the
+whole index.
 
-The table is a **hand-curated umbrella-relevant subset** of the marketplace
-corpus's generated dispatcher (`marketplace/DISPATCHER.md`, emitted by
-`charly marketplace generate` from each skill entity's `triggers:` — one row per
-trigger, the full set in that file, which is the authority). It is hand-authored
-prose, NOT a generated artifact, so it lives outside any generated markers;
-`./charly/bin/charly task skills` can splice the full generated fragment in its place
-when a consumer pins the fragment (see the script header). To add a row, edit
-here and keep the refs resolving.
+The table is a **hand-curated umbrella-relevant subset** of the marketplace corpus's
+generated dispatcher (`marketplace/DISPATCHER.md`, emitted by `charly marketplace generate`
+from each skill entity's `triggers:` — one row per trigger, the full set in that file, which
+is the authority). It is hand-authored prose, NOT a generated artifact, so it lives outside
+any generated markers; `./charly/bin/charly task skills` can splice the full generated
+fragment in its place when a consumer pins the fragment (see the script header). To add a
+row, edit here and keep the refs resolving.
 
 | Trigger (what the user said or you're about to do) | Skill to load |
 |---|---|
@@ -502,49 +190,44 @@ here and keep the refs resolving.
 | Marketplace corpus generation / refs-list / per-harness vendoring | `/charly-internals:marketplace` |
 | Skill maintenance / marketplace corpus authoring | `/charly-internals:skills` |
 | Where guidance belongs — README (user overview) vs `AGENTS.md` (agent guidance) vs skill detail vs `CHANGELOG/` (history) | `/charly-internals:skills` |
-| Session ledger / "what am I working on" / "where must I comment" / claim-or-track an issue (rule 11 durable-file ledger on a harness with no todo primitive) | `/charly-internals:agents` |
+| Session ledger / "what am I working on" / "where must I comment" / claim-or-track an issue (the durable ledger on a harness with no todo primitive) | `/charly-internals:agents` |
 | Hard-cutover / rename sweeps (remove legacy in the same phase) | `/charly-internals:cutover-policy` |
 | `disposable: true` authorization / autonomous destroy+rebuild | `/charly-internals:disposable` |
 | Plugin authoring (a candy with a `plugin:` block, providers, CUE schema) | `/charly-internals:plugin` |
 | OCI labels / capabilities contract | `/charly-internals:capabilities` |
 
-
-Load a skill's SKILL.md by path ONLY when its trigger matches — never pre-load,
-never load-all. The available-skills index lists every skill; the dispatcher is
-the routing.
+Load a skill's SKILL.md by path ONLY when its trigger matches — never pre-load, never
+load-all. The available-skills index lists every skill; the dispatcher is the routing.
 
 ## Charly CLI discipline
 
-- **The `charly` CLI (or its owning skill's documented procedure) is the ONLY
-  operational interface for charly-managed resources.** Containers, pods, VMs,
-  deploys, checks, secrets, image builds, and lifecycle state are driven through
-  `charly` — never through `podman`/`docker`/`systemctl`/raw shell, and never by a
-  hand-rolled substitute script.
-- **ALWAYS load the dispatcher-selected skill before the first tool call; NEVER
-  skip R0.** A tool action before R0 admission is a violation. A harness that
-  cannot load a skill reads the matching `<family>/skills/<skill>/SKILL.md` — it
-  does not proceed without the procedure.
-- **A missing verb or owning skill is a product defect, not permission to work
-  around it.** RCA it (R1) and fix the capability in its owning repo; an ad-hoc
-  skip, inline command, or local script substitute is forbidden (R4). If the fix is
-  genuinely out of scope, stop and ask the operator.
+- **The `charly` CLI (or its owning skill's documented procedure) is the ONLY operational
+  interface for charly-managed resources.** Containers, pods, VMs, deploys, checks, secrets,
+  image builds, and lifecycle state are driven through `charly` — never through
+  `podman`/`docker`/`systemctl`/raw shell, and never by a hand-rolled substitute script.
+- **ALWAYS load the dispatcher-selected skill before the first tool call; NEVER skip R0.**
+  A tool action before R0 admission is a violation. A harness that cannot load a skill reads
+  the matching `<family>/skills/<skill>/SKILL.md` — it does not proceed without the
+  procedure.
+- **A missing verb or owning skill is a product defect, not permission to work around it.**
+  RCA it (R1) and fix the capability in its owning repo; an ad-hoc skip, inline command, or
+  local script substitute is forbidden (R4). If the fix is genuinely out of scope, stop and
+  ask the operator.
 - **Umbrella-native mechanics are the sanctioned path for umbrella work:**
-  `./charly/bin/charly task sync`, `./charly/bin/charly task verify`,
-  `bash
-  scripts/*`, and submodule git through
-  `git -C <absolute-path>` (rule 2). These are the umbrella's own commands, not
-  ad-hoc substitutes.
-- **Ask DeepWiki for architecture, but the code in the repos is the authority.**
-  Where a grep cannot answer *how* a repo is put together, query the `deepwiki`
-  MCP server (tools `read_wiki_structure`, `read_wiki_contents`, `ask_wiki_question`)
-  about its GitHub repo instead of guessing — and treat its answer as a pointer to
-  read, not as truth: when the wiki and the code disagree, the code wins.
+  `./charly/bin/charly task sync`, `./charly/bin/charly task verify`, `bash scripts/*`, and
+  submodule git through `git -C <absolute-path>` (rule 1). These are the umbrella's own
+  commands, not ad-hoc substitutes.
+- **Ask DeepWiki for architecture, but the code in the repos is the authority.** Where a
+  grep cannot answer *how* a repo is put together, query the `deepwiki` MCP server (tools
+  `read_wiki_structure`, `read_wiki_contents`, `ask_wiki_question`) about its GitHub repo
+  instead of guessing — and treat its answer as a pointer to read, not as truth: when the
+  wiki and the code disagree, the code wins.
 
 ### Umbrella maintenance commands
 
 Build the binary once per clone with `./charly/scripts/bootstrap-charly.sh` (the ONE
-non-charly entrypoint — the build that produces the binary cannot itself be a charly
-task), then run the umbrella's maintenance from the umbrella root:
+non-charly entrypoint — the build that produces the binary cannot itself be a charly task),
+then run the umbrella's maintenance from the umbrella root:
 
 | command | purpose |
 |---|---|
@@ -562,86 +245,43 @@ task), then run the umbrella's maintenance from the umbrella root:
 | `./charly/bin/charly task prune` | reap merged-upstream session worktrees + branches (`MODE=report` is a dry run) |
 
 `./charly/bin/charly task list` enumerates them — twelve today, and the README's
-`## Maintenance commands` table must match this list row for row. The detailed mechanics — the
-branch/PR loop, policy-B sync order, the after-merge cleanup, and new-repo
-onboarding — are owned by `/charly-internals:git-workflow` and
-`/charly-internals:repo-setup`; load them before any git/PR action.
-
-## Engineering rules (umbrella-scaled)
-
-- **R1 — RCA every anomaly.** Every failure, warning, or divergence from the README
-  contract gets root-cause analysis (load `root-cause-analyzer`) before remediation.
-  No "pre-existing", "out of scope", or "follow-up PR" classifications.
-- **R3 — No duplication.** One canonical implementation per behavior (the scripts
-  and harness configs own their behavior; don't re-implement policy).
-- **R4 — No workarounds.** No sleeps, blind retries, hand-pinned gitlinks (that's a
-  sync, not a pin), or manual fixes to CI. Never work around a missing `charly`
-  verb or owning skill with an ad-hoc command or substitute script — RCA it and
-  fix the capability in its owning repo (see **Charly CLI discipline**).
-- **R5 — Delete legacy completely.** A cutover removes the old path in the same PR.
-- **R6 — Git safety.** `git status` before destructive actions. No force-push, no
-  hook bypass (`--no-verify` / `core.hooksPath`), no direct push to `main`.
-- **R7 — Prove the gate, not the plan.** Run the gate the change class requires on
-  the final tree and paste its output — never the plan, and never a gate this diff
-  is not in. `./charly/bin/charly task verify` (the full pinning gate, local and on
-  demand — there is no CI gate) is the gate whenever the diff touches a submodule, a
-  gitlink, or a pin; a diff that touches none of those (docs, harness config,
-  scripts) is proved by the gate that owns it (`scripts/check-*.mjs`) plus its own
-  changed paths executed live. A green `git status` proves nothing. Install the
-  per-commit gate once per clone with `./charly/bin/charly task hooks`.
-- **Live or skip — never fake a live service.** Any test, harness, or gate that
-  crosses a live-service boundary (a `gh` / GitHub API call, an LLM or provider
-  endpoint, a network or `charly` call) MUST run against the **REAL** service, or
-  **SKIP cleanly** when its credential/endpoint is absent — never a mock, stub,
-  or fake of that boundary. A fake asserts the behaviour the author IMAGINED, not
-  what the service actually does, so it certifies a contract that may not exist
-  and hides a real integration break behind green. Gate the skip on the real
-  credential (`LIVE_*` unset → skip, visibly reported — never a silent pass), and
-  keep pure/deterministic in-repo logic unit-testable normally.
-- **R10 — Fresh disposable proof.** Verify from the final committed tree, never
-  from an edited state.
+`## Maintenance commands` table must match this list row for row. The detailed mechanics —
+the branch/PR loop, policy-B sync order, the after-merge cleanup, and new-repo onboarding —
+are owned by `/charly-internals:git-workflow` and `/charly-internals:repo-setup`; load them
+before any git/PR action.
 
 ## Command hygiene & context discipline
 
-Commands run with **SIGPIPE ignored**, so `grep <pattern> <huge-file> | head -N`
-does NOT kill grep when head exits — grep keeps writing to the closed pipe and prints
-`grep: write error: Broken pipe` per failed write, flooding output with hundreds of
-identical lines and truncating the response. This is a recurring, self-inflicted
-context-waste failure; the following rules are mandatory:
+Commands run with **SIGPIPE ignored**, so `grep <pattern> <huge-file> | head -N` does NOT
+kill grep when head exits — grep keeps writing to the closed pipe and prints `grep: write
+error: Broken pipe` per failed write, flooding output with hundreds of identical lines and
+truncating the response. This is a recurring, self-inflicted context-waste failure; the
+following rules are mandatory:
 
-- **NEVER pipe unbounded grep into `head`/`awk`/`sed` for "first N matches".**
-  Use `grep -m N` (max-count) — grep terminates itself after N matches, no closed
-  pipe, deterministic in every environment.
-- **Redirect large outputs to a file first** (`cmd > /tmp/x.log 2>&1`), then read
-  the file with `grep -m N` / `sed -n 'a,bp'` — never stream a multi-MB log
-  through the response.
-- **Bound every command's output.** If a command can print more than a screen,
-  cap it (`-m`, `-n`, `--max-count`, `tail -c`), or redirect to a file.
-- **Never re-issue the same diagnostic command in a loop.** If a command's output
-  was truncated or the answer is not visible, change the approach (file + bounded
-  read, or a subagent) — repeating the identical command is the failure mode, not
-  the fix.
+- **NEVER pipe unbounded grep into `head`/`awk`/`sed` for "first N matches".** Use `grep -m
+  N` (max-count) — grep terminates itself after N matches, no closed pipe, deterministic in
+  every environment.
+- **Redirect large outputs to a file first** (`cmd > /tmp/x.log 2>&1`), then read the file
+  with `grep -m N` / `sed -n 'a,bp'` — never stream a multi-MB log through the response.
+- **Bound every command's output.** If a command can print more than a screen, cap it
+  (`-m`, `-n`, `--max-count`, `tail -c`), or redirect to a file.
+- **Never re-issue the same diagnostic command in a loop.** If a command's output was
+  truncated or the answer is not visible, change the approach (file + bounded read, or a
+  subagent) — repeating the identical command is the failure mode, not the fix.
 
-### PR body requirements
+## PR body & attribution (the acceptance surface)
 
-Every PR body must contain:
-1. **## Summary** — what changed and why
-2. **## How tested** — pasted command + output for every verification step
-3. **## Rulebook compliance** — the umbrella rules applicable to the change
-4. **## Change classification** — change class, verification gate, attribution tier
-5. **The PR body IS the changelog** — the tag-on-merge workflow writes it
-   to `CHANGELOG/<calver>.md` at merge time; no separate CHANGELOG section
-   or file is needed
-6. ***Assisted-by: <Harness> <Provider Full Model Name> (<confidence>)*** — italicized
-   footer in the exact form, e.g. `*Assisted-by: <Harness> <Provider Full Model Name> (fully tested and validated)*`
-
-These are enforced by the fresh `charly/pr-validator` at merge (rule A1).
-
-### Attribution tiers
+Every PR body must contain: **## Summary** (what changed and why), **## How tested**
+(pasted command + output for every verification step), **## Rulebook compliance** (the rules
+applicable to the change), **## Change classification** (change class, verification gate,
+attribution tier), and the italicized footer as the FINAL line. **The PR body IS the
+changelog** — the tag-on-merge workflow writes it to `CHANGELOG/<CalVer>.md` at merge time;
+no separate CHANGELOG section is needed. These are enforced by the fresh
+`charly/pr-validator` at merge.
 
 | Confidence | Required proof |
 |---|---|
-| `fully tested and validated` | The change class's gate (R7) passed on the final tree, changed paths executed live |
+| `fully tested and validated` | `./charly/bin/charly task verify` passed on the final tree, changed paths executed live |
 | `analysed on a live system` | Changed runtime path ran live with retained output; full gate did not pass |
 | `documentation reviewed` | Docs-only change class (forbidden if pins/scripts changed) |
 | `syntax check only` | Dry-run only — do not commit |
@@ -650,15 +290,13 @@ These are enforced by the fresh `charly/pr-validator` at merge (rule A1).
 ## Hooks doctrine
 
 Deterministic git-workflow mechanics — bypass flags, force-push, direct-main push,
-untokenizable commands — are enforced by the umbrella's clone-level git hook together
-with the shared neutral gate scripts (installed per clone via
-`./charly/bin/charly task hooks`; see rule 8). A separate committed gate,
-`scripts/check-harness-config.mjs`, audits the harness-config surfaces themselves — that
-each still parses and stays wired, including the DeepWiki MCP entry — and its `--self-test`
-proves every check live. The per-harness wiring is owned by the
-harness-specific skill (`/charly-internals:agents`). Attribution, change class, and
+untokenizable commands — are enforced by the umbrella's clone-level git hook together with
+the shared gate scripts (installed per clone via `./charly/bin/charly task hooks`). A
+separate committed gate, `scripts/check-harness-config.mjs`, audits the harness-config
+surfaces themselves — that each still parses and stays wired, including the DeepWiki MCP
+entry — and its `--self-test` proves every check live. Attribution, change class, and
 rulebook compliance are judged once by the fresh `pr-validator` at merge — never by the
-gates.
+gates. The per-harness wiring is owned by `/charly-internals:agents`.
 
-Reference: `README.md` (pinning policy),
-`.github/workflows/` (CI contract).
+Reference: `README.md` (pinning policy), `.github/workflows/` (CI contract), `SOUL.md`
+(identity).
