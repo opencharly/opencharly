@@ -98,6 +98,7 @@ if (argv.includes("--self-test")) {
     ".codex/config.toml",
     ".reasonix/settings.json",
     ".opencode/package.json",
+    ".pi/extensions/charly-gates.ts",
   ];
 
   const tmp = mkdtempSync(join(tmpdir(), "check-harness-config-"));
@@ -143,6 +144,8 @@ if (argv.includes("--self-test")) {
     [".mcp.json", (p) => { const m = JSON.parse(readFileSync(p, "utf8")); delete m.mcpServers.deepwiki; writeFileSync(p, JSON.stringify(m)); }, ".mcp.json declares the DeepWiki server", "6"],
     ["opencode.json", (p) => { const o = JSON.parse(readFileSync(p, "utf8")); delete o.mcp.deepwiki; writeFileSync(p, JSON.stringify(o)); }, "opencode.json declares the DeepWiki server", "6"],
     [".codex/config.toml", (p) => { const t = readFileSync(p, "utf8").split("\n").filter((l) => !/^\[mcp_servers\.deepwiki\]$/.test(l.trim()) && !/^url\s*=/.test(l.trim())).join("\n"); writeFileSync(p, t); }, ".codex/config.toml declares the DeepWiki server", "6"],
+    ["opencode.json", (p) => { const o = JSON.parse(readFileSync(p, "utf8")); o.instructions = [".opencode/instructions.md"]; writeFileSync(p, JSON.stringify(o)); }, "injects SOUL.md for opencode", "7 (opencode arm)"],
+    [".pi/extensions/charly-gates.ts", (p) => writeFileSync(p, readFileSync(p, "utf8").replace(/readSoul/g, "__soul_removed__")), "injects the SOUL.md identity", "7 (pi arm)"],
   ];
   for (const [surface, mutate, expect, check] of mutations) {
     stage(); // revert everything, then apply exactly this mutation
@@ -279,6 +282,42 @@ ok(existsSync(join(root, ".claude/workflows/audit-deploy-configs.js")), ".claude
   for (const [surface, extract, who] of MCP_SURFACES) {
     const url = extract(jsonOr(surface), surface);
     ok(url === DEEPWIKI_URL, `${surface} declares the DeepWiki server for ${who} (deepwiki.url === ${DEEPWIKI_URL})`);
+  }
+}
+
+// 7. SOUL.md is INJECTED into every harness's session context (opencharly/opencharly#359):
+//    the identity is fed in as content, not merely mentioned for on-request reading.
+//    DISCRIMINATING: `main` (pre-fix) wires neither arm, so going green is evidence the
+//    injection took. The table is [surface, assertion, who] so adding a harness is ONE row.
+//      opencode  — `instructions` is opencode's documented session-instruction list
+//                  (each entry is a markdown file injected into the system prompt);
+//                  `SOUL.md` sits beside the harness binding with NO harness-specific
+//                  file needed, which is the whole point.
+//      pi        — `.pi/extensions/charly-gates.ts` reads the project-root SOUL.md inside
+//                  its `before_agent_start` handler and injects it every turn.
+//    DEFERRED (named, not silently dropped): Codex and reasonix have no documented
+//    ADDITIVE session-context mechanism at their config surfaces (Codex's
+//    `model_instructions_file` REPLACES the base system prompt; reasonix's documented
+//    hooks are Bash-only) — a companion issue tracks them rather than guessing a config.
+//    Claude Code stays on the `AGENTS.md` pointer (operator decision): no new hook here.
+{
+  const SOUL_SURFACES = [
+    [
+      "opencode.json",
+      (v) => Array.isArray(v.instructions) && v.instructions.includes("SOUL.md"),
+      "opencode (the `instructions` list is injected into the system prompt)",
+    ],
+    [
+      ".pi/extensions/charly-gates.ts",
+      (_v, p) => {
+        const t = read(p) ?? "";
+        return /readSoul/.test(t) && /SOUL\.md/.test(t) && /before_agent_start/.test(t);
+      },
+      "pi (the before_agent_start handler injects the SOUL.md identity)",
+    ],
+  ];
+  for (const [surface, asserts, who] of SOUL_SURFACES) {
+    ok(asserts(jsonOr(surface), surface), `${surface} injects SOUL.md for ${who}`);
   }
 }
 
