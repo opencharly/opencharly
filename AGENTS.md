@@ -581,10 +581,14 @@ onboarding — are owned by `/charly-internals:git-workflow` and
 - **R5 — Delete legacy completely.** A cutover removes the old path in the same PR.
 - **R6 — Git safety.** `git status` before destructive actions. No force-push, no
   hook bypass (`--no-verify` / `core.hooksPath`), no direct push to `main`.
-- **R7 — Prove the gate, not the plan.** Run `./charly/bin/charly task verify` (the full pinning gate,
-  local and on demand — there is no CI gate) on the final tree and paste the
-  output. A green `git status` proves nothing. Install the per-commit gate once
-  per clone with `./charly/bin/charly task hooks`.
+- **R7 — Prove the gate, not the plan.** Run the gate the change class requires on
+  the final tree and paste its output — never the plan, and never a gate this diff
+  is not in. `./charly/bin/charly task verify` (the full pinning gate, local and on
+  demand — there is no CI gate) is the gate whenever the diff touches a submodule, a
+  gitlink, or a pin; a diff that touches none of those (docs, harness config,
+  scripts) is proved by the gate that owns it (`scripts/check-*.mjs`) plus its own
+  changed paths executed live. A green `git status` proves nothing. Install the
+  per-commit gate once per clone with `./charly/bin/charly task hooks`.
 - **Live or skip — never fake a live service.** Any test, harness, or gate that
   crosses a live-service boundary (a `gh` / GitHub API call, an LLM or provider
   endpoint, a network or `charly` call) MUST run against the **REAL** service, or
@@ -637,7 +641,7 @@ These are enforced by the fresh `charly/pr-validator` at merge (rule A1).
 
 | Confidence | Required proof |
 |---|---|
-| `fully tested and validated` | `./charly/bin/charly task verify` passed on the final tree, changed paths executed live |
+| `fully tested and validated` | The change class's gate (R7) passed on the final tree, changed paths executed live |
 | `analysed on a live system` | Changed runtime path ran live with retained output; full gate did not pass |
 | `documentation reviewed` | Docs-only change class (forbidden if pins/scripts changed) |
 | `syntax check only` | Dry-run only — do not commit |
