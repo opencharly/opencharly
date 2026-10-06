@@ -85,6 +85,20 @@ function check() {
   // 3. it re-arms on exit; a rate limit / usage error is terminal.
   if (!/proc\.on\(\s*["'`]exit["'`]/.test(code)) fail(`re-arms on the watcher's exit`);
   if (!/rearmTimer/.test(code)) fail(`schedules the re-arm (rearmTimer)`);
+
+  // 3b. ARM GENERATION (the defect of #408). A superseded arm's exit must never be counted as a
+  //     failure and must never re-arm: an ALREADY-STOPPED child's exit used to clear the live
+  //     arm's slot, re-arm a DUPLICATE, and the duplicate's `watch_lock --takeover` TERMed the
+  //     live watcher (silent exit 143 — no stdout, no stderr) → three “fast failures” →
+  //     `WATCHER FATAL … last stderr: (none)`, the re-arm loop stopped, and a stray watcher kept
+  //     holding the lock. Also: a lock loss (exit 6) is a PEER, not a failure, and never a FATAL.
+  if (!/gen\s*!==\s*gh\.gen/.test(code))
+    fail(`ignores a SUPERSEDED arm's exit (the arm-generation guard)`);
+  if (!/if\s*\(gh\.proc === proc\)\s*gh\.proc = null;/.test(code))
+    fail(`clears the tracked slot only for its OWN child (a stale arm must not clear it)`);
+  if (!/gh\.gen\+\+;/.test(code))
+    fail(`supersedes the running arm BEFORE a restart kills it (armGh may return without arming)`);
+  if (!/code === 6/.test(code)) fail(`treats a lock loss (exit 6) as a peer holder, not as a failure`);
   if (!/code\s*===\s*7/.test(code) || !/code\s*===\s*5/.test(code))
     fail(`treats a rate limit (7) / usage error (5) as terminal — never blind-retried`);
 
@@ -160,6 +174,10 @@ if (argv.includes("--self-test")) {
     ["no shutdown kill", REL_EXT, () => ext.replace(/pi\.on\(\s*"session_shutdown"/g, 'pi.on("session_shutdown_DISABLED"'), "session_shutdown"],
     ["blind retry", REL_EXT, () => ext.replace(/code === 7/g, "false === 7"), "rate limit"],
     ["no tool", REL_EXT, () => ext.replace(/name:\s*"watch_arm"/g, 'name: "watch_arm_DISABLED"'), "watch_arm"],
+    ["no arm-generation guard", REL_EXT, () => ext.replace(/if \(gen !== gh\.gen\) return;/g, "if (false) return;"), "SUPERSEDED arm"],
+    ["stale arm clears the live slot", REL_EXT, () => ext.replace(/if \(gh\.proc === proc\) gh\.proc = null;/, "gh.proc = null;"), "only for its OWN child"],
+    ["no restart supersede", REL_EXT, () => ext.replace(/gh\.gen\+\+;/, ""), "supersedes the running arm"],
+    ["lock loss is a failure", REL_EXT, () => ext.replace(/if \(code === 6\) \{/, "if (false) {"), "lock loss (exit 6)"],
     ["armed items", REL_ITEMS, () => "\nacme/widget#12\n", "ships INERT"],
     ["unwired", REL_SETTINGS, () => JSON.stringify({ extensions: ["./extensions/charly-gates.ts"] }), "lists ./extensions/watch.ts"],
   ];
