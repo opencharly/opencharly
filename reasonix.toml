@@ -64,9 +64,13 @@ compact_ratio = 0.70
 # global roots, so it resolves a dozen builtin/global skills and NOT ONE of the
 # charly procedures. See REASONIX.md for how a reference maps to a call.
 #
-# These are the 40 directories that actually CONTAIN skills — every
+# These are the 42 directories that actually CONTAIN skills — every
 # `<family>/skills/` (each holding `<skill>/SKILL.md`) plus the two
 # `<family>/agents/` roster dirs (hand-authored `<agent>.md`, loaded as skills).
+# COUNTED on 2026-10-06 at the marketplace pin this branch records (`ac7d97e5`):
+# 40 `skills/` dirs holding 351 `SKILL.md`, and 2 `agents/` rosters holding 7
+# `.md`. `kubevirt` and `qdrant` are the newest two families — the coverage
+# assertion in check 8 is what caught their absence here.
 # A single `paths = ["marketplace"]` does NOT work: `marketplace/` is a
 # multi-FAMILY root, while reasonix expects a multi-SKILL root, so pointing at
 # it makes reasonix scan family prose as skills — MEASURED (reasonix v2.28.0),
@@ -74,9 +78,11 @@ compact_ratio = 0.70
 # boot (3,447 of them `marketplace/CHANGELOG/*.md`, plus the root
 # AGENTS.md/DISPATCHER.md/README.md and two family READMEs). Scoping to the
 # skill-bearing directories removes every such warning while loading the SAME
-# 362 skills, with no skill lost. Keep this list in step with the marketplace
-# layout; `scripts/check-harness-config.mjs` check 8 asserts it covers every
-# skill root.
+# skills, with no skill lost — a count of 362 loaded skills at that measurement.
+# That figure is NOT re-measured here (reasonix is not installed on this host),
+# so the count of record is the on-disk one above. Keep this list in step with
+# the marketplace layout; `scripts/check-harness-config.mjs` check 8 asserts it
+# covers every skill root.
 [skills]
 paths = [
     "marketplace/agent/skills",
@@ -105,6 +111,7 @@ paths = [
     "marketplace/internals/skills",
     "marketplace/jupyter/skills",
     "marketplace/kubernetes/skills",
+    "marketplace/kubevirt/skills",
     "marketplace/languages/skills",
     "marketplace/local/skills",
     "marketplace/ollama/skills",
@@ -114,6 +121,7 @@ paths = [
     "marketplace/pod/skills",
     "marketplace/pod-verbs/skills",
     "marketplace/punktfunk/skills",
+    "marketplace/qdrant/skills",
     "marketplace/review/skills",
     "marketplace/selkies/skills",
     "marketplace/tools/skills",
