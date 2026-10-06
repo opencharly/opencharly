@@ -163,7 +163,7 @@ Measurements (this clone, 425 submodules, `main`):
 
 | Step | Measured |
 |---|---|
-| `git worktree add`, no modules materialized | 0.019 s · 3.8 MB |
+| `git worktree add`, no modules materialized | 0.019 s · 3.8 MB (0.016–0.019 s across runs — the first measurement read 0.016 s) |
 | `--init --recursive` (former default) | 17.2 s for 20 modules ⇒ ~0.86 s/module ⇒ ~6 min for 425; 376 MB private objects + ~230 MB checkouts |
 | `--init --reference` (default now) | charly 0.79 s, marketplace 0.55 s; module stores 1 MB; `alternates` engaged (2 files) |
 | per-worktree binary build | 1m20s · 51 MB — required (R9 + concurrent sessions), never shared |

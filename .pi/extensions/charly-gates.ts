@@ -462,7 +462,7 @@ export default function (pi: ExtensionAPI) {
         // `git submodule update --init --recursive` cloned every submodule into a
         // worktree-PRIVATE object store — 376 MB per worktree at ~0.86 s per module, none
         // of it shared with the main checkout. A worktree that materializes nothing is
-        // 3.8 MB in 0.016 s; the repo's own pin gate documents a session worktree as
+        // 3.8 MB in 0.019 s; the repo's own pin gate documents a session worktree as
         // materializing 1 of 424 paths; and every gate that runs on a commit here
         // (hooks/pre-commit, `charly task policy-b`, `charly task self-test`,
         // scripts/check-*.mjs) passes with 2 of 425 materialized. `--reference` makes the
