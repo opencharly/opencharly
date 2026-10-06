@@ -132,3 +132,17 @@ first live use. Five defects, each now pinned by `scripts/check-pi-pr-status.mjs
 5. `watch` short-circuited on any concluded run (including a PASS) while its own loop kept
    polling after a PASS that arrived LATER — the two paths disagreed about the same state.
    It is now terminal only on a FAILED run or a merged/closed PR (PASS != merged).
+
+### Follow-up — the `question` tool (issue #400)
+
+pi ships the PRIMITIVE (`ctx.ui.select` / `ctx.ui.input` / `ctx.ui.confirm`) but no
+model-callable tool, so an agent that needed a decision could only ask in prose and stop. Added:
+
+- `.pi/extensions/question.ts` — the `question` tool over the builtin UI primitives (**no**
+  `@earendil-works/pi-tui` dependency), HEADLESS-SAFE (a non-TUI session gets a clear "ask in
+  prose" result, never a throw or a faked answer), `executionMode: "sequential"`.
+- `scripts/check-pi-question.mjs` (+ mutation self-test), wired into `hooks/pre-commit` and
+  `charly.yml`, and asserting the extension is listed in `.pi/settings.json`.
+
+This is the one deliberately pi-SPECIFIC piece beyond the wake binding: there is no
+harness-neutral way to prompt a live session.
