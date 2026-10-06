@@ -8,13 +8,21 @@
 // wiring — it intercepts every `tool_call` and blocks commands the gate scripts
 // reject. `check-harness-config.mjs` only asserts the surfaces PARSE and are wired;
 // it does NOT catch a broken gate, so without this file the extension's behaviour is
-// unproven. Three properties this gate pins, each a real defect class:
+// unproven. Five properties this gate pins, each a real defect class:
 //
 //   1. FAIL-CLOSED — a gate whose script ERRORS or is ABSENT must BLOCK, never
 //      `continue`. A fail-open wiring is a bypass path (the gate silently does not run).
 //   2. RULE-2 PATHS — the worktree tool must use `<umbrella>/.worktrees/<slug>/`,
 //      not `.claude/worktrees/`, and name the binary `charly/bin/charly`.
 //   3. REGISTERED — the `tool_call` hook and both gate scripts are present.
+//   4. SOUL INJECTION (#359) — the identity itself is READ from the project-root SOUL.md
+//      and re-injected every turn, never a pointer to it.
+//   5. WORKTREE COST MODEL — `charly_worktree_create` materializes a SCOPED module set and
+//      BORROWS the main checkout's objects (`--reference`), instead of cloning the whole
+//      425-submodule graph into a worktree-private object store. MEASURED: the eager
+//      `--init --recursive` cost 376 MB of private objects per worktree at ~0.86 s per
+//      module; the scoped `--reference` form costs 1 MB and ~1.4 s, and every commit-time
+//      gate passes with 423 of 425 modules unmaterialized.
 //
 // Usage: node scripts/check-pi-gates.mjs [--root <dir>] [--self-test]
 // exit 0 clean · 1 finding
@@ -86,7 +94,29 @@ function check() {
   if (!/readSoul/.test(code) || !/SOUL\.md/.test(code)) fail(`injects the project-root SOUL.md identity (readSoul)`);
   if (!/pi\.on\(\s*["'`]before_agent_start["'`]/.test(code)) fail(`injects SOUL.md via the before_agent_start handler`);
 
-  if (failures === 0) ok(`${rel}: fails closed, rule-2 paths, gate wiring + SOUL injection present`);
+  // 5. WORKTREE COST MODEL. The tool must materialize a SCOPED module set and borrow the
+  //    main checkout's objects. A worktree is the session's isolation boundary for MUTABLE
+  //    state (tree, index, branch, binary) — never a place to COPY the immutable submodule
+  //    graph. Both halves are asserted: the graph must not be cloned, and the cache must be
+  //    requested explicitly (the automatic `submodule.alternateLocation=superproject` does
+  //    NOT engage for a linked worktree — 0 alternates files, measured). The flag is
+  //    asserted as an ARGUMENT (`"--recursive"`), not as prose: the tool's own description
+  //    may legitimately name the flag it no longer passes.
+  if (/"--recursive"/.test(code))
+    fail(`does not pass --recursive to \`git submodule update --init\` (never clone the whole graph)`);
+  if (/\[\s*["'`]submodule["'`]\s*,\s*["'`]update["'`]\s*,\s*["'`]--init["'`]\s*,\s*["'`]--recursive/.test(code))
+    fail(`does not run a graph-wide \`submodule update --init --recursive\``);
+  if (!/push\(\s*["'`]--reference["'`]/.test(code))
+    fail(`borrows module objects from the main checkout (an explicit --reference)`);
+  if (!/DEFAULT_WORKTREE_MODULES\s*=\s*\[\s*["'`]charly["'`]\s*,\s*["'`]marketplace["'`]\s*\]/.test(code))
+    fail(`defaults to exactly the modules the harness's own tools and gates read (charly, marketplace)`);
+  if (!/modules:\s*Type\.Optional/.test(code)) fail(`exposes a \`modules\` argument for the modules a cutover actually needs`);
+
+  if (failures === 0)
+    ok(
+      `${rel}: fails closed, rule-2 paths, gate wiring + SOUL injection present, ` +
+        `and the worktree materializes a scoped module set from the shared object cache`,
+    );
 }
 
 // ── --self-test: prove each assertion goes RED on a mutation ──────────────────
@@ -112,6 +142,26 @@ if (argv.includes("--self-test")) {
     ["no gate wiring", (s) => s.replace(/pre-push-gate\.sh/g, "pre-push-gate-XXX.sh"), `pre-push-gate.sh`],
     ["no tool_call", (s) => s.replace(/pi\.on\(\s*"tool_call"/g, 'pi.on("tool_calls"'), `tool_call`],
     ["no SOUL injection", (s) => s.replace(/readSoul/g, "__soul_removed__"), `SOUL.md`],
+    [
+      "graph-wide submodule init",
+      (s) => s.replace(/const args = \["submodule", "update", "--init"\];/, 'const args = ["submodule", "update", "--init", "--recursive"];'),
+      `whole submodule graph`,
+    ],
+    [
+      "no object cache",
+      (s) => s.replace(/args\.push\("--reference", reference\);/, "void reference;"),
+      `--reference`,
+    ],
+    [
+      "unscoped default module set",
+      (s) => s.replace(/DEFAULT_WORKTREE_MODULES = \["charly", "marketplace"\]/, "DEFAULT_WORKTREE_MODULES = []"),
+      `modules the harness's own tools and gates read`,
+    ],
+    [
+      "no modules argument",
+      (s) => s.replace(/modules:\s*Type\.Optional\(/, "scopeIgnored: Type.Optional("),
+      `modules`,
+    ],
   ];
   let stFails = 0;
   for (const [name, mutate, expect] of mutations) {

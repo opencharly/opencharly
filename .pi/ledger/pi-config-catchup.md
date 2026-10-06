@@ -146,3 +146,48 @@ model-callable tool, so an agent that needed a decision could only ask in prose 
 
 This is the one deliberately pi-SPECIFIC piece beyond the wake binding: there is no
 harness-neutral way to prompt a live session.
+
+### Follow-up — the worktree cost model (RCA, 2026-10-06)
+
+`charly_worktree_create` produced a ~240 MB / multi-minute worktree for every cutover. RCA with
+the failure signatures enumerated FIRST — three independent mechanisms under one symptom:
+
+| # | Signature | Mechanism | Missed control |
+|---|---|---|---|
+| S1 | 425 submodules cloned per worktree | step 3 ran `git submodule update --init --recursive` unconditionally | nothing bounded the materialized set to what the cutover needs |
+| S2 | 376 MB worktree-PRIVATE module object store | a linked worktree gets its OWN `modules/` git dirs; git shares only the SUPERPROJECT's objects (`commondir: ../..`) | no `--reference`, so every clone copied instead of borrowing |
+| S3 | 13 worktrees + 1 branch resident after their PRs merged | `charly_worktree_remove` depends on a session remembering to call it | no reap on landing; `charly task prune` existed but nothing invoked it |
+| S4 | `git add … .pi/ledger/…` STAGES the file and exits 1, so the mandated `add && commit` chain aborts with the tree left staged and no commit | the clone-local `.git/info/exclude` carried an UNANCHORED `ledger/`, meant for the ROOT session ledger (its comment says "mirrors plan/"), which also shadowed the TRACKED `.pi/ledger/` | nothing detects a local exclude rule shadowing tracked content — `git ls-files --cached -i --exclude-standard` listed exactly 1 entry |
+
+Measurements (this clone, 425 submodules, `main`):
+
+| Step | Measured |
+|---|---|
+| `git worktree add`, no modules materialized | 0.019 s · 3.8 MB |
+| `--init --recursive` (former default) | 17.2 s for 20 modules ⇒ ~0.86 s/module ⇒ ~6 min for 425; 376 MB private objects + ~230 MB checkouts |
+| `--init --reference` (default now) | charly 0.79 s, marketplace 0.55 s; module stores 1 MB; `alternates` engaged (2 files) |
+| per-worktree binary build | 1m20s · 51 MB — required (R9 + concurrent sessions), never shared |
+| gates with 2 of 425 materialized | `check-harness-config`, `check-pi-{gates,watch,pr-status,question}`, `check-verify-submodules`, `check-root-refs`, `charly task policy-b`, `charly task self-test` — all GREEN |
+
+Two hypotheses MEASURED AND REFUTED (recorded so they are not re-proposed):
+`submodule.alternateLocation=superproject` does not engage for a linked worktree (0 `alternates`
+files, 16 MB vs 23 MB = noise); `--depth 1` does resolve the recorded gitlink but buys ~3 MB on a
+small repo at the cost of history, so it is not used.
+
+S4 is the same class of trap as the rulebook's "the chain is necessary, not sufficient" doctrine, in
+reverse: the chain's `git add` SUCCEEDS at staging and FAILS the chain, so `git status` shows exactly
+what a successful commit would leave. Fixed at the root in the clone's untracked `.git/info/exclude`
+(`ledger/` → `/ledger/`, `ls-files --cached -i --exclude-standard`: 1 → 0, the root `ledger/` still
+ignored); it is local state and cannot be landed, so the trap is documented here and in
+`.pi/README.md` for the next session that hits it.
+
+**Root fix.** `charly_worktree_create` materializes `charly` + `marketplace` — the modules the
+harness's own tools and gates read — with `--reference`, exposes a `modules` argument for the rest,
+never passes `--recursive`, and names the reap command in its own output.
+`scripts/check-pi-gates.mjs` asserts all four arms (plus four mutations proving each can fail), so
+the cost model cannot silently regress. The repo's own pin gate had already documented the contract
+this restores: a session worktree materializes **1 of 424** paths.
+
+**Corroborated, not assumed.** The scoped set was proven sufficient END-TO-END before the tool was
+changed: a worktree created with the fixed sequence (1.4 s, 1 MB) built `bin/charly` and ran every
+commit-time gate green with 423 of 425 modules unmaterialized.

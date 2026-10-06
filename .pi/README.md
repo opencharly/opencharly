@@ -20,7 +20,47 @@ startup warnings (`pi --approve`).
 | `watch.items` | The pi GitHub watch list — comment-only, so the watcher is INERT until armed. |
 | `extensions/question.ts` | The `question` tool — asks the operator and BLOCKS for the answer (builtin `ctx.ui.select`/`input`; a headless session gets a clear no-UI result). |
 | `APPEND_SYSTEM.md` | The pi↔rulebook binding (skill addressing, gates, watcher discipline, coordination, plan discipline). |
-| `ledger/` | The config catch-up ledger. |
+| `ledger/` | The config catch-up ledger — **tracked** content, not a gitignored scratch dir. If `git add` ever reports `.pi/ledger` as ignored, the clone's `.git/info/exclude` carries an unanchored `ledger/` rule shadowing it: anchor that rule to `/ledger/` (the root session ledger, mirroring `plan/`). |
+
+## Session worktrees — cheap by construction
+
+A session worktree exists so that several sessions can work from the same umbrella at once. It
+carries the MUTABLE half of a session — working tree, index, branch, and its own
+`charly/bin/charly` — so no session can disturb another's checkout. It must never carry a
+private COPY of the immutable half. MEASURED on this clone (425 submodules, `main`):
+
+| Step | Cost |
+|---|---|
+| `git worktree add`, nothing materialized | **0.019 s · 3.8 MB** — the superproject's objects are shared (`commondir: ../..`), metadata is 5 files |
+| `git submodule update --init --recursive` (the former default) | **~0.86 s per module → ~6 min · 376 MB** of worktree-PRIVATE module objects, plus ~230 MB of checkouts |
+| `submodule update --init --reference .git/modules/<path> <path>` (the default now) | **0.5–0.8 s per module · 1 MB**, borrowed through an `alternates` file |
+| the per-worktree binary (`charly/scripts/bootstrap-charly.sh`) | ~1m20s · 51 MB — required and never shared (R9, plus concurrent sessions) |
+
+So `charly_worktree_create` materializes **only `charly` and `marketplace`** — the modules the
+harness's own tools and gates read — and any other module is named explicitly through the tool's
+`modules` argument when a cutover actually reads or edits it. This is not a weakening: the repo's
+own pin gate (`scripts/check-verify-submodules.mjs`) documents a session worktree as
+materializing **1 of 424** paths and treats the rest as legitimately unmaterialized, and every
+commit-time gate here passes with **423 of 425** unmaterialized — `hooks/pre-commit`,
+`charly task policy-b`, `charly task self-test`, and every `scripts/check-*.mjs` gate.
+
+Materialize one later (no need to recreate the worktree):
+
+```bash
+git -C <umbrella>/.worktrees/<slug> submodule update --init \
+  --reference <umbrella>/.git/modules/<path> -- <path>
+```
+
+Reap on landing: `charly_worktree_remove <slug>`; `charly task prune` reaps the worktrees and
+branches whose PR already merged (dry run by default — it reported 13 worktrees + 1 branch here).
+
+Two measured NEGATIVES, recorded so they are not re-proposed:
+
+- `submodule.alternateLocation=superproject` does **not** engage for a linked worktree — 0
+  `alternates` files created, 16 MB vs 23 MB (noise). Only an explicit `--reference` works.
+- `--depth 1` **does** resolve the recorded gitlink (exit 0, `shallow` present, 4 MB vs 7 MB), but
+  a shallow submodule cannot serve the history-reading a cutover may need, for a ~3 MB saving on
+  a small repo. Not used.
 
 ## Watching GitHub (and R10 beds)
 
