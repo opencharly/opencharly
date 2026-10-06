@@ -1,0 +1,24 @@
+# watch.items — the PR/issue items the pi session watches through the harness-neutral
+# watcher, `marketplace/scripts/gh_watch.sh`, delivered as user turns by
+# `.pi/extensions/watch.ts`.
+#
+# One item per line: `owner/repo#num`, `owner/repo/pull/num`,
+# `owner/repo/issues/num`, or a full https://github.com/owner/repo/(pull|issues)/num
+# URL. Blank lines and lines starting with `#` are ignored. This is the SAME grammar
+# `.reasonix/watch.items` and `.opencode/pr-watch.items` use, so an item list is portable
+# between harnesses.
+#
+# This shipped file is comment-only, so the watcher is INERT by default. Add a line and
+# start a new pi session (the extension arms it at `session_start`), or edit the file and
+# call the `watch_arm` tool with `action: "restart"`.
+#
+# WHY THE EXTENSION AND NOT JUST THE SCRIPT. `gh_watch.sh` is harness-independent and is
+# the ONE watcher implementation — the extension only SPAWNS it and turns each event line
+# into a user turn, because pi has no background-completion notification. Nothing about
+# the watching is pi-specific.
+#
+# Keep the list SHORT and CURRENT: arm the narrowest watcher whose wake you act on, and
+# re-derive the list from the scopes actually in flight (a stale list produces false
+# stall alarms).
+#
+# acme/widget#12

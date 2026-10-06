@@ -32,14 +32,23 @@ scripts before `git commit` / `git push`, blocking the call when a gate fails
 
 - **PR / validator status.** `gh_pr_status check <repo> <pr>` returns state, head SHA,
   mergeable, the latest `charly/pr-validator` run ON THAT HEAD, and the verdict comment.
-  `gh_pr_status watch` waits for a verdict — run it in a background subagent; its completion
-  IS the wake.
-- **Watching GH comments / PRs.** The harness-independent watcher family is the ONE watcher:
-  `marketplace/scripts/pr_state_watch.sh` (a PR's terminal state),
+  It is a ONE-SHOT read — to WAIT, arm a watcher (below). (`gh_pr_status watch` blocks the
+  turn; the watcher family is the pi wake, because pi has no background notification.)
+- **Automatic arming.** `extensions/watch.ts` arms the harness-INDEPENDENT watcher family at
+  `session_start` from `.pi/watch.items` and delivers each event as a user turn. The
+  `watch_arm` tool reports what is armed (`action: "status"`), re-reads the items file
+  (`"restart"`), and runs + watches an R10 bed (`"bed"`). A wait therefore needs no
+  hand-polling — but a watcher is only re-armed at the next `session_start` or `restart`,
+  so add a scope to `.pi/watch.items` (or `restart`) when the wait list changes.
+- **The ONE watcher.** `marketplace/scripts/pr_state_watch.sh` (a PR's terminal state),
   `pr_watch_many.sh` (a cross-repo PR batch), `gh_watch.sh` (per-item comments, verdicts,
-  issues and PRs). Arm ONE per scope; never hand-roll a poll loop; re-arm after every wake
-  (the re-arm invariant). Poll floor 60s. Prefer terminal events (`merged`,`closed`) plus the
-  default `stall` alarm over per-comment events.
+  issues and PRs) — spawned by the extension, never hand-rolled. Arm ONE per scope; poll
+  floor 60s; prefer terminal events (`merged`,`closed`) plus the default `stall` alarm over
+  per-comment events.
+- **R10 beds.** `watch_arm` with `action: "bed"` drives `scripts/check-bed-watch.sh` (the
+  harness-neutral bed runner/reporter) — never run a long bed inline when a wake is wanted.
+  A bed's authoritative signal is its process EXIT CODE (3 = prereq SKIP), never
+  `summary.yml` alone; the full output is kept in the returned log path.
 - **Landing.** PR-only, never a direct push to `main`, never force-push; write the whole PR
   body before the push; read the live PR comments and validator verdict before ANY update
   push. Owner: `/charly-internals:git-workflow`.

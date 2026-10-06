@@ -150,7 +150,18 @@ Every PR body must contain, in this order:
 ### Validator Verdict Discipline
 Every validator BLOCK must be read in full and ALL listed issues fixed before
 the next push. A partial fix that addresses only one of several findings is a
-defective cycle.`;
+defective cycle.
+
+### Waiting — always leave a watcher armed
+Never hand-poll and never block a turn on a long wait. The \`watch\` extension arms the
+harness-neutral watcher family and delivers every event as a user turn:
+- GitHub (PRs + issues): auto-armed at \`session_start\` from \`.pi/watch.items\`
+  (\`owner/repo#num\`). Add a scope, then \`watch_arm\` with \`action: "restart"\`.
+- R10 beds: \`watch_arm\` with \`action: "bed"\` runs \`charly check run <bed>\` in the
+  background through \`scripts/check-bed-watch.sh\` and wakes you with its exit code and
+  newest \`summary.yml\`; the authoritative signal is the EXIT CODE (3 = prereq SKIP).
+- \`watch_arm\` with \`action: "status"\` reports what is armed.
+A wake is an ADDITION to the ledger, never a reset.`;
 }
 
 /**

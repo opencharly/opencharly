@@ -128,6 +128,8 @@ if (argv.includes("--self-test")) {
     ".reasonix/plugin/reasonix-plugin.json",
     ".reasonix/plugin/sidecar.py",
     ".reasonix/watch.items",
+    ".pi/watch.items",
+    ".pi/extensions/watch.ts",
     "reasonix.toml",
     ".opencode/package.json",
     ".pi/extensions/charly-gates.ts",
@@ -222,6 +224,7 @@ if (argv.includes("--self-test")) {
     [".reasonix/plugin/reasonix-plugin.json", (p) => rmSync(p), "reasonix-plugin.json exists", "10"],
     [".reasonix/plugin/sidecar.py", (p) => writeFileSync(p, readFileSync(p, "utf8").replace(/^\s*"name": MANIFEST_NAME,\n/m, "")), "carries every host-required field", "10 (handshake — a sidecar missing a host-required field must FAIL)"],
     [".reasonix/watch.items", (p) => rmSync(p), "(the reasonix watch binding) exists", "11"],
+    [".pi/watch.items", (p) => rmSync(p), "(the pi watch binding) exists", "11 (pi arm — a harness with no watch binding must FAIL)"],
     // Check 12 has TWO arms that catch different defects, so it needs two mutations.
     // (a) INVARIANT: a row pointing at a skill that does not exist (a dangling
     //     `/charly-<family>:<skill>` ref — the docs build treats that as a hard error).
@@ -597,10 +600,13 @@ ok(existsSync(join(root, ".claude/workflows/audit-deploy-configs.js")), ".claude
   }
 }
 
-// 11. The PR watcher is bound for reasonix. DISCRIMINATING: `main` carries no reasonix
+// 11. The PR watcher is bound per harness. DISCRIMINATING: `main` carries no reasonix
 //     watch binding. The harness-INDEPENDENT watcher is `marketplace/scripts/gh_watch.sh`;
-//     the items file is the same `owner/repo#num` grammar the opencode plugin parses.
+//     the items file is the same `owner/repo#num` grammar the opencode plugin parses. The
+//     pi arm's items file is inert by design; the extension that arms it is verified by
+//     `scripts/check-pi-watch.mjs`.
 ok(existsSync(join(root, ".reasonix/watch.items")), ".reasonix/watch.items (the reasonix watch binding) exists");
+ok(existsSync(join(root, ".pi/watch.items")), ".pi/watch.items (the pi watch binding) exists");
 
 // 12. Dispatcher coverage: the R0 dispatcher table in `marketplace/DISPATCHER.md` is the
 //     routing half of the corpus, emitted one row per `type: skill` entity carrying a
