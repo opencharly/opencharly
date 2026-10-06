@@ -49,7 +49,7 @@ policy B, the producer-first landing order, after-merge cleanup — is in
 [AGENTS.md](AGENTS.md) is the one rulebook, and it is harness-neutral: every agent
 harness reads that same file directly, so no second copy exists to drift. Harness
 configuration now lives at this umbrella root and **only** here — a plain move-in of
-every harness's settings and workflows (Claude Code, Codex, opencode, pi, Kimi/reasonix),
+every harness's settings and workflows (Claude Code, Codex, opencode, Kimi/reasonix),
 with no mirror and no parity gate. Skills live in neither: they
 come from the [`opencharly/marketplace`](https://github.com/opencharly/marketplace)
 corpus, which each harness resolves per its own conventions.
@@ -78,7 +78,7 @@ installed-binary form — `charly task …`, the same shape a packaged `charly` 
 | `charly task prune` | reap merged-upstream session worktrees + branches (MODE=report is a dry run) |
 
 `charly task list` enumerates them — ten today. Without the `PATH` export, the same
-commands run as `./charly/bin/charly task …`; the README and `AGENTS.md` list the same ten.
+commands run as `./charly/bin/charly task …`.
 
 ## The org map
 
