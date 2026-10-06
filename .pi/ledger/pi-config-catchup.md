@@ -60,9 +60,11 @@ PR watching without a bespoke extension.
    guidance it now parses the curated `### Skill Dispatcher` table under `## R0. Skills
    first` with the markers treated as **optional**, skips the section's opening prose
    paragraph to the first table row, and splits multi-skill cells on `,`.
-3. **Stale condensed rules in the injected block — OPEN.** `buildRulesBlock()` still prints
-   an `R2a` clause and a PR-body section older than the current rulebook; align it with
-   `AGENTS.md`.
+3. **Stale condensed rules in the injected block — FIXED.** `buildRulesBlock()` printed an
+   `R2a` clause and a PR-body section older than the current rulebook. The R2a clause is now
+   the neutral "Delegate Heavy Work" (naming no dropped tool), and the PR-body section names
+   match `pr_body_lint.py` (`## Summary`, `## How tested`, `## Rulebook compliance`,
+   `## Change classification`, footer last).
 4. **`.mcp.json` is not a native pi location — VERIFIED.** pi reads `.pi/mcp.json`; the
    project-root `.mcp.json` reaches pi only through `pi-mcp-adapter` (kept in `packages`).
 
@@ -77,7 +79,8 @@ PR watching without a bespoke extension.
 ## Status
 
 - [x] Recreate `.pi/`; restore the pi arm of the harness-config gate and the supporting gates.
-- [x] Fix the `charly_load_skills` path + dispatcher source.
+- [x] Fix the `charly_load_skills` path + dispatcher source (#379).
+- [x] Align the injected condensed rules with the current rulebook.
 - [ ] Validate in a trusted pi session (`pi --approve`) that the extensions load and
       `gh_pr_status` answers; run `node scripts/check-pi-gates.mjs` +
       `node scripts/check-harness-config.mjs` on the final tree.
