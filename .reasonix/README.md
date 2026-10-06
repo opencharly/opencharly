@@ -1,9 +1,9 @@
 # Running charly under reasonix
 
 This page explains why podman fails for a reasonix agent running charly, and how
-this repository's `reasonix.toml` fixes it. It is the full-RCA companion to the
-comment in `reasonix.toml` — write future mechanism explanations to this file,
-not to prose scattered through config comments.
+to fix it. It is the full-RCA companion to the comment in `reasonix.toml` — write
+future mechanism explanations to this file, not to prose scattered through
+config comments.
 
 ## Symptom
 
@@ -24,8 +24,7 @@ sandbox, not the host.
 
 ## Root cause
 
-Reasonix's OS-level Bash sandbox (the global `~/.reasonix/config.toml`
-`[sandbox] bash = "enforce"` setting) jails every agent Bash call. The jail:
+Reasonix's OS-level Bash sandbox jails every agent Bash call. The jail:
 
 - sets `NoNewPrivs=1` and empties the capability bounding set
   (`CapBnd: 0000…0000`),
@@ -40,45 +39,78 @@ subordinate-id-mapping capabilities that let it map container user namespaces.
 The jail strips both, so podman fails only for the agent while a normal operator
 terminal (no jail) runs it fine.
 
-The earlier "environmental, unfixable" conclusion was wrong: it measured the
-sandbox, not the host.
+## Fix — and the correction that matters
 
-## Fix
-
-The project-scoped override in `reasonix.toml`:
+**The setting is USER-GLOBAL ONLY.** Disable the sandbox in the Reasonix home
+config, not in this repository:
 
 ```toml
+# ~/.reasonix/config.toml
 [sandbox]
 bash = "off"
 ```
 
-Resolution order is `flag > ./reasonix.toml > ~/.reasonix/config.toml`, so this
-project override wins over the global jail and runs the project's agent Bash
-commands on the real host — like an operator terminal — restoring podman.
+An earlier revision of this page told you to put that block in the project
+`reasonix.toml`. **That does not work, and this page was wrong.** Reasonix
+resolves `flag > ./reasonix.toml > ~/.reasonix/config.toml > defaults`, but a
+project file may only *narrow* a setting, never widen it, and `bash` is a
+widening value. MEASURED on reasonix v2.28.0:
 
-The override is project-scoped: it does not change the operator's global reasonix
-security posture, and any other project still inherits the global `enforce` jail.
-It applies on the next reasonix session (the jail is configured at session
-launch).
+| Config | Effective `[sandbox] bash` |
+|---|---|
+| project `bash = "off"`, no user setting | `enforce` — the project value is ignored |
+| user `bash = "off"`, no project block | `off` |
+| user `bash = "off"` **and** project `bash = "enforce"` | `enforce` — the project file wins downward |
+
+The third row is why this repository must carry **no `[sandbox]` block at all**:
+a project `[sandbox]` table does not merely fail to help, it actively caps a
+user-global `off` back to `enforce`. There is also no `reasonix config sandbox`
+CLI subcommand and no environment override, so the Reasonix home config is the
+only lever.
+
+The change applies on the next reasonix session — the jail is configured at
+session launch.
+
+## The trap that produced the wrong fix: you are measuring the sandbox
+
+The original "environmental, unfixable" conclusion was wrong because it measured
+the sandbox, not the host. **The same mistake is easy to make a second time, and
+it has a tell.** Inside a jailed session the jail *masks files*, so a check run
+from the agent describes the jail rather than the disk:
+
+- `~/.reasonix/.env` reads as a **character special device** (`crw-rw-rw- …
+  1, 3`) with `0` bytes, because it is bind-mounted from `dev[/null]`
+  read-only. It is a real file holding `OLLAMA_API_KEY` on the host.
+  `/proc/self/mountinfo` shows the mask:
+  `… /null /home/atrawog/.reasonix/.env ro,… - devtmpfs dev`.
+- `touch ~/x` fails with `Read-only file system`, and `/proc/self/uid_map`
+  shows `1000 0 1`.
+
+So: **when a file "does not exist" or "is empty" from inside an agent session
+but works in a terminal, check `/proc/self/mountinfo` before concluding anything
+about the file.** A masked path is a sandbox artifact, never evidence.
 
 ## Verification
 
-From the fix in effect, an agent session must observe:
+From a session with the sandbox genuinely off, an agent must observe:
 
 - `/proc/self/status` → `NoNewPrivs: 0` and a full `CapBnd` (not `0000…`),
 - `/proc/self/uid_map` → the root mapping (no nested namespace),
 - `/run` mounted `rw` for the invoking user, with `/run/user/<uid>` writable,
+- `reasonix doctor --json` → `"sandbox": { "bash": "off" }`,
 - `podman run --rm alpine:latest echo ok` printing `ok`,
 - `charly box validate` exiting 0.
 
-Any of these failing means the session is still jailed — the override did not
-take effect (it requires a fresh session launch) or a lower-precedence config
-won.
+Any of these failing means the session is still jailed — the setting did not
+take effect (it requires a fresh session launch), a project `[sandbox]` block is
+capping it, or a lower-precedence config won.
 
 ## Scope boundary
 
-This fixes the *sandbox*; it does not grant extra permissions. The `[permissions]`
-allow-list and `mode` in `reasonix.toml` still gate every command as before.
-Disabling the sandbox trades OS-level command confinement for the repository's
-declared permission policy, which is the intended trade for a project that runs
-podman-backed container engines.
+This fixes the *sandbox*; it does not grant extra permissions. The permission
+policy in `reasonix.toml` (`[permissions] mode`, `deny`, `ask`) still gates
+every command as before. Disabling the sandbox trades OS-level command
+confinement for the repository's declared permission policy, which is the
+intended trade for a project that runs podman-backed container engines — and
+note that the trade is now machine-wide: every project on this host loses the
+Bash jail, not just this one.

@@ -1,0 +1,63 @@
+{
+  "apiVersion": "reasonix.io/plugin/v2",
+  "name": "ollama-websearch",
+  "version": "1.0.0",
+  "description": "Ollama Cloud web search and web fetch as model-callable tools. Reasonix has no provider-side web search for the ollama-cloud endpoint (the `web_search = true` provider flag is documented only for the DeepSeek and OpenCode-Go presets), so this code extension serves the Ollama REST APIs directly.",
+  "requires": [],
+  "provides": [
+    {
+      "namespace": "plugin/ollama-websearch",
+      "kind": "tools",
+      "id": "default",
+      "version": "1.0.0"
+    }
+  ],
+  "runtime": {
+    "command": "${REASONIX_PLUGIN_ROOT}/sidecar.py",
+    "args": [],
+    "env": {},
+    "required": true,
+    "priority": 0,
+    "intercepts": [],
+    "replaces": [],
+    "capabilities": ["tools"],
+    "tools": [
+      {
+        "name": "web_search",
+        "description": "Search the web and return ranked results (title, url, content snippet). Use for current information: news, releases, documentation changes, or anything after the model's training cutoff. Prefer a short, specific query.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "description": "The search query."
+            },
+            "max_results": {
+              "type": "integer",
+              "description": "Maximum results to return (default 5, maximum 10).",
+              "minimum": 1,
+              "maximum": 10
+            }
+          },
+          "required": ["query"]
+        },
+        "readOnly": true
+      },
+      {
+        "name": "web_fetch",
+        "description": "Fetch a single web page by URL and return its readable text content plus the links found on it. Use after web_search to read a specific result in full.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "url": {
+              "type": "string",
+              "description": "The absolute URL to fetch."
+            }
+          },
+          "required": ["url"]
+        },
+        "readOnly": true
+      }
+    ]
+  }
+}
