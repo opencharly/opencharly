@@ -24,6 +24,7 @@ import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { parseTypeScript } from "./lib/ts-syntax.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const argv = process.argv.slice(2);
@@ -55,6 +56,11 @@ function check() {
   }
   const raw = readFileSync(file, "utf8");
   const code = stripComments(raw);
+
+  // 0. PARSE. A regex gate cannot see an unparseable extension (R1: an unescaped backtick
+  //    in the injected rules block stayed green here and only broke when pi loaded it).
+  const parseErr = parseTypeScript(raw);
+  if (parseErr) fail(`${rel} parses as TypeScript (${parseErr})`);
 
   // 1. fail-closed: the gate-script exec `catch` MUST block, never continue.
   if (/fail[- ]open/i.test(code)) fail(`does not fail OPEN on an unexpected gate error`);
@@ -102,6 +108,7 @@ if (argv.includes("--self-test")) {
     ["fail-open", (s) => s.replace(/return\s*\{\s*block:\s*true,\s*reason:\s*`charly gate \(\$\{rel\}\) could not run[\s\S]*?\};/, "continue;"), `failing closed`],
     ["fail-open on absent gate", (s) => s.replace(/is absent at \$\{script\} — failing closed: the gate cannot run/, "XXX"), `when a gate script is ABSENT`],
     ["worktree path", (s) => s.replace(/join\(ctx\.cwd, "\.worktrees", slug\)/, 'join(ctx.cwd, ".claude", "worktrees", slug)'), `.worktrees`],
+    ["unparseable", (s) => s + "\nconst broken = ;\n", `parses as TypeScript`],
     ["no gate wiring", (s) => s.replace(/pre-push-gate\.sh/g, "pre-push-gate-XXX.sh"), `pre-push-gate.sh`],
     ["no tool_call", (s) => s.replace(/pi\.on\(\s*"tool_call"/g, 'pi.on("tool_calls"'), `tool_call`],
     ["no SOUL injection", (s) => s.replace(/readSoul/g, "__soul_removed__"), `SOUL.md`],
