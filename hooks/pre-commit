@@ -24,6 +24,9 @@
 #                          SHA, reads jobs via REST, and classifies INCONCLUSIVE
 #   8. pi question        — the `question` tool is dependency-free, headless-safe, serialized,
 #                          and wired into `.pi/settings.json`
+#   9. task contexts      — every step of every task in charly.yml declares a context the plan
+#                          runner activates, so no step is a no-op in every mode
+#                          (`node scripts/check-task-contexts.mjs`; opencharly/opencharly#413)
 #
 # Deliberately NOT here (see `charly task verify`): the per-submodule
 # `git ls-remote` default-branch audit — it reads remote state no commit can change
@@ -64,6 +67,7 @@ node "$ROOT/scripts/check-pi-gates.mjs"
 node "$ROOT/scripts/check-pi-watch.mjs"
 node "$ROOT/scripts/check-pi-pr-status.mjs"
 node "$ROOT/scripts/check-pi-question.mjs"
+node "$ROOT/scripts/check-task-contexts.mjs"
 bash "$ROOT/scripts/check-bed-watch.sh" --self-test
 
 echo "pre-commit: OK"
