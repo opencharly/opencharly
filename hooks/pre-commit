@@ -15,12 +15,13 @@
 #                          script's own --self-test)
 #   3. opencode gate     — the TypeScript gate plugin contract
 #   4. pr-watch gate     — the PR-watch plugin's pure logic + SDK delivery primitives
-#   5. pi watch binding  — the pi wake binding delegates to the neutral watchers, wakes,
-#                          re-arms, and ships inert; plus the bed watcher's own self-test
-#   6. pi pr-status      — the PR-status tool normalises the state, finds the run by head
-#                          SHA, reads jobs via REST, and classifies INCONCLUSIVE
 #   5. pi gate           — the pi gate extension fails CLOSED, uses the rule-2 worktree
 #                          path, and wires both gate scripts (`node scripts/check-pi-gates.mjs`)
+#   6. pi watch binding  — the pi wake binding delegates to the neutral watchers, wakes,
+#                          re-arms, and ships inert (`node scripts/check-pi-watch.mjs`); plus
+#                          the bed watcher's own `--self-test`
+#   7. pi pr-status      — the PR-status tool normalises the state, finds the run by head
+#                          SHA, reads jobs via REST, and classifies INCONCLUSIVE
 #
 # Deliberately NOT here (see `charly task verify`): the per-submodule
 # `git ls-remote` default-branch audit — it reads remote state no commit can change
