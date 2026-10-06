@@ -73,6 +73,16 @@ let stopping = false;
 
 interface GhState {
   proc: ChildProcess | null;
+  /**
+   * ARM GENERATION — bumped on every arm (and BEFORE a restart kills the running one). An exit
+   * from a superseded generation says nothing about the current arm and is ignored. Without it,
+   * the exit handler of an already-stopped child cleared the LIVE arm's slot, counted the
+   * deliberate SIGTERM as an immediate failure, and re-armed a DUPLICATE — whose
+   * `watch_lock --takeover` then TERMed the live watcher (silent exit 143: no stdout, no stderr)
+   * → three “fast failures” in a row → `WATCHER FATAL … last stderr: (none)`, the re-arm loop
+   * stopped for good, and a stray watcher kept holding the lock.
+   */
+  gen: number;
   items: string[];
   /** Items that fired a terminal STATE (MERGED/CLOSED) — never re-armed. */
   done: Set<string>;
@@ -85,6 +95,7 @@ interface GhState {
 }
 const gh: GhState = {
   proc: null,
+  gen: 0,
   items: [],
   done: new Set(),
   stall: new Map(),
@@ -232,6 +243,7 @@ function armGh(pi: ExtensionAPI): void {
     EVENTS,
     ...active,
   ];
+  const gen = ++gh.gen;
   const proc = spawn("bash", args, { cwd: projectRoot, env: process.env });
   gh.proc = proc;
   gh.startedAt = Date.now();
@@ -239,19 +251,34 @@ function armGh(pi: ExtensionAPI): void {
   let sawLine = false;
 
   readLines(proc.stdout, (line) => {
+    if (gen !== gh.gen) return; // a superseded arm never delivers
     sawLine = true;
     handleGhLine(pi, line);
   });
   readLines(proc.stderr, (line) => {
+    if (gen !== gh.gen) return;
     gh.lastErr = line.trim();
   });
 
   proc.on("error", (err) => {
+    if (gen !== gh.gen) return;
     gh.lastErr = String(err);
   });
   proc.on("exit", (code) => {
-    gh.proc = null;
+    // A SUPERSEDED arm (a restart bumped the generation before killing it) is not a failure
+    // and must not re-arm — its successor is already running.
+    if (gen !== gh.gen) return;
+    if (gh.proc === proc) gh.proc = null;
     if (stopping) return;
+    // Exit 6 = `gh_watch.sh` could not acquire the watch lock: a PEER holds it. That is the
+    // single-instance guard working, never a failure of this arm (and never a FATAL) — but this
+    // session's own delivery is not running, so back off and say so.
+    if (code === 6) {
+      note(latestCtx, "watch: another watcher holds the lock (exit 6) — retrying in 60s");
+      clearRearm();
+      gh.rearmTimer = setTimeout(() => armGh(pi), 60000);
+      return;
+    }
     // A rate limit (7) or a usage error (5) is terminal: never blind-retry it (R4).
     if (code === 7 || code === 5) {
       deliver(
@@ -280,6 +307,10 @@ function armGh(pi: ExtensionAPI): void {
 /** Re-read the items file and (re)start the watcher from scratch. */
 async function restartGh(pi: ExtensionAPI): Promise<string> {
   clearRearm();
+  // Supersede the running arm BEFORE killing it. This bump is load-bearing, not decorative:
+  // `armGh` may return WITHOUT arming (every item already terminal), so without it the killed
+  // child's exit would still match the current generation and be counted as a fast failure.
+  gh.gen++;
   if (gh.proc) {
     gh.proc.kill("SIGTERM");
     gh.proc = null;
@@ -423,7 +454,7 @@ export default function (pi: ExtensionAPI) {
         `GitHub:   ${gh.items.length === 0 ? "inert (.pi/watch.items empty/comment-only)" : `${gh.items.length} item(s)`}`,
         `  items:  ${gh.items.join(", ") || "-"}`,
         `  done:   ${[...gh.done].join(", ") || "-"}`,
-        `  armed:  ${gh.proc ? "yes" : "no"}`,
+        `  armed:  ${gh.proc ? "yes (this session's arm is tracked)" : "no — this session tracks no arm"}`,
         `beds:     ${beds.size === 0 ? "none" : [...beds.keys()].join(", ")}`,
       ];
       return { content: [{ type: "text", text: lines.join("\n") }], details: {} };
