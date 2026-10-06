@@ -112,3 +112,23 @@ stale (no subagent exists). This adds the mechanism, **neutral-first**:
 No marketplace/layer PR chain and no gitlink bump: the bed watcher lives in this repo's
 `scripts/` because its subject is this repo's `.check/` runs. If a non-umbrella consumer
 needs it, it promotes to `marketplace/scripts/` (R3, second occurrence).
+
+### Follow-up — the PR-status tool's five measured defects (first live use, after #398)
+
+`.pi/extensions/github-pr-status.ts` — the tool the `.pi/` restore added — was broken on its
+first live use. Five defects, each now pinned by `scripts/check-pi-pr-status.mjs`:
+
+1. `gh pr view --json state` returns UPPERCASE `OPEN`; the poll compared lowercase, so
+   `watch` returned after ONE poll (`"OPEN" !== "open"` read as "the PR is no longer open").
+   Normalised in `getPR`.
+2. The run was looked up with `gh run list --workflow pr-validator.yml`, which does NOT
+   resolve the org-required workflow (it reports as `charly/pr-validator`), so `check`
+   reported "none found" with a live run on the head. Now queried by head SHA.
+3. `gh run view <id> --json jobs` 404s on the org-required workflow (same class as
+   `gh run rerun`); the failing step is now read through the REST jobs API.
+4. A verdict-less `## validator INCONCLUSIVE` comment carries no `Verdict:` line and was
+   skipped, misreporting as `no-verdict-yet` or an older PASS/BLOCK. Now classified
+   distinctly, with the escalation guidance in the output.
+5. `watch` short-circuited on any concluded run (including a PASS) while its own loop kept
+   polling after a PASS that arrived LATER — the two paths disagreed about the same state.
+   It is now terminal only on a FAILED run or a merged/closed PR (PASS != merged).
