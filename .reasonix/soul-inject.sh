@@ -13,9 +13,8 @@
 # premise that is measurably false (SessionStart is a hook event, and its stdout
 # is context, not a verdict). Corrected here rather than left standing.
 #
-# Difference from pi: `.pi/extensions/charly-gates.ts` re-injects from
-# `before_agent_start` EVERY turn. A reasonix SessionStart hook fires once per
-# session, so the identity arrives once and stays in the transcript.
+# A difference from a hooks-based harness: the identity arrives once per session
+# (a hook that re-injects every turn no longer exists in this tree).
 #
 # Exit 0 always — a missing SOUL.md must never block a session.
 

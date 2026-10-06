@@ -250,9 +250,6 @@ verify:
       - check: every harness-config surface parses and is wired (rule 5)
         command: node scripts/check-harness-config.mjs
         context: [runtime]
-      - check: the pi gate extension fails CLOSED, uses the rule-2 worktree path, and wires both gate scripts
-        command: node scripts/check-pi-gates.mjs
-        context: [runtime]
       - check: "every canonical root narrative exists and every root-file reference in the agent surfaces resolves (the #356 content-loss gate)"
         command: node scripts/check-root-refs.mjs
         context: [runtime]
@@ -315,74 +312,6 @@ org-map:
           print("\nOK: all sections reconcile and are sorted; every submodule has a row")
           PY
         context: [runtime]
-
-# -----------------------------------------------------------------------------
-# omarchy-agents — deterministic gate for the committed omarchy PR-eval pi agents.
-# -----------------------------------------------------------------------------
-omarchy-agents:
-  task:
-    description: Gate the committed omarchy PR-eval pi agents (tracked + parseable)
-    dir: .
-    plan:
-      - check: the unique agents are tracked, parseable, and the staged agents stay ignored
-        command: |
-          set -eu
-          fail() { echo "FAIL: $*" >&2; exit 1; }
-          AGENTS=(.pi/agents/omarchy-config-oracle.md .pi/agents/omarchy-eval-runner.md .pi/agents/omarchy-eval-supervisor.md .pi/agents/omarchy-cold-reader.md .pi/agents/worker.md)
-          for f in "${AGENTS[@]}"; do
-            [ -f "$f" ] || fail "missing agent file: $f"
-            git check-ignore -q "$f" && fail "agent $f is gitignored — must be committed"
-          done
-          git ls-files --error-unmatch "${AGENTS[@]}" >/dev/null || fail "a unique agent is untracked"
-          git check-ignore -q .pi/agents/pi-claude-marketplace-charly-internals-pr-validator.md \
-            || fail "marketplace-staged agents must stay gitignored"
-          for f in "${AGENTS[@]}"; do
-            [ "$(head -1 "$f")" = "---" ] || fail "$f: frontmatter must start with ---"
-            [ "$(grep -c '^---$' "$f")" -ge 2 ] || fail "$f: missing closing ---"
-            grep -q '^name:' "$f"        || fail "$f: missing name:"
-            grep -q '^description:' "$f" || fail "$f: missing description:"
-            grep -q '^tools:' "$f"       || fail "$f: missing tools:"
-            t=$(grep -n '^tools:' "$f"   | head -1 | cut -d: -f1)
-            c=$(grep -n '^---$' "$f"     | sed -n '2p' | cut -d: -f1)
-            [ "$t" -lt "${c:-0}" ] || fail "$f: tools: line leaks past the closing ---"
-          done
-          echo "omarchy-agents: OK — ${#AGENTS[@]} unique agents tracked + parseable, staged agents ignored"
-        context: [runtime]
-
-# -----------------------------------------------------------------------------
-# pi-forks — sync the opencharly pi-plugin forks from their upstreams.
-# -----------------------------------------------------------------------------
-pi-forks:
-  task:
-    description: Sync the opencharly pi-plugin forks from their upstreams (requires gh auth)
-    dir: .
-    plan:
-      - run: sync the 8 real forks and propagate tags
-        command: |
-          set -eu
-          PAIRS=(
-            "pi-mcp-adapter:nicobailon/pi-mcp-adapter"
-            "pi-subagents:nicobailon/pi-subagents"
-            "pi-memory:jayzeng/pi-memory"
-            "pi-ollama-cloud:fgrehm/pi-ollama-cloud"
-            "pi-web-access:nicobailon/pi-web-access"
-            "pi-claude-marketplace:acolomba/pi-claude-marketplace"
-            "pi-goal:Michaelliv/pi-goal"
-            "pi-simple-team:giladbarnea/pi-simple-team"
-          )
-          for pair in "${PAIRS[@]}"; do
-            fork="${pair%%:*}"; upstream="${pair#*:}"
-            echo "== syncing opencharly/$fork from $upstream"
-            gh repo sync "opencharly/$fork" --source "$upstream" --force
-            tmp="$(mktemp -d)/$fork.git"
-            git clone --bare "https://github.com/opencharly/$fork.git" "$tmp"
-            git -C "$tmp" remote add upstream "https://github.com/$upstream.git"
-            git -C "$tmp" fetch --tags upstream
-            git -C "$tmp" push --tags origin
-            rm -rf "$(dirname "$tmp")"
-          done
-          echo "done. Vendored mirrors (pi-fabric, rpiv-todo, pi-lsp) need manual re-vendor on version bump."
-        context: [deploy]
 
 # -----------------------------------------------------------------------------
 # prune — reap the merged-upstream session worktrees + branches the per-session

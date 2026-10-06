@@ -75,12 +75,10 @@ installed-binary form — `charly task …`, the same shape a packaged `charly` 
 | `charly task policy-b` | assert policy B — every `distro-*` gitlink equals charly's own `box/*` gitlink |
 | `charly task pins` | the policy-B pin operation over the `distro-*` set (mode via param) |
 | `charly task self-test` | self-test the committed CI body/pin-evidence builders + the dispatcher splice |
-| `charly task omarchy-agents` | gate the committed omarchy PR-eval pi agents (tracked + parseable) |
-| `charly task pi-forks` | sync the opencharly pi-plugin forks from their upstreams (requires `gh` auth) |
 | `charly task prune` | reap merged-upstream session worktrees + branches (MODE=report is a dry run) |
 
-`charly task list` enumerates them — twelve today. Without the `PATH` export, the same
-commands run as `./charly/bin/charly task …`; the README and `AGENTS.md` list the same twelve.
+`charly task list` enumerates them — ten today. Without the `PATH` export, the same
+commands run as `./charly/bin/charly task …`; the README and `AGENTS.md` list the same ten.
 
 ## The org map
 
@@ -161,7 +159,7 @@ Two repos are deliberately **not** listed as their own-name submodules:
 
 ### pi packages
 
-4 repos — vendored pi agent packages and extensions consumed by the umbrella's `.pi/settings.json`.
+4 repos — vendored pi agent packages and extensions (the OpenCharly pi-plugin forks and mirrors).
 
 | path | repo | role |
 |---|---|---|
