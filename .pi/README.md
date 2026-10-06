@@ -6,12 +6,14 @@ as a pi PACKAGE (`git:github.com/opencharly/marketplace` in `settings.json`), in
 startup after project trust. The pi↔rulebook binding is `APPEND_SYSTEM.md`.
 
 **Scope.** This is the minimum a pi session needs to FOLLOW the rulebook — the git gates,
-the skill corpus, the ledger primitive, and the GitHub PR / comment watcher surface. It is
-deliberately not a general tool catalogue.
+the skill corpus, and the GitHub PR / comment watcher surface. It is deliberately not a
+general tool catalogue. Every package in `settings.json` was verified to load with **zero**
+startup warnings (`pi --approve`).
 
 | Path | Purpose |
 |---|---|
-| `settings.json` | pi packages (marketplace skills, MCP adapter, subagents, todo ledger) and the project extensions. |
+| `settings.json` | The marketplace skill corpus as a pi package, plus the two project extensions. |
+| `mcp.json` | Native pi MCP: the remote `deepwiki` server. |
 | `extensions/charly-gates.ts` | The git gates (`pre-commit`/`pre-push`), SOUL + condensed-rule injection, and the `charly_load_skills` / worktree tools. |
 | `extensions/github-pr-status.ts` | `gh_pr_status check\|watch` — the pi binding for PR + validator status. |
 | `APPEND_SYSTEM.md` | The pi↔rulebook binding (skill addressing, gates, watcher discipline, coordination, plan discipline). |

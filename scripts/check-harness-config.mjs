@@ -120,6 +120,7 @@ if (argv.includes("--self-test")) {
     ".claude/hooks/pre-commit-gate.sh",
     ".claude/hooks/pre-push-gate.sh",
     ".mcp.json",
+    ".pi/mcp.json",
     "opencode.json",
     ".codex/config.toml",
     ".reasonix/settings.json",
@@ -207,6 +208,7 @@ if (argv.includes("--self-test")) {
     [".claude/settings.json", (p) => { const s = JSON.parse(readFileSync(p, "utf8")); s.enabledPlugins = {}; writeFileSync(p, JSON.stringify(s)); }, "enables the plugin set", "3 (plugin-set arm)"],
     ["opencode.json", (p) => { const o = JSON.parse(readFileSync(p, "utf8")); delete o.permission.bash["charly status *"]; writeFileSync(p, JSON.stringify(o)); }, 'grants "charly status *"', "5 (positive arm)"],
     [".mcp.json", (p) => { const m = JSON.parse(readFileSync(p, "utf8")); delete m.mcpServers.deepwiki; writeFileSync(p, JSON.stringify(m)); }, ".mcp.json declares the DeepWiki server", "6"],
+    [".pi/mcp.json", (p) => { const m = JSON.parse(readFileSync(p, "utf8")); delete m.mcpServers.deepwiki; writeFileSync(p, JSON.stringify(m)); }, ".pi/mcp.json declares the DeepWiki server", "6"],
     ["opencode.json", (p) => { const o = JSON.parse(readFileSync(p, "utf8")); delete o.mcp.deepwiki; writeFileSync(p, JSON.stringify(o)); }, "opencode.json declares the DeepWiki server", "6"],
     [".codex/config.toml", (p) => { const t = readFileSync(p, "utf8").split("\n").filter((l) => !/^\[mcp_servers\.deepwiki\]$/.test(l.trim()) && !/^url\s*=/.test(l.trim())).join("\n"); writeFileSync(p, t); }, ".codex/config.toml declares the DeepWiki server", "6"],
     ["opencode.json", (p) => { const o = JSON.parse(readFileSync(p, "utf8")); o.instructions = [".opencode/instructions.md"]; writeFileSync(p, JSON.stringify(o)); }, "injects SOUL.md for opencode", "7 (opencode arm)"],
@@ -420,14 +422,15 @@ ok(existsSync(join(root, ".claude/workflows/audit-deploy-configs.js")), ".claude
 //    table is [surface, extractor, who] so adding a harness is ONE row and the guarded set
 //    is legible in one place. Each surface's syntax was verified against its OWN harness:
 //      .mcp.json        — Claude Code's project-scoped HTTP MCP file (a remote server needs
-//                         `type: "http"` + `url`); the SAME file is auto-loaded by pi via
-//                         pi-mcp-adapter and by Reasonix (Claude-Code-compatible);
+//                         `type: "http"` + `url`); also read by Reasonix (Claude-Code-compatible);
+//      .pi/mcp.json     — pi's native project MCP file (same `mcpServers` shape);
 //      opencode.json    — opencode's top-level `mcp` map (`{type: "remote", url}`);
 //      .codex/config.toml — Codex `[mcp_servers.<name>]` with `url` (streamable HTTP).
 {
   const DEEPWIKI_URL = "https://mcp.deepwiki.com/mcp";
   const MCP_SURFACES = [
-    [".mcp.json", (v) => v.mcpServers?.deepwiki?.url, "Claude Code, pi and Reasonix (project-scoped .mcp.json)"],
+    [".mcp.json", (v) => v.mcpServers?.deepwiki?.url, "Claude Code and Reasonix (project-scoped .mcp.json)"],
+    [".pi/mcp.json", (v) => v.mcpServers?.deepwiki?.url, "pi (project .pi/mcp.json)"],
     ["opencode.json", (v) => v.mcp?.deepwiki?.url, "opencode (top-level mcp map)"],
     [".codex/config.toml", (v, p) => tomlString(p, "mcp_servers.deepwiki", "url"), "Codex ([mcp_servers.deepwiki])"],
   ];

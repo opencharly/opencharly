@@ -10,8 +10,8 @@
 // it does NOT catch a broken gate, so without this file the extension's behaviour is
 // unproven. Three properties this gate pins, each a real defect class:
 //
-//   1. FAIL-CLOSED — a gate whose script ERRORS must BLOCK, never `continue`. A
-//      fail-open wiring is a bypass path (the gate silently does not run).
+//   1. FAIL-CLOSED — a gate whose script ERRORS or is ABSENT must BLOCK, never
+//      `continue`. A fail-open wiring is a bypass path (the gate silently does not run).
 //   2. RULE-2 PATHS — the worktree tool must use `<umbrella>/.worktrees/<slug>/`,
 //      not `.claude/worktrees/`, and name the binary `charly/bin/charly`.
 //   3. REGISTERED — the `tool_call` hook and both gate scripts are present.
@@ -60,6 +60,8 @@ function check() {
   if (/fail[- ]open/i.test(code)) fail(`does not fail OPEN on an unexpected gate error`);
   if (!/could not run — failing closed/.test(raw))
     fail(`fails CLOSED on an unexpected gate error (the exec catch must block with the fail-closed reason)`);
+  if (!/is absent .*failing closed/.test(raw))
+    fail(`fails CLOSED when a gate script is ABSENT (the access() miss must block, never continue)`);
   if (!/block:\s*true/.test(code)) fail(`returns a block on a gate failure`);
 
   // 2. rule-2 paths
@@ -98,6 +100,7 @@ if (argv.includes("--self-test")) {
   };
   const mutations = [
     ["fail-open", (s) => s.replace(/return\s*\{\s*block:\s*true,\s*reason:\s*`charly gate \(\$\{rel\}\) could not run[\s\S]*?\};/, "continue;"), `failing closed`],
+    ["fail-open on absent gate", (s) => s.replace(/is absent at \$\{script\} — failing closed: the gate cannot run/, "XXX"), `when a gate script is ABSENT`],
     ["worktree path", (s) => s.replace(/join\(ctx\.cwd, "\.worktrees", slug\)/, 'join(ctx.cwd, ".claude", "worktrees", slug)'), `.worktrees`],
     ["no gate wiring", (s) => s.replace(/pre-push-gate\.sh/g, "pre-push-gate-XXX.sh"), `pre-push-gate.sh`],
     ["no tool_call", (s) => s.replace(/pi\.on\(\s*"tool_call"/g, 'pi.on("tool_calls"'), `tool_call`],

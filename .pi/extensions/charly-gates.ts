@@ -526,11 +526,20 @@ export default function (pi: ExtensionAPI) {
     try {
       for (const rel of GATE_SCRIPTS) {
         const script = join(ctx.cwd, rel);
+        let scriptPresent = true;
         try {
           await access(script);
         } catch {
-          // Gate script absent (e.g. running pi from a subdirectory) — skip.
-          continue;
+          scriptPresent = false;
+        }
+        if (!scriptPresent) {
+          // FAIL CLOSED (T3/R4): the gate cannot run because its script is absent —
+          // a wiring that silently proceeds (continue) is a bypass path. Block,
+          // naming the missing script.
+          return {
+            block: true,
+            reason: `charly gate (${rel}) is absent at ${script} — failing closed: the gate cannot run`,
+          };
         }
 
         let result;

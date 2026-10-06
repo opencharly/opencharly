@@ -60,10 +60,15 @@ in the same flow when the request unambiguously authorizes it ("plan and execute
 
 ## Context economy
 
-Keep the main context small. Track multi-step state in the `todo` ledger (the durable
-record — reconcile on interruption, never reset). Delegate heavy, long, or noisy work to a
-`subagent` that returns a concise verdict plus evidence paths. Never re-read a durable
-artifact once per turn.
+Keep the main context small: track multi-step state in a durable ledger (reconcile on
+interruption, never reset), delegate heavy, long, or noisy work to a background child, and
+never re-read a durable artifact once per turn. (This minimal config ships no pi todo
+package; keep the ledger in `plan/` or in the owning `charly` artifact.)
+
+## DeepWiki
+
+`.pi/mcp.json` registers the remote `deepwiki` MCP server. Where a grep cannot answer *how*
+a repo is put together, query it — its answer is a pointer to read, never truth.
 
 ## Project trust
 

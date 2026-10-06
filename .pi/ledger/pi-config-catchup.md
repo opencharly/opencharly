@@ -25,7 +25,8 @@ arm of the harness-config gate (this change).
 
 | Surface | Why the rules require it |
 |---|---|
-| `.pi/settings.json` | Packages: the marketplace skill corpus (R0), the MCP adapter (DeepWiki), subagents (Agents/Workflows), the todo ledger (rules 9/11). |
+| `.pi/settings.json` | The marketplace skill corpus (R0) as a single pi package. |
+| `.pi/mcp.json` | Native pi MCP — the remote DeepWiki server. |
 | `.pi/extensions/charly-gates.ts` | The git gates (`.claude/hooks/pre-commit-gate.sh` + `pre-push-gate.sh`) — hooks doctrine; SOUL + condensed-rule injection; `charly_load_skills` (R0); worktree tools (rule 2). |
 | `.pi/extensions/github-pr-status.ts` | `gh_pr_status check\|watch` — the validator verdict is otherwise unreachable from a pi session (git-workflow). |
 | `.pi/APPEND_SYSTEM.md` | The pi↔rulebook binding (skill addressing, gates, watcher discipline, coordination, plan discipline). |
@@ -47,7 +48,9 @@ arm of the harness-config gate (this change).
 `pi-forks` `charly task` verbs. Native skill discovery plus `charly_load_skills` covers R0;
 `charly status` via the CLI covers bed status; the harness-independent shell watcher family
 (`marketplace/scripts/{pr_state_watch,pr_watch_many,gh_watch}.sh`) covers GitHub comment and
-PR watching without a bespoke extension.
+PR watching without a bespoke extension. The `pi-mcp-adapter`, `pi-subagents`, and
+`rpiv-todo` packages are also dropped — each emits a pi startup warning (`builtin:mcp`
+conflict / `typebox` in `dependencies`); DeepWiki is served natively by `.pi/mcp.json`.
 
 ## R1 findings
 
@@ -65,8 +68,12 @@ PR watching without a bespoke extension.
    the neutral "Delegate Heavy Work" (naming no dropped tool), and the PR-body section names
    match `pr_body_lint.py` (`## Summary`, `## How tested`, `## Rulebook compliance`,
    `## Change classification`, footer last).
-4. **`.mcp.json` is not a native pi location — VERIFIED.** pi reads `.pi/mcp.json`; the
-   project-root `.mcp.json` reaches pi only through `pi-mcp-adapter` (kept in `packages`).
+4. **`.mcp.json` is not a native pi location — FIXED.** pi reads `.pi/mcp.json`; the
+   project-root `.mcp.json` reaches pi only through `pi-mcp-adapter`. A `pi --approve` load
+   proved `pi-mcp-adapter` emits a `builtin:mcp` conflict warning and `pi-subagents` /
+   `rpiv-todo` emit `typebox`-in-`dependencies` manifest warnings — so all three packages
+   are dropped for a zero-warning load, and pi now uses its native `.pi/mcp.json`
+   (`check-harness-config.mjs` check 6 asserts it).
 
 ## Watch discipline (the GitHub ask)
 
@@ -81,7 +88,6 @@ PR watching without a bespoke extension.
 - [x] Recreate `.pi/`; restore the pi arm of the harness-config gate and the supporting gates.
 - [x] Fix the `charly_load_skills` path + dispatcher source (#379).
 - [x] Align the injected condensed rules with the current rulebook.
-- [ ] Validate in a trusted pi session (`pi --approve`) that the extensions load and
-      `gh_pr_status` answers; run `node scripts/check-pi-gates.mjs` +
-      `node scripts/check-harness-config.mjs` on the final tree.
+- [x] Validate with `pi --approve`: the project package installs, both extensions load, and
+      the load is warning-free; the `scripts/check-*.mjs` gates ran on the tree.
 - [ ] Land as a T4 change with a maintainer-account sign-off (it reverses #386).
