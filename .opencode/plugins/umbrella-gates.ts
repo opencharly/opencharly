@@ -1,6 +1,6 @@
 /**
- * umbrella-gates.ts — opencode plugin running the same mechanical gates as pi
- * and Claude Code (fork of charly's `.opencode/plugins/charly-gates.ts`).
+ * umbrella-gates.ts — opencode plugin running the same mechanical gates as
+ * Claude Code (fork of charly's `.opencode/plugins/charly-gates.ts`).
  * Intercepts shell tool calls and runs `.claude/hooks/pre-commit-gate.sh` /
  * `pre-push-gate.sh`; the gates exit 2 to BLOCK.
  *
