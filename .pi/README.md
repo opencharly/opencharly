@@ -38,7 +38,8 @@ private COPY of the immutable half. MEASURED on this clone (425 submodules, `mai
 
 So `charly_worktree_create` materializes **only `charly` and `marketplace`** — the modules the
 harness's own tools and gates read — and any other module is named explicitly through the tool's
-`modules` argument when a cutover actually reads or edits it. This is not a weakening: the repo's
+`modules` argument, which **adds** to that set. `charly` can never be dropped from it: the build
+step runs `charly/scripts/bootstrap-charly.sh`. This is not a weakening: the repo's
 own pin gate (`scripts/check-verify-submodules.mjs`) documents a session worktree as
 materializing **1 of 424** paths and treats the rest as legitimately unmaterialized, and every
 commit-time gate here passes with **423 of 425** unmaterialized — `hooks/pre-commit`,
@@ -52,7 +53,8 @@ git -C <umbrella>/.worktrees/<slug> submodule update --init \
 ```
 
 Reap on landing: `charly_worktree_remove <slug>`; `charly task prune` reaps the worktrees and
-branches whose PR already merged (dry run by default — it reported 13 worktrees + 1 branch here).
+branches whose PR already merged (dry run by default — it reported 13 worktrees + 2 branches here,
+measured 2026-10-06).
 
 Two measured NEGATIVES, recorded so they are not re-proposed:
 

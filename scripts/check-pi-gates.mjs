@@ -108,8 +108,15 @@ function check() {
     fail(`does not run a graph-wide \`submodule update --init --recursive\``);
   if (!/push\(\s*["'`]--reference["'`]/.test(code))
     fail(`borrows module objects from the main checkout (an explicit --reference)`);
-  if (!/DEFAULT_WORKTREE_MODULES\s*=\s*\[\s*["'`]charly["'`]\s*,\s*["'`]marketplace["'`]\s*\]/.test(code))
-    fail(`defaults to exactly the modules the harness's own tools and gates read (charly, marketplace)`);
+  if (!/REQUIRED_WORKTREE_MODULES\s*=\s*\[\s*["'`]charly["'`]\s*,\s*["'`]marketplace["'`]\s*\]/.test(code))
+    fail(`names the required module set (charly, marketplace)`);
+  // The required set is a FLOOR: step 4 builds the binary from `charly/scripts/
+  // bootstrap-charly.sh`, so a cutover that names extra modules must never be able to drop it.
+  // Asserted as a UNION (spread of the required set into the Set), not as the mere presence of
+  // the name — `const modules = requested` would satisfy a name check and break the build (the
+  // trap the live run of this tool exposed).
+  if (!/new Set\(\[\s*\.\.\.REQUIRED_WORKTREE_MODULES/.test(code))
+    fail(`builds the materialized set as a UNION with the required modules (an extra module must never drop charly)`);
   if (!/modules:\s*Type\.Optional/.test(code)) fail(`exposes a \`modules\` argument for the modules a cutover actually needs`);
 
   if (failures === 0)
@@ -153,9 +160,14 @@ if (argv.includes("--self-test")) {
       `--reference`,
     ],
     [
-      "unscoped default module set",
-      (s) => s.replace(/DEFAULT_WORKTREE_MODULES = \["charly", "marketplace"\]/, "DEFAULT_WORKTREE_MODULES = []"),
-      `modules the harness's own tools and gates read`,
+      "required module set emptied",
+      (s) => s.replace(/REQUIRED_WORKTREE_MODULES = \["charly", "marketplace"\]/, "REQUIRED_WORKTREE_MODULES = []"),
+      `required module set`,
+    ],
+    [
+      "modules can DROP the required set",
+      (s) => s.replace(/const modules = \[\.\.\.new Set\(\[\.\.\.REQUIRED_WORKTREE_MODULES, \.\.\.requested\]\)\];/, "const modules = requested;"),
+      `UNION with the required modules`,
     ],
     [
       "no modules argument",

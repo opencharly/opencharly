@@ -56,8 +56,8 @@ const GATE_SCRIPTS = [
 ];
 
 /**
- * The modules a session worktree materializes by DEFAULT — the two the pi harness's own
- * tools and gates read, and nothing else:
+ * The modules a session worktree ALWAYS materializes — the two the pi harness's own tools and
+ * gates read, and nothing else:
  *
  *   - `charly`      — the binary is built from it (`charly/scripts/bootstrap-charly.sh`),
  *                     and `charly task policy-b` (the pre-commit hook's first step) reads
@@ -66,13 +66,14 @@ const GATE_SCRIPTS = [
  *                     `DISPATCHER.md` the harness-config gate resolves its rows against.
  *
  * Everything else the umbrella carries is a submodule a cutover needs only if it actually
- * reads or edits it, and is named through the tool's `modules` argument. MEASURED: an eager
- * `--init --recursive` over all 425 costs 376 MB of worktree-PRIVATE module objects and
- * ~0.86 s per module, while this scoped set costs 1 MB and ~1.4 s — and the repo's own pin
- * gate (`scripts/check-verify-submodules.mjs`) documents a session worktree as materializing
- * 1 of 424 paths.
+ * reads or edits it, and is named through the tool's `modules` argument, which ADDS to this set.
+ * MEASURED: an eager `--init --recursive` over all 425 costs 376 MB of worktree-PRIVATE module
+ * objects and ~0.86 s per module, while this scoped set costs 1 MB and ~1.4 s — and the repo's
+ * own pin gate (`scripts/check-verify-submodules.mjs`) documents a session worktree as
+ * materializing 1 of 424 paths. `charly` can never be dropped: step 4 builds the worktree binary
+ * from `charly/scripts/bootstrap-charly.sh`.
  */
-const DEFAULT_WORKTREE_MODULES = ["charly", "marketplace"];
+const REQUIRED_WORKTREE_MODULES = ["charly", "marketplace"];
 
 /** The condensed engineering rules injected every turn. */
 function buildRulesBlock(): string {
@@ -414,8 +415,10 @@ export default function (pi: ExtensionAPI) {
       "Use charly_worktree_create at the START of every cutover to create an isolated worktree.",
       "Pass a URL-safe kebab-case slug (e.g. 'bump-gitlinks' or 'fix-schema-typo').",
       "The tool fetches origin, creates a feat/<slug> branch off origin/main, materializes the module set, and builds the binary.",
-      "Only `charly` and `marketplace` are materialized by default — the modules the harness's own tools and gates read. Pass `modules` (comma-separated paths) for any other module this cutover reads or edits.",
-      "Never materialize the whole submodule graph 'just in case': the other 423 stay unmaterialized and can be added later without recreating the worktree.",
+      "Only the modules a cutover actually needs are materialized: `charly` and `marketplace` " +
+      "are ALWAYS present (the binary build and the skill corpus need them) and `modules` ADDS " +
+      "to that set. Never materialize the whole submodule graph 'just in case': the other 423 " +
+      "stay unmaterialized and can be added later without recreating the worktree.",
       "Use charly_worktree_remove when done; `charly task prune` reaps the worktrees whose PR already merged.",
     ],
     parameters: Type.Object({
@@ -425,7 +428,7 @@ export default function (pi: ExtensionAPI) {
       modules: Type.Optional(
         Type.String({
           description:
-            "Comma-separated submodule paths to materialize INSTEAD of the default " +
+            "Comma-separated submodule paths to materialize IN ADDITION to the required " +
             "`charly,marketplace` — e.g. 'box/fedora' or 'docs'. Materialize only what this " +
             "cutover reads or edits; anything else is a worktree-private copy of the graph.",
         }),
@@ -469,13 +472,19 @@ export default function (pi: ExtensionAPI) {
           .split(",")
           .map((m) => m.trim())
           .filter(Boolean);
-        const modules = requested.length > 0 ? requested : DEFAULT_WORKTREE_MODULES;
+        const modules = [...new Set([...REQUIRED_WORKTREE_MODULES, ...requested])];
+        let borrowed = 0;
         for (const modulePath of modules) {
           const reference = join(ctx.cwd, ".git", "modules", modulePath);
           const args = ["submodule", "update", "--init"];
-          // The guard keeps a module the main checkout never materialized (or a nested
-          // path, whose git dir lives elsewhere) from failing the whole run.
-          if (existsSync(reference)) args.push("--reference", reference);
+          // Borrow the main checkout's objects when it has them. The guard is not decoration: in a
+          // NESTED worktree (a session rooted in one, as a live run here was) `ctx.cwd/.git` is a
+          // FILE, so no reference resolves and the clone fetches its own objects — hence the
+          // count reported below rather than an unconditional "borrowed" claim.
+          if (existsSync(reference)) {
+            args.push("--reference", reference);
+            borrowed += 1;
+          }
           args.push("--", modulePath);
           await pi.exec("git", args, { cwd: worktreePath });
         }
@@ -493,7 +502,7 @@ export default function (pi: ExtensionAPI) {
               text:
                 `Worktree created at ${worktreePath} on branch ${branch}.\n` +
                 `- Binary built at ${worktreePath}/charly/bin/charly\n` +
-                `- Modules materialized: ${modules.join(", ")} — objects borrowed from the main checkout's cache\n` +
+                `- Modules materialized: ${modules.join(", ")} (${borrowed}/${modules.length} borrowing the main checkout's objects)\n` +
                 `- The other submodules stay unmaterialized. Read one of them with:\n` +
                 `    git -C ${worktreePath} submodule update --init --reference ${join(ctx.cwd, ".git", "modules")}/<path> <path>\n` +
                 `- Use \`cd ${worktreePath}\` to work in this branch\n` +

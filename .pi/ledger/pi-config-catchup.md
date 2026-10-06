@@ -149,14 +149,14 @@ harness-neutral way to prompt a live session.
 
 ### Follow-up — the worktree cost model (RCA, 2026-10-06)
 
-`charly_worktree_create` produced a ~240 MB / multi-minute worktree for every cutover. RCA with
-the failure signatures enumerated FIRST — three independent mechanisms under one symptom:
+`charly_worktree_create` produced a ~600 MB / multi-minute worktree for every cutover. RCA with
+the failure signatures enumerated FIRST — four independent mechanisms under one symptom:
 
 | # | Signature | Mechanism | Missed control |
 |---|---|---|---|
 | S1 | 425 submodules cloned per worktree | step 3 ran `git submodule update --init --recursive` unconditionally | nothing bounded the materialized set to what the cutover needs |
 | S2 | 376 MB worktree-PRIVATE module object store | a linked worktree gets its OWN `modules/` git dirs; git shares only the SUPERPROJECT's objects (`commondir: ../..`) | no `--reference`, so every clone copied instead of borrowing |
-| S3 | 13 worktrees + 1 branch resident after their PRs merged | `charly_worktree_remove` depends on a session remembering to call it | no reap on landing; `charly task prune` existed but nothing invoked it |
+| S3 | 13 worktrees + 2 branches resident after their PRs merged (measured 2026-10-06) | `charly_worktree_remove` depends on a session remembering to call it | no reap on landing; `charly task prune` existed but nothing invoked it |
 | S4 | `git add … .pi/ledger/…` STAGES the file and exits 1, so the mandated `add && commit` chain aborts with the tree left staged and no commit | the clone-local `.git/info/exclude` carried an UNANCHORED `ledger/`, meant for the ROOT session ledger (its comment says "mirrors plan/"), which also shadowed the TRACKED `.pi/ledger/` | nothing detects a local exclude rule shadowing tracked content — `git ls-files --cached -i --exclude-standard` listed exactly 1 entry |
 
 Measurements (this clone, 425 submodules, `main`):
@@ -181,9 +181,10 @@ what a successful commit would leave. Fixed at the root in the clone's untracked
 ignored); it is local state and cannot be landed, so the trap is documented here and in
 `.pi/README.md` for the next session that hits it.
 
-**Root fix.** `charly_worktree_create` materializes `charly` + `marketplace` — the modules the
-harness's own tools and gates read — with `--reference`, exposes a `modules` argument for the rest,
-never passes `--recursive`, and names the reap command in its own output.
+**Root fix.** `charly_worktree_create` materializes the REQUIRED set `charly` + `marketplace` —
+the modules the harness's own tools and gates read — with `--reference`, exposes a `modules`
+argument that ADDS to it (a union, so naming an extra module can never drop `charly`, which the
+build step needs), never passes `--recursive`, and names the reap command in its own output.
 `scripts/check-pi-gates.mjs` asserts all four arms (plus four mutations proving each can fail), so
 the cost model cannot silently regress. The repo's own pin gate had already documented the contract
 this restores: a session worktree materializes **1 of 424** paths.
