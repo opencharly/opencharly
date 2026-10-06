@@ -1,37 +1,31 @@
 #!/usr/bin/env node
-// check-verify-submodules.mjs — regression gate for the submodule-cleanliness step of
-// the umbrella's own `verify` task, exercised against FIXTURES built in a temp dir.
+// check-verify-submodules.mjs — regression gate for the step of the umbrella's own
+// `verify` task that stays INLINE, exercised against FIXTURES built in a temp dir.
 //
-// Why it exists (opencharly/opencharly#337): the step's guard read
-//   [ -d "$path" ] || fail "$path: not checked out"
-// which cannot see anything — an UNINITIALIZED submodule IS a directory — and every
-// `git -C <path>` in the step then resolves the ENCLOSING superproject through git's
-// directory walk-up. So the step compared the SUPERPROJECT's HEAD against the
-// SUBMODULE's gitlink and reported `FAIL: sdk: HEAD <enclosing-head> != gitlink
-// <sdk-pin>` — a state that cannot exist, which is the tell. Every path a root has NOT
-// materialized is such a bogus-FAIL site, and that count is a property of the ROOT it is
-// measured at, because the checkout audit sees only what THAT root materialized — the same
-// metric at two roots gives two numbers. Measured on this clone: 405 of 424 paths at the
-// umbrella ROOT (19 of 424 materialized, HEAD `f96e776`) and 423 of 424 in a session
-// WORKTREE (1 of 424 materialized, `charly`; HEAD `56775ee`). And because `fail` exits at
-// the FIRST offender, the symptom is ONE FAIL line, never 405. Since rule 2 puts every
-// session in a worktree (which materializes no submodules) and R7 mandates running this
-// gate locally on the final tree, the gate was unsatisfiable by construction. charly's
-// nested `box/*` audit carried the same bug in its `grep -E '^[+-]'`: git's `-` marker
-// means NOT INITIALIZED, not drifted.
+// `charly.yml` now composes the canonical plugin verb `verb:git-submodules {mode: verify}`
+// for the module loop. The branch==remote-default audit and charly's nested `box/*` drift
+// audit used to share ONE hand-rolled shell step with that loop; the checkout half
+// (dirty / at-gitlink / the `git -C` walk-up refusal) is the verb's now and is NOT
+// fixture-tested here. What REMAINS inline — and is what this gate guards — is the
+// nested-submodule audit plus the uninitialized-charly notice.
+//
+// Why the nested half exists (opencharly/opencharly#337): charly's nested `box/*` audit
+// carried the same bug the module loop did, in its `grep -E '^[+-]'` — git's `-` marker
+// means NOT INITIALIZED, not drifted, so the audit reported the ordinary state of a
+// session worktree as a FAIL. The inline step now greps only `^[+U]` (`+` = drifted off
+// charly's gitlink, `U` = unmerged) and REPORTS the `-` count as a notice, because an
+// uninitialized nested submodule is not a violation. The module-loop half of #337 — the
+// `[ -d "$path" ]` dead guard, the `git -C` directory walk-up, and the dirty/gitlink
+// teeth — is no longer implemented in this repo: it is owned by `verb:git-submodules
+// {mode: verify}`, which `charly.yml` composes, and is therefore not fixture-tested here.
 //
 // The step is EXTRACTED FROM charly.yml, never copied, so a fixture run always
 // exercises the shipped text and the two cannot drift (R3).
 //
 // Asserted — each proven LIVE by --self-test against a mutation of the step:
-//   A. uninitialized paths are GREEN, and the step SAYS how much it audited  (the fix)
-//   E. charly's nested submodules, uninitialized, are GREEN and reported     (the fix)
-//   B. a DIRTY initialized submodule still FAILS                             (teeth kept)
-//   C. a submodule not at its recorded gitlink still FAILS                   (teeth kept)
-//   D. a .gitmodules path with no gitlink in the index still FAILS           (teeth kept)
-//   F. a nested `box/*` drifted off charly's gitlink still FAILS             (teeth kept)
-//   G. a path whose `.git` EXISTS but is not a checkout of its own — so `git -C`
-//      resolves to the ENCLOSING SUPERPROJECT — still FAILS                  (teeth kept)
+//   A. a nested submodule left UNINITIALIZED (`-`) is GREEN and REPORTED, not drift (the fix)
+//   H. charly/ itself NOT INITIALIZED gets a NOTICE and is GREEN, never a silent pass
+//   F. a nested submodule DRIFTED off charly's gitlink (`+`) still FAILS           (teeth kept)
 //
 // Usage: node scripts/check-verify-submodules.mjs [--root <dir>] [--self-test]
 // exit 0 clean · 1 finding
@@ -47,15 +41,6 @@ const argv = process.argv.slice(2);
 const rootIdx = argv.indexOf("--root");
 const root = rootIdx === -1 ? resolve(here, "..") : resolve(argv[rootIdx + 1]);
 const yamlRel = "charly.yml";
-
-// The fixture's shape, declared once so the step's own arithmetic can be checked
-// against reality rather than against a remembered number. Case G adds one further
-// path (mod-020) on top of this base shape; its assertions are about the walk-up
-// FAILING, never about counts.
-const EXTRA = 19; // mod-001..mod-019: declared AND gitlinked, never initialized
-const TOTAL = EXTRA + 2; // + mod-000 + charly
-const CHECKED = 2; // mod-000 (a real checkout) + charly (a real checkout, nested empty)
-const UNINIT = TOTAL - CHECKED;
 
 let failures = 0;
 const fail = (m) => {
@@ -104,13 +89,13 @@ function makeRemote(base, name) {
 }
 
 /**
- * Extract the `command:` block scalar of the submodule-cleanliness step from charly.yml.
+ * Extract the `command:` block scalar of the nested-submodule step from charly.yml.
  * The step's identity is its `check:` line; the block ends at the first non-blank line
  * indented at or above the `command:` key.
  */
 function extractStepCommand(yamlPath) {
   const lines = readFileSync(yamlPath, "utf8").split("\n");
-  const stepRe = /^(\s*)-\s*check:\s*every submodule is clean/;
+  const stepRe = /^(\s*)-\s*check:\s*charly's own nested submodules are at their gitlinks/;
   const i = lines.findIndex((l) => stepRe.test(l));
   if (i === -1) return null;
   const stepIndent = lines[i].match(stepRe)[1].length;
@@ -137,73 +122,53 @@ function extractStepCommand(yamlPath) {
 }
 
 /**
- * A superproject of TOTAL entries. `mod-000` and `charly` are REAL initialized
- * submodules at their gitlinks; `charly`'s own nested submodule is declared and
- * recorded but left uninitialized (exactly what `git submodule update --init charly`
- * leaves behind in a session worktree). mod-001..mod-019 are declared and gitlinked
- * but never initialized — the state `git worktree add` leaves behind. `opts` then
- * breaks ONE property at a time.
+ * A superproject holding ONE submodule, `charly`, whose own remote carries ONE nested
+ * submodule, `box/arch` (declared and gitlinked). `opts` then breaks ONE property at a
+ * time:
+ *   default        — charly is a REAL initialized submodule; `box/arch` is declared and
+ *                    gitlinked but left UNINITIALIZED (exactly what `git submodule
+ *                    update --init charly` leaves behind in a session worktree).
+ *   charlyUninit   — charly is DECLARED in the super's `.gitmodules` AND gitlinked in its
+ *                    index, but never initialized: the path is a bare directory with no
+ *                    `.git`.
+ *   nestedDrift    — `box/arch` is initialized, its remote moved forward, and the local
+ *                    checkout advanced onto the new tip, so it drifts off the gitlink
+ *                    charly records. charly is configured to ignore its own nested
+ *                    submodule (`ignore = all`, a LOCAL config, so charly's tree stays
+ *                    clean) — which makes this step the ONLY witness of the drift.
  */
 function buildFixture(script, opts = {}) {
   const base = realpathSync(mkdtempSync(join(tmpdir(), "check-verify-submodules-")));
   const nested = makeRemote(base, "nested");
   const charly = makeRemote(base, "charly");
-  const mod = makeRemote(base, "mod");
 
   // charly carries one nested submodule (`box/arch`), as the real one does.
   git(["submodule", "add", "-q", "-b", "main", `file://${nested.bare}`, "box/arch"], charly.seed);
   git(["commit", "-qm", "record box/arch"], charly.seed);
   git(["push", "-q", charly.bare, "main"], charly.seed);
+  const charlySha = git(["rev-parse", "HEAD"], charly.seed);
 
   const superDir = join(base, "super");
   mkdirSync(superDir);
   git(["init", "-q", superDir], base);
-  git(["submodule", "add", "-q", "-b", "main", `file://${mod.bare}`, "mod-000"], superDir);
-  git(["submodule", "add", "-q", "-b", "main", `file://${charly.bare}`, "charly"], superDir);
-  git(["commit", "-qm", "mod-000 + charly"], superDir);
 
-  const modSha = git(["rev-parse", "HEAD"], mod.seed);
-  const extra = [];
-  for (let n = 1; n <= EXTRA; n++) {
-    const name = `mod-${String(n).padStart(3, "0")}`;
-    extra.push(`[submodule "${name}"]\n\tpath = ${name}\n\turl = file://${mod.bare}\n\tbranch = main\n`);
-    git(["update-index", "--add", "--cacheinfo", `160000,${modSha},${name}`], superDir);
-    mkdirSync(join(superDir, name));
-  }
-  writeFileSync(join(superDir, ".gitmodules"), readFileSync(join(superDir, ".gitmodules"), "utf8") + extra.join(""), "utf8");
-  git(["add", ".gitmodules"], superDir);
-  git(["commit", "-qm", "declare the remaining submodule paths"], superDir);
-
-  if (opts.dirty) writeFileSync(join(superDir, "mod-000", "untracked.txt"), "x\n");
-  if (opts.wrongHead) {
-    writeFileSync(join(mod.seed, "f.txt"), "moved\n");
-    git(["commit", "-qam", "moved"], mod.seed);
-    git(["push", "-q", mod.bare, "main"], mod.seed);
-    git(["fetch", "-q", "origin"], join(superDir, "mod-000"));
-    git(["checkout", "-q", "FETCH_HEAD"], join(superDir, "mod-000"));
-  }
-  if (opts.noGitlink) git(["rm", "-q", "--cached", "mod-000"], superDir);
-  if (opts.walkUp) {
-    // THE WALK-UP WITNESS. mod-020 is DECLARED and GITLINKED with a `.git` that is an
-    // EMPTY DIRECTORY, so the step's initialization test (`[ -e "$path/.git" ]`) PASSES
-    // and the `--show-toplevel` guard is the ONLY thing standing between the run and a
-    // superproject comparison. `git -C mod-020 rev-parse --show-toplevel` finds no valid
-    // gitdir AT the path, so discovery CONTINUES UPWARD and returns the enclosing
-    // superproject's root — the exact state the guard refuses, and the state the
-    // pre-#337 `[ -d "$path" ]` guard let through (measured: an empty-directory `.git`
-    // is the construction that reproduces the walk-up; a gitfile or a symlink does not).
-    const name = "mod-020";
+  if (opts.charlyUninit) {
+    // charly is DECLARED and GITLINKED but never initialized — a bare directory the step's
+    // `[ -e charly/.git ]` guard must notice rather than silently audit nothing.
     writeFileSync(
       join(superDir, ".gitmodules"),
-      readFileSync(join(superDir, ".gitmodules"), "utf8") +
-        `[submodule "${name}"]\n\tpath = ${name}\n\turl = file://${mod.bare}\n\tbranch = main\n`,
+      `[submodule "charly"]\n\tpath = charly\n\turl = file://${charly.bare}\n\tbranch = main\n`,
       "utf8",
     );
-    git(["update-index", "--add", "--cacheinfo", `160000,${modSha},${name}`], superDir);
-    mkdirSync(join(superDir, name, ".git"), { recursive: true });
+    git(["update-index", "--add", "--cacheinfo", `160000,${charlySha},charly`], superDir);
+    mkdirSync(join(superDir, "charly"));
     git(["add", ".gitmodules"], superDir);
-    git(["commit", "-qm", "declare the walk-up path"], superDir);
+    git(["commit", "-qm", "declare charly without initializing it"], superDir);
+  } else {
+    git(["submodule", "add", "-q", "-b", "main", `file://${charly.bare}`, "charly"], superDir);
+    git(["commit", "-qm", "charly"], superDir);
   }
+
   if (opts.nestedDrift) {
     writeFileSync(join(nested.seed, "f.txt"), "moved\n");
     git(["commit", "-qam", "moved"], nested.seed);
@@ -228,11 +193,8 @@ function buildFixture(script, opts = {}) {
 function runCases(script) {
   return {
     A: buildFixture(script),
-    B: buildFixture(script, { dirty: true }),
-    C: buildFixture(script, { wrongHead: true }),
-    D: buildFixture(script, { noGitlink: true }),
+    H: buildFixture(script, { charlyUninit: true }),
     F: buildFixture(script, { nestedDrift: true }),
-    G: buildFixture(script, { walkUp: true }),
   };
 }
 
@@ -244,21 +206,13 @@ function judge(cases) {
   };
   const tail = (c) => c.stderr.trim().split("\n").pop();
 
-  need("A", cases.A.status === 0, `uninitialized paths must be GREEN (exit ${cases.A.status}): ${tail(cases.A)}`);
-  need("A", new RegExp(`${UNINIT} of ${TOTAL} submodule paths are NOT INITIALIZED`).test(cases.A.stdout), "the step must REPORT the uninitialized count (never a silent pass)");
-  need("A", new RegExp(`${CHECKED} checkout\\(s\\) at their gitlinks`).test(cases.A.stdout), "the step must report how many checkouts it actually audited");
-  need("E", /charly's nested submodules are NOT INITIALIZED/.test(cases.A.stdout), "charly's nested `-` (uninitialized) must be reported, not counted as drift");
-  need("B", cases.B.status !== 0, "a DIRTY initialized submodule must still FAIL (teeth)");
-  need("B", /dirty working tree/.test(cases.B.stderr), "the dirty failure must name the dirty tree");
-  need("C", cases.C.status !== 0, "a submodule not at its gitlink must still FAIL (teeth)");
-  need("C", /!= gitlink/.test(cases.C.stderr), "the gitlink mismatch failure must be reported");
-  need("D", cases.D.status !== 0, "a .gitmodules path with no gitlink must FAIL (teeth)");
-  need("D", /no gitlink recorded in the index/.test(cases.D.stderr), "the missing-gitlink failure must be reported");
+  need("A", cases.A.status === 0, `an uninitialized nested submodule must be GREEN (exit ${cases.A.status}): ${tail(cases.A)}`);
+  need("A", /charly's nested submodules are NOT INITIALIZED/.test(cases.A.stdout), "the nested `-` (uninitialized) must be REPORTED, never counted as drift and never a silent pass");
+  need("A", /nested submodules are at their gitlinks, none drifted/.test(cases.A.stdout), "the step must report the OK line");
+  need("H", cases.H.status === 0, `an uninitialized charly must be GREEN (exit ${cases.H.status}): ${tail(cases.H)}`);
+  need("H", /charly\/ is NOT INITIALIZED: its nested-submodule check is EMPTY/.test(cases.H.stdout), "the step must say charly/ is not initialized rather than checking nothing silently");
   need("F", cases.F.status !== 0, "a nested `box/*` drifted off charly's gitlink must FAIL (teeth)");
   need("F", /charly nested submodules not at their gitlinks/.test(cases.F.stderr), "the nested drift failure must be reported");
-  need("G", cases.G.status !== 0, "a path git resolves to the ENCLOSING SUPERPROJECT must FAIL (walk-up refused)");
-  need("G", /not a checkout of its own/.test(cases.G.stderr), "the walk-up refusal must say so");
-  need("G", /git resolves to '[^']*\/super'/.test(cases.G.stderr), "the refusal must NAME the path git actually resolved to (the superproject)");
   return found;
 }
 
@@ -266,13 +220,13 @@ const script = extractStepCommand(join(root, yamlRel));
 
 function check() {
   if (script === null) {
-    fail(`${yamlRel}: the 'every submodule is clean' step (and its command: block) is extractable`);
+    fail(`${yamlRel}: the 'charly's own nested submodules are at their gitlinks' step (and its command: block) is extractable`);
     return;
   }
-  if (!/not initialized|NOT INITIALIZED/i.test(script))
-    fail("the step distinguishes an uninitialized path (the #337 fix)");
+  if (!/NOT INITIALIZED/.test(script))
+    fail("the step reports an uninitialized path (charly/ or a nested one) — never a silent pass");
   for (const f of judge(runCases(script))) fail(f);
-  if (failures === 0) ok(`${yamlRel}: the submodule step reports uninitialized paths and keeps every tooth`);
+  if (failures === 0) ok(`${yamlRel}: the nested-submodule step reports uninitialized paths and keeps its drift tooth`);
 }
 
 // ── --self-test: prove each assertion goes RED on a mutation of the step ─────────────
@@ -291,16 +245,15 @@ if (argv.includes("--self-test")) {
 
   // Each mutation reintroduces ONE defect class and names the case that must catch it.
   const mutations = [
-    ["dead guard: `[ -d ]` cannot see an empty directory", (s) => s.replace('[ ! -e "$path/.git" ]', '[ ! -d "$path" ]'), "A"],
-    ["uninitialized nested reported as drift (`^[+-]`, the #337 bug)", (s) => s.replace("grep -E '^[+U]'", "grep -E '^[+-]'"), "A"],
-    ["no dirty check", (s) => s.replace(/[ \t]*\[ -z "\$\(git -C "\$path" status --porcelain\)" \][^\n]*\n/, ""), "B"],
-    ["no gitlink comparison", (s) => s.replace(/[ \t]*\[ "\$gitlink" = "\$head" \][^\n]*\n/, ""), "C"],
-    ["no gitlink presence check", (s) => s.replace(/[ \t]*\[ -n "\$gitlink" \][^\n]*\n/, ""), "D"],
-    ["no nested-drift check", (s) => s.replace(/[ \t]*\[ -z "\$drift" \][^\n]*\n/, ""), "F"],
-    // The walk-up guard this PR adds. Deleting the comparison leaves `top=` assigned and
-    // unused, so the step proceeds into `git -C mod-020 …` and compares the SUPERPROJECT's
-    // HEAD against mod-020's gitlink — case G then fails by NOT naming the walk-up.
-    ["no walk-up refusal (`git -C` may resolve to the enclosing superproject)", (s) => s.replace(/[ \t]*\[ "\$top" = "\$root\/\$path" \][^\n]*\n/, ""), "G"],
+    ["uninitialized nested reported as drift (`^[+-]`, the opencharly/opencharly#337 bug)", (s) => s.replace("grep -E '^[+U]'", "grep -E '^[+-]'"), "A"],
+    // The fail message spans two lines (the shipped step's `$drift` is on its own line),
+    // so remove the WHOLE statement — removing one line would leave a dangling quote and
+    // a bash syntax error, which would "fail" case F for the wrong reason.
+    ["no nested-drift check", (s) => s.replace(/[ \t]*\[ -z "\$drift" \][\s\S]*?\$drift"\n/, ""), "F"],
+    ["the initialization guard cannot see an empty directory (`[ -d ]`, the #337 walk-up bug)", (s) => s.replace("[ -e charly/.git ]", "[ -d charly ]"), "H"],
+    // Replace the notice with a no-op so the else branch stays VALID — the plausible
+    // defect is a silently removed notice, not a script that no longer parses.
+    ["no notice for an uninitialized charly", (s) => s.replace(/[ \t]*echo "verify: notice — charly\/ is NOT INITIALIZED[^\n]*\n/, "  :\n"), "H"],
   ];
   let stFails = 0;
   for (const [name, mutate, mustCatch] of mutations) {

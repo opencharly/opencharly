@@ -154,10 +154,12 @@ sync:
 
 # -----------------------------------------------------------------------------
 # verify — the FULL pinning gate (every pin, incl. the per-submodule remote
-# branch audit). The policy-B half is verb:git-submodules verify; the
-# default-branch audit, checkout cleanliness, and charly's nested-submodule
-# check are inline. The submodule step is exercised by
-# scripts/check-verify-submodules.mjs (which reads the step out of THIS file).
+# branch audit). The policy-B pin half and the checkout audit are ONE verb,
+# verb:git-submodules (the former hand-rolled checkout loop is deleted: it was a
+# second implementation of a clause the verb already owns, and the drift it kept
+# reintroducing is the reason R3 exists). The default-branch audit and charly's
+# nested-submodule check stay INLINE — no verb owns either clause. The inline
+# nested step is exercised by scripts/check-verify-submodules.mjs.
 # -----------------------------------------------------------------------------
 verify:
   task:
@@ -169,21 +171,33 @@ verify:
           task: pins
           param: [MODE=verify]
         context: [runtime]
-      - check: every submodule is clean and checked out at its recorded gitlink, and its branch equals the remote default
-        # One `git ls-remote` per submodule — legitimately minutes, so raise the
-        # per-step never-hang bound above the default. The PIN audit covers every
-        # submodule; the CHECKOUT audit covers the ones that are initialized (a
-        # session worktree initializes none), and its coverage is printed, never
-        # assumed.
+      # The verb is composed HERE rather than left to the `pins MODE=verify` step above,
+      # which reaches it through a `task:` wrapper: `task:` (verb:task) returns only a
+      # one-line summary and would DISCARD the verb's Message — the same reason the `map`
+      # task composes the verb directly instead of wrapping it. The coverage that proves
+      # this audit ran (`N checkout(s) clean at their gitlink`, plus the uninitialized
+      # count) exists only in that Message, and a `command:` step's stdout does not
+      # survive the pass path at all.
+      - check: every submodule is clean and checked out at its recorded gitlink — the ONE verb that owns the clause (its coverage rides its Message, the channel that renders on the pass path; a command step's does not)
+        git-submodules:
+          mode: verify
+          pin_map: {}
+        # [runtime] — the value the combined step this one replaces declared (origin/main's
+        # 15-step `verify`, every step [runtime]) and the value all 16 other steps of this
+        # 17-step task declare. Deliberately NOT [deploy] (the value the `map`/`sync`/`pins`
+        # tasks use for their own verb steps): `Runner.ContextSkipReason` (sdk/kit/runner.go)
+        # activates only box→build and live→runtime, and `PlanGrammar.InContext`
+        # (sdk/checkkit/checkkit.go) is a plain membership test, so a `deploy`-declared step
+        # is active in NEITHER mode and would be skipped in both — a silently-skipped step
+        # the moment this task is composed into a bed.
+        context: [runtime]
+      - check: every submodule's branch equals its remote default — KEPT INLINE, deliberately, because no verb owns this clause, and it is the expensive half (one git ls-remote per submodule, hence the timeout below)
         timeout: 20m
         command: |
           set -eu
           fail() { echo "FAIL: $*" >&2; exit 1; }
-          root="$(git rev-parse --show-toplevel)"
           mapfile -t MODULES < <(git config -f .gitmodules --get-regexp '^submodule\..*\.path$' | awk '{print $2}')
           [ "${#MODULES[@]}" -ge 20 ] || fail "suspiciously few submodules (${#MODULES[@]})"
-          checked=0
-          uninit=()
           for path in "${MODULES[@]}"; do
             url="$(git config -f .gitmodules --get "submodule.$path.url" 2>/dev/null || true)"
             branch="$(git config -f .gitmodules --get "submodule.$path.branch" 2>/dev/null || true)"
@@ -191,30 +205,15 @@ verify:
             [ -n "$branch" ] || fail "$path: missing branch= in .gitmodules"
             default="$(git ls-remote --symref "$url" HEAD | sed -n 's/^ref: refs\/heads\/\(.*\)\tHEAD/\1/p')"
             [ "$branch" = "$default" ] || fail "$path: branch=$branch but remote default is $default"
-            gitlink="$(git ls-files -s "$path" | awk '{print $2}')"
-            [ -n "$gitlink" ] || fail "$path: no gitlink recorded in the index"
-            # An uninitialized submodule path is an EMPTY DIRECTORY (`git worktree
-            # add` creates the paths and initializes nothing), so `[ -d ]` cannot
-            # tell it apart from a checkout. Test initialization POSITIVELY: no
-            # `.git` means there is no checkout to audit. Not a failure — its pin
-            # is audited above — but reported, never silent.
-            if [ ! -e "$path/.git" ]; then
-              uninit+=("$path")
-              continue
-            fi
-            # Refuse git's directory walk-up: `git -C <path>` must land on the
-            # submodule ITSELF, never on the enclosing superproject (whose HEAD
-            # would then be compared against the submodule's gitlink).
-            top="$(git -C "$path" rev-parse --show-toplevel 2>/dev/null || true)"
-            [ "$top" = "$root/$path" ] || fail "$path: not a checkout of its own (git resolves to '${top:-<none>}')"
-            [ -z "$(git -C "$path" status --porcelain)" ] || fail "$path: dirty working tree"
-            head="$(git -C "$path" rev-parse HEAD)"
-            [ "$gitlink" = "$head" ] || fail "$path: HEAD $head != gitlink $gitlink"
-            checked=$((checked + 1))
           done
-          # charly's OWN nested submodules: same split. `+` (drifted off charly's
-          # gitlink) and `U` (unmerged) are failures; `-` (declared, not
-          # initialized) is not a violation, only reported.
+          echo "verify: OK — ${#MODULES[@]} submodule(s): branch == remote default for every one"
+        context: [runtime]
+      - check: charly's own nested submodules are at their gitlinks — KEPT INLINE, because the verb has no recursive-nested clause
+        command: |
+          set -eu
+          fail() { echo "FAIL: $*" >&2; exit 1; }
+          # `+` (drifted off charly's gitlink) and `U` (unmerged) are failures;
+          # `-` (declared, not initialized) is not a violation, only reported.
           if [ -e charly/.git ]; then
             nested="$(git -C charly submodule status --recursive || true)"
             drift="$(printf '%s\n' "$nested" | grep -E '^[+U]' || true)"
@@ -225,14 +224,9 @@ verify:
           else
             echo "verify: notice — charly/ is NOT INITIALIZED: its nested-submodule check is EMPTY (git submodule update --init charly)."
           fi
-          if [ "${#uninit[@]}" -gt 0 ]; then
-            echo "verify: notice — ${#uninit[@]} of ${#MODULES[@]} submodule paths are NOT INITIALIZED (no checkout): the checkout audit covered ${checked}."
-            echo "verify: notice — their pins ARE audited (gitlink recorded + branch == remote default). First 5: ${uninit[*]:0:5}"
-          fi
-          [ "$checked" -gt 0 ] || echo "verify: notice — NO submodule is initialized in this tree: the checkout audit is EMPTY (pins audited only)."
-          echo "verify: OK — ${#MODULES[@]} submodule(s): branch == remote default for every one; ${checked} checkout(s) at their gitlinks; ${#uninit[@]} not initialized"
+          echo "verify: OK — charly's nested submodules are at their gitlinks, none drifted"
         context: [runtime]
-      - check: the submodule-cleanliness step above — uninitialized paths are a NOTICE, real defects still FAIL (fixtures)
+      - check: the nested-submodule step above — an uninitialized nested path is a NOTICE, a `+`/`U` drift still FAILS (fixtures)
         command: node scripts/check-verify-submodules.mjs
         context: [runtime]
       - check: the opencode gate plugin contract (the check-opencode-plugin gate the former verify-pins.sh ran)
