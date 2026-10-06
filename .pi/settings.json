@@ -1,0 +1,15 @@
+{
+  "extensions": [
+    "./extensions/charly-gates.ts",
+    "./extensions/github-pr-status.ts"
+  ],
+  "packages": [
+    "git:github.com/opencharly/marketplace@v2026.278.1917"
+  ],
+  "theme": "dark",
+  "compaction": {
+    "enabled": true,
+    "reserveTokens": 384000,
+    "keepRecentTokens": 500000
+  }
+}

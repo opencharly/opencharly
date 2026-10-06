@@ -120,6 +120,7 @@ if (argv.includes("--self-test")) {
     ".claude/hooks/pre-commit-gate.sh",
     ".claude/hooks/pre-push-gate.sh",
     ".mcp.json",
+    ".pi/mcp.json",
     "opencode.json",
     ".codex/config.toml",
     ".reasonix/settings.json",
@@ -129,6 +130,7 @@ if (argv.includes("--self-test")) {
     ".reasonix/watch.items",
     "reasonix.toml",
     ".opencode/package.json",
+    ".pi/extensions/charly-gates.ts",
     "marketplace/DISPATCHER.md",
   ];
 
@@ -206,9 +208,11 @@ if (argv.includes("--self-test")) {
     [".claude/settings.json", (p) => { const s = JSON.parse(readFileSync(p, "utf8")); s.enabledPlugins = {}; writeFileSync(p, JSON.stringify(s)); }, "enables the plugin set", "3 (plugin-set arm)"],
     ["opencode.json", (p) => { const o = JSON.parse(readFileSync(p, "utf8")); delete o.permission.bash["charly status *"]; writeFileSync(p, JSON.stringify(o)); }, 'grants "charly status *"', "5 (positive arm)"],
     [".mcp.json", (p) => { const m = JSON.parse(readFileSync(p, "utf8")); delete m.mcpServers.deepwiki; writeFileSync(p, JSON.stringify(m)); }, ".mcp.json declares the DeepWiki server", "6"],
+    [".pi/mcp.json", (p) => { const m = JSON.parse(readFileSync(p, "utf8")); delete m.mcpServers.deepwiki; writeFileSync(p, JSON.stringify(m)); }, ".pi/mcp.json declares the DeepWiki server", "6"],
     ["opencode.json", (p) => { const o = JSON.parse(readFileSync(p, "utf8")); delete o.mcp.deepwiki; writeFileSync(p, JSON.stringify(o)); }, "opencode.json declares the DeepWiki server", "6"],
     [".codex/config.toml", (p) => { const t = readFileSync(p, "utf8").split("\n").filter((l) => !/^\[mcp_servers\.deepwiki\]$/.test(l.trim()) && !/^url\s*=/.test(l.trim())).join("\n"); writeFileSync(p, t); }, ".codex/config.toml declares the DeepWiki server", "6"],
     ["opencode.json", (p) => { const o = JSON.parse(readFileSync(p, "utf8")); o.instructions = [".opencode/instructions.md"]; writeFileSync(p, JSON.stringify(o)); }, "injects SOUL.md for opencode", "7 (opencode arm)"],
+    [".pi/extensions/charly-gates.ts", (p) => writeFileSync(p, readFileSync(p, "utf8").replace(/readSoul/g, "__soul_removed__")), "injects the SOUL.md identity", "7 (pi arm)"],
     [".reasonix/soul-inject.sh", (p) => writeFileSync(p, readFileSync(p, "utf8").replace(/cat "\$SOUL"/, "true")), "injects SOUL.md for reasonix", "7 (reasonix arm — a wired hook whose script stopped emitting must FAIL)"],
     [".reasonix/settings.json", (p) => { const s = JSON.parse(readFileSync(p, "utf8")); s.hooks.SessionStart = s.hooks.SessionStart.filter((h) => !h.command.includes("soul-inject")); writeFileSync(p, JSON.stringify(s)); }, "injects SOUL.md for reasonix", "7 (reasonix arm — an UNWIRED hook must FAIL)"],
     ["reasonix.toml", (p) => writeFileSync(p, readFileSync(p, "utf8").replace(/^paths = \[\n[\s\S]*?\n\]/m, "paths = []")), "wires", "8 (empty [skills] paths must FAIL)"],
@@ -418,14 +422,15 @@ ok(existsSync(join(root, ".claude/workflows/audit-deploy-configs.js")), ".claude
 //    table is [surface, extractor, who] so adding a harness is ONE row and the guarded set
 //    is legible in one place. Each surface's syntax was verified against its OWN harness:
 //      .mcp.json        — Claude Code's project-scoped HTTP MCP file (a remote server needs
-//                         `type: "http"` + `url`); the SAME file is auto-loaded by
-//                         Reasonix (Claude-Code-compatible);
+//                         `type: "http"` + `url`); also read by Reasonix (Claude-Code-compatible);
+//      .pi/mcp.json     — pi's native project MCP file (same `mcpServers` shape);
 //      opencode.json    — opencode's top-level `mcp` map (`{type: "remote", url}`);
 //      .codex/config.toml — Codex `[mcp_servers.<name>]` with `url` (streamable HTTP).
 {
   const DEEPWIKI_URL = "https://mcp.deepwiki.com/mcp";
   const MCP_SURFACES = [
     [".mcp.json", (v) => v.mcpServers?.deepwiki?.url, "Claude Code and Reasonix (project-scoped .mcp.json)"],
+    [".pi/mcp.json", (v) => v.mcpServers?.deepwiki?.url, "pi (project .pi/mcp.json)"],
     ["opencode.json", (v) => v.mcp?.deepwiki?.url, "opencode (top-level mcp map)"],
     [".codex/config.toml", (v, p) => tomlString(p, "mcp_servers.deepwiki", "url"), "Codex ([mcp_servers.deepwiki])"],
   ];
@@ -443,6 +448,8 @@ ok(existsSync(join(root, ".claude/workflows/audit-deploy-configs.js")), ".claude
 //                  (each entry is a markdown file injected into the system prompt);
 //                  `SOUL.md` sits beside the harness binding with NO harness-specific
 //                  file needed, which is the whole point.
+//      pi        — `.pi/extensions/charly-gates.ts` reads the project-root SOUL.md inside
+//                  its `before_agent_start` handler and injects it every turn.
 //      reasonix  — a `SessionStart` hook whose STDOUT is injected into the next user turn
 //                  (`.reasonix/soul-inject.sh`, wired in `.reasonix/settings.json`).
 //    CORRECTED (opencharly/opencharly#367): this check previously DEFERRED reasonix on the
@@ -462,6 +469,14 @@ ok(existsSync(join(root, ".claude/workflows/audit-deploy-configs.js")), ".claude
       "opencode.json",
       (v) => Array.isArray(v.instructions) && v.instructions.includes("SOUL.md"),
       "opencode (the `instructions` list is injected into the system prompt)",
+    ],
+    [
+      ".pi/extensions/charly-gates.ts",
+      (_v, p) => {
+        const t = read(p) ?? "";
+        return /readSoul/.test(t) && /SOUL\.md/.test(t) && /before_agent_start/.test(t);
+      },
+      "pi (the before_agent_start handler injects the SOUL.md identity)",
     ],
     [
       ".reasonix/settings.json",

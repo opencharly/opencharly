@@ -6,6 +6,10 @@
 # local env
 .env
 
+# Pi project-local package installs + marketplace cache (generated on startup from .pi/settings.json)
+.pi/npm/
+.pi/git/
+
 # Claude Code runtime lock (session-local, never committed)
 .claude/scheduled_tasks.lock
 
