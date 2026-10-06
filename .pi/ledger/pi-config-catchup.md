@@ -90,4 +90,25 @@ conflict / `typebox` in `dependencies`); DeepWiki is served natively by `.pi/mcp
 - [x] Align the injected condensed rules with the current rulebook.
 - [x] Validate with `pi --approve`: the project package installs, both extensions load, and
       the load is warning-free; the `scripts/check-*.mjs` gates ran on the tree.
-- [ ] Land as a T4 change with a maintainer-account sign-off (it reverses #386).
+- [x] Land as a T4 change with a maintainer-account sign-off (reverses #386): **MERGED** as
+      #390, tag `v2026.279.1148`.
+
+## Follow-up — automatic watchers (issue #397)
+
+The recreated `.pi/` followed the discipline but had NO mechanism: pi has no
+background-completion notification and no subagent, so a wait was either hand-polled or
+dropped, and `.pi/APPEND_SYSTEM.md`'s "run `gh_pr_status watch` in a background subagent" was
+stale (no subagent exists). This adds the mechanism, **neutral-first**:
+
+- `scripts/check-bed-watch.sh` — a HARNESS-NEUTRAL R10 bed runner/reporter (any harness can
+  call it; contains no pi logic). Emits one `BED <bed> <class> rc=… ok=… log=… summary=…`
+  line per bed; the exit code is the honest signal (3 = prereq SKIP).
+- `.pi/extensions/watch.ts` — the only pi-specific piece: it spawns the neutral
+  `marketplace/scripts/gh_watch.sh` (GitHub) and `scripts/check-bed-watch.sh` (beds) and
+  turns each line into a user turn (`pi.sendUserMessage`). GitHub scopes come from
+  `.pi/watch.items` (inert by default); beds are armed with the `watch_arm` tool.
+- `scripts/check-pi-watch.mjs` + `check-harness-config.mjs` + `hooks/pre-commit` + `charly.yml`.
+
+No marketplace/layer PR chain and no gitlink bump: the bed watcher lives in this repo's
+`scripts/` because its subject is this repo's `.check/` runs. If a non-umbrella consumer
+needs it, it promotes to `marketplace/scripts/` (R3, second occurrence).
