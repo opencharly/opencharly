@@ -18,6 +18,7 @@ startup warnings (`pi --approve`).
 | `extensions/github-pr-status.ts` | `gh_pr_status check\|watch` — the pi binding for PR + validator status. |
 | `extensions/watch.ts` | The wake binding: arms the harness-neutral watcher family (`marketplace/scripts/gh_watch.sh` from `.pi/watch.items`, `scripts/check-bed-watch.sh` for R10 beds) and delivers every event as a user turn. |
 | `watch.items` | The pi GitHub watch list — comment-only, so the watcher is INERT until armed. |
+| `extensions/question.ts` | The `question` tool — asks the operator and BLOCKS for the answer (builtin `ctx.ui.select`/`input`; a headless session gets a clear no-UI result). |
 | `APPEND_SYSTEM.md` | The pi↔rulebook binding (skill addressing, gates, watcher discipline, coordination, plan discipline). |
 | `ledger/` | The config catch-up ledger. |
 

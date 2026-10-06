@@ -53,6 +53,14 @@ scripts before `git commit` / `git push`, blocking the call when a gate fails
   body before the push; read the live PR comments and validator verdict before ANY update
   push. Owner: `/charly-internals:git-workflow`.
 
+## Asking the operator
+
+`question` puts a question to the operator and BLOCKS until they answer: pass `options` for a
+pick-one list, or omit it for free text. Use it when you need a decision, an approval, or a
+missing fact — instead of asking in prose and ending the turn. In a non-interactive session
+(`pi -p`, a child) there is no UI, so the tool returns a clear "no UI" result: then ask in prose
+and stop, never retry it there.
+
 ## Coordination (AGENTS.md rules 6–7)
 
 On a contended or blocking scope, every comment and PR body carries `Agent:` FIRST and

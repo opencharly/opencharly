@@ -22,6 +22,8 @@
 #                          the bed watcher's own `--self-test`
 #   7. pi pr-status      — the PR-status tool normalises the state, finds the run by head
 #                          SHA, reads jobs via REST, and classifies INCONCLUSIVE
+#   8. pi question        — the `question` tool is dependency-free, headless-safe, serialized,
+#                          and wired into `.pi/settings.json`
 #
 # Deliberately NOT here (see `charly task verify`): the per-submodule
 # `git ls-remote` default-branch audit — it reads remote state no commit can change
@@ -61,6 +63,7 @@ node "$ROOT/scripts/check-pr-watch.mjs"
 node "$ROOT/scripts/check-pi-gates.mjs"
 node "$ROOT/scripts/check-pi-watch.mjs"
 node "$ROOT/scripts/check-pi-pr-status.mjs"
+node "$ROOT/scripts/check-pi-question.mjs"
 bash "$ROOT/scripts/check-bed-watch.sh" --self-test
 
 echo "pre-commit: OK"
