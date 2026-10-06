@@ -640,7 +640,7 @@ whole org a single coherent snapshot:
 
 This umbrella's `.gitmodules` records `branch = <repo default>` on all of its entries,
 so a future default-branch rename keeps working. The pins are advanced with
-`./charly/bin/charly task sync` (the policy-B bump), run by hand and landed through the
+`charly task sync` (the policy-B bump), run by hand and landed through the
 org's PR-only validation chain — it opens a PR and never pushes to the default branch.
 There is no scheduled workflow; `charly task sync` is the one path that moves a pin.
 

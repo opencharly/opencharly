@@ -13,7 +13,7 @@ set -euo pipefail
 # evidence-file assembly exerciseable in-tree (`--self-test`), exactly as
 # `sync-pin-evidence.sh` is.
 #
-# The sync is now run BY HAND (`./charly/bin/charly task sync` + a PR); nothing schedules
+# The sync is now run BY HAND (`charly task sync` + a PR); nothing schedules
 # it. The Assisted-by footer is therefore caller-supplied via SYNC_ASSISTED_BY — the run
 # that opens the PR records its own identity, never a canned one. That trailer is also the
 # ONE source of the attribution tier the `## Change classification` section reports, so the
@@ -61,10 +61,10 @@ producer_log_excerpt() {
 # sync-pin-evidence.sh (bounded for the body, full for the artifact via SYNC_EVIDENCE_OUT).
 build_body() {
   local root="$1" moved_file="$2" producer_log="$3" policy_b_log="$4" out_body="$5" out_evidence="$6"
-  local MOVED COUNT
+  local MOVED MOVED_TOTAL GITLINK_COUNT FILE_COUNT evidence_body evidence_full type_file
 
   MOVED="$(cat "$moved_file")"
-  COUNT=$(printf '%s\n' "$MOVED" | grep -c . || true); COUNT=${COUNT:-0}
+  MOVED_TOTAL=$(printf '%s\n' "$MOVED" | grep -c . || true); MOVED_TOTAL=${MOVED_TOTAL:-0}
 
   # The attribution tier is READ, never re-typed: it comes from the caller's Assisted-by
   # trailer — the ONE place the run states it — so the `## Change classification` tier line
@@ -83,7 +83,7 @@ build_body() {
   # complete changed-path list via the per-pin table below, so that file is not the home of
   # the evidence and the body never points at it as if it were).
   {
-    echo "== moved paths (${COUNT}) =="
+    echo "== moved paths (${MOVED_TOTAL}) =="
     printf '%s\n' "$MOVED"
     echo
     echo "== producer resolution (full) =="
@@ -93,6 +93,20 @@ build_body() {
     cat "$policy_b_log" 2>/dev/null || true
   } > "$out_evidence"
 
+  # Render the per-pin evidence section's BODY form ONCE, capturing the moved-path split from
+  # the ONE place that classifies each path (sync-pin-evidence.sh, by index mode 160000) — so
+  # this builder's Summary count and Change-class line cannot disagree with the table below.
+  # The full table is appended to the caller's evidence file by that same run (its
+  # SYNC_EVIDENCE_OUT path); rendering it a SECOND time here (the old shape) would both
+  # duplicate the network work and risk the two copies diverging.
+  type_file="$(mktemp)"
+  evidence_body="$(printf '%s\n' "$MOVED" | SYNC_EVIDENCE_OUT="$out_evidence" SYNC_EVIDENCE_TYPE_OUT="$type_file" \
+    bash "$SCRIPT_DIR/sync-pin-evidence.sh" "$root" "$policy_b_log")"
+  GITLINK_COUNT=0; FILE_COUNT=0
+  # shellcheck disable=SC1090
+  . "$type_file"
+  rm -f "$type_file"
+
   {
     echo "## Summary"
     echo
@@ -100,21 +114,28 @@ build_body() {
     echo "— \`charly\` to its own default-branch HEAD, \`distro-*\` to exactly the commits charly's"
     echo "own gitlinks pin, everything else to its own default branch."
     echo
-    echo "**${COUNT}** gitlink(s) moved. Every one is named, with its proof, in the"
-    echo "complete per-pin evidence table below (no elision)."
+    if [ "$FILE_COUNT" -gt 0 ]; then
+      echo "**${GITLINK_COUNT}** gitlink(s) and **${FILE_COUNT}** non-gitlink changed path(s)"
+      echo "moved. Every one is named, with its proof, in the complete per-pin evidence"
+      echo "table below (no elision)."
+    else
+      echo "**${GITLINK_COUNT}** gitlink(s) moved. Every one is named, with its proof, in the"
+      echo "complete per-pin evidence table below (no elision)."
+    fi
     echo
     echo "## Every changed path, named"
     echo
-    echo "The **\`${COUNT}\`** moved paths are named in full — each with its \`staged-gitlink\`"
-    echo "vs remote default-branch \`HEAD\` proof — in the complete per-pin evidence table in"
-    echo "**How tested** below. That one table IS the changed-path list and the evidence: no"
-    echo "separate list is emitted and no row is elided, so nothing points at a"
-    echo "file for evidence that must be pasted here."
+    echo "The **\`${MOVED_TOTAL}\`** moved paths are named in full — each gitlink with its \`staged-gitlink\`"
+    echo "vs remote default-branch \`HEAD\` proof, each non-gitlink path with its staged blob — in the"
+    echo "complete per-pin evidence table in **How tested** below. That one table IS the changed-path"
+    echo "list and the evidence: no separate list is emitted and no row is elided, so nothing points"
+    echo "at a file for evidence that must be pasted here."
     echo
-    echo "Each entry is a **submodule pointer**, not file content: the umbrella records which"
-    echo "commit of each repo the snapshot means. The content behind every one of them was"
-    echo "reviewed and gated by that repo's own \`pr-validator\` before it was tagged. This PR"
-    echo "cannot review it and does not restate it."
+    echo "Each gitlink entry is a **submodule pointer**, not file content: the umbrella records which"
+    echo "commit of each repo the snapshot means. The content behind every gitlink was reviewed and"
+    echo "gated by that repo's own \`pr-validator\` before it was tagged. A non-gitlink path, when"
+    echo "present, is an ordinary changed file carried on this same branch — named, not hidden."
+    echo "This PR cannot review submodule content and does not restate it."
     echo
     echo "## How tested"
     echo
@@ -133,15 +154,18 @@ build_body() {
     echo '```'
     echo
     # The per-pin evidence section — the COMPLETE table (compact rows), inlined here in
-    # the BODY, naming every changed path. The full table is also appended to the
-    # caller's evidence file as a convenience copy via SYNC_EVIDENCE_OUT.
-    printf '%s\n' "$MOVED" | SYNC_EVIDENCE_OUT="$out_evidence" \
-      bash "$SCRIPT_DIR/sync-pin-evidence.sh" "$root" "$policy_b_log"
+    # the BODY, naming every changed path. Rendered ONCE above ($evidence_body); the full
+    # table is also appended to the caller's evidence file by that same run.
+    printf '%s\n' "$evidence_body"
     echo
     echo "## Change classification"
     echo
-    echo "- **Change class:** gitlink-only. No file content, no workflow, no script, no Go."
-    echo "- **Verification gate:** \`./charly/bin/charly task verify\` — the full pinning gate — on"
+    if [ "$FILE_COUNT" -gt 0 ]; then
+      echo "- **Change class:** gitlink sync + ${FILE_COUNT} non-gitlink file change(s). The ${GITLINK_COUNT} gitlink(s) are submodule pointers (no file content); the ${FILE_COUNT} non-gitlink path(s) are ordinary files carried on this branch."
+    else
+      echo "- **Change class:** gitlink-only. No file content, no workflow, no script, no Go."
+    fi
+    echo "- **Verification gate:** \`charly task verify\` — the full pinning gate — on"
     echo "  the final tree, plus the per-pin \`git ls-remote\` default-branch table above (rule 10:"
     echo "  that IS the gate for a diff that moves a gitlink)."
     echo "- **Attribution tier:** \`${SYNC_TIER}\` — read from this run's \`Assisted-by\` trailer, so"
@@ -163,7 +187,7 @@ build_body() {
     echo "  own gitlink. The producer never pins a PR branch."
     echo "- **R5 hard cutover + grep:** the pointers are replaced, not appended to."
     echo "- **R6 git safety:** a fresh branch per run; no force-push; no push to \`main\`."
-    echo "- **R7 runtime gate:** \`./charly/bin/charly task verify\` on the final tree — the sync"
+    echo "- **R7 runtime gate:** \`charly task verify\` on the final tree — the sync"
     echo "  is hand-run in a HUMAN tree, where that gate's nested-submodule half is meaningful —"
     echo "  plus the per-pin \`git ls-remote\` default-branch evidence above; \`distro-*\` pins (when"
     echo "  any move) are additionally asserted by policy B."
@@ -285,6 +309,12 @@ if [ "${1:-}" = "--self-test" ]; then
   # pin and the excerpt silently lost the producer's own words (the regression this
   # arm now fails on).
   { echo p1; echo p2; } > "$moved"; printf '  p1 -> 1\n  p2 -> 2\n' > "$producer"
+  # Pin the KIND: the fleet fixture above leaves p1/p2 unstaged, and the builder now
+  # classifies a path by its index mode — an unstaged path is a plain FILE and would
+  # (correctly) render a `(file)` row. This arm is about the producer excerpt, so stage
+  # them as gitlinks, as the real sync's pins are.
+  git -C "$tmp" update-index --add --cacheinfo "160000,${RHEAD},p1"
+  git -C "$tmp" update-index --add --cacheinfo "160000,${RHEAD},p2"
   build_body "$tmp" "$moved" "$producer" "$pblog" "$tmp/body2" "$tmp/ev2" || fail "small input must build"
   grep -q '^\*\*2\*\* gitlink(s) moved\.' "$tmp/body2" || fail "small body must name the true total (2)"
   grep -q 'p1 -> 1' "$tmp/body2" || fail "retired per-pin producer form must reach the body verbatim"
@@ -296,14 +326,35 @@ if [ "${1:-}" = "--self-test" ]; then
   { echo p3; echo p4; } > "$moved"
   printf 'task sync: 1 step(s), 0 failed\n  [pass] run — bump the pins\n' > "$producer"
   printf 'bumped 2 submodule pin(s): p3, p4\n' >> "$producer"
+  git -C "$tmp" update-index --add --cacheinfo "160000,${RHEAD},p3"
+  git -C "$tmp" update-index --add --cacheinfo "160000,${RHEAD},p4"
   build_body "$tmp" "$moved" "$producer" "$pblog" "$tmp/body4" "$tmp/ev4" || fail "task-summary producer must build"
   grep -q 'bumped 2 submodule pin(s): p3, p4' "$tmp/body4" || fail "task-summary producer form must reach the body verbatim"
   grep -q 'MISSING from producer log' "$tmp/body4" && fail "the excerpt must never inject a MISSING line — the producer's words are pasted as-is"
 
+  # THE MIXED LIST — the class the pre-fix builder got WRONG (measured: the real 45-gitlink
+  # sync carried `reasonix.toml`, and the builder reported "46 gitlink(s) moved", a hardcoded
+  # `gitlink-only` class, and a false `!` against a remote that does not exist). A moved list
+  # with BOTH a gitlink and a plain file must count the gitlink as a gitlink, name the file as
+  # a file with NO `=`/`!` flag, and derive the change class from the split — never claim
+  # `gitlink-only`.
+  { echo p1; echo p5; } > "$moved"
+  printf 'task sync: 1 step(s), 0 failed\nbumped 1 submodule pin(s): p1\n' > "$producer"
+  printf 'x\n' > "$tmp/p5"; git -C "$tmp" add p5
+  build_body "$tmp" "$moved" "$producer" "$pblog" "$tmp/body7" "$tmp/ev7" || fail "mixed gitlink+file input must build"
+  grep -q '^\*\*1\*\* gitlink(s) and \*\*1\*\* non-gitlink changed path(s)' "$tmp/body7" \
+    || fail "mixed body must separate the gitlink count from the non-gitlink count"
+  grep -qE '^  p5  [0-9a-f]{12}  \(file\)$' "$tmp/body7" || fail "a non-gitlink path must render a (file) row"
+  grep -qE '^  p5  [0-9a-f]{12}  \(file\)  [!=]$' "$tmp/body7" && fail "a non-gitlink path must NOT carry a mismatch flag"
+  grep -qE '^  p1  [0-9a-f]{12}  ' "$tmp/body7" || fail "mixed body must still render the gitlink row"
+  grep -q 'Change class:\*\* gitlink sync + 1 non-gitlink file change' "$tmp/body7" \
+    || fail "mixed body must derive a non-gitlink-only change class from the split"
+  grep -q 'Change class:\*\* gitlink-only' "$tmp/body7" && fail "mixed body must NOT claim gitlink-only"
+
   # THE ACCEPTANCE SURFACE. AGENTS.md requires the body to carry `## Summary`,
   # `## How tested`, `## Rulebook compliance` and `## Change classification`, with the
   # italic trailer as the FINAL line; `marketplace/scripts/pr_body_lint.py` is that same
-  # contract as a deterministic check. It FAILED this builder (13 findings, measured): the
+  # contract as a deterministic check. It FAILED this builder (12 findings, measured): the
   # heading read `## Harness rulebook compliance`, so `## Rulebook compliance` was "missing"
   # and every rule it must answer read as unanswered, and `## Change classification` carried
   # neither the verification gate nor the attribution tier. Assert the contract here.

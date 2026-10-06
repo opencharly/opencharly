@@ -53,6 +53,31 @@ pin_row() {
   printf '  %s  %.12s  %.12s  %s\n' "$p" "$staged" "$remote" "$flag"
 }
 
+# is_gitlink_path <root> <path> — true when the RECORDED entry for <path> is a submodule
+# pointer (index mode 160000); false for a plain file (100644/100755). The producer stages
+# EVERY changed path (`git diff --cached --name-only`), so a hand-edit beside the pins is a
+# FILE here, never a pointer — the class the old builder miscounted as a gitlink (measured:
+# `reasonix.toml` rendered as a 46th gitlink). Reads the INDEX first (the staged snapshot
+# this PR records) and falls back to HEAD, mirroring staged_gitlink; git's hook-exported
+# repo vars are scrubbed so `-C "$root"` truly targets $root. ONE implementation the live
+# render loop and the self-test both call.
+is_gitlink_path() {
+  local root="$1" p="$2" mode
+  unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES
+  mode=$(git -C "$root" ls-files -s -- "$p" 2>/dev/null | awk 'NR==1{print $1}')
+  [ -n "$mode" ] || mode=$(git -C "$root" ls-tree HEAD -- "$p" 2>/dev/null | awk 'NR==1{print $1}')
+  [ "$mode" = "160000" ]
+}
+
+# file_row <path> <blob_sha> — ONE evidence row for a changed NON-gitlink path. A plain file
+# has no remote default-branch HEAD to compare against, so its row carries NO `=`/`!` flag:
+# flagging such a path `!` against a remote that does not exist is a false finding (measured:
+# `reasonix.toml  d6b7737bbd8d  !`). The row still names the file and its staged blob, so no
+# changed path is hidden. ONE implementation the live render loop and the self-test call.
+file_row() {
+  printf '  %s  %.12s  (file)\n' "$1" "$2"
+}
+
 # coverage_note <distro_moved_count> — policy B asserts only `distro-*` gitlinks, so it
 # is this diff's coverage ONLY when at least one `distro-*` pin moved. ONE decision,
 # shared by the live path and the self-test.
@@ -82,7 +107,7 @@ bounded_rows() {
     bytes=$((bytes + bytes_line)); rows=$((rows + 1))
   done
   if [ "$truncated" -eq 1 ]; then
-    echo "  … $rows of $total rows shown; the remaining $((total - rows)) are in ${where}"
+    echo "  ... $rows of $total rows shown; the remaining $((total - rows)) are in ${where}"
   fi
 }
 
@@ -198,6 +223,21 @@ if [ "${1:-}" = "--self-test" ]; then
   [ "$got" = "3333333333333333333333333333333333333333" ] \
     || fail "staged_gitlink fallback read '$got', want HEAD's 3333… for an unstaged path"
 
+  # is_gitlink_path / file_row: the moved list is not all gitlinks (the producer stages EVERY
+  # changed path), so a plain file must be classified as a file and rendered WITHOUT the `=`/`!`
+  # flag — flagging it `!` against a remote that does not exist is the false finding the
+  # pre-fix builder emitted (measured: `reasonix.toml  <blob>  !`).
+  printf 'blob\n' > "$tmp/plainfile"; git -C "$tmp" add plainfile
+  is_gitlink_path "$tmp" sub \
+    || fail "is_gitlink_path must be TRUE for a mode-160000 entry"
+  is_gitlink_path "$tmp" plainfile \
+    && fail "is_gitlink_path must be FALSE for a plain file (a miscount is the defect)"
+  got=$(file_row plainfile abcd1234ef56)
+  [ "$got" = '  plainfile  abcd1234ef56  (file)' ] \
+    || fail "file_row must render a flagless (file) row, got '$got'"
+  printf '%s\n' "$got" | grep -qE '[!=]$' \
+    && fail "a file row must carry NO =/! flag (there is no remote to compare)"
+
   echo "sync-pin-evidence: self-test OK (compact <path> <staged> <remote> <flag> rows both ways; coverage both directions; bounded_rows emits all under budget and >=1 + elision notice over budget; staged-gitlink reads the index + falls back to HEAD)"
   exit 0
 fi
@@ -223,18 +263,35 @@ echo
 echo '```'
 echo 'legend: <path>  <staged-gitlink>  <remote-HEAD>  <flag>'
 echo '        (= equal · ! mismatch; distro-* = policy-B pinned)'
+echo '        (a non-gitlink changed path is rendered `  <path>  <blob>  (file)` — a'
+echo '        plain file has no remote default-branch HEAD to compare, so it carries no flag;'
+echo '        its blob is the index blob this PR stages and is never `!`-flagged.)'
 # Render every row to a temp file, THEN bound — never pipe the producer into the bounder.
 # This environment ignores SIGPIPE, so an early-exiting bounder would leave the producer
 # writing to a closed pipe; under `set -o pipefail` those failed writes would abort the
 # script. A file sidesteps that entirely (only a few hundred rows).
 ROWS_FILE="$(mktemp)"; trap 'rm -f "$ROWS_FILE"' EXIT
+GITLINK_COUNT=0; FILE_COUNT=0
 while IFS= read -r p; do
   [ -n "$p" ] || continue
-  pin_row "$p" "$(staged_gitlink "$ROOT" "$p")" \
-    "$(git ls-remote "$(git config -f .gitmodules --get "submodule.$p.url" 2>/dev/null || echo '')" HEAD 2>/dev/null | awk '{print $1}' || echo '')" \
-    >> "$ROWS_FILE"
+  if is_gitlink_path "$ROOT" "$p"; then
+    pin_row "$p" "$(staged_gitlink "$ROOT" "$p")" \
+      "$(git ls-remote "$(git config -f .gitmodules --get "submodule.$p.url" 2>/dev/null || echo '')" HEAD 2>/dev/null | awk '{print $1}' || echo '')" \
+      >> "$ROWS_FILE"
+    GITLINK_COUNT=$((GITLINK_COUNT + 1))
+  else
+    # A non-gitlink changed path (a hand-edit beside the pins): its staged blob, no flag.
+    file_row "$p" "$(staged_gitlink "$ROOT" "$p")" >> "$ROWS_FILE"
+    FILE_COUNT=$((FILE_COUNT + 1))
+  fi
 done <<< "$MOVED"
-bounded_rows "$SYNC_EVIDENCE_MAX_BYTES" "$MOVED_COUNT" "$SYNC_EVIDENCE_OUT" < "$ROWS_FILE"
+# The gitlink/file split is published for the body builder (the ONE measurement of what
+# KIND of diff this is), so its Summary count and Change-class line cannot disagree with
+# the table below. Absent (a standalone run) it is simply not written.
+if [ -n "${SYNC_EVIDENCE_TYPE_OUT:-}" ]; then
+  printf 'GITLINK_COUNT=%s\nFILE_COUNT=%s\n' "$GITLINK_COUNT" "$FILE_COUNT" > "$SYNC_EVIDENCE_TYPE_OUT"
+fi
+bounded_rows "$SYNC_EVIDENCE_MAX_BYTES" "$MOVED_COUNT" "${SYNC_EVIDENCE_OUT:-}" < "$ROWS_FILE"
 echo '```'
 # When the caller asks, persist the FULL rendered table so the elision notice's promise
 # ("the remaining N are in the full evidence file") is TRUE — that file gets the rendered
