@@ -182,7 +182,15 @@ verify:
         git-submodules:
           mode: verify
           pin_map: {}
-        context: [deploy]
+        # [runtime] — the value the combined step this one replaces declared (origin/main's
+        # 15-step `verify`, every step [runtime]) and the value all 16 other steps of this
+        # 17-step task declare. Deliberately NOT [deploy] (the value the `map`/`sync`/`pins`
+        # tasks use for their own verb steps): `Runner.ContextSkipReason` (sdk/kit/runner.go)
+        # activates only box→build and live→runtime, and `PlanGrammar.InContext`
+        # (sdk/checkkit/checkkit.go) is a plain membership test, so a `deploy`-declared step
+        # is active in NEITHER mode and would be skipped in both — a silently-skipped step
+        # the moment this task is composed into a bed.
+        context: [runtime]
       - check: every submodule's branch equals its remote default — KEPT INLINE, deliberately, because no verb owns this clause, and it is the expensive half (one git ls-remote per submodule, hence the timeout below)
         timeout: 20m
         command: |
