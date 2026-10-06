@@ -7,8 +7,8 @@
 // relocation landed delete-first across two repos: charly#791 removed the four from
 // charly's main, and the umbrella PR that added them at the new home was auto-closed at
 // the validator's block limit — so for a window the files existed in NO repository's
-// main, and every agent surface (AGENTS.md, .opencode/instructions.md)
-// pointed at `charly/SOUL.md`, a path that no longer
+// main, and every agent surface (AGENTS.md, .opencode/instructions.md,
+// .pi/extensions/charly-gates.ts) pointed at `charly/SOUL.md`, a path that no longer
 // resolved. Nothing in `task verify` read those surfaces, so no gate saw the loss.
 //
 // This gate closes that class. It runs inside `charly task verify`.
@@ -50,6 +50,7 @@ const SURFACES = [
   "AGENTS.md",
   "README.md",
   ".opencode/instructions.md",
+  ".pi/extensions/charly-gates.ts",
 ];
 
 // A root-file reference: an optional path prefix, then a basename whose stem starts with

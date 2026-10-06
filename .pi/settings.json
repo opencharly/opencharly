@@ -1,0 +1,18 @@
+{
+  "extensions": [
+    "./extensions/charly-gates.ts",
+    "./extensions/github-pr-status.ts"
+  ],
+  "packages": [
+    "git:github.com/opencharly/marketplace@v2026.278.1917",
+    "git:github.com/opencharly/pi-mcp-adapter@v2.31.0",
+    "git:github.com/opencharly/pi-subagents@v0.60.0",
+    "git:github.com/opencharly/rpiv-todo@v2.8.0"
+  ],
+  "theme": "dark",
+  "compaction": {
+    "enabled": true,
+    "reserveTokens": 384000,
+    "keepRecentTokens": 500000
+  }
+}

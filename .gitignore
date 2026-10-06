@@ -6,6 +6,13 @@
 # local env
 .env
 
+# Pi project-local package installs + marketplace cache (generated on startup from .pi/settings.json)
+.pi/npm/
+.pi/git/
+
+# pi MCP override — pi reads the project .mcp.json through pi-mcp-adapter; a local .pi/mcp.json is never committed
+.pi/mcp.json
+
 # Claude Code runtime lock (session-local, never committed)
 .claude/scheduled_tasks.lock
 

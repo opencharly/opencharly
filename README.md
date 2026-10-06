@@ -49,7 +49,7 @@ policy B, the producer-first landing order, after-merge cleanup — is in
 [AGENTS.md](AGENTS.md) is the one rulebook, and it is harness-neutral: every agent
 harness reads that same file directly, so no second copy exists to drift. Harness
 configuration now lives at this umbrella root and **only** here — a plain move-in of
-every harness's settings and workflows (Claude Code, Codex, opencode, Kimi/reasonix),
+every harness's settings and workflows (Claude Code, Codex, opencode, pi, Kimi/reasonix),
 with no mirror and no parity gate. Skills live in neither: they
 come from the [`opencharly/marketplace`](https://github.com/opencharly/marketplace)
 corpus, which each harness resolves per its own conventions.

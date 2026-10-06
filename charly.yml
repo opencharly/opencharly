@@ -250,6 +250,9 @@ verify:
       - check: every harness-config surface parses and is wired (rule 5)
         command: node scripts/check-harness-config.mjs
         context: [runtime]
+      - check: the pi gate extension fails CLOSED, uses the rule-2 worktree path, and wires both gate scripts
+        command: node scripts/check-pi-gates.mjs
+        context: [runtime]
       - check: "every canonical root narrative exists and every root-file reference in the agent surfaces resolves (the #356 content-loss gate)"
         command: node scripts/check-root-refs.mjs
         context: [runtime]
