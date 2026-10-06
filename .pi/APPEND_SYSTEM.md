@@ -28,6 +28,20 @@ scripts before `git commit` / `git push`, blocking the call when a gate fails
 `pre-push-gate.sh`; the extension is pi's binding of them, exactly as
 `.reasonix/settings.json` wires them for Kimi/reasonix.
 
+## Session worktrees (rule 2)
+
+A worktree isolates the MUTABLE half of a session — working tree, index, branch, and its own
+`charly/bin/charly` — so several sessions can work from the same umbrella at once. It does NOT
+copy the IMMUTABLE half: git shares the superproject's objects, and `charly_worktree_create`
+materializes only `charly` + `marketplace`, borrowing their objects from the main checkout
+(`--reference`). That is ~1.4 s and a few MB, not the ~6 min and ~600 MB an eager
+`--init --recursive` over all 425 submodules costs. Name anything else the cutover touches in the
+tool's `modules` argument, which ADDS to that set — `charly` can never be dropped, because the
+binary build needs it. Materialize one later with
+`git -C <worktree> submodule update --init --reference <umbrella>/.git/modules/<path> -- <path>`.
+Never materialize the whole graph "just in case", and never share a working tree between sessions
+— sharing immutable objects is what makes concurrency safe; sharing mutable state is what breaks it.
+
 ## GitHub PR + watcher discipline
 
 - **PR / validator status.** `gh_pr_status check <repo> <pr>` returns state, head SHA,
