@@ -20,7 +20,7 @@
  *
  * The tool wraps `gh` only (read-only queries; nothing is mutated).
  *
- * ## Four measured defects this file fixes (R1)
+ * ## Five measured defects this file fixes (R1)
  *
  *   1. STATE CASING. `gh pr view --json state` returns UPPERCASE (`"OPEN"`), but the poll
  *      logic compared it to lowercase `"open"`. `"OPEN" !== "open"` therefore read as "this

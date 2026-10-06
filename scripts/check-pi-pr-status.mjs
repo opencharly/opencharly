@@ -5,7 +5,7 @@
 // real TypeScript parse, each proven to FAIL by a mutation.
 //
 // Why it exists (R1). The tool is the ONLY way a pi session learns a PR's verdict — GitHub
-// Actions has no path into a session. Four measured defects shipped in it and every gate
+// Actions has no path into a session. Five measured defects shipped in it and every gate
 // stayed green, because nothing asserted its behaviour:
 //
 //   1. STATE CASING — `gh pr view --json state` returns UPPERCASE, the poll compared
@@ -15,6 +15,9 @@
 //   3. FAILING STEP — `gh run view <id> --json jobs` 404s on the org-required workflow.
 //   4. INCONCLUSIVE — a verdict-less run produced no `Verdict:` line, so the comment scan
 //      skipped it and misreported.
+//   5. WATCH SHORT-CIRCUIT — `watch` returned on ANY concluded run (including a PASS) while
+//      its own loop kept polling after a PASS that arrived later; the two paths disagreed
+//      about the same state.
 //
 // Usage: node scripts/check-pi-pr-status.mjs [--root <dir>] [--self-test]
 // exit 0 clean · 1 finding
