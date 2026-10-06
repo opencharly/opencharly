@@ -14,10 +14,13 @@ set -euo pipefail
 # `sync-pin-evidence.sh` is.
 #
 # The sync is now run BY HAND (`charly task sync` + a PR); nothing schedules
-# it. The Assisted-by footer is therefore caller-supplied via SYNC_ASSISTED_BY — the run
-# that opens the PR records its own identity, never a canned one. That trailer is also the
-# ONE source of the attribution tier the `## Change classification` section reports, so the
-# section and the footer cannot disagree.
+# it. BOTH identity lines are therefore caller-supplied — SYNC_AGENT carries rule 7's
+# `Agent:` line (work slug + session) and SYNC_ASSISTED_BY the `Assisted-by:` footer — so the
+# run that opens the PR records its own identity, never a canned one. Rule 7 fixes their
+# order: `Agent:` FIRST, `Assisted-by:` LAST, ADJACENT — which is exactly what the body
+# linter asserts (`pr_body_lint.py`'s footer check requires the `Agent:` line to be the line
+# DIRECTLY above the trailer). The trailer is also the ONE source of the attribution tier the
+# `## Change classification` section reports, so the section and the footer cannot disagree.
 #
 # Modes:
 #   <root> <moved-file> <producer-log> <policy-b-log> <out-body> <out-evidence>
@@ -76,6 +79,17 @@ build_body() {
     | sed -n 's/.*[[:space:]]*(\([^()]*\))[[:space:]]*$/\1/p')"
   if [ -z "$SYNC_TIER" ]; then
     echo "::error::SYNC_ASSISTED_BY carries no '(<confidence tier>)' — the Change classification tier line and the footer must agree; refusing to emit a body" >&2
+    return 1
+  fi
+
+  # Rule 7's `Agent:` line is caller-supplied too, and fails LOUD when unset for the same
+  # reason the tier guard does: a body emitted WITHOUT it violates the rulebook, and the run
+  # that would have to notice is the run that forgot. Before this guard the builder shipped
+  # only the Assisted-by trailer, so every body it rendered was missing the line and the
+  # calling run had to add it by hand (measured: opencharly/opencharly#392, and the defect
+  # filed as #395). ONE guard, here, before anything is written.
+  if [ -z "${SYNC_AGENT:-}" ]; then
+    echo "::error::SYNC_AGENT is unset — AGENTS.md rule 7 requires the 'Agent:' line (work slug + session) on every agent-authored PR body, directly above the Assisted-by trailer; refusing to emit a body without it" >&2
     return 1
   fi
 
@@ -207,10 +221,13 @@ build_body() {
     echo
     echo "This body is emitted by the tested, model-free \`scripts/sync-pr-body.sh\`"
     echo "from a manual \`charly task sync\` run; its \`--self-test\` runs in the pre-commit"
-    echo "gate. \`SYNC_ASSISTED_BY\` carries the identity of the run that opened the PR."
+    echo "gate. \`SYNC_AGENT\` carries this run's \`Agent:\` line and \`SYNC_ASSISTED_BY\` the"
+    echo "trailer beneath it: rule 7's one canonical order, \`Agent:\` first, trailer last."
     echo
-    # SYNC_ASSISTED_BY is already validated at the top of build_body (non-empty AND
-    # tier-bearing) — ONE guard, not two.
+    # BOTH are validated at the top of build_body — ONE guard each, not two — and the
+    # Assisted-by trailer stays the FINAL line, with the Agent line directly above it: that
+    # is the footer contract `marketplace/scripts/pr_body_lint.py` asserts.
+    echo "*Agent: ${SYNC_AGENT}*"
     echo "*Assisted-by: ${SYNC_ASSISTED_BY}*"
   } > "$out_body"
 
@@ -234,6 +251,9 @@ if [ "${1:-}" = "--self-test" ]; then
   # fixture must be grammar-valid or the rendered body fails the body linter for a
   # fixture's sake. The tier is what the Change classification section reads back.
   export SYNC_ASSISTED_BY="Self-test Harness Fixture (fully tested and validated)"
+  # Rule 7's `Agent:` line, caller-supplied the same way, so the ordering + tracking arms
+  # below can name a value the fixture actually set rather than one that merely looks right.
+  export SYNC_AGENT='`self-test-slug` · session `00000000-0000-0000-0000-000000000000`'
   # Make the fixture a real git repo: sync-pin-evidence.sh's staged_gitlink()/`git config`
   # run under `set -e`, and a non-repo would spew `fatal: not a git repository` per row.
   git -C "$tmp" init -q
@@ -372,6 +392,40 @@ if [ "${1:-}" = "--self-test" ]; then
   tail -n 1 "$tmp/body" | grep -qE '^\*Assisted-by: .+ \(fully tested and validated\)\*$' \
     || fail "the italic Assisted-by trailer must be the FINAL line"
 
+  # Rule 7's two-line footer: the `Agent:` line is present AND is the line DIRECTLY above the
+  # trailer. Both halves are asserted — presence alone would pass a body that put the line
+  # anywhere, and the adjacency is the part the body linter actually enforces
+  # (`pr_body_lint.py`: "the `Agent:` line must directly precede the Assisted-by trailer").
+  tail -n 2 "$tmp/body" | head -n 1 | grep -qxF '*Agent: `self-test-slug` · session `00000000-0000-0000-0000-000000000000`*' \
+    || fail "the rule-7 Agent: line must directly precede the Assisted-by trailer"
+
+  # ...and the rendered body must carry EXACTLY ONE literal `Assisted-by:` — the trailer
+  # itself. The constructor the owning skill names as canonical
+  # (`marketplace/scripts/squash_body.py`) fails LOUD on prose containing an `Assisted-by:`
+  # trailer ("squash prose must not contain an Assisted-by trailer"), and that module is where
+  # the org defines the ONE trailer grammar — so a SECOND occurrence in the body, whose natural
+  # home is the Attribution prose directly above the trailer, would make this builder's output
+  # unacceptable to it. MEASURED, not imagined: the first cut of this change put exactly such a
+  # line there and nothing in the suite noticed. This arm is what would have.
+  ab_count=$(grep -c 'Assisted-by:' "$tmp/body" || true)
+  [ "$ab_count" -eq 1 ] \
+    || fail "the rendered body must carry exactly one literal 'Assisted-by:' (the trailer); found ${ab_count}"
+
+  # ...and an UNSET SYNC_AGENT must fail LOUD rather than emit a body with no Agent: line —
+  # the exact defect this builder shipped (#395): #392's body carried the line only because
+  # it was inserted by hand. A subshell with an explicit `unset`, so the arm cannot inherit
+  # the export above.
+  ( unset SYNC_AGENT; build_body "$tmp" "$moved" "$producer" "$pblog" "$tmp/body8" "$tmp/ev8" ) 2>"$tmp/err8" \
+    && fail "an unset SYNC_AGENT must fail loud, not emit a body with no Agent: line"
+  grep -q 'SYNC_AGENT' "$tmp/err8" || fail "the Agent: guard must name the missing variable, on stderr"
+
+  # ...and the Agent: line TRACKS its variable — not a literal that happens to match the
+  # fixture (without this arm a hard-coded slug line passes every assertion above).
+  ( SYNC_AGENT='`other-slug` · session `11111111-1111-1111-1111-111111111111`' \
+      build_body "$tmp" "$moved" "$producer" "$pblog" "$tmp/body9" "$tmp/ev9" )
+  tail -n 2 "$tmp/body9" | head -n 1 | grep -qxF '*Agent: `other-slug` · session `11111111-1111-1111-1111-111111111111`*' \
+    || fail "the Agent: line must track SYNC_AGENT, not a fixed literal"
+
   # The tier guard fails LOUD, before writing anything: a body whose tier line silently read
   # empty would be an attribution claim with nothing behind it. (A subshell, so the fixture
   # value cannot leak into the arms that follow.)
@@ -393,7 +447,7 @@ if [ "${1:-}" = "--self-test" ]; then
     && fail "over-cap body must trip the hard guard (non-zero)"
   grep -q '65536\|100' "$tmp/err" || fail "guard must name the offending size/cap on stderr"
 
-  echo "sync-pr-body: self-test OK (fleet-scale 424-pin BODY carries the COMPLETE compact evidence table — every path named, no elision — and stays under the 65536 cap; the caller's evidence file keeps a convenience copy; neither names a CI run artifact; small input names its paths with no elision; the producer excerpt is verbatim for BOTH the retired per-pin and current summary shapes; the body carries the four required sections, the Change classification's change class + verification gate + attribution tier, and the italic Assisted-by trailer as its FINAL line; a trailer with no (tier) fails loud; over-cap trips the hard guard)"
+  echo "sync-pr-body: self-test OK (fleet-scale 424-pin BODY carries the COMPLETE compact evidence table — every path named, no elision — and stays under the 65536 cap; the caller's evidence file keeps a convenience copy; neither names a CI run artifact; small input names its paths with no elision; the producer excerpt is verbatim for BOTH the retired per-pin and current summary shapes; the body carries the four required sections, the Change classification's change class + verification gate + attribution tier, and rule 7's two-line footer — the Agent: line directly above the italic Assisted-by trailer as the FINAL line, and exactly ONE literal 'Assisted-by:' in the body so squash_body.py's prose contract holds; an unset SYNC_AGENT fails loud, and the Agent: line is shown to TRACK its variable rather than a literal; a trailer with no (tier) fails loud; over-cap trips the hard guard)"
   exit 0
 fi
 
