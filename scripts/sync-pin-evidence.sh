@@ -133,6 +133,53 @@ staged_gitlink() {
   printf '%s' "$sha"
 }
 
+# evidence_legend — the section's framing prose and its row legend, emitted verbatim by the
+# live path and asserted by --self-test. It is a FUNCTION rather than inline `echo`s because
+# how it tells a reader to READ a `!` is load-bearing, and the earlier wording got it wrong:
+# it claimed a blanket "must be EQUAL", which calls a MEASURED-BENIGN case a violation.
+#
+# Root cause (R1, measured on this sync). A walk resolves each remote default-branch HEAD at
+# the moment the walk RUNS; this table compares the staged gitlink against HEAD at the moment
+# the table is GENERATED — later, by however long the sync PR body takes to assemble. So a
+# non-`distro-*` `!` has exactly two readings, told apart by the two commits themselves:
+#   (a) THE SYNC RACE — the owning default branch advanced after the walk, so the staged pin
+#       is an ANCESTOR of the remote HEAD (benign; disclose by name, never chase);
+#   (b) A REAL FINDING — the staged pin is not on that repo's default branch at all (a PR
+#       branch, or a non-HEAD commit).
+# Measured instance: `vm-charly-vm` — the walk ran 2026-10-06T15:07:25Z and pinned `47c4d063`
+# (then HEAD; its predecessor was 2026-09-29), and that repo merged at 15:13:00Z/15:13:14Z,
+# 5m35s later: `ahead 2, behind 0` — reading (a), exactly what the old legend mislabeled.
+# ONE implementation the live path and the self-test both call, so the wording cannot drift
+# from what the flag actually means.
+evidence_legend() {
+  echo "**Default-branch HEAD, per moved pin.** Every moved path, complete (no"
+  echo "elision): the STAGED GITLINK this PR records (\`git rev-parse --verify --quiet"
+  echo ":\<path>\` from the index, \`git ls-tree HEAD\` fallback) beside the owning"
+  echo "remote default-branch HEAD (\`git ls-remote <url> HEAD\`, read when THIS table is"
+  echo "generated). \`charly\` and every non-\`distro-*\` pin is the owning repo's"
+  echo "default-branch HEAD **as of the walk that produced this diff**; a \`distro-*\` pin"
+  echo "tracks charly's own gitlink and is proven by policy B, so it is policy-B pinned"
+  echo "rather than required equal here:"
+  echo
+  echo '```'
+  echo 'legend: <path>  <staged-gitlink>  <remote-HEAD>  <flag>'
+  echo '        (= equal · ! NOT equal at table-generation time; distro-* = policy-B pinned)'
+  echo '        A walk resolves each remote HEAD when it runs; this table compares at the'
+  echo '        moment it is generated — later. A `!` on a non-`distro-*` row therefore has'
+  echo '        two readings, told apart by the two commits themselves:'
+  echo '        (a) THE SYNC RACE — the owning default branch advanced after the walk, so the'
+  echo '            staged pin is an ANCESTOR of the remote HEAD'
+  echo '            (`git -C <submodule> merge-base --is-ancestor <staged> <remote-HEAD>` →'
+  echo '            true); benign — the body discloses it by name and never chases it.'
+  echo '        (b) A REAL FINDING — the staged pin is not on that repo default branch at all'
+  echo '            (a PR branch, or a non-HEAD commit); that ancestor check is false.'
+  echo '        A `distro-*` row is neither: it tracks the gitlink charly records, which'
+  echo '        policy B proves.'
+  echo '        (a non-gitlink changed path is rendered `  <path>  <blob>  (file)` — a'
+  echo '        plain file has no remote default-branch HEAD to compare, so it carries no flag;'
+  echo '        its blob is the index blob this PR stages and is never `!`-flagged.)'
+}
+
 if [ "${1:-}" = "--self-test" ]; then
   fail() { echo "FAIL: sync-pin-evidence self-test: $*" >&2; exit 1; }
 
@@ -238,7 +285,30 @@ if [ "${1:-}" = "--self-test" ]; then
   printf '%s\n' "$got" | grep -qE '[!=]$' \
     && fail "a file row must carry NO =/! flag (there is no remote to compare)"
 
-  echo "sync-pin-evidence: self-test OK (compact <path> <staged> <remote> <flag> rows both ways; coverage both directions; bounded_rows emits all under budget and >=1 + elision notice over budget; staged-gitlink reads the index + falls back to HEAD)"
+  # evidence_legend: the wording that tells a reader how to READ a `!`. A `!` on a
+  # non-`distro-*` row is EITHER the sync race (benign — measured: an upstream default
+  # branch that merged after the walk, leaving the staged pin an ANCESTOR of the remote
+  # HEAD) OR a real finding (a pin that is not on that default branch at all). The
+  # retired legend claimed a blanket "must be EQUAL", so it called that measured-benign
+  # race a violation; these arms fail if either reading or the discriminating check goes
+  # missing, or if the blanket claim comes back.
+  LEGEND="$(evidence_legend)"
+  printf '%s\n' "$LEGEND" | grep -q 'THE SYNC RACE' \
+    || fail "legend must name the sync race (the benign reading of a non-distro-* !)"
+  printf '%s\n' "$LEGEND" | grep -q 'A REAL FINDING' \
+    || fail "legend must name the real-finding reading (a pin not on the default branch)"
+  printf '%s\n' "$LEGEND" | grep -q 'merge-base --is-ancestor' \
+    || fail "legend must give the check that tells the two readings apart"
+  printf '%s\n' "$LEGEND" | grep -q 'as of the walk that produced this diff' \
+    || fail "legend must scope every pin to the WALK, never to table-generation time"
+  printf '%s\n' "$LEGEND" | grep -q 'must be EQUAL' \
+    && fail "legend must not reinstate the blanket 'must be EQUAL' claim"
+  printf '%s\n' "$LEGEND" | grep -q '(= equal · ! ' \
+    || fail "legend must keep the compact flag line"
+  printf '%s\n' "$LEGEND" | grep -q 'is never `!`-flagged' \
+    || fail "legend must keep the file-row clause"
+
+  echo "sync-pin-evidence: self-test OK (compact <path> <staged> <remote> <flag> rows both ways; coverage both directions; bounded_rows emits all under budget and >=1 + elision notice over budget; staged-gitlink reads the index + falls back to HEAD; evidence_legend states BOTH readings of a non-distro-* ! and the check that tells them apart)"
   exit 0
 fi
 
@@ -252,20 +322,7 @@ MOVED_COUNT=$(printf '%s\n' "$MOVED" | grep -c . || true); MOVED_COUNT=${MOVED_C
 # coverage is decided from the full diff, never from the truncated emission window.
 DISTRO_MOVED=$(printf '%s\n' "$MOVED" | grep -c '^distro-' || true); DISTRO_MOVED=${DISTRO_MOVED:-0}
 
-echo "**Default-branch HEAD, per moved pin.** Every moved path, complete (no"
-echo "elision): the STAGED GITLINK this PR records (\`git rev-parse --verify --quiet"
-echo ":\<path>\` from the index, \`git ls-tree HEAD\` fallback) beside the owning"
-echo "remote default-branch HEAD (\`git ls-remote <url> HEAD\`). \`charly\` and every"
-echo "non-\`distro-*\` repo must be EQUAL; a \`distro-*\` pin tracks charly's own gitlink"
-echo "and is proven by policy B, so it is policy-B pinned rather than required equal"
-echo "here:"
-echo
-echo '```'
-echo 'legend: <path>  <staged-gitlink>  <remote-HEAD>  <flag>'
-echo '        (= equal · ! mismatch; distro-* = policy-B pinned)'
-echo '        (a non-gitlink changed path is rendered `  <path>  <blob>  (file)` — a'
-echo '        plain file has no remote default-branch HEAD to compare, so it carries no flag;'
-echo '        its blob is the index blob this PR stages and is never `!`-flagged.)'
+evidence_legend
 # Render every row to a temp file, THEN bound — never pipe the producer into the bounder.
 # This environment ignores SIGPIPE, so an early-exiting bounder would leave the producer
 # writing to a closed pipe; under `set -o pipefail` those failed writes would abort the
