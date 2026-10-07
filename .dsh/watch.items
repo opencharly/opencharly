@@ -1,0 +1,33 @@
+# watch.items — the PR/issue items a DSH session watches through the
+# harness-INDEPENDENT watcher, `marketplace/scripts/gh_watch.sh`.
+#
+# One item per line: `owner/repo#num`, `owner/repo/pull/num`,
+# `owner/repo/issues/num`, or a full https://github.com/owner/repo/(pull|issues)/num
+# URL. Blank lines and lines starting with `#` are ignored. This is the SAME
+# grammar `.pi/watch.items`, `.reasonix/watch.items` and `.opencode/pr-watch.items`
+# use, so an item list is portable between harnesses.
+#
+# This shipped file is comment-only, so the watcher is INERT by default. Uncomment
+# (or add) a line and arm the watcher as a DSH background job.
+#
+# WHY A BACKGROUND JOB AND NOT A BESPOKE PLUGIN. DSH notifies the session when a
+# BACKGROUND COMMAND COMPLETES, so the neutral watcher's exit IS the wake — the
+# same constraint the `.pi` and `.reasonix` bindings are built around, with no
+# bespoke plugin to write. Arm the narrowest watcher whose wake you act on:
+#
+#   marketplace/scripts/gh_watch.sh --events merged,closed,stall <item> …   # per-item
+#   marketplace/scripts/pr_state_watch.sh <owner>/<repo> <pr>               # one PR's terminal state
+#   scripts/check-bed-watch.sh <bed>                                        # one R10 bed
+#
+# `--auto-rearm` keeps a standing watch alive, and `gh_watch.sh` arms the successor
+# BEFORE it prints a DELTA fire (comment/verdict). A STATE fire (merged/closed/stall)
+# sets WATCH_DONE and deliberately does NOT re-arm: a successor would re-fire it
+# immediately and livelock (a merged PR stays merged, a stalled item stays stalled).
+# So re-arm after a DELTA wake; after a STATE wake, ACT and stop — a STALL is a
+# takeover candidate, never a re-arm. NEVER hand-roll a poll loop, and never leave an
+# acted-on DELTA wake without re-arming.
+#
+# Keep the list SHORT and CURRENT: re-derive it from the scopes actually in
+# flight (a stale list produces false stall alarms).
+#
+# acme/widget#12
