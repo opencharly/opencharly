@@ -52,7 +52,12 @@
 //      `InitializeResult` (MEASURED against reasonix v2.28.0: `name`,
 //      `version`, `stateSchemaVersion`, `protocolVersion:"2"`, string
 //      `tools`; no `capabilities`).                              [discriminating]
-//  11. The PR watcher is bound for reasonix.                          [discriminating]
+//  11. The PR watcher is bound per harness (reasonix, pi, DSH).      [discriminating]
+//  12. The R0 dispatcher table resolves to real skills and the
+//      unrouted-skill count holds under its ratchet.                 [structural]
+//  13. The DSH arm binds the R0 skill corpus (.dsh/skills covers every
+//      marketplace/<family>/skills/<name>, with no name collision across
+//      families) and carries its README signpost.                 [discriminating]
 //
 // Usage:
 //   node scripts/check-harness-config.mjs                 # check this tree
@@ -133,6 +138,9 @@ if (argv.includes("--self-test")) {
     "reasonix.toml",
     ".opencode/package.json",
     ".pi/extensions/charly-gates.ts",
+    ".dsh/skills",
+    ".dsh/watch.items",
+    ".dsh/README.md",
     "marketplace/DISPATCHER.md",
   ];
 
@@ -143,7 +151,9 @@ if (argv.includes("--self-test")) {
     for (const p of surfaces) {
       const dst = join(tree, p);
       mkdirSync(dirname(dst), { recursive: true });
-      cpSync(join(root, p), dst);
+      // `recursive` so a DIRECTORY surface (the DSH `.dsh/skills` farm) stages too; it is a
+      // no-op for the file surfaces. Symlinks within it are copied as symlinks.
+      cpSync(join(root, p), dst, { recursive: true });
       chmodSync(dst, statSync(join(root, p)).mode & 0o777);
     }
     // Give check 8's COVERAGE assertion an independent oracle in the staged tree. The
@@ -232,6 +242,15 @@ if (argv.includes("--self-test")) {
     // (b) RATCHET: deleting a row leaves its skill unrouted, pushing the count past the
     //     ceiling. This is the arm that makes the gate able to fail at all.
     ["marketplace/DISPATCHER.md", (p) => writeFileSync(p, readFileSync(p, "utf8").replace(/^\| .+ \| `\/charly-check:check` \|$\n/m, "")), "dispatcher coverage ratchet holds", "12 (the ratchet — dropping a row must FAIL, or the gate cannot notice coverage loss)"],
+    // The DSH arm has three surfaces, so it needs three mutations plus the
+    // corpus-level collision arm (the property a flat name-keyed farm can lose).
+    [".dsh/watch.items", (p) => rmSync(p), "(the DSH watch binding) exists", "11 (DSH arm — a harness with no watch binding must FAIL)"],
+    [".dsh/README.md", (p) => rmSync(p), "the DSH harness-config signpost", "13 (a missing signpost must FAIL)"],
+    // COVERAGE: dropping one bound skill leaves its corpus SKILL.md unbound.
+    [".dsh/skills", (p) => rmSync(join(p, readdirSync(p).sort()[0]), { recursive: true, force: true }), "is bound by a .dsh/skills", "13 (coverage — an unbound corpus skill must FAIL)"],
+    // COLLISION: a second family offering the same skill directory name. A flat
+    // farm is keyed by name, so this would silently shadow one of the two.
+    ["marketplace", (p) => { const name = readdirSync(join(tree, ".dsh/skills")).sort()[0]; const dst = join(p, "zzz-collision", "skills", name); mkdirSync(dst, { recursive: true }); writeFileSync(join(dst, "SKILL.md"), ""); }, "no two families share", "13 (collision — a duplicate skill name across families must FAIL)"],
   ];
   for (const [surface, mutate, expect, check] of mutations) {
     stage(); // revert everything, then apply exactly this mutation
@@ -607,6 +626,7 @@ ok(existsSync(join(root, ".claude/workflows/audit-deploy-configs.js")), ".claude
 //     `scripts/check-pi-watch.mjs`.
 ok(existsSync(join(root, ".reasonix/watch.items")), ".reasonix/watch.items (the reasonix watch binding) exists");
 ok(existsSync(join(root, ".pi/watch.items")), ".pi/watch.items (the pi watch binding) exists");
+ok(existsSync(join(root, ".dsh/watch.items")), ".dsh/watch.items (the DSH watch binding) exists");
 
 // 12. Dispatcher coverage: the R0 dispatcher table in `marketplace/DISPATCHER.md` is the
 //     routing half of the corpus, emitted one row per `type: skill` entity carrying a
@@ -662,6 +682,61 @@ ok(existsSync(join(root, ".pi/watch.items")), ".pi/watch.items (the pi watch bin
       unrouted.length <= MAX_UNROUTED,
       `dispatcher coverage ratchet holds: ${skills.length - unrouted.length}/${skills.length} corpus ` +
         `skills routed, ${unrouted.length} unrouted (ceiling ${MAX_UNROUTED})`,
+    );
+  }
+}
+
+// 13. The DSH arm. DSH's ONLY native repo-local config home is `<projectRoot>/.dsh/`:
+//     `dsh-skill-filesystem` scans `.dsh/skills` at rank 100 and discovers only depth-1
+//     `<name>/SKILL.md` bundles. The marketplace corpus is THREE levels deep
+//     (`marketplace/<family>/skills/<name>/SKILL.md`), so the corpus is bound as a flat
+//     symlink farm — one entry per skill, following the `marketplace` gitlink, so there is
+//     no generated copy and no second pin. Two assertions, catching different defects:
+//       (a) COVERAGE — every corpus skill has a `.dsh/skills/<name>` entry resolving to a
+//           `SKILL.md`. A newly pinned skill that nobody bound FAILS, so the farm is a
+//           ratchet on the corpus (this mirrors check 8's coverage assertion for reasonix).
+//       (b) COLLISION — no two families may share a skill directory name. The farm is keyed
+//           by NAME, so a collision would silently shadow one of the two skills. Measured
+//           0 across the pinned corpus today; the assertion keeps it that way.
+//     Plus the signpost that documents the arm.
+//     DISCRIMINATING: `main` carries no `.dsh/` at all, so this fails there.
+{
+  ok(existsSync(join(root, ".dsh/README.md")), ".dsh/README.md (the DSH harness-config signpost) exists");
+
+  const mkt = join(root, "marketplace");
+  if (!existsSync(mkt)) {
+    pass("marketplace/ not checked out — DSH skill-corpus binding check skipped");
+  } else {
+    const corpus = [];
+    for (const fam of readdirSync(mkt, { withFileTypes: true })) {
+      if (!fam.isDirectory()) continue;
+      const sk = join(mkt, fam.name, "skills");
+      if (!existsSync(sk)) continue;
+      for (const s of readdirSync(sk, { withFileTypes: true })) {
+        if (s.isDirectory() && existsSync(join(sk, s.name, "SKILL.md"))) {
+          corpus.push({ family: fam.name, name: s.name });
+        }
+      }
+    }
+
+    // (b) collision — a flat, name-keyed farm cannot represent two skills with one name.
+    const seen = new Map();
+    const collisions = [];
+    for (const c of corpus) {
+      if (seen.has(c.name)) collisions.push(`${c.name} (${seen.get(c.name)} + ${c.family})`);
+      else seen.set(c.name, c.family);
+    }
+    ok(
+      collisions.length === 0,
+      `no two families share a marketplace skill directory name (collisions: ${collisions.join(", ") || "none"})`,
+    );
+
+    // (a) coverage — every corpus skill is bound.
+    const missing = corpus.filter((c) => !existsSync(join(root, ".dsh/skills", c.name, "SKILL.md")));
+    ok(
+      missing.length === 0,
+      `every marketplace/<family>/skills/<name>/SKILL.md is bound by a .dsh/skills/<name> entry ` +
+        `(${corpus.length} corpus skills, missing: ${missing.map((m) => `${m.family}:${m.name}`).join(", ") || "none"})`,
     );
   }
 }

@@ -51,6 +51,7 @@ const SURFACES = [
   "README.md",
   ".opencode/instructions.md",
   ".pi/extensions/charly-gates.ts",
+  ".dsh/README.md",
 ];
 
 // A root-file reference: an optional path prefix, then a basename whose stem starts with
