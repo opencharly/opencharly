@@ -30,8 +30,13 @@ DSH's patch precedence is bundle layers → profile `cordis.patch.yml` → **hom
 following cannot be bound from this repo and live in the machine's `$DSH_HOME` profile, landed
 producer-first in `opencharly/pod-dsh`:
 
-- the `dsh-hooks-claude-code` mount that runs the git gates (its commands reach the repo's
-  `.claude/hooks/*` through the per-hook `CLAUDE_PROJECT_DIR`);
+- the `dsh-hooks-claude-code` mount that runs the git gates. **Measured (RDD, 2026-10-07): a
+  profile-root `insert` of this bridge composes and imports but never applies** — it injects the
+  `shell` service, which in the `web` profile exists only INSIDE the agent preset composition
+  (`dsh-terminal-bash` at preset scope) and is absent in `headless`, so no hook fires (four
+  candidate matchers plus a `SessionStart` hook were all silent, and a deliberately MALFORMED
+  `configPath` produced no warning). The mount therefore has to live in the agent preset scope,
+  not at the profile root — see the ledger's assumption-1 entry before wiring it;
 - the `dsh-mcp-client` row for the `deepwiki` server (DSH does **not** read the root
   `.mcp.json`);
 - SOUL injection;

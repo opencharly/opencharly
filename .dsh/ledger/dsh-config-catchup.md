@@ -98,17 +98,23 @@ config home, no mirrors, no parity gate) therefore bounds the umbrella's DSH arm
 
 These decide the design, so they get a time-boxed live probe before any wiring is authored.
 
-1. **The hook bridge is process-scoped; `dsh web` is one long-lived multi-workspace process.**
-   `dsh-hooks-claude-code` reads ONE config at startup, and a relative `configPath` resolves
-   from the *process launch dir* — the web service's unit has **no `WorkingDirectory=`**, so
-   the launch dir is `$HOME`, not the repo. `${CLAUDE_PROJECT_DIR}` is substituted at parse
-   time, but the env var `CLAUDE_PROJECT_DIR` is also *set per hook process* to the session
-   workspace. So whether a repo-local `.dsh/hooks.json` can ever be the web gate config is
-   **unproven** — the likely honest answer is a host-level `hooks.json` whose commands reach
-   the repo via `$CLAUDE_PROJECT_DIR/.claude/hooks/*.sh` (shell-expanded per call, not
-   `${…}` parse-time). **Probe:** one live headless session in this repo with the bridge
-   mounted, a prohibited `git push origin main`, and the hook's reason observed; plus a
-   two-workspace web probe proving which workspace `CLAUDE_PROJECT_DIR` names per call.
+1. **The hook bridge — PROBED and REFUTED at the profile root (2026-10-07).** The plan's
+   "likely honest answer" (a host-level `hooks.json` whose commands reach the repo via
+   `$CLAUDE_PROJECT_DIR/.claude/hooks/*.sh`) does **not** work. An isolated `$DSH_HOME` copy with
+   a profile-root `insert` of `@deepseek-ai/dsh-hooks-claude-code` composes the row (`--dump-config`
+   L491) and imports the module (`--dump-config-schema` complete, rc=0), but **no hook ever
+   fires**. Evidence, retained: a `main` push (`git push origin main --dry-run`) ran UNBLOCKED (no
+   `pre-push-gate BLOCKED:` line); four PreToolUse matchers (`bash`, `Bash`, `.*`, `shell`) plus a
+   `SessionStart` hook all produced no invocation; and a deliberately MALFORMED `configPath`
+   produced no "cannot read" warning — so the bridge's `apply()` is never reached, not mis-scoped.
+   **Mechanism:** the bridge injects `["shell", "sessionProjections"]`; in the `web` profile the
+   `shell` provider (`dsh-terminal-bash`) sits INSIDE the agent preset composition (dump
+   L1120-1152) with no profile-root `shell` row, and `headless` has none at all — so the
+   root-scope injection cannot be satisfied and the plugin is skipped silently (the composition
+   still lists the row). **Direction (unproven):** mount the bridge inside the agent preset scope,
+   where `shell` lives — as `dsh-persona` / `skill-filesystem` / `agent-instructions` already are —
+   then re-probe the block. The per-workspace `CLAUDE_PROJECT_DIR` question is moot until the
+   bridge applies at all.
 2. **Wake reliability.** DSH has no per-harness "watcher line → user turn" plugin today. Prove
    whether an in-session background job's completion notice actually wakes the session, and
    whether a durable `dsh-schedule` reminder does, before choosing the R10/GitHub binding.
@@ -132,11 +138,14 @@ These decide the design, so they get a time-boxed live probe before any wiring i
       entry resolves on disk (checked); the fresh-session catalog read is owed — see the live
       probe in W4/W5, and do not claim it before it is pasted.
 
-### W2 — the git-gate binding (hooks doctrine, R6)
-- [ ] Author the host-side mount (documented in `.dsh/README.md`, landed in `pod-dsh`) and
-      reuse the existing gate scripts — no duplicated gate logic (R3).
-- [ ] Resolve assumption 1 first; if a repo-local `.dsh/hooks.json` cannot bind in the web
-      process, say so here explicitly and bind the host config to `$CLAUDE_PROJECT_DIR/.claude/hooks/*`.
+### W2 — the git-gate binding (hooks doctrine, R6) — BLOCKED on the preset-scope mount
+- [x] Assumption 1 settled by probe (above): a profile-root `insert` of the bridge composes and
+      imports but never applies, because its injected `shell` service is preset-scoped in `web`
+      and absent in `headless`. A `main` push ran unblocked; four matchers plus a `SessionStart`
+      hook were silent; a malformed `configPath` warned nothing.
+- [ ] Mount `dsh-hooks-claude-code` INSIDE the agent preset composition (where `shell` lives) and
+      re-probe; reuse the existing gate scripts — no duplicated gate logic (R3). The profile-root
+      `$CLAUDE_PROJECT_DIR` fallback this ledger first proposed is REFUTED, not deferred.
 - [ ] Prove live: a prohibited `git push origin main` / force-push is blocked in a live DSH
       session with the hook's reason retained; a legitimate command passes.
 
@@ -149,7 +158,7 @@ These decide the design, so they get a time-boxed live probe before any wiring i
 - [x] Wired into the `charly.yml` verify list. NOTE, corrected from this ledger's first draft:
       `check-harness-config.mjs` is NOT in `hooks/pre-commit` (no harness-config arm is), so the
       arm rides the existing `charly task verify` step. The gate's own `--self-test` was wired
-      NOWHERE — the 24 mutations (including these four) were dead coverage — so this change also
+      NOWHERE — the 30 mutations (including these four) were dead coverage — so this change also
       adds `node scripts/check-harness-config.mjs --self-test` to the verify list, mirroring the
       `check-root-refs.mjs` check + `--self-test` pair.
 - [x] R1 finding fixed in the same change: the gate's header comment enumerated checks 1–11
@@ -231,7 +240,7 @@ Anomalies surfaced while implementing; each is fixed or recorded, none parked:
    without updating the header; missed control: nothing reads the header; blast radius: a reader
    auditing the gate's coverage under-counts it. Root fix: the header now lists 11–13.
 2. **The gate's `--self-test` was wired NOWHERE.** `grep -rn 'check-harness-config.mjs
-   --self-test'` matched only the script's own usage comment, so all 24 mutations were dead
+   --self-test'` matched only the script's own usage comment, so all 30 mutations were dead
    coverage. Mechanism: the self-test is invoked by hand; missed control: no step ran it. Root
    fix: the `charly.yml` verify list now runs it (measured 1.7 s, rc=0).
 3. **The self-test's `stage()` assumed file surfaces.** Adding the `.dsh/skills` DIRECTORY made
@@ -250,8 +259,11 @@ immediately and livelock. The durable `dsh-schedule` reminder stays the cold-sta
 exactly this discipline in the pi binding (a STALL STATE fire was being re-armed in a ~2 s hot
 loop). The `.dsh` watch docs carry the post-merge corrected rule, not the pre-#415 phrasing.
 
-**Assumption 1 (the process-scoped hook bridge) remains OPEN** — it needs the isolated-`$DSH_HOME`
-probe before the `pod-dsh` wiring is authored. Assumption 3 (push vs poll) is untouched.
+**Assumption 1 (the hook bridge) — PROBED, REFUTED at the profile root, and the direction
+changed** (detailed above): the mount must live in the agent preset scope, because the bridge's
+injected `shell` service is preset-scoped in `web` and absent in `headless`. The `pod-dsh` wiring
+is BLOCKED on that preset-scope mount, not on a per-workspace path question. Assumption 3 (push vs
+poll) is untouched.
 
 ## Status
 
