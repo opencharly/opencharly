@@ -158,7 +158,7 @@ These decide the design, so they get a time-boxed live probe before any wiring i
 - [x] Wired into the `charly.yml` verify list. NOTE, corrected from this ledger's first draft:
       `check-harness-config.mjs` is NOT in `hooks/pre-commit` (no harness-config arm is), so the
       arm rides the existing `charly task verify` step. The gate's own `--self-test` was wired
-      NOWHERE — the 30 mutations (including these four) were dead coverage — so this change also
+      NOWHERE — the 31 mutations (including these four) were dead coverage — so this change also
       adds `node scripts/check-harness-config.mjs --self-test` to the verify list, mirroring the
       `check-root-refs.mjs` check + `--self-test` pair.
 - [x] R1 finding fixed in the same change: the gate's header comment enumerated checks 1–11
@@ -239,10 +239,21 @@ Anomalies surfaced while implementing; each is fixed or recorded, none parked:
    1–11 in its header while the code already carried check 12 (#382). Mechanism: a check added
    without updating the header; missed control: nothing reads the header; blast radius: a reader
    auditing the gate's coverage under-counts it. Root fix: the header now lists 11–13.
-2. **The gate's `--self-test` was wired NOWHERE.** `grep -rn 'check-harness-config.mjs
-   --self-test'` matched only the script's own usage comment, so all 30 mutations were dead
-   coverage. Mechanism: the self-test is invoked by hand; missed control: no step ran it. Root
-   fix: the `charly.yml` verify list now runs it (measured 1.7 s, rc=0).
+2. **The gate's `--self-test` was wired NOWHERE.** Outside CHANGELOG history, no file ran it —
+   only the script's own usage comment mentioned it. Measured, before and after:
+
+   ```
+   $ git grep -n -e "check-harness-config.mjs --self-test" 5045b02 -- ':!charly' ':!CHANGELOG'
+   5045b02:scripts/check-harness-config.mjs:60://   node scripts/check-harness-config.mjs --self-test     # prove the split above
+   $ git grep -n -e "check-harness-config.mjs --self-test" HEAD -- ':!charly' ':!CHANGELOG'
+   HEAD:.dsh/ledger/dsh-config-catchup.md:162:      adds `node scripts/check-harness-config.mjs --self-test` to the verify list, mirroring the
+   HEAD:charly.yml:279:        command: node scripts/check-harness-config.mjs --self-test
+   HEAD:scripts/check-harness-config.mjs:65://   node scripts/check-harness-config.mjs --self-test     # prove the split above
+   ```
+
+   So all 31 mutations (27 existing + the 4 this change adds) were dead coverage before it.
+   Mechanism: the self-test is invoked by hand; missed control: no step ran it. Root fix: the
+   `charly.yml` verify list now runs it (measured 1.7 s, rc=0).
 3. **The self-test's `stage()` assumed file surfaces.** Adding the `.dsh/skills` DIRECTORY made
    `cpSync` fail `ERR_FS_EISDIR` (recursive not enabled). Root fix: `cpSync(..., { recursive:
    true })`, a no-op for files; the self-test is green with all four new mutations caught.
