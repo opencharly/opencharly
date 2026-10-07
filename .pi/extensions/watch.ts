@@ -49,7 +49,7 @@ const BED_WATCH_REL = "scripts/check-bed-watch.sh";
 /** The pi GitHub watch list (comment-only = inert). */
 const ITEMS_REL = ".pi/watch.items";
 
-/** The watcher's poll floor and stall window (`gh_watch.sh` refuses a sub-60s interval). */
+/** The watcher's poll floor and stall window (`gh_watch.sh` refuses a sub-300s interval). */
 const INTERVAL = "60";
 const STALL_MIN = "60";
 /**

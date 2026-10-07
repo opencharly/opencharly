@@ -158,7 +158,7 @@ pin.
   watch STOPS (never spins, never reports it as "no event"). The remaining quota is
   read FREE from the batched response's `x-ratelimit-remaining` header, so a
   near-exhausted quota backs off VISIBLY without an extra call.
-- **`POLL_FLOOR = 60`** — a sub-60s interval is refused; `clampInterval` enforces it.
+- **`POLL_FLOOR = 300`** — a sub-300s interval is refused; `clampInterval` enforces it.
 
 **Execution is ASYNC + ABORTABLE (R1 fix, measured 2026-09-28; preserved by the
 native rewrite).** `coord_watch` runs a LONG-LIVED poll loop, so a blocking spawn
