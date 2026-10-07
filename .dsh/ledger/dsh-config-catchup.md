@@ -121,6 +121,26 @@ These decide the design, so they get a time-boxed live probe before any wiring i
    step is a preset-scope mount spike instrumented with the activation audit and the session
    events, and that needs operator direction before more DSH home wiring is authored. The
    per-workspace `CLAUDE_PROJECT_DIR` question is moot until the bridge applies at all.
+
+   **Candidates EXCLUDED by probe (do not re-propose):**
+
+   - **config shape** — verified against the package's own `lib/types/index.d.ts`:
+     `{configPath, pluginRoot?, projectDir?, defaultTimeoutMs?, stderrSummaryMaxChars?}`, and
+     `configPath` is present in the shipped bundle; exactly what was supplied.
+   - **matcher subject** — matcher-less `UserPromptSubmit` and `Stop` groups (which the bridge's
+     own code treats as matcher-free) were silent too, so it is not a matcher spelling.
+   - **patch layer** — a documented `insert` applied (the `dsh-base` README's
+     `dsh-tool-str-replace-editor` row appeared in a headless tool list).
+   - **service availability** — `sessionProjections` is provided by
+     `@deepseek-ai/dsh-session-projection`, `shell` by `@deepseek-ai/dsh-shell` (through
+     `dsh-bash-sandbox`) at the profile ROOT; and a malformed `configPath` warned nothing.
+   - **listener scope** — `headless` has NO `dsh-agent-preset` rows at all, so the
+     preset-scope theory cannot explain its silence (only `web` has presets).
+
+   What remains is DSH-side: the bridge's exported `apply(ctx, config)` is reached and registers
+   hooks, yet none of the four event classes probed ever fires — an upstream question for
+   `deepseek-ai/deepseek-harness`, not a home patch this repo can land. W2/W6/W7 stay blocked on
+   that (or on a native replacement for the gate hook).
 2. **Wake reliability.** DSH has no per-harness "watcher line → user turn" plugin today. Prove
    whether an in-session background job's completion notice actually wakes the session, and
    whether a durable `dsh-schedule` reminder does, before choosing the R10/GitHub binding.
@@ -292,14 +312,16 @@ per-workspace path question. Assumption 3 (push vs poll) is untouched.
       no DSH arm; 40 families / 351 skills / 0 name collisions; no hook-bridge or `mcp-client`
       row active).
 - [x] This ledger created (`.dsh/ledger/dsh-config-catchup.md`).
-- [x] Umbrella leg: W1, W3, the watch binding (W5), and the issue/worktree half of W8 — gated
-      green on the changed tree; PR **opencharly/opencharly#417**.
+- [x] Umbrella leg: W1, W3, the watch binding (W5), and the issue/worktree half of W8 —
+      **MERGED** as opencharly/opencharly#417 (merge `090b13f`, tag `v2026.280.0727`), after two
+      BLOCK rounds whose findings 2/3 were fixed and whose block 1 (the T4 maintainer sign-off)
+      was posted under the maintainer account.
 - [x] W4's mechanism and W5's live arm: the background-job wake is proven, and the watcher was
-      armed on the real PR and woke on its BLOCK.
-- [ ] PR #417 landing: two validator rounds BLOCKed; rounds 1–2 findings 2/3 are fixed and the
-      body is re-finalized per head. The remaining blocker is the **T4 maintainer sign-off**
-      (round 2, block 1), which the operator owns. No agent merges.
-- [ ] W2 / W6 / W7 (host-level, `pod-dsh`): **BLOCKED** on the preset-scope
-      `dsh-hooks-claude-code` mount — assumption 1 was refuted at the profile root; needs
-      operator direction before wiring.
-- [ ] Producer-first `pod-dsh` leg after that direction.
+      armed on the real PR — it woke on the BLOCK and again on the MERGE.
+- [x] Landing close-out: CHANGELOG `2026.280.0727` written by `tag-on-merge`; tag
+      `v2026.280.0727` → the merge commit `090b13f`; #416 closed with the merge link.
+- [ ] W2 / W6 / W7 (host-level wiring): **BLOCKED and moved to opencharly/opencharly#418** — a
+      profile-root `dsh-hooks-claude-code` mount composes and imports but never fires a hook, and
+      the six candidate causes are each excluded by their own probe (above). The cause is upstream
+      in the bridge package, not a home patch this repo can land.
+- [ ] Producer-first `pod-dsh` leg, blocked on #418.
