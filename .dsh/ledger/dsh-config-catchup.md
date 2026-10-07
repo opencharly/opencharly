@@ -166,20 +166,22 @@ These decide the design, so they get a time-boxed live probe before any wiring i
       file being edited; the header now lists 11–13.
 
 ### W4 — R10 bed monitoring binding
-- [ ] Bind the harness-neutral `scripts/check-bed-watch.sh` (one
-      `BED <bed> <class> rc=… ok=… log=… summary=…` line per bed; exit 3 = prereq SKIP; has
-      `--self-test`). Never treat a quiet bed as done.
-- [ ] Mechanism, DSH-native first: background job + completion notice and/or durable
-      `dsh-schedule` reminder — decided by the assumption-2 probe, with the measurement
-      recorded here.
+- [x] Wake mechanism decided and PROVEN: DSH notifies the session when a background job
+      finishes (observed repeatedly in this session; jobs exited 0/1/2 and each completion was
+      delivered as a notification). Bind the harness-neutral `scripts/check-bed-watch.sh` as a
+      background job — its exit IS the wake, so no bespoke plugin is needed. The durable
+      `dsh-schedule` reminder stays the cold-start fallback.
+- [ ] Arm `check-bed-watch.sh` on a real bed and retain the wake line
+      (`BED <bed> <class> rc=… ok=… log=… summary=…`). Never treat a quiet bed as done.
 
 ### W5 — GitHub comments + validator verdicts
 - [x] `.dsh/watch.items` shipped inert by default (comment-only), carrying the portable
       grammar and the "keep short and current" note the pi/reasonix files carry; asserted by
       gate check 11 (DSH arm) and its mutation.
-- [ ] Arm the binding in a live session: `gh_watch.sh` as a DSH background job on a real PR,
-      with the wake observed. The wake MECHANISM is already proven (assumption 2, below); the
-      end-to-end arm is still owed.
+- [x] The binding ARMED live on a real PR: `marketplace/scripts/pr_state_watch.sh
+      opencharly/opencharly 417` ran as a DSH background job and its completion delivered the
+      wake — `BLOCKED  verdict BLOCK at head afef0cca`, `WATCH EXIT=2`. The watcher's exit IS
+      the session wake; re-armed after each wake per the re-arm rule.
 - [ ] Bind `marketplace/scripts/gh_watch.sh` (per-item comments / verdicts / merged / closed /
       stall) and `pr_state_watch.sh` (terminal PR state); `pr_watch_many.sh` for a cross-repo
       batch. These are the ONE canonical implementation — arm, do not reimplement.
@@ -282,7 +284,14 @@ poll) is untouched.
       no DSH arm; 40 families / 351 skills / 0 name collisions; no hook-bridge or `mcp-client`
       row active).
 - [x] This ledger created (`.dsh/ledger/dsh-config-catchup.md`).
-- [x] Umbrella leg: W1, W3, the `.dsh/watch.items` half of W5, and the issue/worktree half of
-      W8 — gated green on the changed tree.
-- [ ] W2 (blocked on assumption 1), W4, the live-arm half of W5, W6, W7 (host-level, `pod-dsh`),
-      and the PR landing.
+- [x] Umbrella leg: W1, W3, the watch binding (W5), and the issue/worktree half of W8 — gated
+      green on the changed tree; PR **opencharly/opencharly#417**.
+- [x] W4's mechanism and W5's live arm: the background-job wake is proven, and the watcher was
+      armed on the real PR and woke on its BLOCK.
+- [ ] PR #417 landing: two validator rounds BLOCKed; rounds 1–2 findings 2/3 are fixed and the
+      body is re-finalized per head. The remaining blocker is the **T4 maintainer sign-off**
+      (round 2, block 1), which the operator owns. No agent merges.
+- [ ] W2 / W6 / W7 (host-level, `pod-dsh`): **BLOCKED** on the preset-scope
+      `dsh-hooks-claude-code` mount — assumption 1 was refuted at the profile root; needs
+      operator direction before wiring.
+- [ ] Producer-first `pod-dsh` leg after that direction.
