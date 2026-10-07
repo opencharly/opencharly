@@ -25,7 +25,11 @@
 //     three verbs, so a tree that grants none of them satisfies them vacuously. They are a
 //     regression guard on the positive arm, not evidence of this branch.
 // `--self-test` proves that split by EXECUTING it rather than asserting it: every
-// mutation must turn the gate RED carrying the mutated check's own message.
+// mutation must turn the gate RED carrying the mutated check's own message. A surface that
+// is not materialized in THIS checkout — `marketplace/DISPATCHER.md`, absent in every
+// session worktree (Part II rule 2) and in any CI checkout without submodules — is skipped
+// with a NOTICE, the SAME precondition the gate itself guards at checks 8/12/13; the report
+// then names how many arms were live instead of aborting on an ENOENT.
 //
 // Checks:
 //   1. Every harness JSON parses (and is an object).                        [structural]
@@ -149,12 +153,22 @@ if (argv.includes("--self-test")) {
   const stage = () => {
     rmSync(tree, { recursive: true, force: true });
     for (const p of surfaces) {
+      const src = join(root, p);
+      // A SUBMODULE surface (`marketplace/DISPATCHER.md`) is ABSENT in a checkout that did not
+      // materialize its submodules — the session-worktree layout Part II rule 2 REQUIRES, and
+      // any CI checkout without submodules. Skip it in the SAME voice the gate itself already
+      // uses for this exact case (checks 8/12/13: "not checked out — <check> skipped") instead
+      // of letting cpSync throw ENOENT out of the self-test and abort every remaining arm.
+      if (!existsSync(src)) {
+        console.log(`  NOTICE  surface ${p} is not materialized in this checkout — not staged`);
+        continue;
+      }
       const dst = join(tree, p);
       mkdirSync(dirname(dst), { recursive: true });
       // `recursive` so a DIRECTORY surface (the DSH `.dsh/skills` farm) stages too; it is a
       // no-op for the file surfaces. Symlinks within it are copied as symlinks.
-      cpSync(join(root, p), dst, { recursive: true });
-      chmodSync(dst, statSync(join(root, p)).mode & 0o777);
+      cpSync(src, dst, { recursive: true });
+      chmodSync(dst, statSync(src).mode & 0o777);
     }
     // Give check 8's COVERAGE assertion an independent oracle in the staged tree. The
     // expected layout is materialized from the PRISTINE `reasonix.toml` in `root` (whose
@@ -238,23 +252,34 @@ if (argv.includes("--self-test")) {
     // Check 12 has TWO arms that catch different defects, so it needs two mutations.
     // (a) INVARIANT: a row pointing at a skill that does not exist (a dangling
     //     `/charly-<family>:<skill>` ref — the docs build treats that as a hard error).
-    ["marketplace/DISPATCHER.md", (p) => writeFileSync(p, readFileSync(p, "utf8").replace(/^\| .+ \| `\/charly-internals:git-workflow` \|$/m, "| a dropped row | `/charly-internals:no-such-skill` |")), "every DISPATCHER.md row resolves", "12 (a row must resolve to a real skill — the dangling-ref arm)"],
+    ["marketplace/DISPATCHER.md", (p) => writeFileSync(p, readFileSync(p, "utf8").replace(/^\| .+ \| `\/charly-internals:git-workflow` \|$/m, "| a dropped row | `/charly-internals:no-such-skill` |")), "every DISPATCHER.md row resolves", "12 (a row must resolve to a real skill — the dangling-ref arm)", true],
     // (b) RATCHET: deleting a row leaves its skill unrouted, pushing the count past the
     //     ceiling. This is the arm that makes the gate able to fail at all.
-    ["marketplace/DISPATCHER.md", (p) => writeFileSync(p, readFileSync(p, "utf8").replace(/^\| .+ \| `\/charly-check:check` \|$\n/m, "")), "dispatcher coverage ratchet holds", "12 (the ratchet — dropping a row must FAIL, or the gate cannot notice coverage loss)"],
+    ["marketplace/DISPATCHER.md", (p) => writeFileSync(p, readFileSync(p, "utf8").replace(/^\| .+ \| `\/charly-check:check` \|$\n/m, "")), "dispatcher coverage ratchet holds", "12 (the ratchet — dropping a row must FAIL, or the gate cannot notice coverage loss)", true],
     // The DSH arm has three surfaces, so it needs three mutations plus the
     // corpus-level collision arm (the property a flat name-keyed farm can lose).
     [".dsh/watch.items", (p) => rmSync(p), "(the DSH watch binding) exists", "11 (DSH arm — a harness with no watch binding must FAIL)"],
     [".dsh/README.md", (p) => rmSync(p), "the DSH harness-config signpost", "13 (a missing signpost must FAIL)"],
     // COVERAGE: dropping one bound skill leaves its corpus SKILL.md unbound.
-    [".dsh/skills", (p) => rmSync(join(p, readdirSync(p).sort()[0]), { recursive: true, force: true }), "is bound by a .dsh/skills", "13 (coverage — an unbound corpus skill must FAIL)"],
+    [".dsh/skills", (p) => rmSync(join(p, readdirSync(p).sort()[0]), { recursive: true, force: true }), "is bound by a .dsh/skills", "13 (coverage — an unbound corpus skill must FAIL)", true],
     // COLLISION: a second family offering the same skill directory name. A flat
     // farm is keyed by name, so this would silently shadow one of the two.
-    ["marketplace", (p) => { const name = readdirSync(join(tree, ".dsh/skills")).sort()[0]; const dst = join(p, "zzz-collision", "skills", name); mkdirSync(dst, { recursive: true }); writeFileSync(join(dst, "SKILL.md"), ""); }, "no two families share", "13 (collision — a duplicate skill name across families must FAIL)"],
+    ["marketplace", (p) => { const name = readdirSync(join(tree, ".dsh/skills")).sort()[0]; const dst = join(p, "zzz-collision", "skills", name); mkdirSync(dst, { recursive: true }); writeFileSync(join(dst, "SKILL.md"), ""); }, "no two families share", "13 (collision — a duplicate skill name across families must FAIL)", true],
   ];
-  for (const [surface, mutate, expect, check] of mutations) {
+  // The four corpus-measured arms (check 12's two, check 13's coverage + collision) are
+  // measured against `marketplace/DISPATCHER.md`, so they can only be exercised where that
+  // submodule is materialized — the same precondition the GATE guards at checks 12 and 13.
+  const corpus = existsSync(join(root, "marketplace/DISPATCHER.md"));
+  let skipped = 0;
+  for (const [surface, mutate, expect, check, needsCorpus] of mutations) {
     stage(); // revert everything, then apply exactly this mutation
-    mutate(join(tree, surface));
+    const target = join(tree, surface);
+    if (!existsSync(target) || (needsCorpus && !corpus)) {
+      console.log(`  NOTICE  check ${check}: ${surface} is not materialized in this checkout — arm skipped`);
+      skipped += 1;
+      continue;
+    }
+    mutate(target);
     const r = runGate();
     if (r.code === 0) bad(`check ${check}: mutating ${surface} did NOT make the gate fail`);
     else if (!r.out.includes(expect)) bad(`check ${check}: mutating ${surface} failed, but without "${expect}":\n${r.out}`);
@@ -266,7 +291,7 @@ if (argv.includes("--self-test")) {
     console.error(`check-harness-config --self-test: ${failures} FAILURE(S)`);
     process.exit(1);
   }
-  console.log("check-harness-config --self-test: OK (every check is live; the structural ones are named in the header)");
+  console.log(`check-harness-config --self-test: OK (${mutations.length - skipped}/${mutations.length} arms live${skipped ? `; ${skipped} skipped — surface not materialized in this checkout` : ""}; the structural ones are named in the header)`);
   process.exit(0);
 }
 
