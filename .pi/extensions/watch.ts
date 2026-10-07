@@ -86,8 +86,14 @@ interface GhState {
   items: string[];
   /** Items that fired a terminal STATE (MERGED/CLOSED) — never re-armed. */
   done: Set<string>;
-  /** item -> epoch ms of the last delivered STALL (suppresses a re-armed STATE re-fire). */
-  stall: Map<string, number>;
+  /**
+   * Items that fired a STATE fire (STALL) — a one-shot arm must NOT re-arm for them. `gh_watch.sh`
+   * sets `WATCH_DONE=1` on every STATE fire (MERGED/CLOSED/STALL) and deliberately does not
+   * re-arm, because "the successor would IMMEDIATELY re-fire it (a merged PR stays merged; a
+   * stalled item stays stalled), which would livelock and burn the API budget". MERGED/CLOSED
+   * land in `done`; STALL must land here, or the extension's own re-arm bypasses that guard and
+   * hot-loops at ~2s on a stale item. Cleared on restart. */
+  stalled: Set<string>;
   fastFailures: number;
   startedAt: number;
   lastErr: string;
@@ -98,7 +104,7 @@ const gh: GhState = {
   gen: 0,
   items: [],
   done: new Set(),
-  stall: new Map(),
+  stalled: new Set(),
   fastFailures: 0,
   startedAt: 0,
   lastErr: "",
@@ -213,10 +219,9 @@ function handleGhLine(pi: ExtensionAPI, line: string): void {
   const item = watcherItem(line);
   if (ev === "MERGED" || ev === "CLOSED") gh.done.add(item);
   if (ev === "STALL") {
-    const now = Date.now();
-    const last = gh.stall.get(item) ?? 0;
-    if (now - last < Number(STALL_MIN) * 60_000) return; // a re-armed STATE fire, not a new one
-    gh.stall.set(item, now);
+    // STATE fire: mirror `gh_watch.sh`'s WATCH_DONE — a stalled item is NOT re-armed, so it can
+    // never emit a second STALL. The former delivery-dedup map is gone with that guarantee (R5).
+    gh.stalled.add(item);
   }
   deliver(pi, `WATCHER ${line.trim()}`);
 }
@@ -224,7 +229,7 @@ function handleGhLine(pi: ExtensionAPI, line: string): void {
 /** Arm (or re-arm) the one-shot `gh_watch.sh` over the items not yet terminal. */
 function armGh(pi: ExtensionAPI): void {
   if (stopping) return;
-  const active = gh.items.filter((i) => !gh.done.has(i));
+  const active = gh.items.filter((i) => !gh.done.has(i) && !gh.stalled.has(i));
   if (active.length === 0) return;
 
   const script = join(projectRoot, GH_WATCH_REL);
@@ -317,7 +322,7 @@ async function restartGh(pi: ExtensionAPI): Promise<string> {
   }
   gh.items = await readItems();
   gh.done.clear();
-  gh.stall.clear();
+  gh.stalled.clear();
   gh.fastFailures = 0;
   armGh(pi);
   return gh.items.length === 0
@@ -454,7 +459,8 @@ export default function (pi: ExtensionAPI) {
         `GitHub:   ${gh.items.length === 0 ? "inert (.pi/watch.items empty/comment-only)" : `${gh.items.length} item(s)`}`,
         `  items:  ${gh.items.join(", ") || "-"}`,
         `  done:   ${[...gh.done].join(", ") || "-"}`,
-        `  armed:  ${gh.proc ? "yes (this session's arm is tracked)" : "no — this session tracks no arm"}`,
+        `  stalled: ${[...gh.stalled].join(", ") || "-"} (STATE fire — not re-armed; restart to re-watch)`,
+        `  armed:  ${gh.proc ? "yes (this session's arm is tracked)" : gh.rearmTimer ? "re-arm pending" : "no — this session tracks no arm"}`,
         `beds:     ${beds.size === 0 ? "none" : [...beds.keys()].join(", ")}`,
       ];
       return { content: [{ type: "text", text: lines.join("\n") }], details: {} };
