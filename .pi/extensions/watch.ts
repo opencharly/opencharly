@@ -86,8 +86,6 @@ interface GhState {
   items: string[];
   /** Items that fired a terminal STATE (MERGED/CLOSED) — never re-armed. */
   done: Set<string>;
-  /** item -> epoch ms of the last delivered STALL (suppresses a re-armed STATE re-fire). */
-  stall: Map<string, number>;
   /**
    * Items that fired a STATE fire (STALL) — a one-shot arm must NOT re-arm for them. `gh_watch.sh`
    * sets `WATCH_DONE=1` on every STATE fire (MERGED/CLOSED/STALL) and deliberately does not
@@ -106,7 +104,6 @@ const gh: GhState = {
   gen: 0,
   items: [],
   done: new Set(),
-  stall: new Map(),
   stalled: new Set(),
   fastFailures: 0,
   startedAt: 0,
@@ -222,12 +219,9 @@ function handleGhLine(pi: ExtensionAPI, line: string): void {
   const item = watcherItem(line);
   if (ev === "MERGED" || ev === "CLOSED") gh.done.add(item);
   if (ev === "STALL") {
-    // STATE fire: mirror `gh_watch.sh`'s WATCH_DONE — do NOT re-arm (a successor re-fires it).
+    // STATE fire: mirror `gh_watch.sh`'s WATCH_DONE — a stalled item is NOT re-armed, so it can
+    // never emit a second STALL. The former delivery-dedup map is gone with that guarantee (R5).
     gh.stalled.add(item);
-    const now = Date.now();
-    const last = gh.stall.get(item) ?? 0;
-    if (now - last < Number(STALL_MIN) * 60_000) return; // a re-armed STATE fire, not a new one
-    gh.stall.set(item, now);
   }
   deliver(pi, `WATCHER ${line.trim()}`);
 }
@@ -328,7 +322,6 @@ async function restartGh(pi: ExtensionAPI): Promise<string> {
   }
   gh.items = await readItems();
   gh.done.clear();
-  gh.stall.clear();
   gh.stalled.clear();
   gh.fastFailures = 0;
   armGh(pi);
