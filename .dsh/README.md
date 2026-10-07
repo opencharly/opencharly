@@ -31,12 +31,12 @@ following cannot be bound from this repo and live in the machine's `$DSH_HOME` p
 producer-first in `opencharly/pod-dsh`:
 
 - the `dsh-hooks-claude-code` mount that runs the git gates. **Measured (RDD, 2026-10-07): a
-  profile-root `insert` of this bridge composes and imports but never applies** — it injects the
-  `shell` service, which in the `web` profile exists only INSIDE the agent preset composition
-  (`dsh-terminal-bash` at preset scope) and is absent in `headless`, so no hook fires (four
-  candidate matchers plus a `SessionStart` hook were all silent, and a deliberately MALFORMED
-  `configPath` produced no warning). The mount therefore has to live in the agent preset scope,
-  not at the profile root — see the ledger's assumption-1 entry before wiring it;
+  profile-root `insert` of this bridge composes and imports but never applies** — no hook fires
+  (four candidate matchers plus a `SessionStart` hook were silent), it reads no config (a
+  deliberately MALFORMED `configPath` warned nothing), and its decompressed session log emits no
+  `hook/invoked` event, while the patch layer and loud activation diagnostics were both ruled out
+  by their own probes. The next step is a preset-scope mount spike; see the ledger's assumption-1
+  entry before wiring it;
 - the `dsh-mcp-client` row for the `deepwiki` server (DSH does **not** read the root
   `.mcp.json`);
 - SOUL injection;

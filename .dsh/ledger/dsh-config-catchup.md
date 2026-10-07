@@ -100,21 +100,27 @@ These decide the design, so they get a time-boxed live probe before any wiring i
 
 1. **The hook bridge — PROBED and REFUTED at the profile root (2026-10-07).** The plan's
    "likely honest answer" (a host-level `hooks.json` whose commands reach the repo via
-   `$CLAUDE_PROJECT_DIR/.claude/hooks/*.sh`) does **not** work. An isolated `$DSH_HOME` copy with
-   a profile-root `insert` of `@deepseek-ai/dsh-hooks-claude-code` composes the row (`--dump-config`
-   L491) and imports the module (`--dump-config-schema` complete, rc=0), but **no hook ever
-   fires**. Evidence, retained: a `main` push (`git push origin main --dry-run`) ran UNBLOCKED (no
+   `$CLAUDE_PROJECT_DIR/.claude/hooks/*.sh`) does **not** work. An isolated `$DSH_HOME` copy with a
+   profile-root `insert` of `@deepseek-ai/dsh-hooks-claude-code` composes the row (`--dump-config`)
+   and imports the module (`--dump-config-schema` complete, rc=0), but **no hook ever fires**.
+   Evidence, retained: a `main` push (`git push origin main --dry-run`) ran UNBLOCKED (no
    `pre-push-gate BLOCKED:` line); four PreToolUse matchers (`bash`, `Bash`, `.*`, `shell`) plus a
    `SessionStart` hook all produced no invocation; and a deliberately MALFORMED `configPath`
-   produced no "cannot read" warning — so the bridge's `apply()` is never reached, not mis-scoped.
-   **Mechanism:** the bridge injects `["shell", "sessionProjections"]`; in the `web` profile the
-   `shell` provider (`dsh-terminal-bash`) sits INSIDE the agent preset composition (dump
-   L1120-1152) with no profile-root `shell` row, and `headless` has none at all — so the
-   root-scope injection cannot be satisfied and the plugin is skipped silently (the composition
-   still lists the row). **Direction (unproven):** mount the bridge inside the agent preset scope,
-   where `shell` lives — as `dsh-persona` / `skill-filesystem` / `agent-instructions` already are —
-   then re-probe the block. The per-workspace `CLAUDE_PROJECT_DIR` question is moot until the
-   bridge applies at all.
+   produced no "cannot read" warning — so the bridge's `apply()` is never reached.
+   **What was ruled OUT, with its own probe:** the patch layer works (the `dsh-base` README's own
+   `insert` of `@deepseek-ai/dsh-tool-str-replace-editor` DID appear in a headless session's tool
+   list), and activation failures ARE loud when they happen (a spike that inserted `dsh-shell` +
+   `dsh-bash-local` alongside the composed `bash-sandbox` produced the session's FIRST diagnostic:
+   `dsh: warning: 3 entries did not activate` / `bash-sandbox: Error: service "shell" has been
+   registered at <ShellExecutor>`). So the bridge's silence is neither a hidden crash nor an absent
+   `shell`: `@deepseek-ai/dsh-shell` is the seam and `dsh-bash-sandbox` (profile ROOT, web dump
+   L243) provides `shell` through ShellExecutor, yet the bridge still reads no config and emits no
+   `hook/invoked` event — the decompressed session log (20 lines) has zero hook/matcher mentions.
+   **Direction (unproven):** the bridge appears to sit permanently PENDING on an activation
+   condition its docs do not expose (its `inject` is `["shell", "sessionProjections"]`); the next
+   step is a preset-scope mount spike instrumented with the activation audit and the session
+   events, and that needs operator direction before more DSH home wiring is authored. The
+   per-workspace `CLAUDE_PROJECT_DIR` question is moot until the bridge applies at all.
 2. **Wake reliability.** DSH has no per-harness "watcher line → user turn" plugin today. Prove
    whether an in-session background job's completion notice actually wakes the session, and
    whether a durable `dsh-schedule` reminder does, before choosing the R10/GitHub binding.
@@ -138,14 +144,16 @@ These decide the design, so they get a time-boxed live probe before any wiring i
       entry resolves on disk (checked); the fresh-session catalog read is owed — see the live
       probe in W4/W5, and do not claim it before it is pasted.
 
-### W2 — the git-gate binding (hooks doctrine, R6) — BLOCKED on the preset-scope mount
+### W2 — the git-gate binding (hooks doctrine, R6) — BLOCKED on the bridge's activation condition
 - [x] Assumption 1 settled by probe (above): a profile-root `insert` of the bridge composes and
-      imports but never applies, because its injected `shell` service is preset-scoped in `web`
-      and absent in `headless`. A `main` push ran unblocked; four matchers plus a `SessionStart`
-      hook were silent; a malformed `configPath` warned nothing.
-- [ ] Mount `dsh-hooks-claude-code` INSIDE the agent preset composition (where `shell` lives) and
-      re-probe; reuse the existing gate scripts — no duplicated gate logic (R3). The profile-root
-      `$CLAUDE_PROJECT_DIR` fallback this ledger first proposed is REFUTED, not deferred.
+      imports but never applies. A `main` push ran unblocked; four matchers plus a `SessionStart`
+      hook were silent; a malformed `configPath` warned nothing; the decompressed session log has
+      NO hook event; a documented `insert` DID apply (so the patch layer is fine); and a real
+      activation failure DID warn loudly (so silence means "never applied").
+- [ ] Instrument the bridge's activation (the `dsh-hooks-claude-code` row is configured but stays
+      pending) and try a preset-scope mount; reuse the existing gate scripts — no duplicated gate
+      logic (R3). The profile-root `$CLAUDE_PROJECT_DIR` fallback this ledger first proposed is
+      REFUTED, not deferred. Needs operator direction — RDD: the discovery changed the contract.
 - [ ] Prove live: a prohibited `git push origin main` / force-push is blocked in a live DSH
       session with the hook's reason retained; a legitimate command passes.
 
@@ -273,10 +281,10 @@ exactly this discipline in the pi binding (a STALL STATE fire was being re-armed
 loop). The `.dsh` watch docs carry the post-merge corrected rule, not the pre-#415 phrasing.
 
 **Assumption 1 (the hook bridge) — PROBED, REFUTED at the profile root, and the direction
-changed** (detailed above): the mount must live in the agent preset scope, because the bridge's
-injected `shell` service is preset-scoped in `web` and absent in `headless`. The `pod-dsh` wiring
-is BLOCKED on that preset-scope mount, not on a per-workspace path question. Assumption 3 (push vs
-poll) is untouched.
+changed** (detailed above): the bridge composes and imports but never applies — it reads no config
+and emits no hook event, while the patch layer and loud activation diagnostics were each ruled out
+by their own probe. The `pod-dsh` wiring is BLOCKED on that activation condition, not on a
+per-workspace path question. Assumption 3 (push vs poll) is untouched.
 
 ## Status
 
