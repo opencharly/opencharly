@@ -56,7 +56,7 @@ open high-risk assumptions (RDD probes), and the work items.
 
 ## Watch discipline
 
-Arm ONE watcher per scope; never hand-roll a poll loop; poll floor 60s; prefer terminal
+Arm ONE watcher per scope; never hand-roll a poll loop; poll floor 300s; prefer terminal
 events plus the `stall` alarm over per-comment events.
 
 Re-arming follows the watcher's own WATCH_DONE rule: a **DELTA** fire (comment/verdict) arms a

@@ -61,7 +61,7 @@ import { execFile } from "node:child_process";
 export const DEFAULT_API = "https://api.github.com";
 
 /** The poll-interval FLOOR, seconds — sub-floor intervals are refused. */
-export const POLL_FLOOR = 60;
+export const POLL_FLOOR = 300;
 
 /** Default poll cadence, seconds (the floor). */
 export const DEFAULT_INTERVAL_S = POLL_FLOOR;

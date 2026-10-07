@@ -296,7 +296,7 @@ if (mod) {
   ok([DEFAULT_INTERVAL_S, DEFAULT_STALL_MIN, RATE_FLOOR, BACKOFF_FACTOR, MAX_BACKOFF_S, POLL_FLOOR].every((n) => typeof n === "number" && n > 0), "R4: the rate-limit + poll policy constants are named numbers (RATE_FLOOR/BACKOFF_FACTOR/MAX_BACKOFF_S/POLL_FLOOR)");
   ok(typeof DEFAULT_WATCH_TIMEOUT_S === "number" && DEFAULT_WATCH_TIMEOUT_S > 0, "R4: coord_watch is BOUNDED by default (DEFAULT_WATCH_TIMEOUT_S > 0)");
   eq(clampInterval(5), POLL_FLOOR, "R4: clampInterval raises a sub-floor interval to POLL_FLOOR");
-  eq(clampInterval(120), 120, "R4: clampInterval keeps a valid interval");
+  eq(clampInterval(600), 600, "R4: clampInterval keeps a valid interval");
 
   // --- Layer B2: the tool EXECUTE paths against a REAL local HTTP server ------
   // No `globalThis.fetch` mock: a real `http.Server` serves BOTH the REST routes and
@@ -397,7 +397,7 @@ if (mod) {
       mockFor = (call) => ({ merged: call >= 2, runStatus: "completed", runConclusion: "success", commentCount: 0, commentBody: null });
       reqs.length = 0;
       gqlCalls = 0;
-      const watch = await tools.coord_watch.execute({ items: ["acme/widget#1", "acme/widget#2", "acme/widget#3"], events: "merged", interval: 60, timeout: 20 });
+      const watch = await tools.coord_watch.execute({ items: ["acme/widget#1", "acme/widget#2", "acme/widget#3"], events: "merged", interval: 300, timeout: 20 });
       eq(watch.content, "MERGED   acme/widget#1  (unblocked)", "coord_watch.execute polls batched GraphQL and returns the wake line");
       const gql = reqs.filter((r) => r.url === "/graphql");
       eq(gql.length, 2, `calls-per-poll = 1 for 3 items (seed + 1 poll = 2 requests for 3 aliased items; got ${gql.length})`);
@@ -408,7 +408,7 @@ if (mod) {
       mockFor = () => ({ merged: false, runStatus: "completed", runConclusion: "failure", commentCount: 1, commentBody: "## Review — BLOCK\n\n### Blocks\n- x" });
       reqs.length = 0;
       gqlCalls = 0;
-      const armed = await tools.coord_watch.execute({ items: ["acme/widget#1"], events: "comment,verdict", interval: 60, timeout: 3600 });
+      const armed = await tools.coord_watch.execute({ items: ["acme/widget#1"], events: "comment,verdict", interval: 300, timeout: 3600 });
       ok(/^ARM {6}acme\/widget#1 {2}state=open {2}run=charly\/pr-validator\/COMPLETED\/failure {2}review=BLOCK /.test(armed.content), `coord_watch ARM report fires on a pre-existing BLOCK (got ${JSON.stringify(armed.content)})`);
       eq(reqs.filter((r) => r.url === "/graphql").length, 1, "the ARM report costs exactly ONE batched call (no poll loop)");
 
@@ -417,13 +417,13 @@ if (mod) {
       mockFor = () => ({ merged: false, runStatus: "queued", runConclusion: "", commentCount: 0, commentBody: null });
       reqs.length = 0;
       gqlCalls = 0;
-      const queued = await tools.coord_watch.execute({ items: ["acme/widget#1"], events: "verdict", interval: 60, timeout: 3600 });
+      const queued = await tools.coord_watch.execute({ items: ["acme/widget#1"], events: "verdict", interval: 300, timeout: 3600 });
       ok(/^ARM {6}acme\/widget#1 {2}state=open {2}run=charly\/pr-validator\/QUEUED {2}review=none /.test(queued.content), `an in-flight QUEUED run is surfaced at ARM with its status (got ${JSON.stringify(queued.content)})`);
       eq(reqs.filter((r) => r.url === "/graphql").length, 1, "an in-flight run at arm also costs exactly ONE batched call");
 
       mockFor = () => ({ merged: false, runStatus: "in_progress", runConclusion: "", commentCount: 0, commentBody: null });
       gqlCalls = 0;
-      const inflight = await tools.coord_watch.execute({ items: ["acme/widget#1"], events: "verdict", interval: 60, timeout: 3600 });
+      const inflight = await tools.coord_watch.execute({ items: ["acme/widget#1"], events: "verdict", interval: 300, timeout: 3600 });
       ok(/run=charly\/pr-validator\/IN_PROGRESS/.test(inflight.content), "an IN_PROGRESS run is reported with its status (no conclusion yet)");
 
       // A run STATUS TRANSITION fires `verdict` (not only completion): the arm seed sees
@@ -432,7 +432,7 @@ if (mod) {
       mockFor = (call) => ({ merged: false, runStatus: call <= 1 ? "completed" : "in_progress", runConclusion: "success", commentCount: 0, commentBody: null });
       reqs.length = 0;
       gqlCalls = 0;
-      const transition = await tools.coord_watch.execute({ items: ["acme/widget#1"], events: "verdict", interval: 60, timeout: 20 });
+      const transition = await tools.coord_watch.execute({ items: ["acme/widget#1"], events: "verdict", interval: 300, timeout: 20 });
       ok(/VERDICT {2}acme\/widget#1 {2}charly\/pr-validator {2}IN_PROGRESS {2}https:\/\//.test(transition.content), `verdict fires on a COMPLETED→IN_PROGRESS status transition (got ${JSON.stringify(transition.content)})`);
 
       const missing = await tools.coord_watch.execute({});
@@ -441,9 +441,9 @@ if (mod) {
       const badVerb = await tools.coord_comment.execute({ verb: "NOPE", item: "acme/widget#1" });
       ok(/invalid verb/.test(badVerb.content), "coord_comment.execute rejects a verb outside the closed set");
 
-      // Poll-floor: a sub-60s interval is REFUSED (never hammer).
+      // Poll-floor: a sub-300s interval is REFUSED (never hammer).
       const subfloor = await tools.coord_watch.execute({ items: ["acme/widget#1"], events: "merged", interval: 5, timeout: 10 });
-      ok(/below the 60s floor/.test(subfloor.content), "coord_watch refuses a sub-60s interval (POLL_FLOOR)");
+      ok(/below the 300s floor/.test(subfloor.content), "coord_watch refuses a sub-300s interval (POLL_FLOOR)");
 
       // RATE LIMIT FAILS HARD: a 403 with `x-ratelimit-remaining: 0` surfaces the
       // distinct RATE-LIMITED message (never a silent retry / "no event"), and the
@@ -461,7 +461,7 @@ if (mod) {
       const savedBase = process.env.GITHUB_API_URL;
       process.env.GITHUB_API_URL = `http://127.0.0.1:${rl.address().port}`;
       try {
-        const limited = await tools.coord_watch.execute({ items: ["acme/widget#1"], events: "merged", interval: 60, timeout: 20 });
+        const limited = await tools.coord_watch.execute({ items: ["acme/widget#1"], events: "merged", interval: 300, timeout: 20 });
         ok(/RATE-LIMITED/.test(limited.content), "a 403 rate-limit surfaces a distinct RATE-LIMITED message (fail hard)");
         ok(!/^MERGED|TIMEOUT/.test(limited.content), "the rate limit is NOT misreported as a wake line or a timeout");
         eq(reqs.length, 1, `the rate limit does NOT spin — exactly 1 request (got ${reqs.length})`);
@@ -640,7 +640,7 @@ if (process.env.LIVE_OPENCODE === "1") {
       captures.length = 0;
       const wprompt =
         "Run this exact snippet ONCE with the execute tool and report the exact line it returns:\n\n" +
-        'const r = await tools.coord_watch({ items: ["acme/widget#1"], events: "merged", interval: 60, timeout: 20 });\nreturn r;';
+        'const r = await tools.coord_watch({ items: ["acme/widget#1"], events: "merged", interval: 300, timeout: 20 });\nreturn r;';
       let wtext = "";
       for (let attempt = 1; attempt <= 3 && !/MERGED\s+acme\/widget#1/.test(wtext); attempt++) {
         const wout = runTool(wprompt);

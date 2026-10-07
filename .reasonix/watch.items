@@ -13,8 +13,8 @@
 #
 # WHY A SHELL WATCHER AND NOT A PLUGIN. The watcher is deliberately NOT a
 # reasonix code extension: `gh_watch.sh` is harness-independent, already carries
-# the rate-limit discipline (one batched GraphQL poll per minute, a free
-# /rate_limit guard, a 60s poll floor), the stall alarm, and `--auto-rearm`.
+# the rate-limit discipline (one batched GraphQL poll per interval - 300s by default - a free
+# /rate_limit guard, a 300s poll floor), the stall alarm, and `--auto-rearm`.
 # Wrapping it in a sidecar would duplicate that logic in a second place. The
 # SessionStart hook below only ARMS it.
 #
