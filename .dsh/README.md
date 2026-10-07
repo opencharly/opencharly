@@ -40,7 +40,16 @@ producer-first in `opencharly/pod-dsh`:
 - the `dsh-mcp-client` row for the `deepwiki` server (DSH does **not** read the root
   `.mcp.json`);
 - SOUL injection;
-- the R10 / GitHub watch arming that turns a watcher's exit into a session wake.
+- session-start **auto-arm** of `.dsh/watch.items`. Correction (measured 2026-10-07): the watch
+  itself is NOT host config — DSH notifies the session when a background job finishes, so a
+  canonical watcher armed as a background job already turns its own exit into the wake. The
+  genuinely missing piece is only the *auto*-arm at session start (pi's
+  `.pi/extensions/watch.ts` equivalent), which is plugin scope.
+
+The native DSH plugin that would close the git-gate, SOUL and auto-arm gaps is requested as
+opencharly/opencharly#420. Operator directive (2026-10-07): the fix lands **only as an
+opencharly-org DSH plugin** — nothing is posted to any non-org repo, and a host patch cannot fix
+the bridge.
 
 See `ledger/dsh-config-catchup.md` for the measured evidence, the open high-risk assumptions
 (RDD probes), and the work items.
