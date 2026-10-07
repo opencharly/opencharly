@@ -529,7 +529,11 @@ export default function (pi: ExtensionAPI) {
     label: "Remove Worktree",
     description:
       "Remove a previously created worktree and its feat branch. " +
-      "Use this after the PR lands and the branch is merged.",
+      "Use this after the PR lands and the branch is merged. " +
+      "The branch is deleted only on a patch-id containment proof against origin/main — " +
+      "which is true after a SQUASH merge, unlike an ancestry test; an unlanded branch is " +
+      "KEPT and reported, never silently dropped. Fails (never prints success) when the " +
+      "worktree is still there afterwards.",
     promptSnippet: "Remove a worktree and its branch",
     parameters: Type.Object({
       slug: Type.String({
@@ -543,43 +547,117 @@ export default function (pi: ExtensionAPI) {
       const branch = `feat/${slug}`;
 
       const errors: string[] = [];
+      const kept: string[] = [];
 
-      // Remove worktree
-      try {
-        await pi.exec("git", ["worktree", "remove", worktreePath], { cwd: ctx.cwd });
-      } catch (err) {
-        // Try force removal
-        try {
-          await pi.exec("git", ["worktree", "remove", "--force", worktreePath], { cwd: ctx.cwd });
-        } catch (err2) {
-          errors.push(`worktree remove: ${err2 instanceof Error ? err2.message : String(err2)}`);
-        }
+      // `pi.exec` RESOLVES on a non-zero exit — pi 1.0.4's `exec` delegates to
+      // `execCommand`, whose promise resolves `{stdout, stderr, code, killed}` in EVERY
+      // branch, including its own internal `.catch` (`resolve({…, code: 1 })`). It never
+      // rejects, so a `try/catch` around it can never observe a failed command: `code` is
+      // the only failure signal there is. Every recovery step below is therefore driven by
+      // the RESULT, never by a rejection (opencharly/opencharly#410 — the `catch`-gated
+      // `--force` retry was unreachable, so a refused removal printed success).
+      const run = (args: string[]) => pi.exec("git", args, { cwd: ctx.cwd });
+      const why = (r: { stdout: string; stderr: string; code: number }) =>
+        (r.stderr || r.stdout).trim() || `exit ${r.code}`;
+
+      // Remove the worktree, escalating to `--force` on the ORDINARY refusal: a worktree
+      // holding modified or untracked files. A single `--force` is deliberate — a LOCKED
+      // worktree needs `-f -f`, and that override is the operator's call, not this tool's.
+      let removalFailure: string | null = null;
+      const first = await run(["worktree", "remove", worktreePath]);
+      if (first.code !== 0) {
+        const forced = await run(["worktree", "remove", "--force", worktreePath]);
+        if (forced.code !== 0) removalFailure = why(forced);
       }
 
-      // Delete branch (only if it's fully merged)
-      try {
-        const merged = await pi.exec("git", ["branch", "--merged", "origin/main"], { cwd: ctx.cwd });
-        if (merged.stdout.includes(branch)) {
-          await pi.exec("git", ["branch", "-d", branch], { cwd: ctx.cwd });
+      // The EFFECT, observed rather than assumed: the worktree is gone only when its
+      // directory is absent AND `git worktree list` no longer registers it. MEASURED: those
+      // two halves can disagree — `--force` over a non-writable subdirectory exits 255 having
+      // already DROPPED the administrative entry while the directory survives. The report
+      // therefore carries the OBSERVED effect, so what it says happened is what happened.
+      const real = (p: string) => {
+        try {
+          return realpathSync(p);
+        } catch {
+          return p;
         }
-      } catch {
-        // Branch may already be deleted
+      };
+      const listed = await run(["worktree", "list", "--porcelain"]);
+      const registered = listed.stdout
+        .split("\n")
+        .filter((l) => l.startsWith("worktree "))
+        .map((l) => real(l.slice("worktree ".length).trim()));
+      const removedEffect = !existsSync(worktreePath) && !registered.includes(real(worktreePath));
+      if (removalFailure !== null) errors.push(`worktree ${worktreePath}: ${removalFailure}`);
+
+      // Delete the branch only on a proof of CONTENT containment. The retired test
+      // (`git branch --merged origin/main`) proved ANCESTRY, which the org's squash landing
+      // destroys: after a squash merge the branch's commits are not ancestors of
+      // origin/main, so the test never fired and every landed `feat/` branch leaked. `git
+      // cherry` compares PATCH IDs, so a squashed commit still reads as contained upstream
+      // (`- <sha>`), and `-D` — not `-d`, which re-runs the ancestry test this replaces — is
+      // what that proof licenses.
+      let branchState: "deleted" | "absent" | "kept" = "absent";
+      const head = await run(["rev-parse", "--verify", "--quiet", `refs/heads/${branch}`]);
+      if (head.code === 0) {
+        const cherry = await run(["cherry", "origin/main", branch]);
+        const unique = cherry.stdout
+          .split("\n")
+          .map((l) => l.trim())
+          .filter(Boolean);
+        if (cherry.code !== 0) {
+          branchState = "kept";
+          kept.push(`branch ${branch}: \`git cherry origin/main ${branch}\` failed (${why(cherry)})`);
+        } else if (unique.some((l) => !l.startsWith("-"))) {
+          branchState = "kept";
+          kept.push(
+            `branch ${branch}: ${unique.filter((l) => !l.startsWith("-")).length} commit(s) NOT contained in ` +
+              `origin/main (delete it with \`git branch -D ${branch}\` once it is landed)`,
+          );
+        } else {
+          const del = await run(["branch", "-D", branch]);
+          if (del.code !== 0) errors.push(`branch ${branch}: ${why(del)}`);
+          else branchState = "deleted";
+        }
       }
 
       // Remove from tracking
       const idx = _worktrees.findIndex((w) => w.slug === slug);
       if (idx !== -1) _worktrees.splice(idx, 1);
 
+      const branchClause =
+        branchState === "deleted"
+          ? ` and branch ${branch} deleted (patch-contained in origin/main)`
+          : branchState === "absent"
+            ? ` (branch ${branch} did not exist)`
+            : `; branch ${branch} KEPT — not proven contained in origin/main`;
+
       if (errors.length > 0) {
         return {
-          content: [{ type: "text", text: `Worktree removal completed with warnings:\n${errors.join("\n")}` }],
-          details: { slug, errors },
+          content: [
+            {
+              type: "text",
+              text:
+                `Worktree removal FAILED (removed=${removedEffect}):\n` +
+                `${errors.map((e) => `  - ${e}`).join("\n")}` +
+                (kept.length > 0 ? `\nAlso:\n${kept.map((e) => `  - ${e}`).join("\n")}` : ""),
+            },
+          ],
+          details: { slug, path: worktreePath, branch, removed: removedEffect, branchState, errors, kept },
+          isError: true,
         };
       }
 
       return {
-        content: [{ type: "text", text: `Worktree ${worktreePath} and branch ${branch} removed.` }],
-        details: { slug, path: worktreePath, branch },
+        content: [
+          {
+            type: "text",
+            text:
+              `Worktree ${worktreePath} removed${branchClause}.` +
+              (kept.length > 0 ? `\nNote:\n${kept.map((e) => `  - ${e}`).join("\n")}` : ""),
+          },
+        ],
+        details: { slug, path: worktreePath, branch, removed: removedEffect, branchState, kept },
       };
     },
   });
