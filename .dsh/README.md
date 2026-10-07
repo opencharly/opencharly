@@ -8,7 +8,7 @@ nowhere else. This directory is DSH's repo-local arm, alongside `.claude/`, `.op
 |---|---|
 | `skills/` | **The R0 skill-corpus binding.** DSH's `dsh-skill-filesystem` scans `<projectRoot>/.dsh/skills` at rank 100 and discovers only depth-1 `<name>/SKILL.md` bundles. The `opencharly/marketplace` corpus is three levels deep (`marketplace/<family>/skills/<name>/SKILL.md`), so each corpus skill is bound as a flat symlink `<name> -> ../../marketplace/<family>/skills/<name>`. The farm follows the `marketplace` gitlink — no generated copy and no second pin to keep in sync. |
 | `watch.items` | The portable watch item list (`owner/repo#num`, the same grammar `.pi/watch.items` and `.reasonix/watch.items` use). Inert by default; see the file header for how a DSH background job arms it. |
-| `ledger/` | `dsh-config-catchup.md` — the durable catch-up ledger (R1 findings, gaps, work items, RDD probes). |
+| `ledger/` | The local catch-up ledger — `dsh-config-catchup.md` once a session has written it (R1 findings, gaps, work items, RDD probes). **The content is git-ignored**: the DIRECTORY is tracked via `.gitkeep`, so a fresh clone has the home but no stale ledger. Same class as the root `plan/` dir. |
 | `README.md` | This signpost. |
 
 ## Skill addressing
@@ -40,10 +40,19 @@ producer-first in `opencharly/pod-dsh`:
 - the `dsh-mcp-client` row for the `deepwiki` server (DSH does **not** read the root
   `.mcp.json`);
 - SOUL injection;
-- the R10 / GitHub watch arming that turns a watcher's exit into a session wake.
+- session-start **auto-arm** of `.dsh/watch.items`. Correction (measured 2026-10-07): the watch
+  itself is NOT host config — DSH notifies the session when a background job finishes, so a
+  canonical watcher armed as a background job already turns its own exit into the wake. The
+  genuinely missing piece is only the *auto*-arm at session start (pi's
+  `.pi/extensions/watch.ts` equivalent), which is plugin scope.
 
-See `ledger/dsh-config-catchup.md` for the measured evidence, the open high-risk assumptions
-(RDD probes), and the work items.
+The native DSH plugin that would close the git-gate, SOUL and auto-arm gaps is requested as
+opencharly/opencharly#420. Operator directive (2026-10-07): the fix lands **only as an
+opencharly-org DSH plugin** — nothing is posted to any non-org repo, and a host patch cannot fix
+the bridge.
+
+See `ledger/dsh-config-catchup.md` — a LOCAL, git-ignored file — for the measured evidence, the
+open high-risk assumptions (RDD probes), and the work items.
 
 ## Watch discipline
 

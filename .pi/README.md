@@ -20,7 +20,7 @@ startup warnings (`pi --approve`).
 | `watch.items` | The pi GitHub watch list — comment-only, so the watcher is INERT until armed. |
 | `extensions/question.ts` | The `question` tool — asks the operator and BLOCKS for the answer (builtin `ctx.ui.select`/`input`; a headless session gets a clear no-UI result). |
 | `APPEND_SYSTEM.md` | The pi↔rulebook binding (skill addressing, gates, watcher discipline, coordination, plan discipline). |
-| `ledger/` | The config catch-up ledger — **tracked** content, not a gitignored scratch dir. If `git add` ever reports `.pi/ledger` as ignored, the clone's `.git/info/exclude` carries an unanchored `ledger/` rule shadowing it: anchor that rule to `/ledger/` (the root session ledger, mirroring `plan/`). |
+| `ledger/` | The config catch-up ledger — **the DIRECTORY is tracked** (via `.gitkeep`) and its **CONTENT is git-ignored**, so a fresh clone has the home but no stale ledger. Same class as the root `plan/` dir. Operator directive 2026-10-07, reversing the earlier tracked-content rule. |
 
 ## Session worktrees — cheap by construction
 
