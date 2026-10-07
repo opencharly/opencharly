@@ -8,7 +8,7 @@ nowhere else. This directory is DSH's repo-local arm, alongside `.claude/`, `.op
 |---|---|
 | `skills/` | **The R0 skill-corpus binding.** DSH's `dsh-skill-filesystem` scans `<projectRoot>/.dsh/skills` at rank 100 and discovers only depth-1 `<name>/SKILL.md` bundles. The `opencharly/marketplace` corpus is three levels deep (`marketplace/<family>/skills/<name>/SKILL.md`), so each corpus skill is bound as a flat symlink `<name> -> ../../marketplace/<family>/skills/<name>`. The farm follows the `marketplace` gitlink — no generated copy and no second pin to keep in sync. |
 | `watch.items` | The portable watch item list (`owner/repo#num`, the same grammar `.pi/watch.items` and `.reasonix/watch.items` use). Inert by default; see the file header for how a DSH background job arms it. |
-| `ledger/` | `dsh-config-catchup.md` — the durable catch-up ledger (R1 findings, gaps, work items, RDD probes). |
+| `ledger/` | The local catch-up ledger — `dsh-config-catchup.md` once a session has written it (R1 findings, gaps, work items, RDD probes). **The content is git-ignored**: the DIRECTORY is tracked via `.gitkeep`, so a fresh clone has the home but no stale ledger. Same class as the root `plan/` dir. |
 | `README.md` | This signpost. |
 
 ## Skill addressing
@@ -51,8 +51,8 @@ opencharly/opencharly#420. Operator directive (2026-10-07): the fix lands **only
 opencharly-org DSH plugin** — nothing is posted to any non-org repo, and a host patch cannot fix
 the bridge.
 
-See `ledger/dsh-config-catchup.md` for the measured evidence, the open high-risk assumptions
-(RDD probes), and the work items.
+See `ledger/dsh-config-catchup.md` — a LOCAL, git-ignored file — for the measured evidence, the
+open high-risk assumptions (RDD probes), and the work items.
 
 ## Watch discipline
 

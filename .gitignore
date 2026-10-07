@@ -17,6 +17,14 @@
 plan/*
 !plan/.gitkeep
 
+# ledgers — per-session agent working state, never committed; the DIRECTORY is kept via
+# `.gitkeep` so a fresh clone has the home but no stale ledger. Same class as `plan/` above,
+# and the model the opencode tracker already documents for `.opencode/ledger/<session>.json`.
+# A directory whose CONTENT is ignored is invisible to git, so the `.gitkeep` is what keeps
+# the directory itself in the repo.
+**/ledger/*
+!**/ledger/.gitkeep
+
 # Local-state classes — per-machine / per-run ephemera that live IN the project
 # tree but must never be version-controlled. Modelled on charly/.gitignore (the
 # same class list; charly's parity gate checks only the 5 byte-identical shared

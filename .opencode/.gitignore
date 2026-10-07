@@ -10,7 +10,11 @@ coord.conf
 # The session ledger (`tracker_ledger`) — the durable file that STANDS IN for the
 # todo primitive OpenCode V2 does not expose (AGENTS.md rule 9). Session-scoped,
 # per-machine, never committed: it holds live in-flight state, not project content.
-ledger/
+# The DIRECTORY is kept via `.gitkeep` (operator directive 2026-10-07): ignore the
+# CONTENT, never the directory — an excluded directory cannot be re-included, so a
+# bare `ledger/` would make the tracked home impossible.
+ledger/*
+!ledger/.gitkeep
 
 # package.json IS committed: it pins the @opencode-ai/plugin TYPE version used by
 # the plugins in plugins/. The plugins import types only (`import type`), so the
