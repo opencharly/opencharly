@@ -43,7 +43,13 @@ See `ledger/dsh-config-catchup.md` for the measured evidence, the open high-risk
 ## Watch discipline
 
 Arm ONE watcher per scope; never hand-roll a poll loop; poll floor 60s; prefer terminal
-events plus the `stall` alarm over per-comment events; re-arm after every wake.
+events plus the `stall` alarm over per-comment events.
+
+Re-arming follows the watcher's own WATCH_DONE rule: a **DELTA** fire (comment/verdict) arms a
+successor BEFORE it prints, so the agent acts and the watch keeps running; a **STATE** fire
+(merged/closed/**stall**) sets `WATCH_DONE` and must **not** be re-armed — a successor would
+re-fire it immediately and livelock (a merged PR stays merged, a stalled item stays stalled).
+A STALL is a takeover candidate, not a re-arm.
 
 - `marketplace/scripts/gh_watch.sh <owner>/<repo>#<n>` — comments / verdicts / merged /
   closed / stall.

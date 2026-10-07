@@ -241,8 +241,14 @@ Anomalies surfaced while implementing; each is fixed or recorded, none parked:
 **Assumption 2 (wake reliability) is PROVEN, not assumed.** DSH notifies the session when a
 background job finishes — observed four times in this session (jobs exited 0/1/2 and each
 completion arrived as a notification). The watch binding therefore needs no bespoke plugin:
-arm the neutral watcher as a background job; its exit IS the wake, and the re-arm invariant is
-the agent's. The durable `dsh-schedule` reminder stays the cold-start fallback.
+arm the neutral watcher as a background job; its exit IS the wake. Re-arming follows the
+watcher's own `WATCH_DONE` rule: a DELTA fire (comment/verdict) arms its successor BEFORE it
+prints; a STATE fire (merged/closed/stall) must NOT be re-armed — a successor would re-fire it
+immediately and livelock. The durable `dsh-schedule` reminder stays the cold-start fallback.
+
+**Reconciled mid-cutover (#415).** PR #415 landed while this branch was in flight; it fixed
+exactly this discipline in the pi binding (a STALL STATE fire was being re-armed in a ~2 s hot
+loop). The `.dsh` watch docs carry the post-merge corrected rule, not the pre-#415 phrasing.
 
 **Assumption 1 (the process-scoped hook bridge) remains OPEN** — it needs the isolated-`$DSH_HOME`
 probe before the `pod-dsh` wiring is authored. Assumption 3 (push vs poll) is untouched.
