@@ -11,6 +11,27 @@ nowhere else. This directory is DSH's repo-local arm, alongside `.claude/`, `.op
 | `ledger/` | The local catch-up ledger — `dsh-config-catchup.md` once a session has written it (R1 findings, gaps, work items, RDD probes). **The content is git-ignored**: the DIRECTORY is tracked via `.gitkeep`, so a fresh clone has the home but no stale ledger. Same class as the root `plan/` dir. |
 | `README.md` | This signpost. |
 
+## Goal budget — the round cap is a per-goal decision (RCA, 2026-10-08)
+
+A goal's round budget is the `maxGoalRounds` passed at creation. **Measured from the harness
+source:** `dsh-goal`'s `Config.defaultMaxGoalRounds` is **256**, and `dsh-goal-round-driver`
+blocks **hard** the moment `roundsStarted >= maxGoalRounds` — `{code: "round-limit"}`, phase
+`blocked`, goal **disarmed** — with **no warning phase before the cap**. There is no project
+patch file (below), so the only bindable knobs are the per-goal parameter and the host
+profile's `defaultMaxGoalRounds`.
+
+**RCA (measured on this repo's own campaign).** A 76-issue, multi-cluster campaign was created
+with `max_goal_rounds: 40` — 6.4× *below* the harness default — for an objective needing
+roughly 150–250 owner turns. It reached `round-limit` and disarmed mid-flight with the operator
+never asked: **the cap was mis-sized by the agent, and no rule required asking before it ran
+out.** The work itself was unharmed (the ledger and hand-over survived), and the root fix is
+guidance rather than configuration — the mechanism already had a sane default.
+
+**The rule (AGENTS.md Part II rule 10):** size the cap to the objective's projected owner-turns
+and never below the default without a stated reason; once a goal passes ~80% of its budget with
+work remaining, **STOP and ask the operator** how to proceed rather than narrating an ending.
+Sizing a campaign: one owner turn per PR per verdict round, plus one bed per runtime change.
+
 ## Skill addressing
 
 A skill is `/charly-<family>:<skill>` in the rulebook; in DSH it is the catalog entry the

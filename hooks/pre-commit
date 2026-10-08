@@ -44,12 +44,65 @@ ROOT="$(git rev-parse --show-toplevel)"
 unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES
 cd "$ROOT"
 
-# The charly binary comes from the `charly/` submodule (build it once per clone with
-# ./charly/scripts/bootstrap-charly.sh). Resolve it from the umbrella root.
-CHARLY="$ROOT/charly/bin/charly"
-if [ ! -x "$CHARLY" ]; then
-  echo "pre-commit: charly binary missing — run ./charly/scripts/bootstrap-charly.sh once" >&2
-  exit 1
+# The charly-backed assertions (`task policy-b`, `task self-test`) need the binary from
+# the `charly/` submodule. Resolution, in order:
+#
+#   1. THIS tree's build — the right binary for the source under test (R9: binary equals
+#      source).
+#   2. The MAIN clone's build. `charly task hooks` says "once per clone", and a LINKED
+#      WORKTREE IS NOT A CLONE: `git rev-parse --show-toplevel` returns the WORKTREE path,
+#      so a fresh worktree — which AGENTS.md Part II rule 2 mandates for every session —
+#      has no binary at all and every commit in it died here, docs-only ones included.
+#      (RCA 2026-10-08; the main clone is reached through the common git dir.)
+#
+# If NEITHER exists, the charly-backed assertions run anyway when the staged diff can
+# actually violate one — a gitlink/submodule change (`task policy-b`) or a change under
+# `charly/` (`task self-test`) — and are otherwise SKIPPED with a loud NOTICE naming
+# exactly what was skipped and how to enable it. The skip is decided by CHANGE CLASS,
+# never by a flag: there is still no bypass (R6), and a diff charly cannot judge is not
+# silently trusted.
+candidates=("$ROOT/charly/bin/charly")
+common="$(git rev-parse --git-common-dir 2>/dev/null || true)"
+if [ -n "$common" ]; then
+  main_clone="$(cd "$common/.." 2>/dev/null && pwd || true)"
+  if [ -n "$main_clone" ] && [ "$main_clone" != "$ROOT" ]; then
+    candidates+=("$main_clone/charly/bin/charly")
+  fi
+fi
+CHARLY=""
+for candidate in "${candidates[@]}"; do
+  if [ -x "$candidate" ]; then CHARLY="$candidate"; break; fi
+done
+
+needs_charly=0
+# A gitlink change prints its mode in EITHER field: `:160000 160000 …` (changed),
+# `:000000 160000 …` (a submodule ADDED — a pin bump, exactly what `policy-b` judges)
+# and `:160000 000000 …` (removed). Testing only the first field would skip the charly
+# assertions on the very commit that introduces a pin — so match either.
+if git diff --cached --raw | cut -d' ' -f1,2 | grep -q '160000'; then needs_charly=1; fi
+if git diff --cached --name-only | grep -q '^charly/'; then needs_charly=1; fi
+
+if [ -z "$CHARLY" ]; then
+  if [ "$needs_charly" -eq 1 ]; then
+    echo "pre-commit: no charly binary, and this commit changes charly/ source or a gitlink," >&2
+    echo "  so the assertions that judge exactly that cannot run." >&2
+    echo "  looked for: ${candidates[*]}" >&2
+    echo "  fix: ./charly/scripts/bootstrap-charly.sh    (in THIS tree: $ROOT)" >&2
+    exit 1
+  fi
+  echo "pre-commit: NOTICE — no charly binary in this tree or its main clone, so the"
+  echo "  charly-backed assertions are SKIPPED: charly task policy-b, charly task self-test."
+  echo "  They are skipped because this diff touches neither charly/ nor any gitlink — the"
+  echo "  only two things a commit can violate in them. Run"
+  echo "  ./charly/scripts/bootstrap-charly.sh to run them anyway."
+else
+  if [ "$CHARLY" != "$ROOT/charly/bin/charly" ]; then
+    echo "pre-commit: NOTICE — using the main clone's charly binary: $CHARLY"
+    echo "  (this tree has none; R9 prefers a worktree-local build, so re-run"
+    echo "   ./charly/scripts/bootstrap-charly.sh here if this tree's charly/ differs)"
+  fi
+  "$CHARLY" task policy-b
+  "$CHARLY" task self-test
 fi
 
 # ASCII `...`, never U+2026: this banner opens the transcript a PR pastes as its gate
