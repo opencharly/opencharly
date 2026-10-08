@@ -27,6 +27,11 @@
 #   9. task contexts      — every step of every task in charly.yml declares a context the plan
 #                          runner activates, so no step is a no-op in every mode
 #                          (`node scripts/check-task-contexts.mjs`; opencharly/opencharly#413)
+#  10. pr-body gate       — the committed PRE-PUSH body gate (`hooks/pre-push`) is executable,
+#                          defaults its body path to the git dir, skips visibly rather than
+#                          fail-closed, and actually BLOCKS a defective body — asserted by
+#                          FIRING it (`node scripts/check-pr-body-gate.mjs`;
+#                          opencharly/marketplace#404)
 #
 # Deliberately NOT here (see `charly task verify`): the per-submodule
 # `git ls-remote` default-branch audit — it reads remote state no commit can change
@@ -68,6 +73,7 @@ node "$ROOT/scripts/check-pi-watch.mjs"
 node "$ROOT/scripts/check-pi-pr-status.mjs"
 node "$ROOT/scripts/check-pi-question.mjs"
 node "$ROOT/scripts/check-task-contexts.mjs"
+node "$ROOT/scripts/check-pr-body-gate.mjs"
 bash "$ROOT/scripts/check-bed-watch.sh" --self-test
 
 echo "pre-commit: OK"
