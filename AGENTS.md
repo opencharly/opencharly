@@ -148,6 +148,11 @@ dispatcher are generated and refreshed: `/charly-internals:marketplace`.
   out of scope, stop and ask the operator.
 - **Umbrella-native mechanics are the sanctioned path for umbrella work:** `charly task`
   verbs (Part II), `bash scripts/*`, and `git -C <absolute-path>`.
+- **A message a program prints is owned by the module that BUILT that code, not by the repo
+  you ran the command in.** Locate it in the module cache before reading the checkout
+  (`grep -rn '<the exact format string>' $GOMODCACHE/<org>/`); with ~400 submodules plus
+  out-of-tree plugins, that is the index of record. *Measured: three greps in the failing
+  repo found nothing; one module-cache grep produced the file and line.*
 - **Ask DeepWiki for architecture; the code is the authority.** Where a grep cannot answer
   *how* a repo is put together, query the `deepwiki` MCP server — its answer is a pointer
   to read, not truth. *Detail:* `/charly-internals:agents`.
@@ -273,7 +278,14 @@ Delegate bounded, independent work to addressable agents; the author stays respo
 briefs, integration, and evidence. R1 uses a fresh root-cause-analyzer and landing a fresh
 independent `pr-validator` — never impersonate either or pass author output off as
 independent. Delegated executors return verbatim commands, outputs, and exit codes.
-*Detail:* `/charly-internals:agents`.
+A **monitor** is a managed background command the harness can wake on — a detached process
+cannot wake anyone, so every round becomes a poll; arm ONE watch over the whole in-flight
+list and block on it, and re-arming REPLACES the live watch rather than adding to it (a
+changed list is a different watch). Its alarm MUST have a **clearing condition** and a window
+matched to what it watches: an alarm nothing can clear is a loop, not an alarm, and where
+nothing can clear it the state is recorded instead. The process table is the authority on
+what is watching — a job listing is not. *Detail:* `/charly-internals:git-workflow`
+(watch-and-wake) and `/charly-internals:agents`.
 
 ## Acceptance checklist
 
@@ -408,6 +420,11 @@ with `grep: write error: Broken pipe`.
 - **Delegate output-heavy investigation to a subagent** that returns a verdict plus
   evidence paths.
 - **Never re-issue the same diagnostic command in a loop** — change the approach.
+- **A piped exit code is not the command's exit code.** In `cmd | head` the shell reports
+  *head*'s status, so an assertion that the command "printed X and returned 0" can be false in
+  both halves at once. Either capture and report the command's own status
+  (`cmd > <scratch>/x.log 2>&1; rc=$?`) or read `${PIPESTATUS[0]}`. Measured: a `rc=0`
+  reported as proof that a verb dispatched was the pager's exit code.
 
 ## Hooks doctrine
 
