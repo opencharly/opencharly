@@ -342,6 +342,14 @@ Before declaring completion, answer every applicable item YES:
    then act — an interruption is an addition, never a reset. *Detail:*
    `/charly-internals:agents` (todo ledger).
 
+10. **Goal budget and continuation safety.** A goal's round budget is sized to the work, and
+    the operator is asked before it runs out. Set `max_goal_rounds` to the objective's
+    projected owner-turns — never below the harness default without a stated reason — and
+    when a goal passes ~80% of its budget with work remaining, STOP and ask the operator how
+    to proceed instead of narrating an ending: the round driver blocks hard at the cap and
+    **disarms** the goal with no warning phase (`round-limit`). *Detail:*
+    `/charly-internals:agents` (goal budget).
+
 ## Post-Execution Policies
 
 - **PR-only and producer-first** (producer PR → merge → tag → consumer pin bump → umbrella
