@@ -10,6 +10,11 @@ import:
     # resolved through the shared repo cache (~/.cache/charly/repos). A bed is
     # addressed by its QUALIFIED name (`charly.check-pod`, `arch.check-arch-vm`, …).
     - charly: ./charly
+    # The OpenClaw family's own repo (opencharly/opencharly#431). Imported under the
+    # `openclaw` namespace, so its entities are addressed qualified — the bed is
+    # `openclaw.check-openclaw-pod`. The namespace comes from THIS import key, not
+    # from the repo's name.
+    - openclaw: '@github.com/opencharly/layer-openclaw:v2026.281.1009'
 defaults:
     platform:
         - linux/amd64
@@ -403,5 +408,9 @@ check-all-beds:
         # Excluded: an `iterate:` AI-iteration loop, not a deterministic R10 bed.
         exclude:
             - charly.check-preflight-local
+            # The family imports the cachyos namespace transitively (its box is
+            # `base: cachyos.cachyos`), so those beds are reachable twice — once via
+            # `charly`, once via `openclaw`. Run them once.
+            - openclaw.cachyos.*
         # host-local beds (they apply candies to THIS workstation) are refused by
         # default; leave refuse_host_local unset for the safe default.
