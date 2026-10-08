@@ -209,7 +209,6 @@ above only *place* each class. The authoring procedure is `/charly-internals:rep
 | `layer-charly-languages/` | [opencharly/layer-charly-languages](https://github.com/opencharly/layer-charly-languages) | image layer / candy |
 | `layer-charly-local/` | [opencharly/layer-charly-local](https://github.com/opencharly/layer-charly-local) | image layer / candy |
 | `layer-charly-ollama/` | [opencharly/layer-charly-ollama](https://github.com/opencharly/layer-charly-ollama) | image layer / candy |
-| `layer-charly-openclaw/` | [opencharly/layer-charly-openclaw](https://github.com/opencharly/layer-charly-openclaw) | image layer / candy |
 | `layer-charly-openwebui/` | [opencharly/layer-charly-openwebui](https://github.com/opencharly/layer-charly-openwebui) | image layer / candy |
 | `layer-charly-pod/` | [opencharly/layer-charly-pod](https://github.com/opencharly/layer-charly-pod) | image layer / candy |
 | `layer-charly-selkies/` | [opencharly/layer-charly-selkies](https://github.com/opencharly/layer-charly-selkies) | image layer / candy |
@@ -362,8 +361,7 @@ above only *place* each class. The authoring procedure is `/charly-internals:rep
 | `layer-nvidia/` | [opencharly/layer-nvidia](https://github.com/opencharly/layer-nvidia) | charly candy: layer-nvidia (standalone repo of the candy de-submodule cutover) |
 | `layer-ollama-cuda/` | [opencharly/layer-ollama-cuda](https://github.com/opencharly/layer-ollama-cuda) | image layer / candy |
 | `layer-ollama-rocm/` | [opencharly/layer-ollama-rocm](https://github.com/opencharly/layer-ollama-rocm) | image layer / candy |
-| `layer-openclaw-full/` | [opencharly/layer-openclaw-full](https://github.com/opencharly/layer-openclaw-full) | image layer / candy |
-| `layer-openclaw-full-ml/` | [opencharly/layer-openclaw-full-ml](https://github.com/opencharly/layer-openclaw-full-ml) | image layer / candy |
+| `layer-openclaw/` | [opencharly/layer-openclaw](https://github.com/opencharly/layer-openclaw) | product family (box + candy + beds + skills) |
 | `layer-oracle/` | [opencharly/layer-oracle](https://github.com/opencharly/layer-oracle) | image layer / candy |
 | `layer-ordercli/` | [opencharly/layer-ordercli](https://github.com/opencharly/layer-ordercli) | image layer / candy |
 | `layer-pacstrap-builder/` | [opencharly/layer-pacstrap-builder](https://github.com/opencharly/layer-pacstrap-builder) | image layer / candy |
@@ -602,7 +600,6 @@ agent runtimes and terminals charly speaks.
 | `pod-mcp-layer/` | [opencharly/pod-mcp-layer](https://github.com/opencharly/pod-mcp-layer) | pod / deployment bundle |
 | `pod-nested-podman-socket/` | [opencharly/pod-nested-podman-socket](https://github.com/opencharly/pod-nested-podman-socket) | pod / deployment bundle |
 | `pod-ollama/` | [opencharly/pod-ollama](https://github.com/opencharly/pod-ollama) | pod / deployment bundle |
-| `pod-openclaw/` | [opencharly/pod-openclaw](https://github.com/opencharly/pod-openclaw) | pod / deployment bundle |
 | `pod-openwebui/` | [opencharly/pod-openwebui](https://github.com/opencharly/pod-openwebui) | pod / deployment bundle |
 | `pod-os-layer/` | [opencharly/pod-os-layer](https://github.com/opencharly/pod-os-layer) | pod / deployment bundle |
 | `pod-osm-tools/` | [opencharly/pod-osm-tools](https://github.com/opencharly/pod-osm-tools) | pod / deployment bundle |
