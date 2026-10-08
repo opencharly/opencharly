@@ -14,7 +14,7 @@ import:
     # `openclaw` namespace, so its entities are addressed qualified — the bed is
     # `openclaw.check-openclaw-pod`. The namespace comes from THIS import key, not
     # from the repo's name.
-    - openclaw: '@github.com/opencharly/layer-openclaw:v2026.281.1009'
+    - openclaw: ./layer-openclaw
 defaults:
     platform:
         - linux/amd64
