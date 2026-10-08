@@ -1,0 +1,97 @@
+#!/usr/bin/env bash
+# pre-push — the umbrella's PRE-PUSH gate (the clone-level git hook).
+#
+# Installed per clone with `charly task hooks` (git config core.hooksPath hooks).
+# This IS repo configuration, not the `git -c core.hooksPath=… commit` bypass that
+# .claude/hooks/gitcmd.py blocks (AGENTS.md R6). It is also DISTINCT from
+# `.claude/hooks/pre-push-gate.sh`: that one is a harness PreToolUse gate over the
+# COMMAND TEXT (force-push, a direct push to main, untokenizable commands); this hook
+# runs on the actual push, from git.
+#
+# It runs ONE assertion: the PR body about to be published passes the org's own
+# body linter (`marketplace/scripts/pr_body_lint.py`). The body IS the changelog and
+# the validator reads it LIVE, so a mechanically-detectable body defect — a missing
+# required section, a trailer that is not the last line, a bare `N/A`, an ellipsized
+# fence, a pasted head SHA that is not HEAD — costs a whole review round when the
+# validator finds it, and a second when this does. Hooks guard DETERMINISTIC
+# MECHANICS only, which is exactly this class: it checks the body's FORM and judges
+# nothing about the change, the tier, or the evidence.
+#
+# THE BODY PATH defaults to the GIT DIR — `git rev-parse --absolute-git-dir`, which is
+# per-WORKTREE (`…/.git/worktrees/<name>`), so two session worktrees can never fight
+# over one body, and absolute, so it survives a change of cwd. It never dirties the
+# tracked tree and it survives across a push. Override with `PR_BODY_FILE=<path>`.
+#
+# SKIPS ARE VISIBLE AND NEVER FAIL-CLOSED, the shape pre-commit-gate.sh already uses
+# for a missing golangci-lint. Two of them:
+#   * NO BODY at the path — the body is written by the author as part of the landing
+#     discipline, so its absence at push time is the DISCIPLINE failing, not a defect
+#     in the diff. A hook that blocked there would be inventing a rule, so it says how
+#     to create the file and gets out of the way.
+#   * NO LINTER — `marketplace/` is a submodule a session worktree may not have
+#     materialized, and blocking a push for an unmaterialized submodule would make
+#     every fresh worktree unlandable. It names the one command that fixes it.
+
+set -uo pipefail
+
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || ROOT=""
+if [ -z "$ROOT" ]; then
+  echo "pre-push: not inside a git working tree — body lint SKIPPED." >&2
+  exit 0
+fi
+
+# git exports these to hooks, so they name THIS repo's git dir and corrupt any
+# nested `git -C <submodule>` call. Resolve the root first (which needs them), then
+# scrub them once at the boundary, exactly as hooks/pre-commit does.
+unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES
+cd "$ROOT" || exit 0
+
+GITDIR="$(git rev-parse --absolute-git-dir 2>/dev/null)" || GITDIR=""
+if [ -z "$GITDIR" ]; then
+  echo "pre-push: could not resolve the git dir — body lint SKIPPED." >&2
+  exit 0
+fi
+BODY="${PR_BODY_FILE:-$GITDIR/PR_BODY.md}"
+LINT="$ROOT/marketplace/scripts/pr_body_lint.py"
+
+if [ ! -e "$BODY" ]; then
+  echo "pre-push: no PR body at $BODY — body lint SKIPPED (nothing to check)."
+  echo "pre-push: the body IS the changelog; write the whole thing for the head you are about to"
+  echo "pre-push: publish and push again. To lint a body that lives elsewhere: PR_BODY_FILE=<path>."
+  exit 0
+fi
+
+if [ ! -f "$LINT" ]; then
+  echo "pre-push: $LINT is absent (the marketplace submodule is not materialized here) — body lint SKIPPED."
+  echo "pre-push: materialize it with: git -C $ROOT submodule update --init --depth 1 marketplace"
+  exit 0
+fi
+
+if ! command -v python3 >/dev/null 2>&1; then
+  echo "pre-push: python3 not found — body lint SKIPPED."
+  exit 0
+fi
+
+# PRE-FLIGHT the linter, because a tool that cannot run is a VISIBLE SKIP, not a red.
+# `pr_body_lint.py` imports a sibling module (`squash_body.py`), so a partial
+# materialization — or any other breakage — makes it die with a Python traceback AND
+# exit 1, which is INDISTINGUISHABLE from "findings" by exit code alone. Running
+# `--help` exercises that import, so a non-zero here means the TOOL is broken and a
+# non-zero from the real invocation below means the BODY has findings. Without this,
+# one broken submodule blocks every legitimate push in the clone.
+if ! python3 "$LINT" --help >/dev/null 2>&1; then
+  echo "pre-push: the body linter cannot run here (it needs its sibling module from the marketplace submodule) — body lint SKIPPED." >&2
+  echo "pre-push: materialize it with: git -C $ROOT submodule update --init --depth 1 marketplace" >&2
+  exit 0
+fi
+
+echo "pre-push: linting the PR body at $BODY ..."
+if python3 "$LINT" "$BODY" --repo "$ROOT"; then
+  echo "pre-push: OK"
+  exit 0
+fi
+
+echo "pre-push: BLOCKED — the PR body above has findings." >&2
+echo "pre-push: the body is the changelog and the validator reads it live; fix EVERY finding" >&2
+echo "pre-push: and push again. Nothing about the diff is judged here." >&2
+exit 1
