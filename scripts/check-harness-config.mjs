@@ -175,7 +175,7 @@ if (argv.includes("--self-test")) {
         }
       }
       // Materialize one PLACEHOLDER SKILL.md per real skill, so check 12's skill inventory in
-      // the staged tree matches the real one WITHOUT copying the corpus (346 files, some
+      // the staged tree matches the real one WITHOUT copying the corpus (352 files, some
       // large). The gate tests only EXISTENCE of `<family>/skills/<name>/SKILL.md`, so an
       // empty file is a faithful stand-in — and without it check 12 would find zero skills
       // in the staged tree and no mutation could ever turn it red (a test that cannot fail).
@@ -641,7 +641,7 @@ ok(existsSync(join(root, ".dsh/watch.items")), ".dsh/watch.items (the DSH watch 
 //           `/charly-<family>:<skill>` reference, which BREAKS the docs build (an
 //           unresolvable reference is a hard error there, not a dead link).
 //       (b) RATCHET — the number of corpus skills with NO row may not exceed MAX_UNROUTED.
-//           It is 250 today; the trigger-authoring cutover lowers it.
+//           It is 234 today; the trigger-authoring cutover lowers it.
 //     (a) alone would not notice a skill whose repo was never pinned (it is absent from the
 //     corpus entirely, so no row is missing) — that class is caught by the refs-list audit,
 //     not here. (b) alone would not notice a row pointing at a skill that no longer exists.
