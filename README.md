@@ -97,6 +97,23 @@ Two repos are deliberately **not** listed as their own-name submodules:
 
 `heroic-heroic` is archived and intentionally not a submodule.
 
+Each class has ONE placement rule, and the class prefix in the repo name states it:
+
+- **Core & contract** — bare names (`charly`, `sdk`, `spec`, `marketplace`, `docs`): the product, the wire/IR contract, the generated corpus, the site.
+- **Distro image families** — `distro-<distro>`: the base and builder, distro-exclusive OS layers, that distro's VMs and beds.
+- **Package repositories** — `charly-<distro>` for the published repo and `pkg-<distro>` for package source: packaging plus its publishing bed.
+- **Candy layers** — `layer-<name>`: ONE candy with its files beside it, and/or a family's `skill:` entities.
+- **Product families** — `layer-<family>`: a family's box(es), candy, VM, beds and skills (`layer-agentteams` is the canonical example; `layer-openclaw` follows it).
+- **Plugins** — `plugin-<word>`: the provider candy, its Go module and its CUE schema.
+- **Pods / service bundles** — `pod-<name>`: a candy with `service:` plus its skill.
+- **VMs** — `vm-<family>`: `kind: vm` definitions plus VM skills.
+- **Product & tooling** — bare or product-specific: appliances, CI action config, vendored upstreams.
+
+The rule these placements follow — what may be bare, and why a product family is a
+`layer-<family>` repo — is stated once in `AGENTS.md` ("Repo classes and naming"); the lines
+above only *place* each class. The authoring procedure is `/charly-internals:repo-setup`, and
+`charly task org-map` verifies the tables below against the repo and `.gitmodules`.
+
 ### Core & contract
 
 6 repos — the product and the contracts it consumes.
