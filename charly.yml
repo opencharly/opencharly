@@ -8,7 +8,8 @@ import:
     # disposable beds + vm templates) and its OWN @github imports (the distro
     # namespaces: arch/cachyos/debian/fedora/ubuntu/omarchy) walk in recursively,
     # resolved through the shared repo cache (~/.cache/charly/repos). A bed is
-    # addressed by its QUALIFIED name (`charly.check-pod`, `arch.check-arch-vm`, …).
+    # addressed by its QUALIFIED name (`charly.check-k3s-vm`, `arch.check-arch-vm`,
+    # `openclaw.check-openclaw-pod`, …).
     - charly: ./charly
     # The OpenClaw family's own repo (opencharly/opencharly#431). Imported under the
     # `openclaw` namespace, so its entities are addressed qualified — the bed is
