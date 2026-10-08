@@ -3,7 +3,7 @@
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/opencharly/opencharly)
 
 **One clone of the whole org — and the place all charly development happens.**
-`opencharly/opencharly` is an org-level umbrella repo: every OpenCharly repo (425 today)
+`opencharly/opencharly` is an org-level umbrella repo: every OpenCharly repo (422 today)
 is pinned here as a git submodule ("gitlink", in the org's vocabulary), flat at the
 root — submodule path == repo name for all but one alias (`.github`, pinned at the
 `dotgithub/` path).
@@ -188,7 +188,7 @@ above only *place* each class. The authoring procedure is `/charly-internals:rep
 
 ### Charly candy layers
 
-22 repos — the charly meta/skill candy layers.
+21 repos — the charly meta/skill candy layers.
 
 | path | repo | role |
 |---|---|---|
@@ -271,7 +271,7 @@ above only *place* each class. The authoring procedure is `/charly-internals:rep
 
 ### Other layers
 
-144 repos.
+143 repos.
 
 | path | repo | role |
 |---|---|---|
@@ -550,7 +550,7 @@ agent runtimes and terminals charly speaks.
 
 ### Pods
 
-75 repos — pod/deployment bundles.
+74 repos — pod/deployment bundles.
 
 | path | repo | role |
 |---|---|---|
