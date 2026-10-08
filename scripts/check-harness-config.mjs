@@ -94,8 +94,12 @@ const MUST_NOT_AUTO_ALLOW = [
 ];
 
 // The dispatcher-coverage RATCHET (check 12). MEASURED on the tree this gate ships with:
-// 346 corpus skills (`marketplace/*/skills/*/SKILL.md`) against 96 `DISPATCHER.md` rows,
-// i.e. 250 corpus skills carry no routing row.
+// 352 corpus skills (`marketplace/*/skills/*/SKILL.md`) against 118 `DISPATCHER.md` rows,
+// i.e. 234 corpus skills carry no routing row.
+//
+// Those three numbers moved together in the C11 batch-2 landing: the corpus is READ THROUGH
+// the `marketplace/` gitlink, so the count is a function of the gitlink, not of any one repo's
+// `main`. A count from another tree is not comparable to this one — measure the gitlink.
 //
 // It is a RATCHET, not a hard "every skill has a row", and that is deliberate. A hard
 // assertion is RED on the tree it would land on, and `main` is PR-only with required status
@@ -106,7 +110,7 @@ const MUST_NOT_AUTO_ALLOW = [
 // proves both assertions can fail rather than asserting that they do.
 //
 // Tighten this number as the trigger-authoring cutover lands. It may only ever DECREASE.
-const MAX_UNROUTED = 250;
+const MAX_UNROUTED = 234;
 
 // ── --self-test: prove the discriminating/structural split by executing it ──────────
 // Copies every surface this gate reads into a temp tree, asserts the gate is GREEN there
