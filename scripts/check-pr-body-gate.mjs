@@ -132,6 +132,18 @@ Test fixture, not a real change.
 const BAD_BODY = "# not a PR body\n";
 
 async function fire() {
+  // The linter lives in the marketplace SUBMODULE, which a DEFAULT fresh session worktree does
+  // not have. SKIP VISIBLY rather than fail: this checker is wired into `hooks/pre-commit`, so a
+  // checker that failed closed on an unmaterialized submodule would make every fresh worktree's
+  // commit gate red — the exact fail-closed-infrastructure class the hook it asserts exists to
+  // avoid, and the contradiction a reviewer caught in the first version of this file. Live-or-
+  // skip, never a silent pass: the skip is printed and names the one command that fixes it.
+  const lintSrc = join(root, "marketplace/scripts");
+  if (!existsSync(join(lintSrc, "pr_body_lint.py"))) {
+    console.log(`  SKIP  ${rel} fired assertions: ${lintSrc} is absent (the marketplace submodule is not materialized in this checkout)`);
+    console.log(`  SKIP  materialize it with: git -C ${root} submodule update --init --depth 1 marketplace`);
+    return;
+  }
   const scratch = mkdtempSync(join(tmpdir(), "check-pr-body-gate-"));
   const repo = join(scratch, "repo");
   const expect = (cond, msg) => (cond ? ok(msg) : fail(msg));
@@ -164,7 +176,6 @@ async function fire() {
     // one-file copy makes it die with a traceback that ALSO exits 1, which is exactly how an
     // assertion passes for the wrong reason: the first version of this file asserted only
     // "exit 1" for the defective body and was satisfied by a crash, not by a finding.
-    const lintSrc = join(root, "marketplace/scripts");
     const lintDst = join(repo, "marketplace/scripts");
     const installLinter = () => {
       mkdirSync(join(repo, "marketplace"), { recursive: true });
@@ -239,10 +250,17 @@ if (argv.includes("--self-test")) {
   const original = readFileSync(file, "utf8");
   const tmp = mkdtempSync(join(tmpdir(), "check-pr-body-gate-self-"));
   mkdirSync(join(tmp, "hooks"), { recursive: true });
-  // `fire()` runs the hook against a scratch repository but needs the REAL linter — and the
-  // linter imports a sibling module, so the whole scripts directory travels with it.
-  mkdirSync(join(tmp, "marketplace"), { recursive: true });
-  cpSync(join(root, "marketplace/scripts"), join(tmp, "marketplace/scripts"), { recursive: true });
+  // `fire()` needs the REAL linter — and the linter imports a sibling module, so the whole
+  // scripts directory travels with it. When the submodule is absent this root carries no
+  // marketplace at all, the fired assertions skip, and the mutations that depend on them are
+  // reported as skipped rather than as failures (the check-harness-config.mjs precedent: a
+  // surface not materialized in THIS checkout is skipped with a NOTICE, and the report names
+  // how many arms were live instead of aborting on an ENOENT).
+  const lintPresent = existsSync(join(root, "marketplace/scripts/pr_body_lint.py"));
+  if (lintPresent) {
+    mkdirSync(join(tmp, "marketplace"), { recursive: true });
+    cpSync(join(root, "marketplace/scripts"), join(tmp, "marketplace/scripts"), { recursive: true });
+  }
   const runGate = () => {
     const r = spawnSync(process.execPath, [fileURLToPath(import.meta.url), "--root", tmp], { encoding: "utf8" });
     return r.status;
@@ -283,7 +301,16 @@ if (argv.includes("--self-test")) {
     ],
   ];
   let stFails = 0;
+  let stLive = 0;
+  let stSkipped = 0;
   for (const [name, mutate, expect] of mutations) {
+    if (!lintPresent) {
+      // Every mutation here targets a FIRED assertion, and with no linter to fire there is
+      // nothing to judge. Skipped VISIBLY: never counted as caught, never a silent pass.
+      stSkipped += 1;
+      console.log(`  SKIP  mutation '${name}': the marketplace submodule is not materialized, so the fired assertion it targets cannot run`);
+      continue;
+    }
     const mutated = mutate(original);
     if (mutated === original) {
       stFails += 1;
@@ -292,6 +319,7 @@ if (argv.includes("--self-test")) {
     }
     writeFileSync(join(tmp, rel), mutated, "utf8");
     chmodSync(join(tmp, rel), 0o755);
+    stLive += 1;
     if (runGate() === 0) {
       stFails += 1;
       console.error(`  FAIL  mutation '${name}' did NOT go red (expected a '${expect}' finding)`);
@@ -312,7 +340,10 @@ if (argv.includes("--self-test")) {
     console.error(`check-pr-body-gate --self-test: FAIL (${stFails})`);
     process.exit(1);
   }
-  console.log("check-pr-body-gate --self-test: OK (every assertion is live)");
+  console.log(
+    `check-pr-body-gate --self-test: OK (${stLive}/${mutations.length} arms live` +
+      `${stSkipped ? `; ${stSkipped} skipped — the marketplace submodule is not materialized in this checkout` : ""})`,
+  );
   process.exit(0);
 }
 
