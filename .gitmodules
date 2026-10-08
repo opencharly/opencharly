@@ -1049,10 +1049,6 @@
 	path = layer-notebook-finetuning
 	url = https://github.com/opencharly/layer-notebook-finetuning.git
 	branch = main
-[submodule "layer-openclaw-full"]
-	path = layer-openclaw-full
-	url = https://github.com/opencharly/layer-openclaw-full.git
-	branch = main
 [submodule "pod-openwebui"]
 	path = pod-openwebui
 	url = https://github.com/opencharly/pod-openwebui.git
@@ -1097,10 +1093,6 @@
 	path = layer-notebook-ollama
 	url = https://github.com/opencharly/layer-notebook-ollama.git
 	branch = main
-[submodule "layer-openclaw-full-ml"]
-	path = layer-openclaw-full-ml
-	url = https://github.com/opencharly/layer-openclaw-full-ml.git
-	branch = main
 [submodule "layer-charly-coder"]
 	path = layer-charly-coder
 	url = https://github.com/opencharly/layer-charly-coder.git
@@ -1108,10 +1100,6 @@
 [submodule "layer-charly-hermes"]
 	path = layer-charly-hermes
 	url = https://github.com/opencharly/layer-charly-hermes.git
-	branch = main
-[submodule "layer-charly-openclaw"]
-	path = layer-charly-openclaw
-	url = https://github.com/opencharly/layer-charly-openclaw.git
 	branch = main
 [submodule "pod-github-runner"]
 	path = pod-github-runner
@@ -1836,4 +1824,8 @@
 [submodule "plugin-lobster"]
 	path = plugin-lobster
 	url = https://github.com/opencharly/plugin-lobster.git
+	branch = main
+[submodule "layer-openclaw"]
+	path = layer-openclaw
+	url = https://github.com/opencharly/layer-openclaw.git
 	branch = main
