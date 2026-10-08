@@ -1828,3 +1828,4 @@
 [submodule "layer-openclaw"]
 	path = layer-openclaw
 	url = https://github.com/opencharly/layer-openclaw.git
+	branch = main
