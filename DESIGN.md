@@ -379,6 +379,9 @@ messages, command arguments, migrations), and one binary per platform. The CUE m
 core reads schemas, `@ref` attributes, command grammars and documentation from it without starting
 the plugin (D-LOAD-2).
 
+A plugin candy also declares the OS packages the plugin needs in order to run: `package:` with its
+per-OS `os_override:` (D-CANDY-6, §11.1).
+
 ### 8.2 Roles and methods
 
 Every method, the role that serves it, and its input and output are one table, `#MethodIO`.
@@ -606,7 +609,7 @@ Directives: `repo`, `plugin`, `import`, `discover`.
 | `require` | candies this one is built from, by reference |
 | `need` | capabilities it needs (§15) |
 | `provide` | capabilities it provides (§15) |
-| `package` | packages: OS names, or `<manager>:<locator>` (a set of unique names) |
+| `package` | packages: OS names, or `<manager>:<locator>` (a set of unique names); on a plugin candy, the OS packages the plugin needs in order to run (D-CANDY-6) |
 | `os_override` | per-OS overrides of `package` and `package_repo`, keyed by an `os` family or an `os` node name; the most specific key wins |
 | `file` | files by literal absolute path, one effect each |
 | `package_repo` | package repositories by name |
@@ -618,7 +621,7 @@ Directives: `repo`, `plugin`, `import`, `discover`.
 | `route` | an HTTP route to a port of the content |
 | `export` | files a deployment hands back to the operator, by name |
 | `module` | makes the candy a plugin (§8.1) |
-| `packaging` | native-package metadata, owned by the operations plugin |
+| `packaging` | native-package metadata for charly's own packages, owned by the operations plugin; it declares only the packages core needs (D-CANDY-6) |
 | `shm_size` | the shared-memory size the content needs |
 | `platform` | boxes only: target platforms |
 | `builder_box` | boxes only: the box that builds each build-time manager's packages |
@@ -632,6 +635,7 @@ Directives: `repo`, `plugin`, `import`, `discover`.
 | D-CANDY-3 | A candy never names an init system: service strings and environment values are init-neutral (no `%`-specifiers). The init comes from the `os` (§7.1). |
 | D-CANDY-4 | An artifact's labels carry its stack's resolved steps, provides and needs, so a pulled artifact can be checked and wired without its project. |
 | D-CANDY-5 | A candy has no authored version: its digest addresses its content, and its human-readable coordinate is its repository release. |
+| D-CANDY-6 | On a plugin candy (§8.1), `package:` and `os_override:` declare the OS packages the plugin needs in order to run, resolved against the `os` family of the host that runs it. The `packaging:` metadata that builds charly's own native packages declares only what core needs: a plugin's packages enter those packages through the union of the plugins a variant lists, never as a transcribed list; `charly doctor` reports a declared plugin's missing packages, and `charly local-install` installs them on the host only when the user configuration allows it (D-STORE-9). |
 
 ### 11.2 Examples
 
@@ -1455,13 +1459,14 @@ virt-host:
 | ID | Requirement |
 |---|---|
 | D-STORE-1 | Four roots, resolved by one sdk package: configuration `$XDG_CONFIG_HOME/charly`, cache `$XDG_CACHE_HOME/charly` (single override `CHARLY_CACHE_DIR`), state `$XDG_STATE_HOME/charly`, runtime `$XDG_RUNTIME_DIR/charly`. |
-| D-STORE-2 | The user configuration holds only what the user sets — container engine, hypervisor, secret backend, leasable GPUs, image registry, the project-less `plugin:` list, and each plugin's own section — under its own schema. |
+| D-STORE-2 | The user configuration holds only what the user sets — container engine, hypervisor, secret backend, leasable GPUs, image registry, the project-less `plugin:` list, whether the OS packages a plugin needs may be installed on the host (D-STORE-9), and each plugin's own section — under its own schema. |
 | D-STORE-3 | One content-addressed store holds every cached item: fetched repositories, CUE modules, plugin binaries, load results and artifacts. Entries are immutable, keyed by input digest, published by atomic rename; reads take no lock. |
 | D-STORE-4 | A plugin binary's key covers its module source, `go.sum`, the toolchain and the platform. |
 | D-STORE-5 | A mutable name (a branch) resolves to a commit before it reaches the store; it re-resolves only on `--refresh`. |
 | D-STORE-6 | Stored payloads contain no timestamps or absolute paths unless they are inputs. |
 | D-STORE-7 | `charly clean` keeps what state references and evicts the rest within a size budget; locks die with their holder. |
 | D-STORE-8 | Tests use injected roots and write nothing outside their temporary directory. |
+| D-STORE-9 | `local_install` is `false` by default, so charly installs nothing on the host that runs it unless the operator enables it. `charly local-install` (§19) is the one command that installs the OS packages a declared plugin needs (D-CANDY-6) on that host; it refuses while `local_install` is `false`, unless `--local-install` enables the install for that invocation. While the switch is `false` every other path reports the missing packages (`charly doctor`) or fails naming them — never installs. |
 
 ## 18. Secrets, trust, concurrency
 
@@ -1479,7 +1484,7 @@ virt-host:
 | checks | `check box`, `check step`, `check live`, `check agent`, `check run`, `check list`, `check report`, `check note`, `check stop`, `check scope`, `check last-tag`, `check self-evaluate`, `check list-agent`, `check sync-credential` |
 | agents | `agent …` (runtime, session, run, followup, steer, dispatch, delegate, team, federation, terminal, incident, rca, recover), `tui` |
 | project | `task`, `migrate`, `doc generate`, `marketplace generate`, `review`, `pipeline`, `release-package` |
-| host | `secret`, `config`, `cache`, `clean`, `doctor`, `preempt`, `alias`, `mcp serve`, `version`, `help` |
+| host | `secret`, `config`, `cache`, `clean`, `doctor`, `local-install [--local-install]`, `preempt`, `alias`, `mcp serve`, `version`, `help` |
 
 A capture needs no command: building a capture box realizes and checks the captured deployment if
 needed, then captures it.
@@ -1490,7 +1495,7 @@ needed, then captures it.
 | D-CLI-2 | Only `box new`, `box set`, `box add-candy`, `box rm-candy`, `box write`, `box reconcile`, `deploy adopt` and `migrate` write authored files, and each prints what it changed. |
 | D-CLI-3 | Tools inside a deployment are reached with `charly cmd <deployment> <tool>`; there are no first-party per-application commands. |
 | D-CLI-4 | Every command supports `--format json`; help and MCP tools are generated from the same command definitions. |
-| D-CLI-5 | Every command works with only the `charly` binary installed, for projects whose plugins are released `{repo, release, digest}` references. |
+| D-CLI-5 | Every command works with only the `charly` binary installed, for projects whose plugins are released `{repo, release, digest}` references; the OS packages a plugin declares (D-CANDY-6) are the one further requirement, met by the operator's own package manager or by `charly local-install` under D-STORE-9. |
 
 ## 20. Verbs
 
