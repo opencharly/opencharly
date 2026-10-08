@@ -109,10 +109,10 @@ Each class has ONE placement rule, and the class prefix in the repo name states 
 - **VMs** — `vm-<family>`: `kind: vm` definitions plus VM skills.
 - **Product & tooling** — bare or product-specific: appliances, CI action config, vendored upstreams.
 
-Bare names are for core/contract and appliances **only**; a product family is a layer-class
-repo and never a bare name (a bare `openclaw` was corrected to `layer-openclaw`). The
-authoring procedure is `/charly-internals:repo-setup`, and `./charly/bin/charly task org-map`
-verifies the tables below against the repo and `.gitmodules`.
+The rule these placements follow — what may be bare, and why a product family is a
+`layer-<family>` repo — is stated once in `AGENTS.md` ("Repo classes and naming"); the lines
+above only *place* each class. The authoring procedure is `/charly-internals:repo-setup`, and
+`charly task org-map` verifies the tables below against the repo and `.gitmodules`.
 
 ### Core & contract
 

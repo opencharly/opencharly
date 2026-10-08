@@ -208,7 +208,7 @@ names are for core/contract (`charly`, `sdk`, `spec`, `marketplace`, `docs`) and
 This is a contract, not a habit. `opencharly/openclaw` was created as a product family with a
 bare name and renamed to `layer-openclaw`; a repo that does not fit its class is a defect to
 fix, not a convention to tolerate. The class-by-class placement rules live in `README.md`
-("The org map") and are verified by `./charly/bin/charly task org-map`; the authoring
+("The org map") and are verified by `charly task org-map`; the authoring
 procedure is `/charly-internals:repo-setup`.
 
 ## Ground-truth rules R1–R10
