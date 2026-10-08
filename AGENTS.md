@@ -197,6 +197,20 @@ A saved system fact is a claim: R1 establishes it, RDD proves high-risk ones bef
 are saved. Keep preferences narrow and dated, verify named artifacts before reuse, and
 correct or delete stale memory when live evidence disagrees.
 
+## Repo classes and naming
+
+Every repo's **name carries its class**, and the class decides what that repo may hold. Bare
+names are for core/contract (`charly`, `sdk`, `spec`, `marketplace`, `docs`) and appliances
+**only**; every other repo carries its class prefix (`distro-`, `charly-`/`pkg-`, `layer-`,
+`plugin-`, `pod-`, `vm-`), and a **product family is a layer-class repo** (`layer-<family>`)
+— never a bare name.
+
+This is a contract, not a habit. `opencharly/openclaw` was created as a product family with a
+bare name and renamed to `layer-openclaw`; a repo that does not fit its class is a defect to
+fix, not a convention to tolerate. The class-by-class placement rules live in `README.md`
+("The org map") and are verified by `./charly/bin/charly task org-map`; the authoring
+procedure is `/charly-internals:repo-setup`.
+
 ## Ground-truth rules R1–R10
 
 - **R1 — RCA every anomaly.** The first failure, warning, error, unexpected exit, doc
