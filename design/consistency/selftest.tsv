@@ -2,7 +2,7 @@
 table-missing-row	DESIGN.md	/^| `mount` | mount names/d	table column 1 lacks what #Need defines: mount
 table-new-field	DESIGN.cue	s~^\tboot?:            #Opaque$~\tboot?: #Opaque\n\tkernel?: #Text~	lacks what #Os defines: kernel
 table-word-list	DESIGN.md	s~^| `jetkvm` | an IP-KVM device |~| `kvm` | an IP-KVM device |~	names what _kindWord does not define: kvm
-list-mirror	DESIGN.cue	s~"entrypoint", "tag"\]~"entrypoint"]~	_candyField lacks fields of #Candy #BoxFields: tag
+list-mirror	DESIGN.cue	s~"entrypoint", "tag", "input"~"entrypoint", "input"~	_candyField lacks fields of #Candy #BoxFields: tag
 tag-without-negative	DESIGN.cue	s~// D-DEP-6:~// D-DEP-6, D-DEP-4:~	D-DEP-4 is enforced here but no design/negative case tests it
 negative-unknown-rule	design/negative/pod-require.yaml	s~^# rule: D-DEP-2~# rule: D-CODE-1~	is neither a DESIGN.cue tag nor a §5.4 rule
 val-owner	DESIGN.md	s~^\(| D-VAL-3 | References form no cycle. |\) core |~\1 kernel |~	names owner 'kernel', which is not an owner in §7.1
@@ -19,8 +19,8 @@ orphan-marker	DESIGN.md	s~^Every deployment kind takes these fields:$~<!-- schem
 duplicate-id	DESIGN.md	s~^\(| D-CODE-5 | .*\)$~\1\n\1~	D-CODE-5 is defined twice
 val-without-negative	design/negative/misspelled-field.yaml	s~^# rule: D-VAL-8~# rule: D-VAL-1~	§5.4 rule D-VAL-8 is checked by rules.cue but has no design/negative case
 ref-drift	design/example/rules.cue	s~want: \["os"\]~want: ["os", "init"]~	want: lists that match no @ref attribute of DESIGN.cue
-rules-emit-drift	design/example/rules.cue	s~rule: "D-VAL-8"~rule: "D-VAL-9"~	emits rules §5.4 does not mark rules.cue: D-VAL-9
-pattern-range	TODO.md	s~the schema patterns are S1–S9 of §3.1~the schema patterns are S1–S8 of §3.1~	S1–S8 — the pattern range ends at S9
+rules-emit-drift	design/example/rules.cue	s~rule: "D-VAL-8"~rule: "D-VAL-14"~	emits rules §5.4 does not mark rules.cue: D-VAL-14
+pattern-range	TODO.md	s~the schema patterns are S1–S10 of §3.1~the schema patterns are S1–S8 of §3.1~	S1–S8 — the pattern range ends at S10
 pattern-unknown	DESIGN.md	s~derived from them, and the S8 name scalars.~derived from them, and the S12 name scalars.~	S12 is not a schema pattern of §3.1
 unmarked-mirror	DESIGN.md	/^<!-- schema: keys(#ActionAlt) -->$/d	but has no <!-- schema: … --> marker
 pattern-close	DESIGN.cue	$a\\n#Bad: close({a: int})	a construct §3.1 rules out

@@ -1,0 +1,4 @@
+# rule: D-KIND-4
+# expect: doc.import.plugin: field not allowed
+import:
+    plugin: {path: ../plugin-build}

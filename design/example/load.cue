@@ -18,7 +18,7 @@ doc: #Envelope
 #Envelope: {
 	repo?:     #Repo
 	plugin?:   {[#Name]: #RepositoryRef}
-	import?:   {[#Name]: #RepositoryRef}
+	import?:   {[#Namespace]: #RepositoryRef}   // D-KIND-4: the same guard the schema states
 	discover?: [...#Text]
 	[#TopName]: _
 }
@@ -87,7 +87,7 @@ _stepKey: {for n, l in _stepList {(n): [for i, s in l {
 			error: "a run step carries only `command` (and its `guard`)"
 		}
 		if len(intent) == 1 && intent[0] != "check" && intent[0] != "run" && len(verb) != 0 {
-			error: "an \(intent[0]) step carries no verb"
+			error: "the \(intent[0]) step carries no verb"
 		}
 		if len(intent) == 1 && intent[0] == "check" && len(verb) == 1 {key: "check \(verb[0])"}
 		if len(intent) == 1 && intent[0] != "check" {key: intent[0]}

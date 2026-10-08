@@ -1,0 +1,8 @@
+# rule: D-VAL-2
+# expect: require: nowhere.ripgrep does not resolve to a node
+broken-ref:
+    description: A candy that requires a namespace that was never imported.
+    require: [nowhere.ripgrep]
+    step:
+        - check: it runs
+          command: "true"

@@ -1,5 +1,5 @@
 # rule: D-VAL-4
-# expect: import alias tools is also a top-level node name
+# expect: namespace tools is also a top-level node name
 import:
   tools: {path: ../tools}
 tools:

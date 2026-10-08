@@ -1,0 +1,7 @@
+# rule: D-KIND-4
+# expect: doc.import.pod: field not allowed
+import:
+  pod: {path: ../tools}
+x:
+  description: A candy.
+  require: [pod.ripgrep]

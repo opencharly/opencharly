@@ -1,0 +1,11 @@
+# rule: D-IR-7
+# expect: node.b.builder_box.helm: field not allowed
+p:
+  pod:
+    description: A pod.
+    from: b
+b:
+  description: A box whose builder box names an apply-time manager.
+  from: p
+  builder_box:
+    helm: some-builder
