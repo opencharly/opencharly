@@ -153,13 +153,13 @@ self-test:
 # -----------------------------------------------------------------------------
 hooks:
   task:
-    description: Install the pre-commit gate for this clone (policy B, the self-tests, the opencode, pi and pr-watch gates)
+    description: Install the clone-level git hooks — pre-commit (policy B, the self-tests, the opencode, pi and pr-watch gates) and pre-push (the PR-body gate)
     dir: .
     plan:
       - run: set core.hooksPath and report it
         command: |
           git config core.hooksPath hooks
-          echo "core.hooksPath = $(git config --get core.hooksPath) — hooks/pre-commit is live"
+          echo "core.hooksPath = $(git config --get core.hooksPath) — hooks/pre-commit and hooks/pre-push are live"
         context: [runtime]
 
 # -----------------------------------------------------------------------------
