@@ -96,7 +96,7 @@ _managerWord:        ["npm", "cargo", "pip", "aur", "flatpak", "helm", "android"
 // ONE table, ONE DERIVED set — so adding a manager stays one entry in one place, not three edits that can
 // drift. The one set is the BUILD-TIME words; the apply-phase rows serve to EXCLUDE those words from it, so
 // the table carries the phase even though the phase does not gate what may be written. The rule this feeds
-// is D-IR-7, whose enforcement — and so its tag — is on `#PackageEntry` above.
+// is D-IR-7, whose tag sits on `#PackageSet` above and on `builder_box` below.
 _managerPhase: {
 	npm:     "build"
 	cargo:   "build"
@@ -176,7 +176,7 @@ _alt: {
 #TopName:        #Name & !~"^(\(_alt.directive)|\(_alt.kind))$"
 #InnerCandyName: #Name & !~"^(\(_alt.candy)|\(_alt.kind))$"
 #InnerNodeName:  #Name & !~"^(\(_alt.deploy)|\(_alt.kind))$"
-// A namespace is A NAMED SCOPE (ledger §5): the name an `import:` binds a repository reference to, a
+// A namespace is A NAMED SCOPE: the name an `import:` binds a repository reference to, a
 // venue's own scope, a deployment's scope. So this scalar guards a namespace WHEREVER one is named —
 // and a namespace is the FIRST SEGMENT of every namespaced reference (D-REF-1), exactly where a kind
 // word or a directive must not appear.
