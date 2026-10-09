@@ -81,6 +81,7 @@ browse it by category. How the table is maintained: `/charly-internals:skills`.
 | Skill authoring or maintenance / where guidance belongs (README vs `AGENTS.md` vs skill vs `CHANGELOG/`) | `/charly-internals:skills` |
 | Marketplace corpus generation / refs list / per-harness vendoring | `/charly-internals:marketplace` |
 | `charly docs` / opencharly.ai / the opencharly/docs repo / Starlight/Astro / `candy/docs-site` / the `check-docs` bed / docs regeneration pin bumps | `/charly-build:docs`, `/charly-tools:docs-site` |
+| `charly generate-podcast` / a topic plus sources becoming a two-host podcast episode / a changelog digest or release-notes narration / writing for opencharly/news-podcast | `/charly-tools:generate-podcast` |
 | Agent control plane (`charly agent`, sessions, `charly tui`, MCP routing) | `/charly-automation:agent` |
 | Host command aliases / wrapper scripts | `/charly-automation:alias` |
 | Container lifecycle / status / config (`charly config`, `charly status`, `charly start/stop/remove`) | `/charly-core:charly-config` |
