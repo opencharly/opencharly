@@ -12,9 +12,9 @@
  * `marketplace` submodule pin. `coord.ts` therefore loads and works from the SAME ref
  * as the plugin, even when the `marketplace` gitlink lags.
  *
- * R3 — the shell CLI and this native implementation are deliberately TWO
+ * R2 — the shell CLI and this native implementation are deliberately TWO
  * harness-specific implementations, not a forked copy (the operator's SIGNED-OFF clean
- * split — a maintainer-account R3 divergence): each is native to its harness. The
+ * split — a maintainer-account R2 divergence): each is native to its harness. The
  * shared CONTRACT is defined ONCE in the shell family's docs — the closed verb set, the
  * canonical two-line footer order, the event vocabulary + wake-line format, and the
  * item grammar — and `scripts/check-opencode-coord.mjs` pins THIS (TypeScript) side of
@@ -506,7 +506,7 @@ export default {
             if (!it) return { content: `coord_watch: malformed item '${raw}' — want owner/repo#num` };
             items.push(it);
           }
-          // BOUNDED BY DEFAULT (R4): a session-invoked wait always carries a wall-clock
+          // BOUNDED BY DEFAULT (R3): a session-invoked wait always carries a wall-clock
           // deadline. An explicit `timeout` wins; otherwise the named default applies.
           // `autoRearm` (durable intent) lifts it to unbounded; a `timeout` still wins.
           const explicit = typeof input.timeout === "number" && input.timeout >= 0 ? input.timeout : undefined;

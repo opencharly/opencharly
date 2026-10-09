@@ -25,8 +25,8 @@
  *
  * ## System prompt injection (before_agent_start)
  *
- * Injects condensed R0–R10 rules, PR body requirements, and attribution
- * tiers into the system prompt every turn — AND the full SOUL.md identity
+ * Injects the rulebook sections (R1–R10, "Commit, push, land", the attribution
+ * tiers) READ from the project-root AGENTS.md every turn — AND the full SOUL.md identity
  * (read from the project root) at every turn, so the injected text is the
  * soul itself, not a pointer to it. This survives compaction because it is
  * re-injected before every LLM call.
@@ -75,113 +75,47 @@ const GATE_SCRIPTS = [
  */
 const REQUIRED_WORKTREE_MODULES = ["charly", "marketplace"];
 
-/** The condensed engineering rules injected every turn. */
-function buildRulesBlock(): string {
-  return `## Charly Engineering Rules
+/**
+ * The rulebook sections re-injected every turn so they survive compaction. They are READ from
+ * the project-root AGENTS.md, never copied into this file (R2: a rule is stated once — the
+ * hand-copied block this replaces had drifted to a retired numbering).
+ */
+const INJECTED_SECTIONS = [
+  "The ground-truth rules R1–R10",
+  "Commit, push, land",
+  "AI Attribution (Fedora Policy Compliant)",
+];
 
-### You are charly
-You are charly. Who charly is — the identity behind these rules — lives in SOUL.md:
-read it first and keep its character as your own. These rules are how that character works.
+/** One `## <heading>` section of a markdown file, up to the next `#`/`##` heading. */
+export function extractSection(md: string, heading: string): string | null {
+  const lines = md.split("\n");
+  const start = lines.indexOf(`## ${heading}`);
+  if (start === -1) return null;
+  let end = lines.findIndex((l, i) => i > start && /^#{1,2} /.test(l));
+  if (end === -1) end = lines.length;
+  return lines.slice(start, end).join("\n").trim();
+}
 
-### R0 — Skills First
-Before the first tool call of every task, use \`charly_load_skills\` to load the
-SKILL.md files whose trigger column matches the task. The dispatcher table is in
-AGENTS.md. Load ALL matching skills before acting.
-
-### R1 — RCA Every Anomaly
-Every failure, warning, or doc-vs-reality divergence triggers the
-root-cause-analyzer process before any remediation. Skills are living
-documents: any code change that affects a skill, doc, comment, or memory
-claim updates that document in the SAME change, and sweeps every sibling
-carrying the same false claim.
-
-### R2 — Finish the Cutover
-Every issue surfaced during a task is fixed — pre-existing or not. No
-"pre-existing", "unrelated", "out of scope", or "follow-up PR"
-classifications. A blocking issue is fixed in the same commit; a genuinely
-separable non-blocking issue joins its next thematic batch cutover
-immediately — never parked.
-
-### R2a — Delegate Heavy Work
-Delegate heavy exploration, log archaeology, repo-wide greps, and
-long-running verification to a subagent that returns only a concise verdict
-+ evidence paths. The main agent plans, decides, and lands; the subagent digs.
-Never burn the main context on raw logs or repeated diagnostics. (Owner: the
-rulebook's "Agents, Workflows & Teams".)
-
-### R3 — No Duplication
-One canonical implementation owns each behavior. Extract shared mechanisms on
-the second occurrence.
-
-### R4 — No Workarounds
-No sleeps, blind retries, magic numbers, manual infrastructure commands, or
-fallback branches. Use \`charly\` or fix the missing capability.
-
-### R4a — Fix the Product First
-Documentation never routes around a defect. Fix the code before the prose.
-
-### R5 — Delete Legacy Completely
-Hard cutover removes the old path and every stale reference, shim, alias, and
-TODO in one commit.
-
-### R6 — Git Safety
-Check \`git status\` and stashes before destructive actions. No force-push,
-pushed-history rewrite, hook bypass, or direct push to \`main\`.
-
-### R7 — Prove Behavior, Not Compilation
-A green compile proves nothing. Run the changed path live and retain output.
-
-### R7a — Live or Skip — Never Fake a Live Service
-Any test, harness, or gate crossing a live-service boundary (a \`gh\` / GitHub
-API call, an LLM or provider endpoint, a network or \`charly\` call) runs against
-the REAL service, or SKIPS cleanly when its credential/endpoint is absent —
-never a mock, stub, or fake of that boundary. A fake certifies the behaviour its
-author imagined, not what the service does, and hides a real break behind green.
-Gate the skip on the real credential (\`LIVE_*\` unset → skip, visibly reported).
-
-### R8 — Preserve Emitted Artifacts
-Validate labels, plans, configs, schemas, and generated files at their actual
-boundary.
-
-### R9 — Binary Equals Source
-Build with \`scripts/bootstrap-charly.sh\`, invoke through \`bin/\`, verify version.
-
-### R10 — Fresh Disposable Proof
-Verify only on targets explicitly marked \`disposable: true\`. Fresh rebuild
-from the final committed tree. Pasted output, zero warnings.
-
-### PR Body Requirements
-Every PR body must contain, in this order:
-1. **## Summary** — what changed and why
-2. **## How tested** — pasted command + output for every verification step
-3. **## Rulebook compliance** — a row for every applicable rule (R0-R10)
-4. **## Change classification** — change class, R10 gate, attribution tier
-5. **Assisted-by: ...** — the italic footer as the FINAL line
-
-### Attribution Tiers
-| Confidence | Required proof |
-|---|---|
-| \`fully tested and validated\` | Every runtime standard + fresh-rebuild R10 on every affected disposable target; changed paths executed live |
-| \`analysed on a live system\` | Changed runtime path ran live with retained output; full R10 did not pass |
-| \`documentation reviewed\` | Docs-only change class (forbidden if code/config changed) |
-| \`syntax check only\` | Compile/unit/dry-run only — R10 incomplete, do not commit |
-| \`theoretical suggestion\` | No validation — never ship |
-
-### Validator Verdict Discipline
-Every validator BLOCK must be read in full and ALL listed issues fixed before
-the next push. A partial fix that addresses only one of several findings is a
-defective cycle.
-
-### Waiting — always leave a watcher armed
-Never hand-poll and never block a turn on a long wait. The \`watch\` extension arms the
-harness-neutral watcher family and delivers every event as a user turn:
-- GitHub (PRs + issues): auto-armed at \`session_start\` from \`.pi/watch.items\`
-  (\`owner/repo#num\`). Add a scope, then \`watch_arm\` with \`action: "restart"\`.
-- R10 beds: \`watch_arm\` with \`action: "bed"\` runs \`charly check run <bed>\` in the
-  background through \`scripts/check-bed-watch.sh\` and wakes you with its exit code and
-  newest \`summary.yml\`; the authoritative signal is the EXIT CODE (3 = prereq SKIP).
-- \`watch_arm\` with \`action: "status"\` reports what is armed.
-A wake is an ADDITION to the ledger, never a reset.`;
+/** The pi binding of R0 plus the canonical rulebook sections, read from AGENTS.md. */
+async function readRulesBlock(cwd: string): Promise<string> {
+  const header =
+    "## Charly Engineering Rules — from AGENTS.md\n\n" +
+    "### R0 — Skills First (pi binding)\n" +
+    "Before the first tool call of every task, use `charly_load_skills` to load the SKILL.md files " +
+    "whose trigger column matches the task (the dispatcher table is in AGENTS.md). Load ALL matching " +
+    "skills before acting.";
+  let md: string;
+  try {
+    md = await readFile(join(cwd, "AGENTS.md"), "utf8");
+  } catch {
+    return `${header}\n\n⚠ AGENTS.md is NOT present at the project root, so the rules are NOT injected this session.\n`;
+  }
+  const parts = INJECTED_SECTIONS.map(
+    (h) =>
+      extractSection(md, h) ??
+      `⚠ AGENTS.md has no "## ${h}" section: the rulebook changed shape. Fix INJECTED_SECTIONS in .pi/extensions/charly-gates.ts.`,
+  );
+  return [header, ...parts].join("\n\n") + "\n";
 }
 
 /**
@@ -270,7 +204,7 @@ export default function (pi: ExtensionAPI) {
         `NOT injected this session. That is the opencharly/opencharly#356 content-loss signature — ` +
         `restore SOUL.md at the umbrella root (opencharly/opencharly#357).\n`;
     return {
-      systemPrompt: event.systemPrompt + "\n\n" + soulBlock + "\n" + buildRulesBlock(),
+      systemPrompt: event.systemPrompt + "\n\n" + soulBlock + "\n" + (await readRulesBlock(ctx.cwd)),
     };
   });
 
@@ -690,7 +624,7 @@ export default function (pi: ExtensionAPI) {
           scriptPresent = false;
         }
         if (!scriptPresent) {
-          // FAIL CLOSED (T3/R4): the gate cannot run because its script is absent —
+          // FAIL CLOSED (T3/R3): the gate cannot run because its script is absent —
           // a wiring that silently proceeds (continue) is a bypass path. Block,
           // naming the missing script.
           return {
@@ -705,7 +639,7 @@ export default function (pi: ExtensionAPI) {
             cwd: ctx.cwd,
           });
         } catch (err) {
-          // FAIL CLOSED (T3/R4): an unexpected execution error means the gate
+          // FAIL CLOSED (T3/R3): an unexpected execution error means the gate
           // could not run — a wiring that silently proceeds on its own script's
           // failure is a bypass path. Block, naming the error.
           return {

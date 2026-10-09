@@ -77,7 +77,7 @@ map:
     plan:
       # Composes the ONE status implementation (verb:git-submodules status) — the
       # same table `pins MODE=status` produces. The former inline shell
-      # re-implemented that table (R3 duplication) AND its `command` stdout was
+      # re-implemented that table (R2 duplication) AND its `command` stdout was
       # discarded by the task reporter (the `command` verb's pass path returns only
       # `exit=N`), so `map` printed no map at all. Composition makes the verb's
       # table the step's Result.Message, which plugin-task v0.2026268.1402 renders.
@@ -184,7 +184,7 @@ sync:
 # branch audit). The policy-B pin half and the checkout audit are ONE verb,
 # verb:git-submodules (the former hand-rolled checkout loop is deleted: it was a
 # second implementation of a clause the verb already owns, and the drift it kept
-# reintroducing is the reason R3 exists). The default-branch audit and charly's
+# reintroducing is the reason R2 exists). The default-branch audit and charly's
 # nested-submodule check stay INLINE — no verb owns either clause. The inline
 # nested step is exercised by scripts/check-verify-submodules.mjs.
 # -----------------------------------------------------------------------------
@@ -280,6 +280,12 @@ verify:
         context: [runtime]
       - check: the pi gate extension fails CLOSED, uses the rule-2 worktree path, and wires both gate scripts
         command: node scripts/check-pi-gates.mjs
+        context: [runtime]
+      - check: the validator enforces only what the rulebook states — rulebook check ids == the AGENTS.md "What the validator checks" table, every cited skill resolves, and the committed rulebook == the live AI_REVIEW_PROMPT (opencharly/opencharly#446)
+        command: node scripts/check-validator-rule-map.mjs
+        context: [runtime]
+      - check: the validator rule-map gate discriminates — each mismatch fixture turns it RED
+        command: node scripts/check-validator-rule-map.mjs --self-test
         context: [runtime]
       - check: the pi wake binding delegates to the neutral watchers, wakes, re-arms, cleans up, and ships inert + wired
         command: node scripts/check-pi-watch.mjs

@@ -17,7 +17,7 @@
  *
  * HEADLESS MODE. In a non-TUI session (`pi -p`, CI, a subagent) there is nobody to prompt, so the
  * tool returns a CLEAR result saying so and telling the model to ask in prose and stop — it never
- * throws and never pretends it got an answer (R4: no silent fallback that looks like success).
+ * throws and never pretends it got an answer (R3: no silent fallback that looks like success).
  *
  * The answer is returned as ordinary tool output, so the model can act on it in the same turn.
  */

@@ -23,7 +23,7 @@
 // whose only property is that its owner ignores it.
 //
 // ASSERTED — each proven LIVE by --self-test against a mutation of a real region of the
-// file, never against a copy of it (R3: the gate reads the shipped text).
+// file, never against a copy of it (R2: the gate reads the shipped text).
 //
 //   A. Every step's DECLARED `context:` set intersects the active contexts [build,
 //      runtime]. A set disjoint from both — today's `[deploy]` — is a no-op in every mode

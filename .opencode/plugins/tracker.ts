@@ -7,9 +7,9 @@
  * into the tool-removed list; there is no todo table, no `/session/:id/todo` endpoint, and
  * no `todo.updated` plugin event. So a durable file is this harness's mechanism, and this
  * plugin is it. It does NOT restate the rule, the verb grammar, or the GitHub workflow —
- * it IMPLEMENTS them and LINKS to their owners (R3: no duplication of rules or code).
+ * it IMPLEMENTS them and LINKS to their owners (R2: no duplication of rules or code).
  *
- * R3 — this plugin builds on the ALREADY-SHARED modules rather than copying them:
+ * R2 — this plugin builds on the ALREADY-SHARED modules rather than copying them:
  *   - `.opencode/lib/watch.ts`         — the poll engine / batched GraphQL snapshot /
  *                                        `parseItem` / `ghJson` / the rate-limit contract.
  *   - `.opencode/lib/watcher-loop.ts`  — the detached native watch loop (extracted from
@@ -218,7 +218,7 @@ export async function liveScope(it: Item, signal?: AbortSignal): Promise<LiveSco
     if (Array.isArray(comments)) {
       for (const c of comments) {
         const body = String(c?.body ?? "");
-        // R3 — the verb/footer grammar is owned by `coord.ts` (the closed VERBS set);
+        // R2 — the verb/footer grammar is owned by `coord.ts` (the closed VERBS set);
         // this reads through the SHARED parsers, never a hand-copied alternation.
         const verb = parseVerb(body);
         if (verb) {

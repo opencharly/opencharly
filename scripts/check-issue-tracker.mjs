@@ -71,7 +71,7 @@ for (const p of [trackerPath, loopPath]) {
   ok(!/\.sh\b/.test(code), `${rel}: contains NO .sh reference (no shell delegation)`);
   ok(!/execFile\(\s*["']bash/.test(code), `${rel}: no bash execFile`);
 }
-// R3 — the verb/footer grammar is OWNED by coord.ts. tracker.ts must NOT re-hardcode
+// R2 — the verb/footer grammar is OWNED by coord.ts. tracker.ts must NOT re-hardcode
 // the closed verb set: no literal alternation of two-or-more coordination verbs.
 {
   const trackerCode = stripComments(readFileSync(trackerPath, "utf8"));

@@ -2,7 +2,7 @@
  * watcher-loop.ts — the ONE detached native watcher loop shared by the OpenCode
  * plugins (`pr-watch.ts`, `tracker.ts`).
  *
- * R3 — this module is the extraction target: the V2 session capture
+ * R2 — this module is the extraction target: the V2 session capture
  * (`ctx.tool.hook("execute.before")` + `ctx.session.hook("prompt")`), the delivery
  * binding (`ctx.session.synthetic`), the detached `void (async()=>for(;;))` poll loop,
  * and the rate-limit backoff previously lived INLINE in `pr-watch.ts`. `tracker.ts`

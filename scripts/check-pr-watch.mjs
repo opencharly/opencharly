@@ -24,7 +24,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, "..");
 const pluginPath = join(root, ".opencode/plugins/pr-watch.ts");
 const loopPath = join(root, ".opencode/lib/watcher-loop.ts");
-// The shared detached loop now lives in `lib/watcher-loop.ts` (R3 extraction) and
+// The shared detached loop now lives in `lib/watcher-loop.ts` (R2 extraction) and
 // `pr-watch.ts` imports it; the primitive assertions therefore scan the PAIR.
 const source =
   readFileSync(pluginPath, "utf8") + "\n" + readFileSync(loopPath, "utf8");

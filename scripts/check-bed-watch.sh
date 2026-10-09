@@ -7,7 +7,7 @@
 # watcher family (`marketplace/scripts/{gh_watch,pr_state_watch,pr_watch_many}.sh`), kept
 # in the umbrella's own `scripts/` because its subject — the umbrella's `.check/` runs —
 # is umbrella tooling. If a non-umbrella consumer ever needs it, it promotes to
-# `marketplace/scripts/` at that point (R3: extract on the second occurrence).
+# `marketplace/scripts/` at that point (R2: extract on the second occurrence).
 #
 # WHY IT EXISTS (R1). `charly check run <bed>` is the R10 gate, but it is a FOREGROUND
 # command: an agent that runs it blocks its whole turn for the length of a fresh build +

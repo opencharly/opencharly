@@ -5,11 +5,11 @@
  * background-completion notification and no subagent (the `pi-subagents` package is
  * deliberately not installed), so a long wait — a PR's `charly/pr-validator` verdict, a
  * reviewer's BLOCK comment, a 40-minute R10 bed, an issue reply — is either hand-polled
- * (the R4 band-aid) or dropped. The sibling harnesses bind a watcher (opencode's
+ * (the R3 band-aid) or dropped. The sibling harnesses bind a watcher (opencode's
  * `pr-watch.ts` + `ctx.session.synthetic`, reasonix's `watch-arm.sh` hook); pi has
  * nothing. This extension is that binding.
  *
- * IT IS DELIBERATELY THIN (R3, "as neutral as possible"). It contains NO watching logic:
+ * IT IS DELIBERATELY THIN (R2, "as neutral as possible"). It contains NO watching logic:
  * it SPAWNS the harness-neutral shell tools and turns each line they print into a user
  * turn. All the real behaviour — the poll floor, the single-instance lock, the rate-limit
  * back-off, the stall alarm, the exit-code classification — lives in those scripts, which
@@ -284,7 +284,7 @@ function armGh(pi: ExtensionAPI): void {
       gh.rearmTimer = setTimeout(() => armGh(pi), 60000);
       return;
     }
-    // A rate limit (7) or a usage error (5) is terminal: never blind-retry it (R4).
+    // A rate limit (7) or a usage error (5) is terminal: never blind-retry it (R3).
     if (code === 7 || code === 5) {
       deliver(
         pi,
@@ -427,7 +427,7 @@ export default function (pi: ExtensionAPI) {
       "reply, a validator verdict, or an R10 bed.",
     promptSnippet: "Arm a background watcher (GitHub, or an R10 bed)",
     promptGuidelines: [
-      "Whenever you must wait for a PR, an issue reply, a validator verdict, or an R10 bed, ensure a watcher is armed — never hand-poll (R4).",
+      "Whenever you must wait for a PR, an issue reply, a validator verdict, or an R10 bed, ensure a watcher is armed — never hand-poll (R3).",
       "GitHub watching is auto-armed from .pi/watch.items; add a scope to that file (owner/repo#num) and call watch_arm action=restart.",
       "For an R10 bed, call watch_arm action=bed with the bed name instead of running `charly check run` inline — its completion arrives as a wake.",
       "A wake is an ADDITION to the ledger, never a reset; re-arm explicitly only when the wake is a STALL takeover candidate.",
