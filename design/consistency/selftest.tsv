@@ -11,6 +11,7 @@ id-dangling	DESIGN.md	s~^| D-CODE-5 | Live~| D-CODE-5 | (D-FOO-1) Live~	D-FOO-1 
 section-dangling	DESIGN.md	s~(§7.1)~(§75)~	§75 names no section of DESIGN.md
 banned-term	DESIGN.md	s~^| D-CODE-4 | Comments~| D-CODE-4 | In the workspace, comments~	'workspace' is a §2 "Not" term
 words-multiword-ban	DESIGN.md	s~^## 3\. Schema~## 3. Schema\nimport namespace~	'import namespace' is a §2 "Not" term
+table-shape	DESIGN.md	s~^| D-VAL-2 |~| D-VAL-2 | |~	a table row has 5 cells where its table has 4
 plural-key	DESIGN.cue	s~^\ttag?:         #Text~\ttag?: #Text\n\tlabels?: #Text~	key 'labels' ends in s and is not listed as singular in D-NAME-1
 disjoint	DESIGN.cue	s~"description", "from", "step", "require"~"description", "from", "step", "pod", "require"~	kind words and _candyField overlap: pod
 method-spelling	DESIGN.md	s~each kind's `resolve` returns~each kind's `Resolve` returns~	`Resolve` — the method is spelled `resolve`

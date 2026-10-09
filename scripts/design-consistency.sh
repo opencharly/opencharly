@@ -329,5 +329,36 @@ open="$(g -c '{\.\.\.}' "$schema")"
 g -q '^#Opaque: {\.\.\.}' "$schema" || echo "FAIL DESIGN.cue: the one open struct is not the #Opaque definition" >> "$work/patterns-out"
 if [[ -s "$work/patterns-out" ]]; then cat "$work/patterns-out"; fail=1; fi
 
+# ── 7 table shape ───────────────────────────────────────────────────────────────
+# Every row of a markdown table carries its header's cell count and ends with `|`. A stray cell
+# silently misaligns a NORMATIVE table and no other check sees it: a §5.4 rule row once shipped with a
+# fifth cell because a split-proof note was appended instead of folded into its `Design check` cell.
+shape() {
+	awk '
+		function cells(line,   n,i,c,prev) {
+			n = 0; prev = ""
+			for (i = 1; i <= length(line); i++) {
+				c = substr(line, i, 1)
+				if (c == "|" && prev != "\\") n++
+				prev = c
+			}
+			return n - 1
+		}
+		/^\|/ {
+			if (!inrow) { hdr = cells($0); inrow = 1 }
+			else {
+				if (cells($0) != hdr)
+					printf "FAIL %s:%d: a table row has %d cells where its table has %d\n", FILE, FNR, cells($0), hdr
+				if (substr($0, length($0), 1) != "|")
+					printf "FAIL %s:%d: a table row does not end with a `|`\n", FILE, FNR
+			}
+			next
+		}
+		{ inrow = 0 }
+	' "$@"
+}
+shape "$md" "$root/TODO.md" > "$work/shape"
+if [[ -s "$work/shape" ]]; then cat "$work/shape"; fail=1; fi
+
 if ((fail)); then exit 1; fi
-echo "consistency: tables, word lists, rule tags, ids and § references, vocabulary — all agree"
+echo "consistency: tables, table shape, word lists, rule tags, ids and § references, vocabulary — all agree"
