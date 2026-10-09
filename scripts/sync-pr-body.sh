@@ -199,6 +199,7 @@ build_body() {
     echo "- **R3 no workaround:** \`charly\` and every non-\`distro-*\` pin is its owning repo's"
     echo "  default-branch HEAD (per-pin \`git ls-remote\` above); every \`distro-*\` pin is charly's"
     echo "  own gitlink. The producer never pins a PR branch."
+    echo "- **R4 product before prose:** \`N/A — a gitlink sync changes no documentation and routes around no defect.\`"
     echo "- **R5 hard cutover + grep:** the pointers are replaced, not appended to."
     echo "- **R6 git safety:** a fresh branch per run; no force-push; no push to \`main\`."
     echo "- **R7 runtime gate:** \`charly task verify\` on the final tree — the sync"
@@ -400,6 +401,14 @@ if [ "${1:-}" = "--self-test" ]; then
   # (`pr_body_lint.py`: "the `Agent:` line must directly precede the Assisted-by trailer").
   tail -n 2 "$tmp/body" | head -n 1 | grep -qxF '*Agent: `self-test-slug` · session `00000000-0000-0000-0000-000000000000`*' \
     || fail "the rule-7 Agent: line must directly precede the Assisted-by trailer"
+
+  # Every ground-truth rule R0–R10 has its own `## Rulebook compliance` row. The org body
+  # linter (`pr_body_lint.py`, default `--rules R0..R10`) and the validator's A1 both demand a
+  # line per rule, and a renumbering that leaves a number with no row (the old R4 → R3 left R4
+  # empty, opencharly/opencharly#448) must fail here rather than in a nightly sync PR.
+  for r in R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10; do
+    grep -qE "^- \*\*${r} " "$tmp/body" || fail "the Rulebook compliance section has no ${r} row"
+  done
 
   # ...and the rendered body must carry EXACTLY ONE literal `Assisted-by:` — the trailer
   # itself. The constructor the owning skill names as canonical
