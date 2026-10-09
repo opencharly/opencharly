@@ -32,6 +32,10 @@
 #                          fail-closed, and actually BLOCKS a defective body — asserted by
 #                          FIRING it (`node scripts/check-pr-body-gate.mjs`;
 #                          opencharly/marketplace#404)
+#  11. validator rule map — the validator's check ids equal the AGENTS.md "What the validator
+#                          checks" table (`node scripts/check-validator-rule-map.mjs --no-live`;
+#                          the committed-vs-live rulebook leg reads remote state, so it runs in
+#                          `charly task verify`; opencharly/opencharly#446)
 #
 # Deliberately NOT here (see `charly task verify`): the per-submodule
 # `git ls-remote` default-branch audit — it reads remote state no commit can change
@@ -127,6 +131,7 @@ node "$ROOT/scripts/check-pi-pr-status.mjs"
 node "$ROOT/scripts/check-pi-question.mjs"
 node "$ROOT/scripts/check-task-contexts.mjs"
 node "$ROOT/scripts/check-pr-body-gate.mjs"
+node "$ROOT/scripts/check-validator-rule-map.mjs" --no-live
 bash "$ROOT/scripts/check-bed-watch.sh" --self-test
 
 echo "pre-commit: OK"

@@ -9,9 +9,9 @@
  * poll loop) and NEVER spawn a `.sh` (no `Bun.spawn` / `spawnSync` of a script, and
  * no dependency on any `.sh` file — hence NO `marketplace` submodule pin).
  *
- * R3 — the two are deliberately NOT a forked copy of one implementation: each is
+ * R2 — the two are deliberately NOT a forked copy of one implementation: each is
  * native to its harness (the operator's SIGNED-OFF clean split — a maintainer-account
- * R3 divergence, not a self-asserted waiver). The shared CONTRACT is defined ONCE in
+ * R2 divergence, not a self-asserted waiver). The shared CONTRACT is defined ONCE in
  * the shell family's docs; the native engine implements the SAME contract and the gate
  * asserts the TS side against it. Drift in the SHELL side alone is not compared by the
  * gate (the shell is not a dependency — no `.sh`, no pin) — the signed-off condition

@@ -82,7 +82,7 @@ def git_invocations(cmd, subcommand):
 def mentions_subcommand(cmd, subcommand):
     """Is a `git … <subcommand>` PLAUSIBLY present in a command shlex could not
     tokenize? The fail-closed predicate BOTH gates consult after a ValueError —
-    security-relevant, so it has exactly ONE definition (R3)."""
+    security-relevant, so it has exactly ONE definition (R2)."""
     pat = r'(?:^|[\s;&|(])git\b[^\n]*\b' + re.escape(subcommand) + r'\b'
     return re.search(pat, cmd) is not None
 

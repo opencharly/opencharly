@@ -192,20 +192,23 @@ build_body() {
     echo "  produced by \`charly task sync\`, the verb that skill names."
     echo "- **R1 RCA + zero warnings:** the producer resolves each pin and names any repo it"
     echo "  cannot resolve rather than guessing; no warning appears in the pasted output."
-    echo "- **R2 no parking:** a defect found in THIS sync is fixed here; content behind a"
+    echo "- **R1 fix or file:** a defect found in THIS sync is fixed here; content behind a"
     echo "  moved gitlink belongs to its OWNING repo (which gated it before tagging)."
-    echo "- **R3 no duplication:** policy B is asserted by \`charly task policy-b\` — the ONE"
+    echo "- **R2 no duplication:** policy B is asserted by \`charly task policy-b\` — the ONE"
     echo "  implementation \`charly task verify\` also composes."
-    echo "- **R4 no workaround:** \`charly\` and every non-\`distro-*\` pin is its owning repo's"
+    echo "- **R3 no workaround:** \`charly\` and every non-\`distro-*\` pin is its owning repo's"
     echo "  default-branch HEAD (per-pin \`git ls-remote\` above); every \`distro-*\` pin is charly's"
     echo "  own gitlink. The producer never pins a PR branch."
+    echo "- **R4 product before prose:** \`N/A — a gitlink sync changes no documentation and routes around no defect.\`"
     echo "- **R5 hard cutover + grep:** the pointers are replaced, not appended to."
     echo "- **R6 git safety:** a fresh branch per run; no force-push; no push to \`main\`."
     echo "- **R7 runtime gate:** \`charly task verify\` on the final tree — the sync"
     echo "  is hand-run in a HUMAN tree, where that gate's nested-submodule half is meaningful —"
     echo "  plus the per-pin \`git ls-remote\` default-branch evidence above; \`distro-*\` pins (when"
-    echo "  any move) are additionally asserted by policy B."
-    echo "- **R8 artifact invariants:** \`N/A — no generated artifact/OCI label.\`"
+    echo "  any move) are additionally asserted by policy B. No generated artifact or OCI"
+    echo "  label is emitted."
+    echo "- **R8 live or skip:** the per-pin \`git ls-remote\` evidence runs against the real"
+    echo "  GitHub remotes; no remote is mocked."
     echo "- **R9 binary == source:** \`N/A — no binary is built by this sync.\`"
     echo "- **R10 disposable + coverage:** the coverage is the per-pin \`git ls-remote\`"
     echo "  default-branch evidence above (it fails if a pin is a PR branch or a non-HEAD"
@@ -398,6 +401,14 @@ if [ "${1:-}" = "--self-test" ]; then
   # (`pr_body_lint.py`: "the `Agent:` line must directly precede the Assisted-by trailer").
   tail -n 2 "$tmp/body" | head -n 1 | grep -qxF '*Agent: `self-test-slug` · session `00000000-0000-0000-0000-000000000000`*' \
     || fail "the rule-7 Agent: line must directly precede the Assisted-by trailer"
+
+  # Every ground-truth rule R0–R10 has its own `## Rulebook compliance` row. The org body
+  # linter (`pr_body_lint.py`, default `--rules R0..R10`) and the validator's A1 both demand a
+  # line per rule, and a renumbering that leaves a number with no row (the old R4 → R3 left R4
+  # empty, opencharly/opencharly#448) must fail here rather than in a nightly sync PR.
+  for r in R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10; do
+    grep -qE "^- \*\*${r} " "$tmp/body" || fail "the Rulebook compliance section has no ${r} row"
+  done
 
   # ...and the rendered body must carry EXACTLY ONE literal `Assisted-by:` — the trailer
   # itself. The constructor the owning skill names as canonical

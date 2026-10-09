@@ -12,7 +12,7 @@ coord.conf
 # per-machine, never committed: it holds live in-flight state, not project content.
 #
 # The ignore RULES live in the ROOT `.gitignore` (`**/ledger/*` + `!**/ledger/.gitkeep`),
-# which covers every ledger home at any depth — ONE rule, not one per harness (R3).
+# which covers every ledger home at any depth — ONE rule, not one per harness (R2).
 # Do NOT re-add a local rule here: a bare `ledger/` excludes the DIRECTORY, and an
 # excluded directory cannot be re-included — which is exactly how this home became
 # untrackable before 2026-10-07.

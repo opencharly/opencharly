@@ -4,7 +4,7 @@
  *
  * It lives in `.opencode/lib/` (NOT `.opencode/plugins/`) so opencode's plugin
  * discovery, which loads `plugins/*.{ts,js}` as plugins, never treats this module
- * as a plugin — it is a plain import target (R3: one implementation, not two).
+ * as a plugin — it is a plain import target (R2: one implementation, not two).
  */
 
 /** Return the last non-empty (trimmed) line of `stdout`, or undefined. */

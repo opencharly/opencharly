@@ -461,7 +461,7 @@ if (mod) {
       eq(resolveTarget({ all: false, session: "ses_live01" }), { mode: "one", sessionID: "ses_live01" }, "resolveTarget: `all: false` + a `session` picks it");
       ok("error" in resolveTarget({ session: "not-a-session" }), "resolveTarget: a non-ses_ id is refused (never silently scanned)");
 
-      // R3: the ONE shared collector both tool branches call — and limit/sinceMin clamping.
+      // R2: the ONE shared collector both tool branches call — and limit/sinceMin clamping.
       ok(resolveLimit({ limit: 100 }) === 50 && resolveLimit({}) === DEFAULT_LIMIT, "resolveLimit clamps `limit` (cap 50, DEFAULT_LIMIT fallback)");
       ok(resolveSinceMin({ sinceMin: 30 }) === 30 && resolveSinceMin({}) === DEFAULT_SINCE_MIN, "resolveSinceMin honours `sinceMin` (DEFAULT_SINCE_MIN fallback)");
       {
@@ -553,7 +553,7 @@ if (mod) {
       ok(/delete ses_live01 FAILED/.test(del.content), "runControl delete: a failing opencode CLI is reported FAILED (never a false success)");
 
       // wait: exercised through runControl with a stubbed ctx.session.wait — BOTH the idle
-      // result and the bounded-timeout result (B12: a path with no test fails to exist).
+      // result and the bounded-timeout result (R10: a path with no test fails to exist).
       {
         let waitedFor = null;
         const idleStub = { session: { wait: async (a) => { waitedFor = a; } } };

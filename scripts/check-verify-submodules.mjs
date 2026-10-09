@@ -20,7 +20,7 @@
 // {mode: verify}`, which `charly.yml` composes, and is therefore not fixture-tested here.
 //
 // The step is EXTRACTED FROM charly.yml, never copied, so a fixture run always
-// exercises the shipped text and the two cannot drift (R3).
+// exercises the shipped text and the two cannot drift (R2).
 //
 // Asserted — each proven LIVE by --self-test against a mutation of the step:
 //   A. a nested submodule left UNINITIALIZED (`-`) is GREEN and REPORTED, not drift (the fix)

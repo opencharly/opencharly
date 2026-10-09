@@ -110,15 +110,13 @@ $ true
 ## Rulebook compliance
 - **R0 — skills first:** fixture.
 - **R1 — RCA every anomaly:** N/A — no anomaly in this fixture.
-- **R2 — finish the cutover:** fixture.
-- **R3 — no duplication:** fixture.
-- **R4 — no workarounds:** fixture.
-- **R4a — fix the product first:** fixture.
+- **R2 — no duplication:** fixture.
+- **R3 — no workarounds:** fixture.
+- **R4 — fix the product first:** fixture.
 - **R5 — delete legacy completely:** fixture.
 - **R6 — git safety:** fixture.
-- **R7 — prove behaviour, not compilation:** fixture.
-- **R7a — live or skip:** fixture.
-- **R8 — preserve emitted artifacts:** fixture.
+- **R7 — prove behaviour, not compilation (+ emitted artifacts):** fixture.
+- **R8 — live or skip:** fixture.
 - **R9 — binary equals source:** fixture.
 - **R10 — fresh disposable proof:** fixture.
 

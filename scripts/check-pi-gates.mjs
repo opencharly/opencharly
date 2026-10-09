@@ -4,7 +4,7 @@
 // check-pr-watch.mjs: static assertions over the SHIPPED code (comments stripped),
 // each proven to FAIL by a mutation.
 //
-// Why it exists (T3/R4/B12): the pi extension is the harness's git-workflow gate
+// Why it exists (T3/R3/R10): the pi extension is the harness's git-workflow gate
 // wiring — it intercepts every `tool_call` and blocks commands the gate scripts
 // reject. `check-harness-config.mjs` only asserts the surfaces PARSE and are wired;
 // it does NOT catch a broken gate, so without this file the extension's behaviour is
@@ -158,6 +158,7 @@ async function fire() {
     cpSync(join(root, ".claude/hooks"), join(fireRoot, ".claude/hooks"), { recursive: true });
     cpSync(file, join(fireRoot, rel));
     if (existsSync(join(root, "SOUL.md"))) cpSync(join(root, "SOUL.md"), join(fireRoot, "SOUL.md"));
+    if (existsSync(join(root, "AGENTS.md"))) cpSync(join(root, "AGENTS.md"), join(fireRoot, "AGENTS.md"));
     mkdirSync(join(fireRoot, "node_modules/typebox"), { recursive: true });
     writeFileSync(
       join(fireRoot, "node_modules/typebox/package.json"),
@@ -218,6 +219,20 @@ export default { Type };
     expect(
       soul.length > 0 && (started?.systemPrompt ?? "").startsWith("BASE") && (started?.systemPrompt ?? "").includes(soul),
       `${rel} FIRED: before_agent_start re-injects the project-root SOUL.md identity every turn`,
+    );
+
+    // F0c — the RULES are read from the project-root AGENTS.md (R2: stated once, never copied
+    //       into the extension). Every injected section must be present verbatim, and no
+    //       "changed shape" marker may appear — a renamed AGENTS.md heading turns this red.
+    const agentsMd = existsSync(join(fireRoot, "AGENTS.md")) ? readFileSync(join(fireRoot, "AGENTS.md"), "utf8") : "";
+    const prompt = started?.systemPrompt ?? "";
+    const wanted = ["## The ground-truth rules R1–R10", "## Commit, push, land", "## AI Attribution (Fedora Policy Compliant)"];
+    expect(
+      agentsMd.length > 0 &&
+        wanted.every((h) => agentsMd.includes(`\n${h}\n`) && prompt.includes(h)) &&
+        prompt.includes("**R1 — RCA every anomaly") &&
+        !prompt.includes("the rulebook changed shape"),
+      `${rel} FIRED: before_agent_start injects the R1–R10, "Commit, push, land" and attribution sections READ from AGENTS.md`,
     );
 
     // 3. Fixtures — one real repository per state the tool must tell apart.
@@ -338,6 +353,7 @@ if (argv.includes("--self-test")) {
   // keeps that honest, and it is why these copies are load-bearing rather than tidy.
   if (existsSync(join(root, ".claude/hooks"))) cpSync(join(root, ".claude/hooks"), join(tmp, ".claude/hooks"), { recursive: true });
   if (existsSync(join(root, "SOUL.md"))) cpSync(join(root, "SOUL.md"), join(tmp, "SOUL.md"));
+  if (existsSync(join(root, "AGENTS.md"))) cpSync(join(root, "AGENTS.md"), join(tmp, "AGENTS.md"));
   const runGate = () => {
     const r = spawnSync(process.execPath, [fileURLToPath(import.meta.url), "--root", tmp], {
       encoding: "utf8",
@@ -414,10 +430,16 @@ if (argv.includes("--self-test")) {
       "SOUL read but not injected (static checks stay green)",
       (s) =>
         s.replace(
-          /systemPrompt: event\.systemPrompt \+ "\\n\\n" \+ soulBlock \+ "\\n" \+ buildRulesBlock\(\),/,
+          /systemPrompt: event\.systemPrompt \+ "\\n\\n" \+ soulBlock \+ "\\n" \+ \(await readRulesBlock\(ctx\.cwd\)\),/,
           "systemPrompt: event.systemPrompt,",
         ),
       `re-injects the project-root SOUL.md`,
+    ],
+    [
+      "rules section renamed away from AGENTS.md (static checks stay green)",
+      // anchored to the INJECTED_SECTIONS entry line — the doc comment names the same string
+      (s) => s.replace(/^  "Commit, push, land",$/m, '  "Commit, push, landing",'),
+      `READ from AGENTS.md`,
     ],
   ];
   let stFails = 0;
