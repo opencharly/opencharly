@@ -92,7 +92,7 @@ import (
 
 // ── word lists (S3) ─────────────────────────────────────────────────────────
 // Written out for the first-party plugins; in charly they are composed from the registry.
-_managerWord:        ["npm", "cargo", "pip", "aur", "flatpak", "helm", "android"]
+_managerWord:        [for w, _ in _managerPhase {w}]
 // ONE table, ONE DERIVED set — so adding a manager stays one entry in one place, not three edits that can
 // drift. The one set is the BUILD-TIME words; the apply-phase rows serve to EXCLUDE those words from it, so
 // the table carries the phase even though the phase does not gate what may be written. The rule this feeds
@@ -182,7 +182,7 @@ _alt: {
 // word or a directive must not appear.
 // D-KIND-4: a namespace is never a kind word or a directive, so a plugin's kind cannot shadow a
 // first-party one.
-#Namespace:      #Name & !~"^(\(_alt.directive)|\(_alt.kind))$"
+#Namespace:      #TopName   // the same guard as a top-level name: the sets are deliberately one
 
 // ── document (§4.2) ─────────────────────────────────────────────────────────
 #Document: {
