@@ -11,9 +11,12 @@ import:
     # addressed by its QUALIFIED name (`charly.check-k3s-vm`, `arch.check-arch-vm`,
     # `openclaw.check-openclaw-pod`, …).
     - charly: ./charly
-    # The OpenClaw family's own repo (opencharly/opencharly#431). Imported under the
-    # `openclaw` namespace, so its entities are addressed qualified — the bed is
-    # `openclaw.check-openclaw-pod`. The namespace comes from THIS import key, not
+    # opencharly/layer-openclaw — the OpenClaw AI-gateway family (the gateway image,
+    # its candy and its disposable bed), imported under the `openclaw` namespace, so
+    # its entities are addressed qualified — the bed is `openclaw.check-openclaw-pod`.
+    # Its own repo lives at github.com/opencharly/layer-openclaw; the cutover that
+    # consolidated it is tracked in opencharly/opencharly#431. The namespace comes from
+    # THIS import key, not
     # from the repo's name.
     - openclaw: ./layer-openclaw
 defaults:
