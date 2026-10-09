@@ -362,8 +362,8 @@ _intentWord: ["run", "check", "harness-check", "harness-run"]
 // D-VERB-4: one operation key per multi-operation verb.
 #KubeAlt: {
 	wait_node:  {wait_node!: {count!: #Count}}
-	wait_ready: {wait_ready!: {resource!: #Text, namespace?: #Name, name!: #Text}}
-	pod:        {pod!: {namespace?: #Name}}
+	wait_ready: {wait_ready!: {resource!: #Text, namespace?: #Namespace, name!: #Text}}
+	pod:        {pod!: {namespace?: #Namespace}}
 	node:       {node!: {}}
 }
 #Kube: or([for _, a in #KubeAlt {a}])

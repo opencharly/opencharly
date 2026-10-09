@@ -28,6 +28,16 @@ wrong result costs only a rebuild.
 | D-LAW-6 | **Authored files are input; state is output.** charly writes authored files only through the commands whose purpose is editing them (D-CLI-2). Derived state lives in the state root (§17). |
 | D-LAW-7 | **Content addressing.** Cache keys and artifact names are digests of all inputs, never paths, clocks or mutable names. |
 
+The laws fix a **shape**. These four principles decide a **proposal** — they are how a change to this
+document is judged, and a change that needs an exception to one of them is redesigned rather than amended.
+
+| # | Principle | Rules out |
+|---|---|---|
+| P1 | **Mechanism, not instance** | a rule for one deployment kind where one rule serves all: the Server-Side-Apply field manager is an *instance* of `D-NEST-4`, and a version floor an instance of the grants mechanism (§16) |
+| P2 | **One term, many instances** | a term split: `namespace` and `tenancy` would be two names for one mechanism — a named scope (§2) |
+| P3 | **Derived, never authored** | a redundant field or term: a venue already carries its scope, and a revision is a digest, not a node (§9) |
+| P4 | **No foreign concept** | a foreign system's own vocabulary: no `kubectl` subcommand, no `helm` flag, no OCE kind set, no `kind: oce` |
+
 ## 2. Vocabulary — the closed term registry
 
 These are the only terms for these concepts in code, schema, CLI, labels and documentation.
@@ -335,7 +345,7 @@ restate it.
 
 | Concept or word | Owner |
 |---|---|
-| directives, intents, phases, modifiers and step-level matchers, node tree, linking, registry, solver, the store instance, the protocol (§8.3–§8.6), the host service, deployment locks, the five role words, the MCP server | core the namespace table and name resolution (D-LOAD-6), |
+| directives, intents, phases, modifiers and step-level matchers, node tree, linking, the namespace table and name resolution (D-LOAD-6), registry, solver, the store instance, the protocol (§8.3–§8.6), the host service, deployment locks, the five role words, the MCP server | core |
 | the commands that drive nodes through the stage driver: `box build`, `box validate`, `box inspect`, `box list`, `box pull`, `box push`, `box load`, `box reconcile`, and every deployment command of §19 | core |
 | the commands that edit authored files: `box new`, `box set`, `box add-candy`, `box rm-candy`, `box write`, `box cat`, `box merge`, `migrate` | core |
 | `version`, `help`, `mcp serve` | core |
@@ -346,7 +356,7 @@ restate it.
 | `android` (devices, the `android:` manager, the `adb` and `appium` verbs) | android plugin |
 | the system verbs `command`, `file`, `package`, `service`, `process`, `port`, `http`, beds, `check-roster`, `instrument`, `iterate`, the `check` command | check plugin |
 | the desktop and device verbs `cdp`, `wl`, `vnc`, `spice`, `dbus`, `record`, `cua`, `jetkvm`, `vision`, `mcp`; the `cua` and `jetkvm` kinds | desktop plugin |
-| the `harness` and `pipeline` kinds, the `agent`, `tui`, `pipeline` and `review` commands, the `mcp` and `agent` capability types | agent plugin |
+| the `harness` and `pipeline` kinds, the `agent`, `tui`, `pipeline` and `review` commands, the `mcp` and `harness` capability types | agent plugin |
 | the `task` kind, `packaging`, the `task`, `secret`, `config`, `cache`, `clean`, `doctor`, `preempt`, `alias` and `release-package` commands, the `env` and `secret` capability types | operations plugin |
 | the `skill`, `hook`, `marketplace` and `doc` kinds, the `doc generate` and `marketplace generate` commands | documentation plugin |
 | the host-need types `gpu`, `device`, `nesting`, `engine_api`, `mount`, and the `port` capability type | `spec` (envelope), granted by each deployment kind's `grant` |
@@ -561,7 +571,7 @@ deployment lock (D-DEP-4); no command has a private path.
 <!-- schema: keys(#ActionAlt) -->
 | Action | Produced by | Scope |
 |---|---|---|
-| `package` | `package:` (OS manager, or a `<manager>:` prefix, §7.1) | system |
+| `package` | `package:` (OS manager, or a `<manager>:` prefix, §7.1); a manager that declares an input carries it as the owning plugin's own (`#ManagerInput`, D-IR-6) | system |
 | `package_repo` | `package_repo:` | system |
 | `file` | `file:` (a map keyed by literal absolute path, one effect per entry) | system |
 | `service` | `service:` (a map keyed by service name) | system or user |
@@ -577,7 +587,7 @@ deployment lock (D-DEP-4); no command has a private path.
 | D-IR-4 | A `file:` entry has exactly one effect — `content`, `copy`, `dir`, `link`, `download` or `extract` — and a `download` or `extract` is pinned by `sha256`. |
 | D-IR-5 | A foreign system enters the IR in one of three roles — a **manager word** (`_managerWord`), a **venue kind** (`#VenueOutputAlt`) or a **deployment kind** — and its own command line never becomes charly vocabulary: no foreign subcommand, flag or chart-CLI string is an authored field, a verb word or an intent (§2). |
 | D-IR-6 | An action for a manager that declares an input carries it as `#ManagerInput`, validated against the owning plugin's schema at **authoring** time, never at execution. |
-| D-IR-7 | A manager word is admitted by the **phase** of the body that names it: `_buildManagerWord` for a build-phase body (a candy), `_applyManagerWord` for an apply-phase action (a deployment), both derived from the one `_managerPhase` table. |
+| D-IR-7 | A manager word's **work is owned by its phase**: a build-phase manager's package is built by a `builder` node, whose `builder_box` key must therefore be a build-time manager (`#BuildManager`); an apply-phase manager's package is applied by the deployment kind. A body may **declare** a package of either phase — `#PackageSet` is unscoped — because the phase decides who does the work, never what may be written. |
 
 ## 10. Kinds and directives
 
@@ -626,7 +636,7 @@ Directives: `repo`, `plugin`, `import`, `discover`.
 | `input` | the choices this candy declares: a bounded set, never a substitution |
 | `with` | supplies the choices of the candy this one is `from:` |
 | `provide` | capabilities it provides (§15) |
-| `package` | packages: OS names, or `<manager>:<locator>` (a set of unique names); on a plugin candy, the OS packages the plugin needs in order to run (D-CANDY-6) |
+| `package` | packages: OS names, `<manager>:<locator>` (a set of unique names), or a manager's own input where it declares one (`#ManagerPackage`, D-IR-6); on a plugin candy, the OS packages the plugin needs in order to run (D-CANDY-6) |
 | `os_override` | per-OS overrides of `package` and `package_repo`, keyed by an `os` family or an `os` node name; the most specific key wins |
 | `file` | files by literal absolute path, one effect each |
 | `package_repo` | package repositories by name |
@@ -1279,6 +1289,7 @@ charly box build opencharly/fedora@main:workstation                   # a branch
 |---|---|
 | D-REF-7 | A CLI repository reference is `<repo>[@<release or branch>]:<name>`; `owner/repo` means `github.com/owner/repo`. Without `@…` the newest release is used. Every resolution prints the repository, release or commit, and digest it used. |
 | D-REF-8 | A repository reference is accepted wherever the CLI takes a node; there is no `--repo` flag. |
+| D-REF-9 | A dotted name's meaning is a **form** rule, never a lookup accident: its first segment is a namespace *by form*, and D-VAL-4 (namespaces and top-level node names are disjoint) is what makes the reading decidable. |
 
 ## 14. Plugins declared in `charly.yml`
 
@@ -1613,7 +1624,7 @@ no read path for one. Records live in the state root (D-DEP-5), so they inherit 
 |---|---|
 | boxes | `box build <box> [--form image\|disk] [--emit]`, `box validate`, `box new`, `box pull`, `box push`, `box inspect`, `box list`, `box load <box> <deployment>`, `box merge`, `box reconcile`, `box set`, `box add-candy`, `box rm-candy`, `box write`, `box cat` |
 | deployments (every kind) | `deploy add`, `deploy del`, `deploy adopt`, `update`, `start`, `stop`, `restart`, `status`, `log`, `shell`, `cmd`, `cp`, `console`, `display`, `service`, `volume` |
-| checks | `check box`, `check step`, `check live`, `check agent`, `check run`, `check list`, `check report`, `check note`, `check stop`, `check scope`, `check last-tag`, `check self-evaluate`, `check list-agent`, `check sync-credential` |
+| checks | `check box`, `check step`, `check live`, `check harness`, `check run`, `check list`, `check report`, `check note`, `check stop`, `check scope`, `check last-tag`, `check self-evaluate`, `check list-harness`, `check sync-credential` |
 | agents | `agent …` (runtime, session, run, followup, steer, dispatch, delegate, team, federation, terminal, incident, rca, recover), `tui` |
 | project | `task`, `migrate`, `doc generate`, `marketplace generate`, `review`, `pipeline`, `release-package` |
 | host | `secret`, `config`, `cache`, `clean`, `doctor`, `local-install [--local-install]`, `preempt`, `alias`, `audit`, `mcp serve`, `version`, `help` |
@@ -1837,7 +1848,7 @@ a check catches, has at least one row.
 ### A.7 Changing the design
 
 A design change whose decision is **contested** gets its RFC **before** the amendment: the decision
-registry (§9 of the OCE-alignment ledger) is the place a contested call is argued, and this document is
+registry is the place a contested call is argued, and this document is
 amended once it is settled — never the reverse.
 
 A change is made in this order, in one change: `DESIGN.cue` first, then the examples and negative
