@@ -59,8 +59,8 @@ _refs: [
 	for n, v in _node for k, b in v if k == "os" for f, r in b if f == "container_init" || f == "system_init" {
 		{node: n, field: "os.\(f)", ref: r, want: ["init"]}
 	},
-	for c in _candies for f, nd in c.value if f == "need" for t, m in nd if t == "agent" for a, _ in m {
-		{node: c.at, field: "need.agent", ref: a, want: ["agent"]}
+	for c in _candies for f, nd in c.value if f == "need" for t, m in nd if t == "harness" for a, _ in m {
+		{node: c.at, field: "need.harness", ref: a, want: ["harness"]}
 	},
 ]
 
@@ -103,13 +103,13 @@ violation: [
 	},
 	// D-VAL-2
 	for x in _check if !x.namespaced && !x.found {
-		{rule: "D-VAL-2", node: x.node, message: "\(x.field): \(x.ref) does not resolve to a node or an import namespace"}
+		{rule: "D-VAL-2", node: x.node, message: "\(x.field): \(x.ref) does not resolve to a node"}
 	},
 	for x in _check if !x.namespaced && x.found && x.kind != "" && !list.Contains(x.want, x.kind) {
 		{rule: "D-VAL-2", node: x.node, message: "\(x.field): \(x.ref) is a \(x.kind), want \(strings.Join(x.want, " or "))"}
 	},
 	// D-VAL-4
 	for a, _ in _ns if _node[a] != _|_ {
-		{rule: "D-VAL-4", node: a, message: "import alias \(a) is also a top-level node name"}
+		{rule: "D-VAL-4", node: a, message: "namespace \(a) is also a top-level node name"}
 	},
 ]

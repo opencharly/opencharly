@@ -57,16 +57,57 @@ import (
 #Scalar:  string | number | bool
 #InitNeutral: string & !~"%[a-zA-Z(]" // D-CANDY-3
 // Sets of bare names (S5): unique items.
-#PackageSet:  [...#Package] & list.UniqueItems()
+// A manager whose install needs ATTRIBUTES beyond a locator carries them in a body whose payload the
+// OWNING PLUGIN owns (#Opaque) — so no core def learns a chart field and none can drift from the
+// plugin's schema. `helm` is already a manager word; the gap was generic (§7.1).
+#ManagerInput: #Opaque
+#ManagerPackage: {
+	package!: #Package
+	input?:   #ManagerInput
+}
+// D-IR-5: a manager is a bare locator or a package plus the owning plugin's input — never a
+// struct of the manager's own field names, which would put a foreign CLI's vocabulary in core.
+#PackageEntry: or([#Package, #ManagerPackage])
+// D-IR-7 — WHERE IT ACTUALLY BITES. A candy DECLARES packages of either phase: DESIGN.md's own
+// `fdroid` example is a candy whose `package:` names the apply-time manager `android:`, so phase does
+// NOT gate declaration. What the phase decides is OWNERSHIP of the work: a build-time manager's
+// package is built by a `builder` node and its `builder_box` key must therefore BE a build-time
+// manager — a box that builds nothing is meaningless. That is the enforceable site, and it is what
+// `_buildManagerWord` is consumed by.
+#PackageSet:  [...#PackageEntry] & list.UniqueItems()
 #NameSet:     [...#Name] & list.UniqueItems()
 #PlatformSet: [...#Platform] & list.UniqueItems()
 
 // The one open value: a field whose schema another plugin owns and validates (D-PAT-1).
 #Opaque: {...}
+// Parameterization: a candy DECLARES a bounded choice, a reference SUPPLIES one admitted value. A
+// CHOICE, never a substitution — a value may not interpolate a path or a port, which is what D-SCH-7
+// and #AbsPath forbid and what spike S2 exists to confirm is sufficient.
+#InputAlt: {
+	choice: {choice!: [...#Text] & list.UniqueItems()}
+}
+#Input:  or([for _, a in #InputAlt {a}])
+#Inputs: {[#Name]: #Input}
+#With:   {[#Name]: #Text}
 
 // ── word lists (S3) ─────────────────────────────────────────────────────────
 // Written out for the first-party plugins; in charly they are composed from the registry.
-_managerWord:        ["npm", "cargo", "pip", "aur", "flatpak", "helm", "android"]
+_managerWord:        [for w, _ in _managerPhase {w}]
+// ONE table, ONE DERIVED set — so adding a manager stays one entry in one place, not three edits that can
+// drift. The one set is the BUILD-TIME words; the apply-phase rows serve to EXCLUDE those words from it, so
+// the table carries the phase even though the phase does not gate what may be written. The rule this feeds
+// is D-IR-7, whose tag sits on `#PackageSet` above and on `builder_box` below.
+_managerPhase: {
+	npm:     "build"
+	cargo:   "build"
+	pip:     "build"
+	aur:     "build"
+	flatpak: "build"
+	helm:    "apply"
+	android: "apply"
+}
+#BuildManager: or(_buildManagerWord)
+_buildManagerWord: [for w, p in _managerPhase if p == "build" {w}]
 _packageManagerWord: ["dnf", "apt", "pacman", "apk", "zypper"]
 _gpuWord:            ["nvidia", "amd", "intel", "any"]
 _deviceWord:         ["kvm", "render", "fuse", "tun", "vhost-net", "vsock", "hwrng", "kfd"]
@@ -75,7 +116,7 @@ _engineWord:         ["podman", "docker", "nerdctl", "libvirt"]
 _phaseWord:          ["any", "build", "runtime"]
 _directive: {repo: _, plugin: _, import: _, discover: _}
 // Kinds owned by plugins outside this schema: only their envelope is checked here.
-_otherKind: ["init", "builder", "task", "check-roster", "agent", "pipeline", "cua", "jetkvm", "skill", "hook", "marketplace", "doc"]
+_otherKind: ["init", "builder", "task", "check-roster", "harness", "pipeline", "cua", "jetkvm", "skill", "hook", "marketplace", "doc"]
 // Verbs owned by plugins outside this schema: their input is defined by the owning plugin.
 _otherVerb: ["helm", "wl", "vnc", "spice", "dbus", "record", "cua", "jetkvm", "vision", "mcp"]
 
@@ -118,8 +159,8 @@ _otherVerb: ["helm", "wl", "vnc", "spice", "dbus", "record", "cua", "jetkvm", "v
 // Field names of the bodies that can hold named nodes. Optional fields cannot be enumerated
 // inside CUE, so these lists are written out; design-consistency.sh checks them against the
 // definitions.
-_candyField:  ["description", "from", "step", "require", "need", "provide", "package", "os_override", "file", "package_repo", "env", "path_append", "service", "user", "volume", "route", "export", "module", "packaging", "shm_size", "platform", "builder_box", "entrypoint", "tag"]
-_deployField: ["description", "from", "require", "need", "step", "port", "volume", "env", "cpu", "ram", "disk_size", "network", "disposable", "preemptible", "update_gate", "parallel", "instrument", "iterate", "ephemeral", "firmware", "host", "device", "api_level", "adb", "create", "connect", "cluster_node"]
+_candyField:  ["description", "from", "step", "require", "need", "provide", "package", "os_override", "file", "package_repo", "env", "path_append", "service", "user", "volume", "route", "export", "module", "packaging", "shm_size", "platform", "builder_box", "entrypoint", "tag", "input", "with"]
+_deployField: ["description", "from", "require", "need", "step", "port", "volume", "env", "cpu", "ram", "disk_size", "network", "disposable", "preemptible", "update_gate", "parallel", "instrument", "iterate", "ephemeral", "firmware", "host", "device", "api_level", "adb", "create", "connect", "cluster_node", "with"]
 
 _kindWord:      [for k, _ in #KindNode {k}]
 _directiveWord: [for k, _ in _directive {k}]
@@ -135,12 +176,19 @@ _alt: {
 #TopName:        #Name & !~"^(\(_alt.directive)|\(_alt.kind))$"
 #InnerCandyName: #Name & !~"^(\(_alt.candy)|\(_alt.kind))$"
 #InnerNodeName:  #Name & !~"^(\(_alt.deploy)|\(_alt.kind))$"
+// A namespace is A NAMED SCOPE: the name an `import:` binds a repository reference to, a
+// venue's own scope, a deployment's scope. So this scalar guards a namespace WHEREVER one is named —
+// and a namespace is the FIRST SEGMENT of every namespaced reference (D-REF-1), exactly where a kind
+// word or a directive must not appear.
+// D-KIND-4: a namespace is never a kind word or a directive, so a plugin's kind cannot shadow a
+// first-party one.
+#Namespace:      #TopName   // the same guard as a top-level name: the sets are deliberately one
 
 // ── document (§4.2) ─────────────────────────────────────────────────────────
 #Document: {
 	repo?:     #Repo
 	plugin?:   {[#Name]: #RepositoryRef} // D-PLUG-4
-	import?:   {[#Name]: #RepositoryRef}
+	import?:   {[#Namespace]: #RepositoryRef}
 	discover?: [...#Text]
 	[#TopName]: #Node
 }
@@ -159,6 +207,10 @@ _alt: {
 	require?:      [...#Ref] @ref(candy) // D-CANDY-2: candies only, by reference
 	need?:         #Need
 	provide?:      #Provide
+	// A candy DECLARES a bounded choice (`input:`) and SUPPLIES one to its `from:` (`with:`). A
+	// CHOICE, never a substitution — D-SCH-7 and #AbsPath forbid interpolating a path or a port.
+	input?:        #Inputs
+	with?:         #With
 	package?:      #PackageSet
 	os_override?:  {[#Name]: {package?: #PackageSet, package_repo?: {[#Name]: #PackageRepo}}}
 	file?:         {[#AbsPath]: #File}
@@ -178,7 +230,7 @@ _alt: {
 // Box build settings: declared only on a box.
 #BoxFields: {
 	platform?:    #PlatformSet
-	builder_box?: {[#Manager]: #Ref} @ref(box)
+	builder_box?: {[#BuildManager]: #Ref} @ref(box)   // D-IR-7: a box that builds nothing is meaningless
 	entrypoint?:  [...#Text]
 	tag?:         #Text
 }
@@ -226,7 +278,7 @@ _alt: {
 	env?:        {[#EnvName]: #Optional}
 	secret?:     {[#Ref]: #Optional}
 	mcp?:        {[#Name]: #Optional}
-	agent?:      {[#Ref]: #Optional} @ref(agent)
+	harness?:    {[#Ref]: #Optional} @ref(harness)
 	gpu?:        {[or(_gpuWord)]: {lease: *"shared" | "exclusive", optional: *false | bool}}
 	device?:     {[or(_deviceWord)]: #Optional}
 	nesting?:    {[or(_nestingWord)]: #Optional}
@@ -285,15 +337,15 @@ _alt: {
 #Guard: or([for _, a in #GuardAlt {a}])
 
 // D-VERB-5, D-VERB-1: every step alternative, keyed by the tag keys that select it: `run`
-// carries only `command` and its `guard`; a check carries exactly one verb; the agent intents
+// carries only `command` and its `guard`; a check carries exactly one verb; the harness intents
 // carry no verb. The loader selects the alternative by these keys (D-LOAD-5).
 #StepAlt: {
 	run: {run!: #Text, command!: #Text, guard!: #Guard, #StepFields}
 	for w, input in #Verb {"check \(w)": {check!: #Text, (w)!: input, #CheckFields}}
-	"agent-check": {"agent-check"!: #Text, agent?: #Ref @ref(agent), #StepFields}
-	"agent-run": {"agent-run"!: #Text, agent?: #Ref @ref(agent), #StepFields}
+	"harness-check": {"harness-check"!: #Text, harness?: #Ref @ref(harness), #StepFields}
+	"harness-run": {"harness-run"!: #Text, harness?: #Ref @ref(harness), #StepFields}
 }
-_intentWord: ["run", "check", "agent-check", "agent-run"]
+_intentWord: ["run", "check", "harness-check", "harness-run"]
 #Step: or([for _, alt in #StepAlt {alt}])
 // D-DEP-8: a deployment's steps run in its runtime phase.
 #RuntimeStep: #Step & {phase: "runtime" | *"runtime"}
@@ -310,8 +362,8 @@ _intentWord: ["run", "check", "agent-check", "agent-run"]
 // D-VERB-4: one operation key per multi-operation verb.
 #KubeAlt: {
 	wait_node:  {wait_node!: {count!: #Count}}
-	wait_ready: {wait_ready!: {resource!: #Text, namespace?: #Name, name!: #Text}}
-	pod:        {pod!: {namespace?: #Name}}
+	wait_ready: {wait_ready!: {resource!: #Text, namespace?: #Namespace, name!: #Text}}
+	pod:        {pod!: {namespace?: #Namespace}}
 	node:       {node!: {}}
 }
 #Kube: or([for _, a in #KubeAlt {a}])
@@ -369,6 +421,7 @@ _intentWord: ["run", "check", "agent-check", "agent-run"]
 	iterate?:     #Opaque
 	ephemeral?:   {ttl!: #Duration}
 	need?:        #Need
+	with?:        #With   // supplies the `input:` choices of the candy this deployment names
 }
 // D-DEP-7: ports, volumes, environment, sizing and network belong to pod and vm only.
 #MachineOnly: {
@@ -401,13 +454,15 @@ _intentWord: ["run", "check", "agent-check", "agent-run"]
 	local:      #InnerLocalNode
 	kubernetes: #CreatedKubernetesNode // D-NEST-7
 	android:    #AndroidNode
+	agent:      #AgentNode
 }
 #InnerOfMachine: or([for _, a in #InnerOfMachineAlt {a}])
 // The deployment kinds (§2, §12.1) are exactly the nodes a pod or vm admits inside it.
 _deploymentKind: [for k, _ in #InnerOfMachineAlt {k}]
 #InnerOfKubernetesAlt: {
-	pod: #PodNode
-	vm:  #VmNode
+	pod:   #PodNode
+	vm:    #VmNode
+	agent: #AgentNode
 }
 #InnerOfLocalAlt: {
 	candy:      #InnerCandy
@@ -460,6 +515,14 @@ _deploymentKind: [for k, _ in #InnerOfMachineAlt {k}]
 #TopLocalNode:          {local!: #TopLocal}
 #InnerLocalNode:        {local!: #InnerLocal}
 #AndroidNode:           {android!: #Android}
+#AgentNode:             {agent!: #AgentBody}
+#AgentBody: {
+	#DeploymentFields
+	from!:    #Ref @ref(box, source)   // the agent is deployed FROM a box, like any inner kind
+	need?:    #Need
+	provide?: #Provide
+	spec?:    #Opaque
+}
 
 // ════════════════════════════════════════════════════════════════ Part 2 — protocol (§8)
 // Moves to spec/protocol when implemented. A word payload (a kind's body, a verb's input, a
@@ -471,6 +534,47 @@ _roleWord: ["kind", "verb", "command", "type", "api"]
 #Key:    =~"^(\(strings.Join(_roleWord, "|"))):[a-z][a-z0-9_-]*(:[a-z][a-z0-9_-]*)?$" // D-ROLE-6
 #ApiKey: #Key & =~"^api:"
 #CallId: =~"^[0-9a-f]{32}$"
+
+// ── the audit record (D-AUDIT): the ONE genuine absence. charly logs but had no append-only record
+// of an action and its outcome, and — like OCE, whose own RFC-0013 is unimplemented — no read path.
+// It carries an AUTHORITY decision too: a decision that leaves no record is unverifiable.
+_auditKindWord:    ["mutate", "authorize", "admit", "activate", "teardown"]
+_auditOutcomeWord: ["ok", "refused", "failed"]
+_detailCodeWord:   ["reason", "path", "field", "ref", "count", "duration"]
+#AuditEvent: {
+	at!:      #Text
+	kind!:    or(_auditKindWord)
+	outcome!: or(_auditOutcomeWord)
+	// WHO acted — an identity (§2). An authority decision and a mutation name the SAME field,
+	// because authority IS the grant of a need.
+	identity!: #Ref
+	// WHAT was acted on, and the operation — a verb (an observation) or a mutation. Never a foreign
+	// system's own verb word (decision 42).
+	on?:        #Ref
+	operation?: #Name
+	// WHERE it held — a namespace, a named scope.
+	namespace?: #Namespace
+	revision?:  #Digest
+	detail?:    [...#AuditDetail] & list.MaxItems(32)
+}
+#AuditDetail: {
+	code!:  or(_detailCodeWord)
+	text!:  #Text
+	value?: #Redacted
+}
+// A record can say "a value was here" WITHOUT holding it: an audit that holds a secret is a leak with
+// a timestamp.
+#Redacted: {redacted!: true}
+
+// What a kind observes: the active revision is a DIGEST, so nothing about it is authored or stored as
+// a node (P3). ONE term covers the model — a revision is admitted (validated, no effect) and then
+// active; those are STATES of a revision, not separate concepts.
+#StatusOutput: {
+	state!:    "absent" | "stopped" | "running" | "failed"
+	revision?: #Digest
+	admitted?: #Digest
+	detail?:   #Text
+}
 
 // ── messages shared by several methods ────────────────────────────────────────
 #Resolved: {kind!: #Name, digest!: #Digest, value!: #Opaque}
@@ -484,7 +588,7 @@ _roleWord: ["kind", "verb", "command", "type", "api"]
 
 // The IR (§9.4): one action, tagged by its kind.
 #ActionAlt: {
-	package:      {package!: #Package, #ActionFields}
+	package:      {package!: #PackageEntry, #ActionFields}
 	package_repo: {package_repo!: {name!: #Name, #PackageRepo}, #ActionFields}
 	file:         {file!: {path!: #AbsPath, effect!: #File}, #ActionFields}
 	service:      {service!: {name!: #Name, unit!: #Service}, #ActionFields}
@@ -502,7 +606,7 @@ _roleWord: ["kind", "verb", "command", "type", "api"]
 	ssh:       {ssh!: {host!: #Text, port!: #Port, user!: #Text, key_secret!: #Ref}, #Via}
 	shell:     {shell!: {}, #Via}
 	adb:       {adb!: {serial!: #Text}, #Via}
-	kube:      {kube!: {cluster!: #Text, namespace!: #Name}, #Via}
+	kube:      {kube!: {cluster!: #Text, namespace!: #Namespace}, #Via}
 }
 #VenueOutput: or([for _, a in #VenueOutputAlt {a}])
 
@@ -516,7 +620,11 @@ _roleWord: ["kind", "verb", "command", "type", "api"]
 	realize:  {role: "kind", input: {#NodeInput, artifact?: #ArtifactRef, ir?: [...#Action], parent?: #VenueOutput}, output: {venue!: #VenueOutput}}
 	start:    {role: "kind", input: #NodeInput, output: #Done}
 	stop:     {role: "kind", input: #NodeInput, output: #Done}
-	status:   {role: "kind", input: #NodeInput, output: {state!: "absent" | "stopped" | "running" | "failed", detail?: #Text}}
+	status:   {role: "kind", input: #NodeInput, output: #StatusOutput}
+	// validate without effect, then make it active — the split that makes `admit` real for a venue
+	// instead of nominal (decision 21).
+	admit:    {role: "kind", input: {#NodeInput, ir?: [...#Action]}, output: {revision!: #Digest, diagnostic: [...#Diagnostic]}}
+	activate: {role: "kind", input: {identity!: #Ref, revision!: #Digest}, output: #Done}
 	log:      {role: "kind", input: {#NodeInput, follow: *false | bool}, output: #Done}
 	venue:    {role: "kind", input: #NodeInput, output: #VenueOutput}
 	capture:  {role: "kind", input: #NodeInput, output: {artifact!: #ArtifactRef}}
@@ -579,6 +687,8 @@ _errorCodeWord: ["invalid", "not_found", "unmet", "conflict", "unavailable", "de
 	identity?:   #Ref
 	position?:   #Position
 	diagnostic?: [...#Diagnostic]
+	request?:    #CallId
+	detail?:     [...#AuditDetail] & list.MaxItems(32)
 }
 #Position: {file!: #Text, line!: #Line}
 #Diagnostic: {
@@ -612,6 +722,9 @@ _errorCodeWord: ["invalid", "not_found", "unmet", "conflict", "unavailable", "de
 	secret_get: {input: {name!: #Ref}, output: {value!: bytes}}
 	secret_put: {input: {name!: #Ref, value!: bytes}, output: #Done}
 	report:     {input: #Event, output: #Done}
+	// the transaction state_put cannot be, and the record's write leg
+	state_commit: {input: {identity!: #Ref, revision!: #Digest, entry!: [...{name!: #Name, value!: #Opaque}]}, output: #Done}
+	audit_append: {input: {event!: #AuditEvent}, output: #Done}
 }
 _hostMethodWord: [for m, _ in #HostMethodIO {m}]
 #HostMethod: or(_hostMethodWord)

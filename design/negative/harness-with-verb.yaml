@@ -1,9 +1,9 @@
 # rule: D-VERB-5
-# expect: an agent-check step carries no verb
+# expect: the harness-check step carries no verb
 x:
   description: A candy.
   step:
     - check: it runs
       command: "true"
-    - agent-check: the agent agrees
+    - harness-check: the harness agrees
       command: "true"
