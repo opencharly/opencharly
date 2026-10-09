@@ -8,8 +8,17 @@ import:
     # disposable beds + vm templates) and its OWN @github imports (the distro
     # namespaces: arch/cachyos/debian/fedora/ubuntu/omarchy) walk in recursively,
     # resolved through the shared repo cache (~/.cache/charly/repos). A bed is
-    # addressed by its QUALIFIED name (`charly.check-pod`, `arch.check-arch-vm`, …).
+    # addressed by its QUALIFIED name (`charly.check-k3s-vm`, `arch.check-arch-vm`,
+    # `openclaw.check-openclaw-pod`, …).
     - charly: ./charly
+    # opencharly/layer-openclaw — the OpenClaw AI-gateway family (the gateway image,
+    # its candy and its disposable bed), imported under the `openclaw` namespace, so
+    # its entities are addressed qualified — the bed is `openclaw.check-openclaw-pod`.
+    # Its own repo lives at github.com/opencharly/layer-openclaw; the cutover that
+    # consolidated it is tracked in opencharly/opencharly#431. The namespace comes from
+    # THIS import key, not
+    # from the repo's name.
+    - openclaw: ./layer-openclaw
 defaults:
     platform:
         - linux/amd64
@@ -77,7 +86,7 @@ map:
     plan:
       # Composes the ONE status implementation (verb:git-submodules status) — the
       # same table `pins MODE=status` produces. The former inline shell
-      # re-implemented that table (R3 duplication) AND its `command` stdout was
+      # re-implemented that table (R2 duplication) AND its `command` stdout was
       # discarded by the task reporter (the `command` verb's pass path returns only
       # `exit=N`), so `map` printed no map at all. Composition makes the verb's
       # table the step's Result.Message, which plugin-task v0.2026268.1402 renders.
@@ -184,7 +193,7 @@ sync:
 # branch audit). The policy-B pin half and the checkout audit are ONE verb,
 # verb:git-submodules (the former hand-rolled checkout loop is deleted: it was a
 # second implementation of a clause the verb already owns, and the drift it kept
-# reintroducing is the reason R3 exists). The default-branch audit and charly's
+# reintroducing is the reason R2 exists). The default-branch audit and charly's
 # nested-submodule check stay INLINE — no verb owns either clause. The inline
 # nested step is exercised by scripts/check-verify-submodules.mjs.
 # -----------------------------------------------------------------------------
@@ -280,6 +289,12 @@ verify:
         context: [runtime]
       - check: the pi gate extension fails CLOSED, uses the rule-2 worktree path, and wires both gate scripts
         command: node scripts/check-pi-gates.mjs
+        context: [runtime]
+      - check: the validator enforces only what the rulebook states — rulebook check ids == the AGENTS.md "What the validator checks" table, every cited skill resolves, and the committed rulebook == the live AI_REVIEW_PROMPT (opencharly/opencharly#446)
+        command: node scripts/check-validator-rule-map.mjs
+        context: [runtime]
+      - check: the validator rule-map gate discriminates — each mismatch fixture turns it RED
+        command: node scripts/check-validator-rule-map.mjs --self-test
         context: [runtime]
       - check: the pi wake binding delegates to the neutral watchers, wakes, re-arms, cleans up, and ships inert + wired
         command: node scripts/check-pi-watch.mjs
@@ -403,5 +418,9 @@ check-all-beds:
         # Excluded: an `iterate:` AI-iteration loop, not a deterministic R10 bed.
         exclude:
             - charly.check-preflight-local
+            # The family imports the cachyos namespace transitively (its box is
+            # `base: cachyos.cachyos`), so those beds are reachable twice — once via
+            # `charly`, once via `openclaw`. Run them once.
+            - openclaw.cachyos.*
         # host-local beds (they apply candies to THIS workstation) are refused by
         # default; leave refuse_host_local unset for the safe default.

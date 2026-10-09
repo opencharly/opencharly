@@ -110,7 +110,7 @@ const MUST_NOT_AUTO_ALLOW = [
 // proves both assertions can fail rather than asserting that they do.
 //
 // Tighten this number as the trigger-authoring cutover lands. It may only ever DECREASE.
-const MAX_UNROUTED = 250;
+const MAX_UNROUTED = 234;
 
 // ── --self-test: prove the discriminating/structural split by executing it ──────────
 // Copies every surface this gate reads into a temp tree, asserts the gate is GREEN there

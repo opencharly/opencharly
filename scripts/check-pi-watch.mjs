@@ -4,7 +4,7 @@
 // check-pi-gates.mjs and check-pr-watch.mjs: static assertions over the SHIPPED code
 // (comments stripped), each proven to FAIL by a mutation.
 //
-// Why it exists (T3/R4/B12). The pi extension is the ONLY thing that turns a
+// Why it exists (T3/R3/R10). The pi extension is the ONLY thing that turns a
 // harness-neutral watcher event into a pi user turn — pi has no background-completion
 // notification, so without it every wait is hand-polled or dropped. The properties this
 // gate pins, each a real defect class:
@@ -12,7 +12,7 @@
 //   1. IT DELEGATES — it must spawn the harness-neutral scripts
 //      (`marketplace/scripts/gh_watch.sh`, `scripts/check-bed-watch.sh`) and contain NO
 //      hand-rolled poll loop (`setInterval` / `while(true)` / `for(;;)` / `pollOnce`). A
-//      re-implementation is the R3 duplication this check forbids.
+//      re-implementation is the R2 duplication this check forbids.
 //   2. IT WAKES — delivery is `pi.sendUserMessage(..., {deliverAs:"followUp"})`, and the
 //      GitHub watcher is AUTO-ARMED from `.pi/watch.items` at `session_start`.
 //   3. IT RE-ARMS — the one-shot watcher is re-armed on its exit (the re-arm invariant);

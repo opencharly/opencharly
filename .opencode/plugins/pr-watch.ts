@@ -9,7 +9,7 @@
  * `marketplace` pin. It shares the watcher CONTRACT with the shell family (event
  * vocabulary, wake-line format, item grammar), asserted by `scripts/check-opencode-coord.mjs`.
  *
- * R3 — the detached V2 loop (session capture, `ctx.session.synthetic` delivery, the
+ * R2 — the detached V2 loop (session capture, `ctx.session.synthetic` delivery, the
  * poll loop, the rate backoff) lives ONCE in `../lib/watcher-loop.ts`; this plugin is
  * the `pr-watch.items` CONFIG binding over it, and `tracker.ts` imports the SAME loop.
  *
@@ -33,12 +33,12 @@ import { wakeLine } from "../lib/wake-line.ts";
 import { parseItem, type Item } from "../lib/watch.ts";
 import { makeWarn, parseItems, readText, v2SessionSink, watchLoop } from "../lib/watcher-loop.ts";
 
-// The ONE shared "last non-empty stdout line" helper (R3) — the same module
+// The ONE shared "last non-empty stdout line" helper (R2) — the same module
 // `coord.ts` imports. Re-exported under the historical name this plugin's own
 // check asserts.
 export const lastWakeLine = wakeLine;
 
-// `parseItems` is the ONE shared config-line parser (R3) — re-exported from the
+// `parseItems` is the ONE shared config-line parser (R2) — re-exported from the
 // shared loop module under the historical name this plugin's own check asserts.
 export { parseItems };
 

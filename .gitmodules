@@ -592,11 +592,6 @@
 	url = https://github.com/opencharly/pod-ollama.git
 	branch = main
 
-[submodule "pod-openclaw"]
-	path = pod-openclaw
-	url = https://github.com/opencharly/pod-openclaw.git
-	branch = main
-
 [submodule "layer-oracle"]
 	path = layer-oracle
 	url = https://github.com/opencharly/layer-oracle.git

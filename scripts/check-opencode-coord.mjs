@@ -290,13 +290,13 @@ if (mod) {
   ok(VERBS.includes("HANDING OVER") && VERBS.includes("TAKING OVER"), "VERBS carries the spaced multi-word labels");
   ok(TIERS.length === 5, "TIERS carries the five documented attribution tiers");
 
-  // R4 — the rate-limit policy is NAMED, `coord_watch` is BOUNDED by default, and
+  // R3 — the rate-limit policy is NAMED, `coord_watch` is BOUNDED by default, and
   // the poll interval has a NAMED FLOOR.
   const { DEFAULT_INTERVAL_S, DEFAULT_STALL_MIN, RATE_FLOOR, BACKOFF_FACTOR, MAX_BACKOFF_S, DEFAULT_WATCH_TIMEOUT_S, POLL_FLOOR, clampInterval, rateLimitMessage, RateLimitedError } = mod;
-  ok([DEFAULT_INTERVAL_S, DEFAULT_STALL_MIN, RATE_FLOOR, BACKOFF_FACTOR, MAX_BACKOFF_S, POLL_FLOOR].every((n) => typeof n === "number" && n > 0), "R4: the rate-limit + poll policy constants are named numbers (RATE_FLOOR/BACKOFF_FACTOR/MAX_BACKOFF_S/POLL_FLOOR)");
-  ok(typeof DEFAULT_WATCH_TIMEOUT_S === "number" && DEFAULT_WATCH_TIMEOUT_S > 0, "R4: coord_watch is BOUNDED by default (DEFAULT_WATCH_TIMEOUT_S > 0)");
-  eq(clampInterval(5), POLL_FLOOR, "R4: clampInterval raises a sub-floor interval to POLL_FLOOR");
-  eq(clampInterval(600), 600, "R4: clampInterval keeps a valid interval");
+  ok([DEFAULT_INTERVAL_S, DEFAULT_STALL_MIN, RATE_FLOOR, BACKOFF_FACTOR, MAX_BACKOFF_S, POLL_FLOOR].every((n) => typeof n === "number" && n > 0), "R3: the rate-limit + poll policy constants are named numbers (RATE_FLOOR/BACKOFF_FACTOR/MAX_BACKOFF_S/POLL_FLOOR)");
+  ok(typeof DEFAULT_WATCH_TIMEOUT_S === "number" && DEFAULT_WATCH_TIMEOUT_S > 0, "R3: coord_watch is BOUNDED by default (DEFAULT_WATCH_TIMEOUT_S > 0)");
+  eq(clampInterval(5), POLL_FLOOR, "R3: clampInterval raises a sub-floor interval to POLL_FLOOR");
+  eq(clampInterval(600), 600, "R3: clampInterval keeps a valid interval");
 
   // --- Layer B2: the tool EXECUTE paths against a REAL local HTTP server ------
   // No `globalThis.fetch` mock: a real `http.Server` serves BOTH the REST routes and

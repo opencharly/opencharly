@@ -855,7 +855,7 @@ export function requireExplicitSession(input: Record<string, any>): { sessionID:
 
 /** The turn baseline of a session: count + last-turn time. The evidence `confirm_stopped` checks. */
 export function turnStats(db: SqliteHandle, sessionID: string): { turns: number; lastTurn: number | null } {
-  // Reuse the monitor's authoritative counts query (ONE counts query — R3).
+  // Reuse the monitor's authoritative counts query (ONE counts query — R2).
   const row = db.all(SQL.counts, sessionID)[0] as { turns: number; first: number | null; last: number | null } | undefined;
   return { turns: Number(row?.turns ?? 0), lastTurn: row?.last == null ? null : Number(row.last) };
 }
@@ -954,7 +954,7 @@ export async function runControl(
     }
 
     if (action === "list") {
-      // ONE shared loop with agent_progress's `all` branch (R3).
+      // ONE shared loop with agent_progress's `all` branch (R2).
       const analyses = await collectAnalyses(db, {
         now,
         windowMin,

@@ -139,7 +139,7 @@ those scripts (no `Bun.spawn`/`spawnSync` of a `.sh`, no reference to any script
 file), so they load and work from the SAME ref as the plugin — with NO `marketplace`
 submodule pin to lag. This is deliberately TWO harness-native implementations of ONE
 shared CONTRACT (the closed verb set, the canonical footer order, the event
-vocabulary + wake-line format, the item grammar) — a maintainer-account R3 divergence,
+vocabulary + wake-line format, the item grammar) — a maintainer-account R2 divergence,
 not a forked copy. `scripts/check-opencode-coord.mjs` pins the CONTRACT on the
 TypeScript side (unit layer) AND, **where the shell family is present**, RUNS
 `coord.sh` and diffs its output against the TypeScript output (Layer B3); it SKIPS
