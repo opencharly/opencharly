@@ -404,8 +404,9 @@ run on the final tree:
 
 ### Before every update push: read everything, fix everything
 
-*Enforces: R1, R7.* This is a hard precondition of every push to an open PR. That includes
-a fix commit, a body change, and `gh pr update-branch`.
+*Enforces: R1, R7.* This is a hard precondition of every push to an open PR and of every
+re-run of its validator. That includes a fix commit, a body change, `gh pr update-branch`,
+and a REST re-run of a failed check.
 
 1. **Read every new comment in full.** That means every PR comment, review, and review
    thread since your last push, plus every comment on the issues the PR closes or relates
@@ -424,7 +425,12 @@ a fix commit, a body change, and `gh pr update-branch`.
    cause, and that cause is escalated, not "fixed" in your diff.
 5. **Answer coordination first.** A `BLOCKS`, a `TAKING OVER`, or a question addressed to
    your slug is answered before your own push (Part II #11).
-6. **Only then write the whole body for the new head, and push.** Pushing without having
+6. **Everything the verdict asks for is in place BEFORE the next push or re-run.** That
+   includes a requested T4 sign-off comment (Part II #7) and every PR-body change. Make
+   all of them first, then push or re-run exactly once. One BLOCK that requests a T4
+   sign-off is expected. A second run with the sign-off or a body fix still missing is a
+   violation.
+7. **Only then write the whole body for the new head, and push.** Pushing without having
    read everything is an R1 violation that forbids the push, and so is pushing with a
    partial fix set or a skipped RCA.
 
@@ -563,7 +569,11 @@ Before declaring completion, answer every applicable item YES. There is one line
      `charly/pr-validator` run. The window is a floor, and any answer from the owner
      resets it.
    - **A maintainer sign-off counts only from `atrawog`/`aitrawog`:**
-     the posting ACCOUNT is the entire gate. Never impersonate the operator.
+     the posting ACCOUNT is the entire gate. It is a PR comment from that account. Either
+     the operator writes it, or an agent writes it at the operator's explicit direction
+     and says so. An agent never posts one on its own initiative and never impersonates
+     the operator. It is posted BEFORE the next push or re-run, never after
+     ("Before every update push").
    - **A PR the validator auto-closes continues in a new PR.** The threshold is the repo's
      `AI_REVIEW_AUTO_CLOSE_AFTER`, default 5; read it, because `opencharly/charly` sets 20.
      The carry-forward touches four surfaces: the old PR gets
