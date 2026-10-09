@@ -93,9 +93,10 @@ import (
 // ── word lists (S3) ─────────────────────────────────────────────────────────
 // Written out for the first-party plugins; in charly they are composed from the registry.
 _managerWord:        ["npm", "cargo", "pip", "aur", "flatpak", "helm", "android"]
-// ONE table, two DERIVED sets — so adding a manager stays one entry in one place, not three edits that
-// can drift. The rule it feeds is D-IR-7, whose enforcement (and so its tag) lives on the phase-scoped
-// package sets below.
+// ONE table, ONE DERIVED set — so adding a manager stays one entry in one place, not three edits that can
+// drift. The one set is the BUILD-TIME words; the apply-phase rows serve to EXCLUDE those words from it, so
+// the table carries the phase even though the phase does not gate what may be written. The rule this feeds
+// is D-IR-7, whose enforcement — and so its tag — is on `#PackageEntry` above.
 _managerPhase: {
 	npm:     "build"
 	cargo:   "build"
@@ -107,7 +108,6 @@ _managerPhase: {
 }
 #BuildManager: or(_buildManagerWord)
 _buildManagerWord: [for w, p in _managerPhase if p == "build" {w}]
-_applyManagerWord: [for w, p in _managerPhase if p == "apply" {w}]
 _packageManagerWord: ["dnf", "apt", "pacman", "apk", "zypper"]
 _gpuWord:            ["nvidia", "amd", "intel", "any"]
 _deviceWord:         ["kvm", "render", "fuse", "tun", "vhost-net", "vsock", "hwrng", "kfd"]

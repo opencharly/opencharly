@@ -1289,7 +1289,6 @@ charly box build opencharly/fedora@main:workstation                   # a branch
 |---|---|
 | D-REF-7 | A CLI repository reference is `<repo>[@<release or branch>]:<name>`; `owner/repo` means `github.com/owner/repo`. Without `@…` the newest release is used. Every resolution prints the repository, release or commit, and digest it used. |
 | D-REF-8 | A repository reference is accepted wherever the CLI takes a node; there is no `--repo` flag. |
-| D-REF-9 | A dotted name's meaning is a **form** rule, never a lookup accident: its first segment is a namespace *by form*, and D-VAL-4 (namespaces and top-level node names are disjoint) is what makes the reading decidable. |
 
 ## 14. Plugins declared in `charly.yml`
 
@@ -1847,9 +1846,8 @@ a check catches, has at least one row.
 
 ### A.7 Changing the design
 
-A design change whose decision is **contested** gets its RFC **before** the amendment: the decision
-registry is the place a contested call is argued, and this document is
-amended once it is settled — never the reverse.
+A design change whose decision is **contested** gets its RFC **before** the amendment: the contested
+call is argued and settled first, and this document is amended once it is — never the reverse.
 
 A change is made in this order, in one change: `DESIGN.cue` first, then the examples and negative
 cases, then the prose, then `bash scripts/design-check.sh` until it passes. A new rule the schema
