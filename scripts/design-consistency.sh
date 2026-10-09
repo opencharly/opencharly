@@ -255,7 +255,12 @@ if [[ -s "$work/own" ]]; then cat "$work/own"; fail=1; fi
 # ── 5 words ─────────────────────────────────────────────────────────────────────
 # the §2 registry: | **term** | meaning | Not |
 awk '/^## 2\. /{s=1} /^### 2\.1 /{s=0} s && /^\| \*\*/ { n=split($0, c, "|"); print c[n-1] }' "$md" |
-	sed 's/([^)]*)//g' | tr ',' '\n' | sed 's/^ *//; s/ *$//' | g -v '^—\?$' | sort -u > "$work/banned"
+	sed 's/([^)]*)//g' > "$work/notcells"
+# a banned term is a comma-separated bare word OR a `backticked phrase` — the latter is how a MULTI-WORD
+# ban is written, and a comma split alone can never express one.
+{ tr ',' '\n' < "$work/notcells" | sed 's/^ *//; s/ *$//'
+  g -o '`[^`]*`' "$work/notcells" | tr -d '`'
+} | tr -d '`' | sed 's/^ *//; s/ *$//' | g -v '^—\?$' | g -v '^$' | sort -u > "$work/banned"
 # the prose outside §2, as "<line>:<text>" — the file name is never part of the matched text
 awk '/^## 2\. /{s=1} /^### 2\.1 /{s=0} { if (!s) print FNR ":" $0 }' "$md" > "$work/prose"
 awk '{ print FNR ":" $0 }' "$schema" > "$work/schema-lines"

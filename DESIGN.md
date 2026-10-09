@@ -94,9 +94,9 @@ forms included). A registered term has one meaning; a second meaning gets its ow
 | **image registry** | an OCI distribution endpoint images are pulled from and pushed to | — |
 | **manifest** | a plugin candy's `provide:` of role words | — |
 | **repository reference** | an `import:` or `plugin:` entry: `{repo, release, digest}` or `{path}` | — |
-| **namespace** | a named scope: the name an `import:` binds a repository reference to, a venue's own scope, a deployment's scope. It is the FIRST SEGMENT of every namespaced reference (D-REF-1) | `alias` and `import alias` for this concept — the same word also names the `charly alias` command and an ssh alias, neither of which is a scope; `import namespace` for a namespace |
+| **namespace** | a named scope: the name an `import:` binds a repository reference to, a venue's own scope, a deployment's scope. It is the FIRST SEGMENT of every namespaced reference (D-REF-1) | `import alias`, `import namespace` (the bare word also names a command and an ssh configuration entry, and neither of those is a scope) |
 | **input** | a candy's declared **choice**: a bounded set of values a reference may supply with `with:` (§11.1). It is a choice, never a substitution | — |
-| **audit record** | an append-only record of a mutation or an authority decision and its outcome (D-AUDIT) | — (a `log` is a legitimate method word, so it is not banned; the record's own synonyms are not yet in use) |
+| **audit record** | an append-only record of a mutation or an authority decision and its outcome (D-AUDIT) | — (a log is a legitimate method word, so it is not banned; the record's own synonyms are not yet in use) |
 | **release** | a repository's CalVer tag `vYYYY.DDD.HHMM` | — |
 | **requirement** | a normative rule of this document, identified `D-<AREA>-<n>` | — |
 | **digest** | a sha256 content address | — |
