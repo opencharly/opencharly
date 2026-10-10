@@ -51,29 +51,34 @@ DSH's patch precedence is bundle layers → profile `cordis.patch.yml` → **hom
 following cannot be bound from this repo and live in the machine's `$DSH_HOME` profile, landed
 producer-first in `opencharly/pod-dsh`:
 
-- the `dsh-hooks-claude-code` mount that runs the git gates. **Measured (RDD, 2026-10-07): a
-  profile-root `insert` of this bridge composes and imports but never applies** — no hook fires
-  (four candidate matchers plus a `SessionStart` hook were silent), it reads no config (a
-  deliberately MALFORMED `configPath` warned nothing), and its decompressed session log emits no
-  `hook/invoked` event, while the patch layer and loud activation diagnostics were both ruled out
-  by their own probes. The next step is a preset-scope mount spike; see the ledger's assumption-1
-  entry before wiring it;
 - the `dsh-mcp-client` row for the `deepwiki` server (DSH does **not** read the root
-  `.mcp.json`);
-- SOUL injection;
-- session-start **auto-arm** of `.dsh/watch.items`. Correction (measured 2026-10-07): the watch
-  itself is NOT host config — DSH notifies the session when a background job finishes, so a
-  canonical watcher armed as a background job already turns its own exit into the wake. The
-  genuinely missing piece is only the *auto*-arm at session start (pi's
-  `.pi/extensions/watch.ts` equivalent), which is plugin scope.
+  `.mcp.json`). **Still absent** — there is no `mcp-client` row in the composed tree, so this is
+  the one row of the original list that is genuinely missing.
 
-The native DSH plugin that would close the git-gate, SOUL and auto-arm gaps is requested as
-opencharly/opencharly#420. Operator directive (2026-10-07): the fix lands **only as an
-opencharly-org DSH plugin** — nothing is posted to any non-org repo, and a host patch cannot fix
-the bridge.
+## What IS provided, by the pinned `opencharly/dsh-opencharly` plugin
 
-See `ledger/dsh-config-catchup.md` — a LOCAL, git-ignored file — for the measured evidence, the
-open high-risk assumptions (RDD probes), and the work items.
+The three gaps this section used to list are **closed**, by the native DSH plugin
+(`opencharly/dsh-opencharly`, merged as #2) pinned in `~/.dsh/profiles/web/package.json` as
+`github:opencharly/dsh-opencharly#f2fb0b96`. Each was **live-proven, not assumed** (2026-10-07):
+
+| provided | the proof |
+|---|---|
+| **the git gates** | the plugin's `tools/pre-execute` listener **DENIED** `git commit --no-verify -m …` with this repo's own gate text (`pre-commit-gate BLOCKED: \`git commit --no-verify\` (or \`-n\`) bypasses project hooks.`). The command never executed; HEAD and the index were unchanged afterwards. |
+| **SOUL injection** | `SOUL.md` is injected byte-for-byte — lines 1–14, line 103 (`crème brûlée`), and the closing "This is yours" section all match the live system prompt. |
+| **session-start watch auto-arm** | `session/created` arms `marketplace/scripts/gh_watch.sh` from `.dsh/watch.items` as a background job. It is inert **here only** because `watch.items` is comment-only by design, so nothing observable was armed. |
+
+**Correction worth keeping** (measured 2026-10-07): the watch itself is NOT host config — DSH notifies the
+session when a background job finishes, so a canonical watcher armed as a background job already turns its
+own exit into the wake. The auto-arm is the piece that was missing, and the plugin provides it.
+
+The `dsh-hooks-claude-code` bridge is therefore **superseded for DSH**: the native plugin is the route, and
+the bridge's non-application is no longer the blocker this text used to describe. Its non-application
+remains true for the bridge itself, which is why the bridge is not the route.
+
+See `ledger/dsh-config-catchup.md` — a LOCAL, git-ignored file — for the measured evidence and the open
+high-risk assumptions. **Its git-gate, SOUL and auto-arm entries predate the plugin and are superseded by
+the table above**; it is another session's file, so its owner reconciles it rather than this signpost
+rewriting it.
 
 ## Watch discipline
 
