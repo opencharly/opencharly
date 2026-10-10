@@ -6,6 +6,11 @@ sandbox_mode = "workspace-write"
 approval_policy = "on-request"
 approvals_reviewer = "auto_review"
 
+# OpenCharly has a large curated skill catalog. Use Codex's documented maximum
+# catalog budget; the AGENTS.md dispatcher remains the reliable selector.
+[skills]
+max_context_tokens = 10000
+
 [sandbox_workspace_write]
 network_access = false
 
