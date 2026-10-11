@@ -62,9 +62,6 @@
 //  13. The DSH arm binds the R0 skill corpus (.dsh/skills covers every
 //      marketplace/<family>/skills/<name>, with no name collision across
 //      families) and carries its README signpost.                 [discriminating]
-//  14. Codex PreToolUse(Bash) wires both shared Git gates.          [discriminating]
-//  15. Codex setup documents the supported 10,000-token skill catalog budget. [discriminating]
-//  16. Umbrella harnesses configure DeepWiki as their only MCP server.      [discriminating]
 //
 // Usage:
 //   node scripts/check-harness-config.mjs                 # check this tree
@@ -101,8 +98,8 @@ const MUST_NOT_AUTO_ALLOW = [
 ];
 
 // The dispatcher-coverage RATCHET (check 12). MEASURED on the tree this gate ships with:
-// 346 corpus skills (`marketplace/*/skills/*/SKILL.md`) against 96 `DISPATCHER.md` rows,
-// i.e. 250 corpus skills carry no routing row.
+// 352 corpus skills (`marketplace/*/skills/*/SKILL.md`) against 119 `DISPATCHER.md` rows,
+// i.e. 233 corpus skills carry no routing row.
 //
 // It is a RATCHET, not a hard "every skill has a row", and that is deliberate. A hard
 // assertion is RED on the tree it would land on, and `main` is PR-only with required status
@@ -135,10 +132,6 @@ if (argv.includes("--self-test")) {
     ".pi/mcp.json",
     "opencode.json",
     ".codex/config.toml",
-    ".codex/hooks.json",
-    ".codex/instructions.md",
-    ".codex/hooks/session_start.py",
-    "SOUL.md",
     ".reasonix/settings.json",
     ".reasonix/soul-inject.sh",
     ".reasonix/plugin/reasonix-plugin.json",
@@ -240,18 +233,10 @@ if (argv.includes("--self-test")) {
     [".claude/hooks/pre-push-gate.sh", (p) => chmodSync(p, 0o644), "pre-push-gate.sh is executable", "2 (a lost exec bit must FAIL, not pass)"],
     [".claude/settings.json", (p) => { const s = JSON.parse(readFileSync(p, "utf8")); s.enabledPlugins = {}; writeFileSync(p, JSON.stringify(s)); }, "enables the plugin set", "3 (plugin-set arm)"],
     ["opencode.json", (p) => { const o = JSON.parse(readFileSync(p, "utf8")); delete o.permission.bash["charly status *"]; writeFileSync(p, JSON.stringify(o)); }, 'grants "charly status *"', "5 (positive arm)"],
-    [".mcp.json", (p) => { const m = JSON.parse(readFileSync(p, "utf8")); delete m.mcpServers.deepwiki; writeFileSync(p, JSON.stringify(m)); }, ".mcp.json configures only the DeepWiki server", "6"],
-    [".pi/mcp.json", (p) => { const m = JSON.parse(readFileSync(p, "utf8")); delete m.mcpServers.deepwiki; writeFileSync(p, JSON.stringify(m)); }, ".pi/mcp.json configures only the DeepWiki server", "6"],
-    ["opencode.json", (p) => { const o = JSON.parse(readFileSync(p, "utf8")); delete o.mcp.deepwiki; writeFileSync(p, JSON.stringify(o)); }, "opencode.json configures only the DeepWiki server", "6"],
-    [".codex/config.toml", (p) => { const t = readFileSync(p, "utf8").split("\n").filter((l) => !/^\[mcp_servers\.deepwiki\]$/.test(l.trim()) && !/^url\s*=/.test(l.trim())).join("\n"); writeFileSync(p, t); }, ".codex/config.toml configures only the DeepWiki server", "6"],
-    [".codex/config.toml", (p) => { const t = readFileSync(p, "utf8").replace(/^max_context_tokens\s*=\s*10000\s*$/m, "max_context_tokens = 200"); writeFileSync(p, t); }, ".codex/config.toml sets the supported 10000-token skills catalog budget", "15 (skill catalog budget)"],
-    [".mcp.json", (p) => { const m = JSON.parse(readFileSync(p, "utf8")); m.mcpServers.stale = { type: "http", url: "http://localhost:18765/mcp" }; writeFileSync(p, JSON.stringify(m)); }, ".mcp.json configures only the DeepWiki server", "16 (extra project MCP server)"],
-    [".pi/mcp.json", (p) => { const m = JSON.parse(readFileSync(p, "utf8")); m.mcpServers.stale = { type: "http", url: "http://localhost:18765/mcp" }; writeFileSync(p, JSON.stringify(m)); }, ".pi/mcp.json configures only the DeepWiki server", "16 (extra project MCP server)"],
-    ["opencode.json", (p) => { const o = JSON.parse(readFileSync(p, "utf8")); o.mcp.stale = { type: "remote", url: "http://localhost:18765/mcp" }; writeFileSync(p, JSON.stringify(o)); }, "opencode.json configures only the DeepWiki server", "16 (extra project MCP server)"],
-    [".codex/config.toml", (p) => writeFileSync(p, `${readFileSync(p, "utf8")}\n[mcp_servers.stale]\nurl = \"http://localhost:18765/mcp\"\n`), ".codex/config.toml configures only the DeepWiki server", "16 (extra project MCP server)"],
-    [".codex/hooks.json", (p) => { const h = JSON.parse(readFileSync(p, "utf8")); delete h.hooks.PreToolUse; writeFileSync(p, JSON.stringify(h)); }, "Codex PreToolUse(Bash) wires both shared Git gates", "14 (missing Codex Git gates)"],
-    [".codex/instructions.md", (p) => writeFileSync(p, readFileSync(p, "utf8").replace("codex plugin marketplace add opencharly/marketplace", "codex plugin add opencharly/marketplace")), "Codex marketplace registration and plugin installation use current CLI syntax", "15 (stale Codex plugin commands)"],
-    [".codex/hooks/session_start.py", (p) => writeFileSync(p, readFileSync(p, "utf8").replace(/ \+ soul/, "")), "injects SOUL.md for Codex", "7 (Codex additive session context)"],
+    [".mcp.json", (p) => { const m = JSON.parse(readFileSync(p, "utf8")); delete m.mcpServers.deepwiki; writeFileSync(p, JSON.stringify(m)); }, ".mcp.json declares the DeepWiki server", "6"],
+    [".pi/mcp.json", (p) => { const m = JSON.parse(readFileSync(p, "utf8")); delete m.mcpServers.deepwiki; writeFileSync(p, JSON.stringify(m)); }, ".pi/mcp.json declares the DeepWiki server", "6"],
+    ["opencode.json", (p) => { const o = JSON.parse(readFileSync(p, "utf8")); delete o.mcp.deepwiki; writeFileSync(p, JSON.stringify(o)); }, "opencode.json declares the DeepWiki server", "6"],
+    [".codex/config.toml", (p) => { const t = readFileSync(p, "utf8").split("\n").filter((l) => !/^\[mcp_servers\.deepwiki\]$/.test(l.trim()) && !/^url\s*=/.test(l.trim())).join("\n"); writeFileSync(p, t); }, ".codex/config.toml declares the DeepWiki server", "6"],
     ["opencode.json", (p) => { const o = JSON.parse(readFileSync(p, "utf8")); o.instructions = [".opencode/instructions.md"]; writeFileSync(p, JSON.stringify(o)); }, "injects SOUL.md for opencode", "7 (opencode arm)"],
     [".pi/extensions/charly-gates.ts", (p) => writeFileSync(p, readFileSync(p, "utf8").replace(/readSoul/g, "__soul_removed__")), "injects the SOUL.md identity", "7 (pi arm)"],
     [".reasonix/soul-inject.sh", (p) => writeFileSync(p, readFileSync(p, "utf8").replace(/cat "\$SOUL"/, "true")), "injects SOUL.md for reasonix", "7 (reasonix arm — a wired hook whose script stopped emitting must FAIL)"],
@@ -333,8 +318,8 @@ const jsonOr = (p) => {
 };
 // A minimal, dependency-free TOML section reader: returns the string value of `key` inside
 // `[table]` of a TOML document, or undefined. It is deliberately narrow — the gate reads
-// TWO scalar values from `.codex/config.toml` — the DeepWiki URL and supported skill
-// catalog budget — so the Codex surface checks avoid pulling in a TOML library.
+// ONE scalar (`url`) from ONE table (`mcp_servers.deepwiki`) of `.codex/config.toml` — so
+// check 6 guards the Codex surface without pulling in a TOML library.
 const tomlString = (p, table, key) => {
   const t = read(p);
   if (t === null) return undefined;
@@ -350,29 +335,6 @@ const tomlString = (p, table, key) => {
     if (m) return m[1];
   }
   return undefined;
-};
-const tomlInteger = (p, table, key) => {
-  const t = read(p);
-  if (t === null) return undefined;
-  let inTable = false;
-  for (const raw of t.split("\n")) {
-    const line = raw.trim();
-    if (line.startsWith("[") && line.endsWith("]")) {
-      inTable = line === `[${table}]`;
-      continue;
-    }
-    if (!inTable) continue;
-    const m = line.match(new RegExp(`^${key}\\s*=\\s*(\\d+)\\s*(?:#.*)?$`));
-    if (m) return Number(m[1]);
-  }
-  return undefined;
-};
-const tomlTables = (p, prefix) => {
-  const t = read(p);
-  if (t === null) return [];
-  return t.split("\n")
-    .map((raw) => raw.trim().match(/^\[([^\]]+)\]$/)?.[1])
-    .filter((name) => name === prefix || name?.startsWith(`${prefix}.`));
 };
 // The companion array reader: the string elements of `key = ["a", "b"]` inside `[table]`,
 // or []. It handles BOTH a single-line array and a multi-line one — `[skills] paths` grew
@@ -405,20 +367,6 @@ const tomlArray = (p, table, key) => {
     }
   }
   return [];
-};
-
-// Exercise Codex's SessionStart provisioner: Codex consumes JSON on stdout and injects
-// hookSpecificOutput.additionalContext into the running session.
-const codexSessionContext = (rootDir) => {
-  const script = join(rootDir, ".codex/hooks/session_start.py");
-  if (!existsSync(script)) return null;
-  const r = spawnSync("python3", [script], { encoding: "utf8", timeout: 10000 });
-  if (r.status !== 0) return null;
-  try {
-    return JSON.parse(r.stdout);
-  } catch {
-    return null;
-  }
 };
 
 // Drive the Ollama web-search sidecar through `extension/initialize` over its real stdio
@@ -466,7 +414,6 @@ for (const p of [
   ".claude/settings.json",
   "opencode.json",
   ".reasonix/settings.json",
-  ".codex/hooks.json",
   ".opencode/package.json",
 ]) {
   const t = read(p);
@@ -529,14 +476,14 @@ ok(existsSync(join(root, ".claude/workflows/audit-deploy-configs.js")), ".claude
 {
   const DEEPWIKI_URL = "https://mcp.deepwiki.com/mcp";
   const MCP_SURFACES = [
-    [".mcp.json", (v) => [v.mcpServers?.deepwiki?.url, Object.keys(v.mcpServers ?? {})], "Claude Code and Reasonix (project-scoped .mcp.json)"],
-    [".pi/mcp.json", (v) => [v.mcpServers?.deepwiki?.url, Object.keys(v.mcpServers ?? {})], "pi (project .pi/mcp.json)"],
-    ["opencode.json", (v) => [v.mcp?.deepwiki?.url, Object.keys(v.mcp ?? {})], "opencode (top-level mcp map)"],
-    [".codex/config.toml", (v, p) => [tomlString(p, "mcp_servers.deepwiki", "url"), tomlTables(p, "mcp_servers").filter((name) => name !== "mcp_servers").map((name) => name.slice("mcp_servers.".length))], "Codex ([mcp_servers.deepwiki])"],
+    [".mcp.json", (v) => v.mcpServers?.deepwiki?.url, "Claude Code and Reasonix (project-scoped .mcp.json)"],
+    [".pi/mcp.json", (v) => v.mcpServers?.deepwiki?.url, "pi (project .pi/mcp.json)"],
+    ["opencode.json", (v) => v.mcp?.deepwiki?.url, "opencode (top-level mcp map)"],
+    [".codex/config.toml", (v, p) => tomlString(p, "mcp_servers.deepwiki", "url"), "Codex ([mcp_servers.deepwiki])"],
   ];
   for (const [surface, extract, who] of MCP_SURFACES) {
-    const [url, names] = extract(jsonOr(surface), surface);
-    ok(url === DEEPWIKI_URL && names.length === 1 && names[0] === "deepwiki", `${surface} configures only the DeepWiki server for ${who}`);
+    const url = extract(jsonOr(surface), surface);
+    ok(url === DEEPWIKI_URL, `${surface} declares the DeepWiki server for ${who} (deepwiki.url === ${DEEPWIKI_URL})`);
   }
 }
 
@@ -561,8 +508,7 @@ ok(existsSync(join(root, ".claude/workflows/audit-deploy-configs.js")), ".claude
 //    That IS an additive session-context mechanism, so the arm is wired here rather than
 //    deferred again. (reasonix has no additive `instructions` config key — opencode's
 //    mechanism — so a hook is the right primitive, not a config field.)
-//    Codex uses SessionStart's additive additionalContext output (not
-//    model_instructions_file, which replaces the base prompt).
+//    Codex uses its native additive SessionStart context; verify that profile live with the CLI.
 //    Claude Code stays on the `AGENTS.md` pointer (operator decision): no new hook here.
 {
   const SOUL_SURFACES = [
@@ -594,61 +540,10 @@ ok(existsSync(join(root, ".claude/workflows/audit-deploy-configs.js")), ".claude
       },
       "reasonix (a SessionStart hook whose stdout is injected as <hook-context>)",
     ],
-    [
-      ".codex/hooks.json",
-      (_v, _p) => {
-        const h = jsonOr(".codex/hooks.json");
-        const wired = (h.hooks?.SessionStart ?? []).some((entry) =>
-          (entry.hooks ?? []).some((hook) => hook.command === "python3 .codex/hooks/session_start.py"),
-        );
-        const output = codexSessionContext(root);
-        const context = output?.hookSpecificOutput?.additionalContext;
-        return wired && output?.hookSpecificOutput?.hookEventName === "SessionStart"
-          && typeof context === "string"
-          && context.includes(read("SOUL.md")?.trim() ?? "\0")
-          && context.includes(read(".codex/instructions.md")?.trim() ?? "\0");
-      },
-      "Codex (SessionStart additionalContext injects SOUL.md and Codex profile instructions)",
-    ],
   ];
   for (const [surface, asserts, who] of SOUL_SURFACES) {
     ok(asserts(jsonOr(surface), surface), `${surface} injects SOUL.md for ${who}`);
   }
-}
-
-// 14. Codex's native PreToolUse(Bash) hook dispatches both shared Git gates. Their
-//     JSON tool_input.command protocol is the same across harnesses, so the root-owned
-//     scripts remain the single implementation rather than Codex-specific copies.
-{
-  const h = jsonOr(".codex/hooks.json");
-  const hooks = (h.hooks?.PreToolUse ?? []).filter((entry) => entry.matcher === "Bash")
-    .flatMap((entry) => entry.hooks ?? []);
-  const commands = hooks.map((hook) => hook.command);
-  ok(
-    commands.includes("bash .claude/hooks/pre-commit-gate.sh")
-      && commands.includes("bash .claude/hooks/pre-push-gate.sh"),
-    "Codex PreToolUse(Bash) wires both shared Git gates",
-  );
-}
-
-// 15. Codex instructions document current marketplace/plugin commands and the
-//     project-level maximum skill catalog budget. The dispatcher remains necessary
-//     because the full corpus can still exceed Codex's documented 10,000-token cap.
-{
-  const instructions = read(".codex/instructions.md") ?? "";
-  ok(
-    instructions.includes("codex plugin marketplace add opencharly/marketplace")
-      && instructions.includes("codex plugin add <plugin-name>@charly-plugins")
-      && instructions.includes("same-name source collision")
-      && instructions.includes("skills.max_context_tokens = 10000")
-      && instructions.includes("AGENTS.md` dispatcher")
-      && !instructions.includes("codex plugin add opencharly/marketplace"),
-    "Codex marketplace registration and plugin installation use current CLI syntax",
-  );
-  ok(
-    tomlInteger(".codex/config.toml", "skills", "max_context_tokens") === 10000,
-    ".codex/config.toml sets the supported 10000-token skills catalog budget",
-  );
 }
 
 // 8. reasonix.toml wires the marketplace SKILL roots — and NOT the bare marketplace root.
@@ -767,7 +662,7 @@ ok(existsSync(join(root, ".dsh/watch.items")), ".dsh/watch.items (the DSH watch 
 //           `/charly-<family>:<skill>` reference, which BREAKS the docs build (an
 //           unresolvable reference is a hard error there, not a dead link).
 //       (b) RATCHET — the number of corpus skills with NO row may not exceed MAX_UNROUTED.
-//           The pinned corpus currently has 233 unrouted skills; any further lost route fails.
+//           The pinned corpus has 233 unrouted skills; the trigger-authoring cutover lowers it.
 //     (a) alone would not notice a skill whose repo was never pinned (it is absent from the
 //     corpus entirely, so no row is missing) — that class is caught by the refs-list audit,
 //     not here. (b) alone would not notice a row pointing at a skill that no longer exists.

@@ -14,6 +14,23 @@ max_context_tokens = 10000
 [sandbox_workspace_write]
 network_access = false
 
+[[hooks.SessionStart]]
+
+[[hooks.SessionStart.hooks]]
+type = "command"
+command = 'python3 "$(git rev-parse --show-toplevel)/.codex/hooks/session_start.py"'
+
+[[hooks.PreToolUse]]
+matcher = "Bash"
+
+[[hooks.PreToolUse.hooks]]
+type = "command"
+command = 'bash "$(git rev-parse --show-toplevel)/.claude/hooks/pre-commit-gate.sh"'
+
+[[hooks.PreToolUse.hooks]]
+type = "command"
+command = 'bash "$(git rev-parse --show-toplevel)/.claude/hooks/pre-push-gate.sh"'
+
 # DeepWiki — a remote streamable-HTTP MCP server for architecture questions about a
 # GitHub repository. Codex reads `[mcp_servers.<name>]` with `url` for a streamable HTTP
 # server (https://learn.chatgpt.com/docs/extend/mcp, "Streamable HTTP"). The sandbox's
