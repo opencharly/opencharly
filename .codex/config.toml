@@ -6,8 +6,30 @@ sandbox_mode = "workspace-write"
 approval_policy = "on-request"
 approvals_reviewer = "auto_review"
 
+# OpenCharly has a large curated skill catalog. Use Codex's documented maximum
+# catalog budget; the AGENTS.md dispatcher remains the reliable selector.
+[skills]
+max_context_tokens = 10000
+
 [sandbox_workspace_write]
 network_access = false
+
+[[hooks.SessionStart]]
+
+[[hooks.SessionStart.hooks]]
+type = "command"
+command = 'python3 "$(git rev-parse --show-toplevel)/.codex/hooks/session_start.py"'
+
+[[hooks.PreToolUse]]
+matcher = "Bash"
+
+[[hooks.PreToolUse.hooks]]
+type = "command"
+command = 'bash "$(git rev-parse --show-toplevel)/.claude/hooks/pre-commit-gate.sh"'
+
+[[hooks.PreToolUse.hooks]]
+type = "command"
+command = 'bash "$(git rev-parse --show-toplevel)/.claude/hooks/pre-push-gate.sh"'
 
 # DeepWiki — a remote streamable-HTTP MCP server for architecture questions about a
 # GitHub repository. Codex reads `[mcp_servers.<name>]` with `url` for a streamable HTTP

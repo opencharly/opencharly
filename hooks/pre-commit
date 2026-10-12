@@ -83,6 +83,10 @@ for candidate in "${candidates[@]}"; do
   if [ -x "$candidate" ]; then CHARLY="$candidate"; break; fi
 done
 
+run_charly() {
+  CHARLY_PLUGIN_ONLY=1 "$CHARLY" "$@"
+}
+
 needs_charly=0
 # A gitlink change prints its mode in EITHER field: `:160000 160000 …` (changed),
 # `:000000 160000 …` (a submodule ADDED — a pin bump, exactly what `policy-b` judges)
@@ -110,8 +114,8 @@ else
     echo "  (this tree has none; R9 prefers a worktree-local build, so re-run"
     echo "   ./charly/scripts/bootstrap-charly.sh here if this tree's charly/ differs)"
   fi
-  "$CHARLY" task policy-b
-  "$CHARLY" task self-test
+  run_charly task policy-b
+  run_charly task self-test
 fi
 
 # ASCII `...`, never U+2026: this banner opens the transcript a PR pastes as its gate
@@ -121,8 +125,8 @@ fi
 # codepoint is named, never embedded, so a grep for it over this file stays meaningful.
 echo "pre-commit: running the umbrella gate..."
 
-"$CHARLY" task policy-b
-"$CHARLY" task self-test
+run_charly task policy-b
+run_charly task self-test
 node "$ROOT/scripts/check-opencode-plugin.mjs"
 node "$ROOT/scripts/check-pr-watch.mjs"
 node "$ROOT/scripts/check-pi-gates.mjs"

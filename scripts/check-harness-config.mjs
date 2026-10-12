@@ -98,8 +98,8 @@ const MUST_NOT_AUTO_ALLOW = [
 ];
 
 // The dispatcher-coverage RATCHET (check 12). MEASURED on the tree this gate ships with:
-// 346 corpus skills (`marketplace/*/skills/*/SKILL.md`) against 96 `DISPATCHER.md` rows,
-// i.e. 250 corpus skills carry no routing row.
+// 352 corpus skills (`marketplace/*/skills/*/SKILL.md`) against 119 `DISPATCHER.md` rows,
+// i.e. 233 corpus skills carry no routing row.
 //
 // It is a RATCHET, not a hard "every skill has a row", and that is deliberate. A hard
 // assertion is RED on the tree it would land on, and `main` is PR-only with required status
@@ -110,7 +110,7 @@ const MUST_NOT_AUTO_ALLOW = [
 // proves both assertions can fail rather than asserting that they do.
 //
 // Tighten this number as the trigger-authoring cutover lands. It may only ever DECREASE.
-const MAX_UNROUTED = 234;
+const MAX_UNROUTED = 233;
 
 // ── --self-test: prove the discriminating/structural split by executing it ──────────
 // Copies every surface this gate reads into a temp tree, asserts the gate is GREEN there
@@ -508,7 +508,7 @@ ok(existsSync(join(root, ".claude/workflows/audit-deploy-configs.js")), ".claude
 //    That IS an additive session-context mechanism, so the arm is wired here rather than
 //    deferred again. (reasonix has no additive `instructions` config key — opencode's
 //    mechanism — so a hook is the right primitive, not a config field.)
-//    Codex stays deferred: its `model_instructions_file` REPLACES the base system prompt.
+//    Codex uses its native additive SessionStart context; verify that profile live with the CLI.
 //    Claude Code stays on the `AGENTS.md` pointer (operator decision): no new hook here.
 {
   const SOUL_SURFACES = [
@@ -662,7 +662,7 @@ ok(existsSync(join(root, ".dsh/watch.items")), ".dsh/watch.items (the DSH watch 
 //           `/charly-<family>:<skill>` reference, which BREAKS the docs build (an
 //           unresolvable reference is a hard error there, not a dead link).
 //       (b) RATCHET — the number of corpus skills with NO row may not exceed MAX_UNROUTED.
-//           It is 250 today; the trigger-authoring cutover lowers it.
+//           The pinned corpus has 233 unrouted skills; the trigger-authoring cutover lowers it.
 //     (a) alone would not notice a skill whose repo was never pinned (it is absent from the
 //     corpus entirely, so no row is missing) — that class is caught by the refs-list audit,
 //     not here. (b) alone would not notice a row pointing at a skill that no longer exists.
