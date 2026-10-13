@@ -1832,3 +1832,19 @@
 	path = openclaw-enterprise
 	url = https://github.com/opencharly/openclaw-enterprise.git
 	branch = main
+[submodule "clawsweeper"]
+	path = clawsweeper
+	url = https://github.com/opencharly/clawsweeper.git
+	branch = main
+[submodule "crabbox"]
+	path = crabbox
+	url = https://github.com/opencharly/crabbox.git
+	branch = main
+[submodule "crabhelm"]
+	path = crabhelm
+	url = https://github.com/opencharly/crabhelm.git
+	branch = main
+[submodule "lobster"]
+	path = lobster
+	url = https://github.com/opencharly/lobster.git
+	branch = main

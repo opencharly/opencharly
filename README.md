@@ -3,7 +3,7 @@
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/opencharly/opencharly)
 
 **One clone of the whole org — and the place all charly development happens.**
-`opencharly/opencharly` is an org-level umbrella repo: every OpenCharly repo (424 today)
+`opencharly/opencharly` is an org-level umbrella repo: every OpenCharly repo (428 today)
 is pinned here as a git submodule ("gitlink", in the org's vocabulary), flat at the
 root — submodule path == repo name for all but one alias (`.github`, pinned at the
 `dotgithub/` path).
@@ -162,16 +162,20 @@ above only *place* each class. The authoring procedure is `/charly-internals:rep
 
 ### Product & tooling
 
-9 repos — streamer product, appliance provisioning, org action, third-party pins, and the
-two vendored OpenClaw upstream forks.
+13 repos — streamer product, appliance provisioning, org action, third-party pins, and the
+six vendored OpenClaw upstream forks.
 
 | path | repo | role |
 |---|---|---|
 | `action-review/` | [opencharly/action-review](https://github.com/opencharly/action-review) | Charly config for the org AI PR-review gate: dual-runner workflow, env/secret contract, review plan |
 | `charly-jetkvm/` | [opencharly/charly-jetkvm](https://github.com/opencharly/charly-jetkvm) | Provision the appliance-resident `charly` on a JetKVM (armv7) — install the published release binary + welded plugins over ssh and verify it runs project-less |
 | `charly-streamer/` | [opencharly/charly-streamer](https://github.com/opencharly/charly-streamer) | charly-streamer (cstream) — Hyprland desktops streamed to a browser over WebRTC: Rust streamer + leader, Go g… |
+| `clawsweeper/` | [opencharly/clawsweeper](https://github.com/opencharly/clawsweeper) | Vendored upstream fork of [openclaw/clawsweeper](https://github.com/openclaw/clawsweeper) — scans the org's issues and PRs weekly and proposes what to close, and why |
+| `crabbox/` | [opencharly/crabbox](https://github.com/opencharly/crabbox) | Vendored upstream fork of [openclaw/crabbox](https://github.com/openclaw/crabbox) — warm a box, sync the diff, run the suite (the remote-execution CLI the `plugin-crabbox` provider drives) |
+| `crabhelm/` | [opencharly/crabhelm](https://github.com/opencharly/crabhelm) | Vendored upstream fork of [openclaw/crabhelm](https://github.com/openclaw/crabhelm) — the OpenClaw meta orchestrator |
 | `dotgithub/` | [opencharly/.github](https://github.com/opencharly/.github) | OpenCharly org-wide community-health defaults (PR template, etc.) — single source inherited by every repo wit… |
 | `gst-wayland-display/` | [opencharly/gst-wayland-display](https://github.com/opencharly/gst-wayland-display) | A micro Wayland compositor that can be used as a Gstreamer plugin |
+| `lobster/` | [opencharly/lobster](https://github.com/opencharly/lobster) | Vendored upstream fork of [openclaw/lobster](https://github.com/openclaw/lobster) — the OpenClaw-native workflow shell that `plugin-lobster` implements (`workflow:lobster`) |
 | `openclaw/` | [opencharly/openclaw](https://github.com/opencharly/openclaw) | Vendored upstream fork of [openclaw/openclaw](https://github.com/openclaw/openclaw) — the OpenClaw agent gateway the `layer-openclaw` family packages |
 | `openclaw-enterprise/` | [opencharly/openclaw-enterprise](https://github.com/opencharly/openclaw-enterprise) | Vendored upstream fork of [openclaw/openclaw-enterprise](https://github.com/openclaw/openclaw-enterprise) — the enterprise control plane for the same gateway family |
 | `pi-review-action/` | [opencharly/pi-review-action](https://github.com/opencharly/pi-review-action) | Archived — the org PR-review gate now runs the charly engine (opencharly/action-review) |
