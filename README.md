@@ -3,7 +3,7 @@
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/opencharly/opencharly)
 
 **One clone of the whole org — and the place all charly development happens.**
-`opencharly/opencharly` is an org-level umbrella repo: every OpenCharly repo (422 today)
+`opencharly/opencharly` is an org-level umbrella repo: every OpenCharly repo (424 today)
 is pinned here as a git submodule ("gitlink", in the org's vocabulary), flat at the
 root — submodule path == repo name for all but one alias (`.github`, pinned at the
 `dotgithub/` path).
@@ -162,7 +162,8 @@ above only *place* each class. The authoring procedure is `/charly-internals:rep
 
 ### Product & tooling
 
-7 repos — streamer product, appliance provisioning, org action, and third-party pins.
+9 repos — streamer product, appliance provisioning, org action, third-party pins, and the
+two vendored OpenClaw upstream forks.
 
 | path | repo | role |
 |---|---|---|
@@ -171,6 +172,8 @@ above only *place* each class. The authoring procedure is `/charly-internals:rep
 | `charly-streamer/` | [opencharly/charly-streamer](https://github.com/opencharly/charly-streamer) | charly-streamer (cstream) — Hyprland desktops streamed to a browser over WebRTC: Rust streamer + leader, Go g… |
 | `dotgithub/` | [opencharly/.github](https://github.com/opencharly/.github) | OpenCharly org-wide community-health defaults (PR template, etc.) — single source inherited by every repo wit… |
 | `gst-wayland-display/` | [opencharly/gst-wayland-display](https://github.com/opencharly/gst-wayland-display) | A micro Wayland compositor that can be used as a Gstreamer plugin |
+| `openclaw/` | [opencharly/openclaw](https://github.com/opencharly/openclaw) | Vendored upstream fork of [openclaw/openclaw](https://github.com/openclaw/openclaw) — the OpenClaw agent gateway the `layer-openclaw` family packages |
+| `openclaw-enterprise/` | [opencharly/openclaw-enterprise](https://github.com/opencharly/openclaw-enterprise) | Vendored upstream fork of [openclaw/openclaw-enterprise](https://github.com/openclaw/openclaw-enterprise) — the enterprise control plane for the same gateway family |
 | `pi-review-action/` | [opencharly/pi-review-action](https://github.com/opencharly/pi-review-action) | Archived — the org PR-review gate now runs the charly engine (opencharly/action-review) |
 | `pixelflux/` | [opencharly/pixelflux](https://github.com/opencharly/pixelflux) | Patched pixelflux wl-screenshot/record library for OpenCharly selkies desktops (migrated from overthinkos) |
 

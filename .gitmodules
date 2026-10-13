@@ -1824,3 +1824,11 @@
 	path = layer-openclaw
 	url = https://github.com/opencharly/layer-openclaw.git
 	branch = main
+[submodule "openclaw"]
+	path = openclaw
+	url = https://github.com/opencharly/openclaw.git
+	branch = main
+[submodule "openclaw-enterprise"]
+	path = openclaw-enterprise
+	url = https://github.com/opencharly/openclaw-enterprise.git
+	branch = main
