@@ -152,8 +152,17 @@ Still open:
 | # | Current state (evidence) | Target | Code work |
 |---|---|---|---|
 | 7.1 | Plugin binaries are keyed by absolute source path (19 GB, 2,025 binaries, 1,762 test stubs in the user cache). | D-STORE-4, D-STORE-8 | Key by content; inject test roots. |
-| 7.2 | Five cache environment variables (`CHARLY_CACHE_DIR`, `_REPO_CACHE`, `_BUILD_CACHE`, `_GH_CACHE`, `_MATERIALIZED_CACHE`) and about 9 hand-built `.cache` paths mixing `UserCacheDir` and `UserHomeDir`. | D-STORE-1 | One sdk package. |
-| 7.3 | Five stores: per-ref repository exports (about 11k) that also cache the mutable `@main`, `materialized/` JSON with timestamps and temporary paths, `vm-images/` with sidecar files, lock files never collected, and the OCI-layout store with 6 callers. | D-STORE-3, D-STORE-5..7 | One content-addressed store, garbage collection, and a `charly clean` purge of the old roots. |
+| 7.2 | Five cache environment variables (`CHARLY_CACHE_DIR`, `_REPO_CACHE`, `_BUILD_CACHE`, `_GH_CACHE`, `_MATERIALIZED_CACHE`) and about 9 hand-built `.cache` paths mixing `UserCacheDir` and `UserHomeDir`. | D-STORE-1 | One sdk package. The four variables beyond `CHARLY_CACHE_DIR` are deleted in the phase that migrates the cache they serve, and the hand-built paths route through the same resolver — no variable and no hand-built path survives its own phase (R5). |
+| 7.3 | Five on-disk caches: per-ref repository exports (about 11k) that also cache the mutable `@main`; `materialized/` JSON carrying timestamps and temporary paths — a D-STORE-6 violation of the payload rule, while the payload/validity-metadata split itself is already implemented (the resolution record lives in the config blob, not in the payload); `vm-images/` with sidecar files; lock files never collected; and the OCI-layout store with 6 callers. | D-STORE-3, D-STORE-5..7 | The ordered migration below: one cache per cutover, each provable by one honest R10 gate, with each bespoke form deleted in the phase that migrates it (R5, no dual path), and `charly clean` purging the old roots (D-STORE-7). |
+
+**The ordered migration — one cache per cutover, deletions inside their own phase:**
+
+0. **The store and the roots** (`sdk/storekit`): the OCI-layout store (D-STORE-3), the four roots from one resolver (D-STORE-1), entries and views. Every phase below depends on it, and none may invent a second on-disk format.
+1. **The plugin-build cache** → the store (`sdk/buildcache`): one content-addressed entry per binary, keyed by module source, `go.sum`, the toolchain and the platform (D-STORE-4), with the per-binary lock moved out of the store tree to the runtime root.
+2. **The repo cache and its derived views** → the store: `.ref`, `.charly-view-ok` and `.stamp` sidecars die by construction, because a mutable name resolves to a commit before it reaches the store and that resolution record is the entry's config blob (D-STORE-5).
+3. **The `materialized/` and load caches** → the store: the JSON-with-timestamps form disappears, and no payload carries a timestamp or an absolute path that is not an input (D-STORE-6).
+4. **`vm-images`** → the store, as a directory payload (`PutTree`: per-file blobs plus one manifest blob carrying the tree's own RFC 6838 media type), and the `.sha256` sidecar is deleted.
+5. **The residue**: the four extra cache environment variables, the ~9 hand-built `.cache` paths and the remaining sidecars are deleted, and `charly clean` purges the old roots within its budget (D-STORE-7).
 
 ## 8. Command line (§19)
 
