@@ -1848,3 +1848,7 @@
 	path = lobster
 	url = https://github.com/opencharly/lobster.git
 	branch = main
+[submodule "charly-registry"]
+	path = charly-registry
+	url = https://github.com/opencharly/charly-registry
+	branch = main

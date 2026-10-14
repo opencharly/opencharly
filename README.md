@@ -3,7 +3,7 @@
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/opencharly/opencharly)
 
 **One clone of the whole org — and the place all charly development happens.**
-`opencharly/opencharly` is an org-level umbrella repo: every OpenCharly repo (428 today)
+`opencharly/opencharly` is an org-level umbrella repo: every OpenCharly repo (429 today)
 is pinned here as a git submodule ("gitlink", in the org's vocabulary), flat at the
 root — submodule path == repo name for all but one alias (`.github`, pinned at the
 `dotgithub/` path).
@@ -429,12 +429,13 @@ six vendored OpenClaw upstream forks.
 
 ### Plugins
 
-118 repos — charly plugin candies. Their `providers:` blocks register the kinds,
+119 repos — charly plugin candies. Their `providers:` blocks register the kinds,
 deploys, verbs, steps, builds, builders, commands, engines, loaders, refs,
 agent runtimes and terminals charly speaks.
 
 | path | repo | role |
 |---|---|---|
+| `charly-registry/` | [opencharly/charly-registry](https://github.com/opencharly/charly-registry) | charly plugin: the `charly registry` command — the local OCI image cache and the `command:registry` word (an in-process OCI registry over the shared cache; the registry-based delivery surface for pod, VM and Kubernetes) |
 | `plugin-adb/` | [opencharly/plugin-adb](https://github.com/opencharly/plugin-adb) | charly plugin |
 | `plugin-addr/` | [opencharly/plugin-addr](https://github.com/opencharly/plugin-addr) | charly plugin |
 | `plugin-agent/` | [opencharly/plugin-agent](https://github.com/opencharly/plugin-agent) | charly plugin |
