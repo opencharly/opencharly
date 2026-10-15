@@ -104,11 +104,11 @@ map:
 # -----------------------------------------------------------------------------
 pins:
   task:
-    description: The pin-contract pin operation over the distro-* set (mode via param)
+    description: The pin-contract pin operation over the distro-* set (mode via param) — MODE=currency asks whether every pin is at the ref its intent names, and its Message IS the answer
     dir: .
     params:
       MODE:
-        description: status|bump|verify (the git-submodules mode)
+        description: status|bump|verify|currency (the git-submodules mode)
         default: verify
     plan:
       - run: run git-submodules in the selected mode
