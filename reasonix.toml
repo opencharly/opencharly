@@ -103,6 +103,7 @@ paths = [
     "marketplace/distros/skills",
     "marketplace/feature/skills",
     "marketplace/filebrowser/skills",
+    "marketplace/firecracker/skills",
     "marketplace/hermes/skills",
     "marketplace/image/skills",
     "marketplace/immich/skills",
