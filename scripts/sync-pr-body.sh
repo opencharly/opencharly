@@ -23,7 +23,7 @@ set -euo pipefail
 # `## Change classification` section reports, so the section and the footer cannot disagree.
 #
 # Modes:
-#   <root> <moved-file> <producer-log> <policy-b-log> <out-body> <out-evidence>
+#   <root> <moved-file> <producer-log> <pin-check-log> <out-body> <out-evidence>
 #                                       build the body + evidence from real inputs.
 #   --self-test                         exercise the bounding + guard on fixtures.
 #
@@ -59,11 +59,11 @@ producer_log_excerpt() {
   sed -n "1,${1:-200}p"
 }
 
-# build_body <root> <moved-file> <producer-log> <policy-b-log> <out-body> <out-evidence>
+# build_body <root> <moved-file> <producer-log> <pin-check-log> <out-body> <out-evidence>
 # Prints nothing; writes both files. The per-pin table is produced by
 # sync-pin-evidence.sh (bounded for the body, full for the artifact via SYNC_EVIDENCE_OUT).
 build_body() {
-  local root="$1" moved_file="$2" producer_log="$3" policy_b_log="$4" out_body="$5" out_evidence="$6"
+  local root="$1" moved_file="$2" producer_log="$3" pin_check_log="$4" out_body="$5" out_evidence="$6"
   local MOVED MOVED_TOTAL GITLINK_COUNT FILE_COUNT evidence_body evidence_full type_file
 
   MOVED="$(cat "$moved_file")"
@@ -103,8 +103,8 @@ build_body() {
     echo "== producer resolution (full) =="
     producer_log_excerpt 400 < "$producer_log" 2>/dev/null || true
     echo
-    echo "== policy B gate output =="
-    cat "$policy_b_log" 2>/dev/null || true
+    echo "== pin check gate output =="
+    cat "$pin_check_log" 2>/dev/null || true
   } > "$out_evidence"
 
   # Render the per-pin evidence section's BODY form ONCE, capturing the moved-path split from
@@ -115,7 +115,7 @@ build_body() {
   # duplicate the network work and risk the two copies diverging.
   type_file="$(mktemp)"
   evidence_body="$(printf '%s\n' "$MOVED" | SYNC_EVIDENCE_OUT="$out_evidence" SYNC_EVIDENCE_TYPE_OUT="$type_file" \
-    bash "$SCRIPT_DIR/sync-pin-evidence.sh" "$root" "$policy_b_log")"
+    bash "$SCRIPT_DIR/sync-pin-evidence.sh" "$root" "$pin_check_log")"
   GITLINK_COUNT=0; FILE_COUNT=0
   # shellcheck disable=SC1090
   . "$type_file"
@@ -124,7 +124,7 @@ build_body() {
   {
     echo "## Summary"
     echo
-    echo "Gitlink sync: every umbrella submodule pin advanced to what **policy B** requires"
+    echo "Gitlink sync: every umbrella submodule pin advanced to what **the pin contract** requires"
     echo "— \`charly\` to its own default-branch HEAD, \`distro-*\` to exactly the commits charly's"
     echo "own gitlinks pin, everything else to its own default branch."
     echo
@@ -194,7 +194,7 @@ build_body() {
     echo "  cannot resolve rather than guessing; no warning appears in the pasted output."
     echo "- **R1 fix or file:** a defect found in THIS sync is fixed here; content behind a"
     echo "  moved gitlink belongs to its OWNING repo (which gated it before tagging)."
-    echo "- **R2 no duplication:** policy B is asserted by \`charly task policy-b\` — the ONE"
+    echo "- **R2 no duplication:** the pin contract is asserted by \`charly task pin-check\` — the ONE"
     echo "  implementation \`charly task verify\` also composes."
     echo "- **R3 no workaround:** \`charly\` and every non-\`distro-*\` pin is its owning repo's"
     echo "  default-branch HEAD (per-pin \`git ls-remote\` above); every \`distro-*\` pin is charly's"
@@ -205,14 +205,14 @@ build_body() {
     echo "- **R7 runtime gate:** \`charly task verify\` on the final tree — the sync"
     echo "  is hand-run in a HUMAN tree, where that gate's nested-submodule half is meaningful —"
     echo "  plus the per-pin \`git ls-remote\` default-branch evidence above; \`distro-*\` pins (when"
-    echo "  any move) are additionally asserted by policy B. No generated artifact or OCI"
+    echo "  any move) are additionally asserted by the pin contract. No generated artifact or OCI"
     echo "  label is emitted."
     echo "- **R8 live or skip:** the per-pin \`git ls-remote\` evidence runs against the real"
     echo "  GitHub remotes; no remote is mocked."
     echo "- **R9 binary == source:** \`N/A — no binary is built by this sync.\`"
     echo "- **R10 disposable + coverage:** the coverage is the per-pin \`git ls-remote\`"
     echo "  default-branch evidence above (it fails if a pin is a PR branch or a non-HEAD"
-    echo "  commit); policy B additionally gates any moved \`distro-*\` pin."
+    echo "  commit); the pin contract additionally gates any moved \`distro-*\` pin."
     echo "- **RDD / ADE / SDD:** RDD — the producer resolves refs from the real repos, not from"
     echo "  a doc. ADE — no candy. SDD — \`N/A\`, no schema/generated-code change."
     echo "- **Hard cutover:** one atomic commit; no deferred work in scope."
@@ -275,7 +275,7 @@ if [ "${1:-}" = "--self-test" ]; then
   # set EQUAL to it, so the fixture rows render exactly as the real fleet's
   # (`  <path>  <sha12>  <sha12>  =`) and the measured size IS the real worst case.
   moved="$tmp/moved"; producer="$tmp/producer"; pblog="$tmp/pblog"
-  : > "$producer"; echo "charly task policy-b: OK — 6 distro pins equal charly's gitlinks" > "$pblog"
+  : > "$producer"; echo "charly task pin-check: OK — 6 distro pins equal charly's gitlinks" > "$pblog"
   mkdir -p "$tmp/remote-src"; git -C "$tmp/remote-src" init -q
   git -C "$tmp/remote-src" config user.email t@t; git -C "$tmp/remote-src" config user.name t
   : > "$tmp/remote-src/f"; git -C "$tmp/remote-src" add f; git -C "$tmp/remote-src" commit -qm one
@@ -462,5 +462,5 @@ if [ "${1:-}" = "--self-test" ]; then
   exit 0
 fi
 
-build_body "${1:?usage: sync-pr-body.sh <root> <moved-file> <producer-log> <policy-b-log> <out-body> <out-evidence>}" \
-  "${2:?moved-file}" "${3:?producer-log}" "${4:?policy-b-log}" "${5:?out-body}" "${6:?out-evidence}"
+build_body "${1:?usage: sync-pr-body.sh <root> <moved-file> <producer-log> <pin-check-log> <out-body> <out-evidence>}" \
+  "${2:?moved-file}" "${3:?producer-log}" "${4:?pin-check-log}" "${5:?out-body}" "${6:?out-evidence}"

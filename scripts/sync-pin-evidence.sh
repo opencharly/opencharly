@@ -2,7 +2,7 @@
 # sync-pin-evidence.sh — emit the sync PR body's "pin evidence" section: for every
 # MOVED gitlink, the STAGED GITLINK (the pinned commit this PR records) beside the
 # owning repo's remote default-branch HEAD, plus the truthful statement of whether
-# policy B can fail on THIS diff.
+# the pin contract can fail on THIS diff.
 #
 # Why this is its own script: the sync PR's body must carry real, verifiable evidence
 # that each moved pin is a merged default-branch HEAD (or charly's own gitlink, for
@@ -15,7 +15,7 @@
 # `not-equal`.
 #
 # Modes:
-#   (default) <root> <policy-b-log>   read MOVED (one path per line) from stdin; print
+#   (default) <root> <pin-check-log>   read MOVED (one path per line) from stdin; print
 #                                     the evidence section (table + coverage framing).
 #   --self-test                       exercise pin_row + coverage_note on fixtures.
 #
@@ -40,7 +40,7 @@ set -euo pipefail
 
 # pin_row <path> <staged_gitlink> <remote_head> — ONE evidence row, in the COMPACT
 # format the body-size budget is measured against: `  <path>  <staged12>  <remote12>
-# <flag>`. The kind (`distro-*` policy-B pinned vs default-branch HEAD) is derivable
+# <flag>`. The kind (`distro-*` edge-pinned vs default-branch HEAD) is derivable
 # from the path prefix and stated ONCE in the section legend, so the row carries no
 # verbose `[kind, eq]` suffix — that suffix is what pushed a 402-pin table past the
 # body budget and forced the artifact elision the validator rejects. `flag` is `=`
@@ -78,14 +78,14 @@ file_row() {
   printf '  %s  %.12s  (file)\n' "$1" "$2"
 }
 
-# coverage_note <distro_moved_count> — policy B asserts only `distro-*` gitlinks, so it
+# coverage_note <distro_moved_count> — the pin check asserts only `distro-*` gitlinks, so it
 # is this diff's coverage ONLY when at least one `distro-*` pin moved. ONE decision,
 # shared by the live path and the self-test.
 coverage_note() {
   if [ "${1:-0}" -gt 0 ]; then
-    echo "POLICY_B_IS_COVERAGE"
+    echo "PIN_CHECK_IS_COVERAGE"
   else
-    echo "POLICY_B_NOT_COVERAGE"
+    echo "PIN_CHECK_NOT_COVERAGE"
   fi
 }
 
@@ -158,12 +158,12 @@ evidence_legend() {
   echo "remote default-branch HEAD (\`git ls-remote <url> HEAD\`, read when THIS table is"
   echo "generated). \`charly\` and every non-\`distro-*\` pin is the owning repo's"
   echo "default-branch HEAD **as of the walk that produced this diff**; a \`distro-*\` pin"
-  echo "tracks charly's own gitlink and is proven by policy B, so it is policy-B pinned"
+  echo "tracks charly's own gitlink and is proven by the pin check, so it is edge-pinned"
   echo "rather than required equal here:"
   echo
   echo '```'
   echo 'legend: <path>  <staged-gitlink>  <remote-HEAD>  <flag>'
-  echo '        (= equal · ! NOT equal at table-generation time; distro-* = policy-B pinned)'
+  echo '        (= equal · ! NOT equal at table-generation time; distro-* = edge-pinned)'
   echo '        A walk resolves each remote HEAD when it runs; this table compares at the'
   echo '        moment it is generated — later. A `!` on a non-`distro-*` row therefore has'
   echo '        two readings, told apart by the two commits themselves:'
@@ -174,7 +174,7 @@ evidence_legend() {
   echo '        (b) A REAL FINDING — the staged pin is not on that repo default branch at all'
   echo '            (a PR branch, or a non-HEAD commit); that ancestor check is false.'
   echo '        A `distro-*` row is neither: it tracks the gitlink charly records, which'
-  echo '        policy B proves.'
+  echo '        the pin check proves.'
   echo '        (a non-gitlink changed path is rendered `  <path>  <blob>  (file)` — a'
   echo '        plain file has no remote default-branch HEAD to compare, so it carries no flag;'
   echo '        its blob is the index blob this PR stages and is never `!`-flagged.)'
@@ -184,7 +184,7 @@ if [ "${1:-}" = "--self-test" ]; then
   fail() { echo "FAIL: sync-pin-evidence self-test: $*" >&2; exit 1; }
 
   # pin_row: the COMPACT format `  <path>  <staged12>  <remote12>  <flag>`. The kind
-  # (distro-* policy-B vs default-branch) is derivable from the path prefix and stated
+  # (distro-* edge-pinned vs default-branch) is derivable from the path prefix and stated
   # once in the section legend, so it is NOT in the row; the row carries only the
   # equality flag. A `!` is a real finding and must never be silently elided.
   got="$(pin_row 'plugin-vm' 'aaaa1111bbbb' 'cccc2222dddd')"
@@ -205,8 +205,8 @@ if [ "${1:-}" = "--self-test" ]; then
     || fail "row shape must be <path> <staged> <remote> <flag> regardless of path length"
 
   # coverage_note: both directions.
-  [ "$(coverage_note 0)" = "POLICY_B_NOT_COVERAGE" ] || fail "0 distro moved should NOT offer policy B"
-  [ "$(coverage_note 2)" = "POLICY_B_IS_COVERAGE" ] || fail ">0 distro moved should offer policy B"
+  [ "$(coverage_note 0)" = "PIN_CHECK_NOT_COVERAGE" ] || fail "0 distro moved should NOT offer the pin check"
+  [ "$(coverage_note 2)" = "PIN_CHECK_IS_COVERAGE" ] || fail ">0 distro moved should offer the pin check"
 
   # bounded_rows: the 65536-char body-cap guard. A generous budget emits every row and
   # NO elision notice; a tiny budget emits at least ONE row plus an elision naming
@@ -312,13 +312,13 @@ if [ "${1:-}" = "--self-test" ]; then
   exit 0
 fi
 
-ROOT="${1:?usage: sync-pin-evidence.sh <root> <policy-b-log>}"
-POLICY_B_LOG="${2:?usage: sync-pin-evidence.sh <root> <policy-b-log>}"
+ROOT="${1:?usage: sync-pin-evidence.sh <root> <pin-check-log>}"
+PIN_CHECK_LOG="${2:?usage: sync-pin-evidence.sh <root> <pin-check-log>}"
 cd "$ROOT"
 
 MOVED="$(cat)"
 MOVED_COUNT=$(printf '%s\n' "$MOVED" | grep -c . || true); MOVED_COUNT=${MOVED_COUNT:-0}
-# Count distro-* over ALL moved paths (path prefix only — no network), so policy-B
+# Count distro-* over ALL moved paths (path prefix only — no network), so the pin-check
 # coverage is decided from the full diff, never from the truncated emission window.
 DISTRO_MOVED=$(printf '%s\n' "$MOVED" | grep -c '^distro-' || true); DISTRO_MOVED=${DISTRO_MOVED:-0}
 
@@ -361,25 +361,25 @@ if [ -n "${SYNC_EVIDENCE_OUT:-}" ]; then
   } >> "$SYNC_EVIDENCE_OUT"
 fi
 echo
-if [ "$(coverage_note "$DISTRO_MOVED")" = "POLICY_B_IS_COVERAGE" ]; then
-  echo "**Policy B — the assertion this diff CAN violate** (\`${DISTRO_MOVED}\`"
-  echo "\`distro-*\` pin(s) moved). \`charly task policy-b\` reads charly's own"
+if [ "$(coverage_note "$DISTRO_MOVED")" = "PIN_CHECK_IS_COVERAGE" ]; then
+  echo "**The pin check — the assertion this diff CAN violate** (`${DISTRO_MOVED}`"
+  echo "`distro-*` pin(s) moved). `charly task pin-check` reads charly's own"
   echo "gitlinks with \`git ls-tree\` (tree objects — present in a shallow clone;"
   echo "charly's NESTED submodules need not be initialised) and asserts every umbrella"
   echo "\`distro-*\` gitlink equals it, pasted verbatim from this run:"
   echo
   echo '```'
-  cat "$POLICY_B_LOG"
+  cat "$PIN_CHECK_LOG"
   echo '```'
 else
-  echo "**Policy B is NOT offered as this diff's coverage:** it asserts the umbrella"
+  echo "**The pin check is NOT offered as this diff's coverage:** it asserts the umbrella"
   echo "\`distro-*\` gitlinks equal charly's own, and **this diff moved zero \`distro-*\`"
   echo "pins**, so that gate cannot fail on this diff. The coverage for the pins that"
   echo "DID move is the per-pin \`git ls-remote\` default-branch evidence above (and, for"
-  echo "\`charly\`, its own default-branch HEAD). For transparency the policy-B gate still"
+  echo "`charly`, its own default-branch HEAD). For transparency the pin-check gate still"
   echo "ran and passed:"
   echo
   echo '```'
-  cat "$POLICY_B_LOG"
+  cat "$PIN_CHECK_LOG"
   echo '```'
 fi

@@ -98,13 +98,13 @@ map:
         context: [runtime]
 
 # -----------------------------------------------------------------------------
-# pins — the ONE policy-B pin operation (the former scripts/lib/policy-b.sh's role:
-# a single canonical definition, not copy-pasted). `policy-b`, `sync` and `verify`
+# pins — the ONE pin-contract pin operation: a single canonical definition, not copy-pasted.
+# `pin-check`, `sync`, `currency` and `verify`
 # are thin wrappers selecting the mode, so the 6-entry map exists exactly once.
 # -----------------------------------------------------------------------------
 pins:
   task:
-    description: The policy-B pin operation over the distro-* set (mode via param)
+    description: The pin-contract pin operation over the distro-* set (mode via param)
     dir: .
     params:
       MODE:
@@ -126,14 +126,14 @@ pins:
         context: [runtime]
 
 # -----------------------------------------------------------------------------
-# policy-b — the cheap, PR-violable pinning assertion (the pre-commit gate).
+# pin-check — the cheap, commit-violable half of the pin contract (the pre-commit gate).
 # -----------------------------------------------------------------------------
-policy-b:
+pin-check:
   task:
-    description: Assert policy B — every distro-* gitlink equals charly's own box/* gitlink
+    description: Assert the pin contract's cheap half — every distro-* gitlink equals charly's own box/* gitlink (the EDGE mechanism)
     dir: .
     plan:
-      - check: policy B holds
+      - check: the pin check holds
         task:
           task: pins
           param: [MODE=verify]
@@ -162,7 +162,7 @@ self-test:
 # -----------------------------------------------------------------------------
 hooks:
   task:
-    description: Install the clone-level git hooks — pre-commit (policy B, the self-tests, the opencode, pi and pr-watch gates) and pre-push (the PR-body gate)
+    description: Install the clone-level git hooks — pre-commit (the pin check, the self-tests, the opencode, pi and pr-watch gates) and pre-push (the PR-body gate)
     dir: .
     plan:
       - run: set core.hooksPath and report it
@@ -172,14 +172,14 @@ hooks:
         context: [runtime]
 
 # -----------------------------------------------------------------------------
-# sync — bump every submodule pin per policy B (preview; does not commit).
+# sync — bump every submodule pin per the pin contract (preview; does not commit).
 # The charly-pinned set is the six distro-* repos: charly rolls to its own
 # default-branch HEAD FIRST, and distro-* are then pinned from charly's NEW
 # gitlinks (the verb's phase order).
 # -----------------------------------------------------------------------------
 sync:
   task:
-    description: Bump all submodule pins per policy B (preview; does not commit)
+    description: Bump all submodule pins per the pin contract (preview; does not commit)
     dir: .
     plan:
       - run: bump the pins (charly rolls first, then distro-* from its new gitlinks)
@@ -190,7 +190,7 @@ sync:
 
 # -----------------------------------------------------------------------------
 # verify — the FULL pinning gate (every pin, incl. the per-submodule remote
-# branch audit). The policy-B pin half and the checkout audit are ONE verb,
+# branch audit). The pin-contract edge half and the checkout audit are ONE verb,
 # verb:git-submodules (the former hand-rolled checkout loop is deleted: it was a
 # second implementation of a clause the verb already owns, and the drift it kept
 # reintroducing is the reason R2 exists). The default-branch audit and charly's
@@ -202,7 +202,7 @@ verify:
     description: Run the full pinning gate on demand (every pin, incl. the remote branch audit)
     dir: .
     plan:
-      - check: policy B — every distro-* gitlink equals charly's own box/* gitlink
+      - check: the pin contract's edge — every distro-* gitlink equals charly's own box/* gitlink
         task:
           task: pins
           param: [MODE=verify]
