@@ -43,7 +43,7 @@ step runs `charly/scripts/bootstrap-charly.sh`. This is not a weakening: the rep
 own pin gate (`scripts/check-verify-submodules.mjs`) documents a session worktree as
 materializing **1 of 424** paths and treats the rest as legitimately unmaterialized, and every
 commit-time gate here passes with **423 of 425** unmaterialized — `hooks/pre-commit`,
-`charly task policy-b`, `charly task self-test`, and every `scripts/check-*.mjs` gate.
+`charly task pin-check`, `charly task self-test`, and every `scripts/check-*.mjs` gate.
 
 Materialize one later (no need to recreate the worktree):
 

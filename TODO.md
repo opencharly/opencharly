@@ -177,7 +177,7 @@ Still open:
 | # | Item |
 |---|---|
 | 9.1 | Create the decided candy-family and plugin-concept repositories. Move the content, preserving history where practical, and archive `layer-*`, `pod-*`, `distro-*`, `vm-*`, the superseded `plugin-*`, `charly-<distro>` and `pkg-*`. |
-| 9.2 | Update the umbrella: submodules, policy B (the OS repository set), `task map`, `org-map`, the README tables, and the `AGENTS.md` dispatcher. |
+| 9.2 | Update the umbrella: submodules, the pin contract (the OS repository set), `task map`, `org-map`, the README tables, and the `AGENTS.md` dispatcher. |
 
 ## 10. Documentation
 
