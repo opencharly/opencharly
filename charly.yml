@@ -99,8 +99,8 @@ map:
 
 # -----------------------------------------------------------------------------
 # pins — the ONE pin-contract pin operation: a single canonical definition, not copy-pasted.
-# `pin-check`, `sync`, `currency` and `verify`
-# are thin wrappers selecting the mode, so the 6-entry map exists exactly once.
+# `pin-check`, `sync` and `verify`
+# are thin wrappers selecting the mode -- and `pins` itself carries `MODE=currency` -- so
 # -----------------------------------------------------------------------------
 pins:
   task:

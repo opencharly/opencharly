@@ -362,8 +362,8 @@ if [ -n "${SYNC_EVIDENCE_OUT:-}" ]; then
 fi
 echo
 if [ "$(coverage_note "$DISTRO_MOVED")" = "PIN_CHECK_IS_COVERAGE" ]; then
-  echo "**The pin check — the assertion this diff CAN violate** (`${DISTRO_MOVED}`"
-  echo "`distro-*` pin(s) moved). `charly task pin-check` reads charly's own"
+  echo "**The pin check — the assertion this diff CAN violate** (\`${DISTRO_MOVED}\`"
+  echo "\`distro-*\` pin(s) moved). \`charly task pin-check\` reads charly's own"
   echo "gitlinks with \`git ls-tree\` (tree objects — present in a shallow clone;"
   echo "charly's NESTED submodules need not be initialised) and asserts every umbrella"
   echo "\`distro-*\` gitlink equals it, pasted verbatim from this run:"
@@ -376,7 +376,7 @@ else
   echo "\`distro-*\` gitlinks equal charly's own, and **this diff moved zero \`distro-*\`"
   echo "pins**, so that gate cannot fail on this diff. The coverage for the pins that"
   echo "DID move is the per-pin \`git ls-remote\` default-branch evidence above (and, for"
-  echo "`charly`, its own default-branch HEAD). For transparency the pin-check gate still"
+  echo "\`charly\`, its own default-branch HEAD). For transparency the pin-check gate still"
   echo "ran and passed:"
   echo
   echo '```'

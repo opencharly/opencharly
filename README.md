@@ -651,7 +651,7 @@ agent runtimes and terminals charly speaks.
 ## Pinning — the umbrella tracks charly's graph
 
 Every submodule is pinned to a specific commit (a gitlink), and `currency` answers whether the
-whole org a single coherent snapshot:
+whole org is a single coherent snapshot:
 
 - `charly` tracks its own default branch — the pin is the `main` commit the last `sync`
   recorded.
