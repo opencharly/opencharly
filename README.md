@@ -41,7 +41,7 @@ Then the one rule that keeps the checkout honest: **never edit a submodule in pl
 Every repo you change gets its own worktree at `.worktrees/<slug>/<repo>/`, branched off
 a fresh `origin/main`, so the submodule's tracked checkout stays detached and clean at
 its recorded gitlink. Change lands only by pull request. The full model — worktrees,
-policy B, the producer-first landing order, after-merge cleanup — is in
+the pin contract — its intent model, the producer-first landing order, after-merge cleanup — is in
 [AGENTS.md](AGENTS.md) under *The development model*.
 
 ## Built for agent sessions
@@ -68,13 +68,13 @@ installed-binary form — `charly task …`, the same shape a packaged `charly` 
 | command | purpose |
 |---|---|
 | `charly task map` | list every submodule with its pin and sync state |
-| `charly task sync` | bump pins per policy B (preview; does not commit) |
+| `charly task sync` | bump pins per the pin contract (preview; does not commit) |
 | `charly task verify` | the full pinning gate, on demand (every pin, incl. the remote branch audit) |
 | `charly task hooks` | install `hooks/pre-commit` for this clone (once) |
 | `charly task org-map` | verify the README org-map tables against the repo and `.gitmodules` |
 | `charly task skills` | splice the generated R0 dispatcher from the pinned marketplace into AGENTS.md |
-| `charly task policy-b` | assert policy B — every `distro-*` gitlink equals charly's own `box/*` gitlink |
-| `charly task pins` | the policy-B pin operation over the `distro-*` set (mode via param) |
+| `charly task pin-check` | assert the pin contract's cheap half — every `distro-*` gitlink equals charly's own `box/*` gitlink |
+| `charly task pins` | the pin-contract pin operation over the `distro-*` set (mode via param) |
 | `charly task self-test` | self-test the committed CI body/pin-evidence builders + the dispatcher splice |
 | `charly task prune` | reap merged-upstream session worktrees + branches (MODE=report is a dry run) |
 
@@ -130,7 +130,7 @@ above only *place* each class. The authoring procedure is `/charly-internals:rep
 
 ### Distro image families
 
-6 repos — each maps to a `box/<distro>` inside `charly`; their pins follow charly's own gitlinks (policy B).
+6 repos — each maps to a `box/<distro>` inside `charly`; their pins follow charly's own gitlinks (the pin contract's edge).
 
 | path | repo | role |
 |---|---|---|
@@ -650,8 +650,8 @@ agent runtimes and terminals charly speaks.
 
 ## Pinning — the umbrella tracks charly's graph
 
-Every submodule is pinned to a specific commit (a gitlink), and `policy B` keeps the
-whole org a single coherent snapshot:
+Every submodule is pinned to a specific commit (a gitlink), and `currency` answers whether the
+whole org is a single coherent snapshot:
 
 - `charly` tracks its own default branch — the pin is the `main` commit the last `sync`
   recorded.
@@ -663,7 +663,7 @@ whole org a single coherent snapshot:
 
 This umbrella's `.gitmodules` records `branch = <repo default>` on all of its entries,
 so a future default-branch rename keeps working. The pins are advanced with
-`charly task sync` (the policy-B bump), run by hand and landed through the
+`charly task sync` (the pin-contract bump), run by hand and landed through the
 org's PR-only validation chain — it opens a PR and never pushes to the default branch.
 There is no scheduled workflow; `charly task sync` is the one path that moves a pin.
 

@@ -60,7 +60,7 @@ const GATE_SCRIPTS = [
  * gates read, and nothing else:
  *
  *   - `charly`      — the binary is built from it (`charly/scripts/bootstrap-charly.sh`),
- *                     and `charly task policy-b` (the pre-commit hook's first step) reads
+ *                     and `charly task pin-check` (the pre-commit hook's first step) reads
  *                     its `box/*` gitlinks.
  *   - `marketplace` — the R0 skill corpus `charly_load_skills` reads, and the
  *                     `DISPATCHER.md` the harness-config gate resolves its rows against.
@@ -398,7 +398,7 @@ export default function (pi: ExtensionAPI) {
         // of it shared with the main checkout. A worktree that materializes nothing is
         // 3.8 MB in 0.019 s; the repo's own pin gate documents a session worktree as
         // materializing 1 of 424 paths; and every gate that runs on a commit here
-        // (hooks/pre-commit, `charly task policy-b`, `charly task self-test`,
+        // (hooks/pre-commit, `charly task pin-check`, `charly task self-test`,
         // scripts/check-*.mjs) passes with 2 of 425 materialized. `--reference` makes the
         // clone BORROW the main checkout's objects through an `alternates` file instead of
         // copying them (marketplace measured: 1 MB borrowed vs 7 MB copied, 0.5 s).

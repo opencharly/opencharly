@@ -75,7 +75,7 @@ const hyps = (await parallel(
   Array.from({ length: N }, (_unused, i) => () =>
     agent(
       `You are root-cause hypothesis #${i + 1} for the failing umbrella pinning gate. Symptom: ${repro && repro.observed ? repro.observed : '(see FAIL: line)'}. ` +
-      `Form ONE independent root-cause theory DISTINCT from the obvious first guess (e.g. dirty submodule, wrong default branch, policy-B mismatch, dangling pin), then VALIDATE it against the LIVE checkout ` +
+      `Form ONE independent root-cause theory DISTINCT from the obvious first guess (e.g. dirty submodule, wrong default branch, an edge pinned to a dead pin, dangling pin), then VALIDATE it against the LIVE checkout ` +
       `(git ls-remote --symref, git -C <submodule> status, git ls-tree HEAD vs git ls-files -s). Set validated=true only if you actually probed. ` +
       `Propose a concrete fix. Do NOT edit anything, do NOT commit.`,
       { schema: HYPOTHESIS_SCHEMA, label: `hyp${i + 1}:verify`, phase: 'Hypothesize' }

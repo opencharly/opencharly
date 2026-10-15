@@ -156,7 +156,7 @@ browse it by category. How the table is maintained: `/charly-internals:skills`.
 | Trigger (what the user said or you're about to do) | Skill(s) to load |
 |---|---|
 | Git/`gh` workflow — `feat/` branch, commit, PR-only landing (no direct push to `main`), the `pr-validator` gate, native auto-merge + tag-on-merge CalVer, worktrees, sync-to-upstream, branch/worktree prune (`charly task prune`), cross-repo R10 landing / claim-or-track an issue / coordination comments (`CLAIM`…`RESOLVED`) | `/charly-internals:git-workflow` |
-| Pinning / gitlink policy / Policy B / `charly task sync` / `charly task verify` | `/charly-internals:git-workflow` |
+| Pinning / gitlink policy / the pin contract — a pin's INTENT (leaf vs edge) and whether the umbrella is CURRENT / `charly task sync` / `charly task verify` | `/charly-internals:git-workflow` |
 | New repo in the org / org ruleset / dotgithub config + workflows | `/charly-internals:repo-setup` |
 | Engineering-discipline triggers (failure surfaced / duplicate pattern / ad-hoc fix tempting / "out of scope" framing) | `/charly-internals:strict-policy` |
 | R1 — any unexpected failure, error, warning, anomaly, or doc-vs-reality divergence, before any remediation | `/charly-internals:root-cause-analyzer` |
@@ -534,10 +534,23 @@ Before declaring completion, answer every applicable item YES. There is one line
    Every Go build happens inside `charly/` (no nested `go.work`). *Detail:*
    `/charly-internals:git-workflow`.
 
-3. **Pins are gitlinks; Policy B is the contract.** *(R6, R10)* Pin only MERGED refs, and
-   keep `distro-*` equal to charly's own gitlinks. Advance pins only with
-   `./charly/bin/charly task sync` plus a PR, never with a hand-pin or a branch checkout.
-   *Detail:* `/charly-internals:git-workflow` (pinning).
+3. **Pins are gitlinks; a pin declares its INTENT, and CURRENCY is the question.** *(R6, R10)*
+   Pin only MERGED refs. Every pin declares what "current" means for it: `upstream:<ref>` is
+   a **leaf**, judged against the REMOTE; `derived-from:<path>` — and every `pin_map` entry,
+   which desugars to it — is an **edge**, judged by its source. **An edge may not point at an
+   edge** (depth ≤ 2, acyclic by construction) and every leaf must be remote-verifiable, so
+   the graph is judgeable rather than consistent-by-accident. A pin's state is `cur`,
+   `behind`, `blocked-by <source>:<twin> (<state>)`, or `not-on-the-served-line`: the first
+   obliges nothing, the second is an advance available NOW, the third NAMES the producer that
+   must go first, and the fourth is a squash-advance whose one remedy is the same as
+   `behind`'s — it is not a divergence. Only a pin the workflow cannot JUDGE, or two sides
+   that DISAGREE, is a failure; **`behind` and a `blocked-by` that names a producer leg PASS
+   and are REPORTED**, because the next step in a cross-repo sequence is another repo's PR
+   and a gate that failed there would be permanently red. **Read the producer-first leg order
+   as the work list:** producer PR → merge → tag → consumer pin bump → this repo's gitlink.
+   Advance pins only with `./charly/bin/charly task sync` plus a PR, never with a hand-pin or
+   a branch checkout — and ask **`currency`**, not consistency, when the question is whether
+   this repo is CURRENT. *Detail:* `/charly-internals:git-workflow` (pinning).
 
 4. **Read the subrepo's own rulebook first.** *(R0)* Its `AGENTS.md` adds repo-specific
    rules on top of Part I, so read it before acting there.

@@ -1,7 +1,7 @@
 export const meta = {
   name: 'verify-status',
   description:
-    'Pinning-gate PLAN for the umbrella. Emits the exact commands that prove each README invariant (branch == real default, pins reachable + clean, policy B equality, charly nested submodules initialized) and what each proves. The umbrella gate is fast and local, so the PERSISTENT session can own the runs directly; this workflow only plans and never mutates.',
+    'Pinning-gate PLAN for the umbrella. Emits the exact commands that prove each README invariant (branch == real default, pins reachable + clean, the pin contract holds, charly nested submodules initialized) and what each proves. The umbrella gate is fast and local, so the PERSISTENT session can own the runs directly; this workflow only plans and never mutates.',
   phases: [
     { title: 'Discover', detail: 'confirm the gate script + submodule layout exist' },
     { title: 'Plan', detail: 'emit per-invariant command + assertion; run nothing' },
@@ -41,8 +41,8 @@ const INVARIANTS = [
     proves: 'no dirty markers; gitlink == checked-out HEAD',
   },
   {
-    id: 'policy-b',
-    invariant: 'policy B: distro-* pins == charly own gitlinks (sdk/spec/docs/marketplace follow their own default-branch HEAD)',
+    id: 'pin-check',
+    invariant: 'the pin contract: distro-* pins == charly own gitlinks (sdk/spec/docs/marketplace follow their own default-branch HEAD)',
     cmd: './charly/bin/charly task verify',
     proves: 'ls-tree comparison charly/ vs umbrella/',
   },

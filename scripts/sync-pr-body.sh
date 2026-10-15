@@ -23,7 +23,7 @@ set -euo pipefail
 # `## Change classification` section reports, so the section and the footer cannot disagree.
 #
 # Modes:
-#   <root> <moved-file> <producer-log> <policy-b-log> <out-body> <out-evidence>
+#   <root> <moved-file> <producer-log> <pin-check-log> <out-body> <out-evidence>
 #                                       build the body + evidence from real inputs.
 #   --self-test                         exercise the bounding + guard on fixtures.
 #
@@ -59,11 +59,11 @@ producer_log_excerpt() {
   sed -n "1,${1:-200}p"
 }
 
-# build_body <root> <moved-file> <producer-log> <policy-b-log> <out-body> <out-evidence>
+# build_body <root> <moved-file> <producer-log> <pin-check-log> <out-body> <out-evidence>
 # Prints nothing; writes both files. The per-pin table is produced by
 # sync-pin-evidence.sh (bounded for the body, full for the artifact via SYNC_EVIDENCE_OUT).
 build_body() {
-  local root="$1" moved_file="$2" producer_log="$3" policy_b_log="$4" out_body="$5" out_evidence="$6"
+  local root="$1" moved_file="$2" producer_log="$3" pin_check_log="$4" out_body="$5" out_evidence="$6"
   local MOVED MOVED_TOTAL GITLINK_COUNT FILE_COUNT evidence_body evidence_full type_file
 
   MOVED="$(cat "$moved_file")"
@@ -103,8 +103,8 @@ build_body() {
     echo "== producer resolution (full) =="
     producer_log_excerpt 400 < "$producer_log" 2>/dev/null || true
     echo
-    echo "== policy B gate output =="
-    cat "$policy_b_log" 2>/dev/null || true
+    echo "== pin check gate output =="
+    cat "$pin_check_log" 2>/dev/null || true
   } > "$out_evidence"
 
   # Render the per-pin evidence section's BODY form ONCE, capturing the moved-path split from
@@ -115,7 +115,7 @@ build_body() {
   # duplicate the network work and risk the two copies diverging.
   type_file="$(mktemp)"
   evidence_body="$(printf '%s\n' "$MOVED" | SYNC_EVIDENCE_OUT="$out_evidence" SYNC_EVIDENCE_TYPE_OUT="$type_file" \
-    bash "$SCRIPT_DIR/sync-pin-evidence.sh" "$root" "$policy_b_log")"
+    bash "$SCRIPT_DIR/sync-pin-evidence.sh" "$root" "$pin_check_log")"
   GITLINK_COUNT=0; FILE_COUNT=0
   # shellcheck disable=SC1090
   . "$type_file"
@@ -124,7 +124,7 @@ build_body() {
   {
     echo "## Summary"
     echo
-    echo "Gitlink sync: every umbrella submodule pin advanced to what **policy B** requires"
+    echo "Gitlink sync: every umbrella submodule pin advanced to what **the pin contract** requires"
     echo "— \`charly\` to its own default-branch HEAD, \`distro-*\` to exactly the commits charly's"
     echo "own gitlinks pin, everything else to its own default branch."
     echo
@@ -194,7 +194,7 @@ build_body() {
     echo "  cannot resolve rather than guessing; no warning appears in the pasted output."
     echo "- **R1 fix or file:** a defect found in THIS sync is fixed here; content behind a"
     echo "  moved gitlink belongs to its OWNING repo (which gated it before tagging)."
-    echo "- **R2 no duplication:** policy B is asserted by \`charly task policy-b\` — the ONE"
+    echo "- **R2 no duplication:** the pin contract is asserted by \`charly task pin-check\` — the ONE"
     echo "  implementation \`charly task verify\` also composes."
     echo "- **R3 no workaround:** \`charly\` and every non-\`distro-*\` pin is its owning repo's"
     echo "  default-branch HEAD (per-pin \`git ls-remote\` above); every \`distro-*\` pin is charly's"
@@ -205,14 +205,14 @@ build_body() {
     echo "- **R7 runtime gate:** \`charly task verify\` on the final tree — the sync"
     echo "  is hand-run in a HUMAN tree, where that gate's nested-submodule half is meaningful —"
     echo "  plus the per-pin \`git ls-remote\` default-branch evidence above; \`distro-*\` pins (when"
-    echo "  any move) are additionally asserted by policy B. No generated artifact or OCI"
+    echo "  any move) are additionally asserted by the pin contract. No generated artifact or OCI"
     echo "  label is emitted."
     echo "- **R8 live or skip:** the per-pin \`git ls-remote\` evidence runs against the real"
     echo "  GitHub remotes; no remote is mocked."
     echo "- **R9 binary == source:** \`N/A — no binary is built by this sync.\`"
     echo "- **R10 disposable + coverage:** the coverage is the per-pin \`git ls-remote\`"
     echo "  default-branch evidence above (it fails if a pin is a PR branch or a non-HEAD"
-    echo "  commit); policy B additionally gates any moved \`distro-*\` pin."
+    echo "  commit); the pin contract additionally gates any moved \`distro-*\` pin."
     echo "- **RDD / ADE / SDD:** RDD — the producer resolves refs from the real repos, not from"
     echo "  a doc. ADE — no candy. SDD — \`N/A\`, no schema/generated-code change."
     echo "- **Hard cutover:** one atomic commit; no deferred work in scope."
@@ -274,8 +274,8 @@ if [ "${1:-}" = "--self-test" ]; then
   # (`git ls-remote <local-path> HEAD` — no network), and every path's staged gitlink is
   # set EQUAL to it, so the fixture rows render exactly as the real fleet's
   # (`  <path>  <sha12>  <sha12>  =`) and the measured size IS the real worst case.
-  moved="$tmp/moved"; producer="$tmp/producer"; pblog="$tmp/pblog"
-  : > "$producer"; echo "charly task policy-b: OK — 6 distro pins equal charly's gitlinks" > "$pblog"
+  moved="$tmp/moved"; producer="$tmp/producer"; pinlog="$tmp/pinlog"
+  : > "$producer"; echo "charly task pin-check: OK — 6 distro pins equal charly's gitlinks" > "$pinlog"
   mkdir -p "$tmp/remote-src"; git -C "$tmp/remote-src" init -q
   git -C "$tmp/remote-src" config user.email t@t; git -C "$tmp/remote-src" config user.name t
   : > "$tmp/remote-src/f"; git -C "$tmp/remote-src" add f; git -C "$tmp/remote-src" commit -qm one
@@ -301,7 +301,7 @@ if [ "${1:-}" = "--self-test" ]; then
     [ -n "$p" ] || continue
     git -C "$tmp" update-index --add --cacheinfo "160000,${RHEAD},${p}"
   done < "$moved"
-  build_body "$tmp" "$moved" "$producer" "$pblog" "$tmp/body" "$tmp/ev" \
+  build_body "$tmp" "$moved" "$producer" "$pinlog" "$tmp/body" "$tmp/ev" \
     || fail "fleet-scale (${FLEET}-pin) input must build under the cap, not trip the guard"
   bytes=$(wc -c < "$tmp/body")
   [ "$bytes" -lt 65536 ] || fail "fleet-scale body is ${bytes} bytes (>= 65536)"
@@ -338,7 +338,7 @@ if [ "${1:-}" = "--self-test" ]; then
   # them as gitlinks, as the real sync's pins are.
   git -C "$tmp" update-index --add --cacheinfo "160000,${RHEAD},p1"
   git -C "$tmp" update-index --add --cacheinfo "160000,${RHEAD},p2"
-  build_body "$tmp" "$moved" "$producer" "$pblog" "$tmp/body2" "$tmp/ev2" || fail "small input must build"
+  build_body "$tmp" "$moved" "$producer" "$pinlog" "$tmp/body2" "$tmp/ev2" || fail "small input must build"
   grep -q '^\*\*2\*\* gitlink(s) moved\.' "$tmp/body2" || fail "small body must name the true total (2)"
   grep -q 'p1 -> 1' "$tmp/body2" || fail "retired per-pin producer form must reach the body verbatim"
   grep -q 'p2 -> 2' "$tmp/body2" || fail "retired per-pin producer form must reach the body verbatim"
@@ -351,7 +351,7 @@ if [ "${1:-}" = "--self-test" ]; then
   printf 'bumped 2 submodule pin(s): p3, p4\n' >> "$producer"
   git -C "$tmp" update-index --add --cacheinfo "160000,${RHEAD},p3"
   git -C "$tmp" update-index --add --cacheinfo "160000,${RHEAD},p4"
-  build_body "$tmp" "$moved" "$producer" "$pblog" "$tmp/body4" "$tmp/ev4" || fail "task-summary producer must build"
+  build_body "$tmp" "$moved" "$producer" "$pinlog" "$tmp/body4" "$tmp/ev4" || fail "task-summary producer must build"
   grep -q 'bumped 2 submodule pin(s): p3, p4' "$tmp/body4" || fail "task-summary producer form must reach the body verbatim"
   grep -q 'MISSING from producer log' "$tmp/body4" && fail "the excerpt must never inject a MISSING line — the producer's words are pasted as-is"
 
@@ -364,7 +364,7 @@ if [ "${1:-}" = "--self-test" ]; then
   { echo p1; echo p5; } > "$moved"
   printf 'task sync: 1 step(s), 0 failed\nbumped 1 submodule pin(s): p1\n' > "$producer"
   printf 'x\n' > "$tmp/p5"; git -C "$tmp" add p5
-  build_body "$tmp" "$moved" "$producer" "$pblog" "$tmp/body7" "$tmp/ev7" || fail "mixed gitlink+file input must build"
+  build_body "$tmp" "$moved" "$producer" "$pinlog" "$tmp/body7" "$tmp/ev7" || fail "mixed gitlink+file input must build"
   grep -q '^\*\*1\*\* gitlink(s) and \*\*1\*\* non-gitlink changed path(s)' "$tmp/body7" \
     || fail "mixed body must separate the gitlink count from the non-gitlink count"
   grep -qE '^  p5  [0-9a-f]{12}  \(file\)$' "$tmp/body7" || fail "a non-gitlink path must render a (file) row"
@@ -426,21 +426,21 @@ if [ "${1:-}" = "--self-test" ]; then
   # the exact defect this builder shipped (#395): #392's body carried the line only because
   # it was inserted by hand. A subshell with an explicit `unset`, so the arm cannot inherit
   # the export above.
-  ( unset SYNC_AGENT; build_body "$tmp" "$moved" "$producer" "$pblog" "$tmp/body8" "$tmp/ev8" ) 2>"$tmp/err8" \
+  ( unset SYNC_AGENT; build_body "$tmp" "$moved" "$producer" "$pinlog" "$tmp/body8" "$tmp/ev8" ) 2>"$tmp/err8" \
     && fail "an unset SYNC_AGENT must fail loud, not emit a body with no Agent: line"
   grep -q 'SYNC_AGENT' "$tmp/err8" || fail "the Agent: guard must name the missing variable, on stderr"
 
   # ...and the Agent: line TRACKS its variable — not a literal that happens to match the
   # fixture (without this arm a hard-coded slug line passes every assertion above).
   ( SYNC_AGENT='`other-slug` · session `11111111-1111-1111-1111-111111111111`' \
-      build_body "$tmp" "$moved" "$producer" "$pblog" "$tmp/body9" "$tmp/ev9" )
+      build_body "$tmp" "$moved" "$producer" "$pinlog" "$tmp/body9" "$tmp/ev9" )
   tail -n 2 "$tmp/body9" | head -n 1 | grep -qxF '*Agent: `other-slug` · session `11111111-1111-1111-1111-111111111111`*' \
     || fail "the Agent: line must track SYNC_AGENT, not a fixed literal"
 
   # The tier guard fails LOUD, before writing anything: a body whose tier line silently read
   # empty would be an attribution claim with nothing behind it. (A subshell, so the fixture
   # value cannot leak into the arms that follow.)
-  ( SYNC_ASSISTED_BY="No Tier Harness" build_body "$tmp" "$moved" "$producer" "$pblog" "$tmp/body5" "$tmp/ev5" ) 2>"$tmp/err5" \
+  ( SYNC_ASSISTED_BY="No Tier Harness" build_body "$tmp" "$moved" "$producer" "$pinlog" "$tmp/body5" "$tmp/ev5" ) 2>"$tmp/err5" \
     && fail "a trailer with no (tier) must fail loud, not emit a body with an empty tier"
   grep -q 'confidence tier' "$tmp/err5" || fail "the tier guard must say what is missing, on stderr"
 
@@ -449,12 +449,12 @@ if [ "${1:-}" = "--self-test" ]; then
   # hard-coded `fully tested and validated` passes every assertion above, since that is the
   # fixture's own tier — measured: the first version of this arm did not discriminate).
   ( SYNC_ASSISTED_BY="Self-test Harness Fixture (documentation reviewed)" \
-      build_body "$tmp" "$moved" "$producer" "$pblog" "$tmp/body6" "$tmp/ev6" )
+      build_body "$tmp" "$moved" "$producer" "$pinlog" "$tmp/body6" "$tmp/ev6" )
   grep -qF '**Attribution tier:** `documentation reviewed`' "$tmp/body6" \
     || fail "the tier line must track the trailer's tier, not a fixed literal"
 
   # The HARD GUARD: a body over the cap must FAIL LOUD (never silently pass).
-  GITHUB_BODY_MAX=100 build_body "$tmp" "$moved" "$producer" "$pblog" "$tmp/body3" "$tmp/ev3" 2>"$tmp/err" \
+  GITHUB_BODY_MAX=100 build_body "$tmp" "$moved" "$producer" "$pinlog" "$tmp/body3" "$tmp/ev3" 2>"$tmp/err" \
     && fail "over-cap body must trip the hard guard (non-zero)"
   grep -q '65536\|100' "$tmp/err" || fail "guard must name the offending size/cap on stderr"
 
@@ -462,5 +462,5 @@ if [ "${1:-}" = "--self-test" ]; then
   exit 0
 fi
 
-build_body "${1:?usage: sync-pr-body.sh <root> <moved-file> <producer-log> <policy-b-log> <out-body> <out-evidence>}" \
-  "${2:?moved-file}" "${3:?producer-log}" "${4:?policy-b-log}" "${5:?out-body}" "${6:?out-evidence}"
+build_body "${1:?usage: sync-pr-body.sh <root> <moved-file> <producer-log> <pin-check-log> <out-body> <out-evidence>}" \
+  "${2:?moved-file}" "${3:?producer-log}" "${4:?pin-check-log}" "${5:?out-body}" "${6:?out-evidence}"
