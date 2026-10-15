@@ -66,6 +66,11 @@ build_body() {
   local root="$1" moved_file="$2" producer_log="$3" policy_b_log="$4" out_body="$5" out_evidence="$6"
   local MOVED MOVED_TOTAL GITLINK_COUNT FILE_COUNT evidence_body evidence_full type_file
 
+  PRODUCER_WARNINGS=$(grep -c '^WARNING' "$producer_log" 2>/dev/null || true)
+  PRODUCER_WARNINGS=${PRODUCER_WARNINGS:-0}
+  PRODUCER_FAILED=$(grep -cE '\[fail\]|step\(s\), [1-9][0-9]* failed' "$producer_log" 2>/dev/null || true)
+  PRODUCER_FAILED=${PRODUCER_FAILED:-0}
+
   MOVED="$(cat "$moved_file")"
   MOVED_TOTAL=$(printf '%s\n' "$MOVED" | grep -c . || true); MOVED_TOTAL=${MOVED_TOTAL:-0}
 
@@ -190,8 +195,11 @@ build_body() {
     echo
     echo "- **R0 skills:** the sync is owned by \`/charly-internals:git-workflow\`; this PR is"
     echo "  produced by \`charly task sync\`, the verb that skill names."
-    echo "- **R1 RCA + zero warnings:** the producer resolves each pin and names any repo it"
-    echo "  cannot resolve rather than guessing; no warning appears in the pasted output."
+    echo "- **R1 RCA + warnings measured, not asserted:** the producer resolves each pin and"
+    echo "  names any repo it cannot resolve rather than guessing. The pasted producer output"
+    echo "  carries **${PRODUCER_WARNINGS}** \`WARNING:\` line(s) and **${PRODUCER_FAILED}** failed-step"
+    echo "  line(s), counted from that output; each one is accounted for in this body, and a"
+    echo "  warning or a failed step is never asserted away as zero."
     echo "- **R1 fix or file:** a defect found in THIS sync is fixed here; content behind a"
     echo "  moved gitlink belongs to its OWNING repo (which gated it before tagging)."
     echo "- **R2 no duplication:** policy B is asserted by \`charly task policy-b\` — the ONE"
@@ -222,7 +230,7 @@ build_body() {
     echo
     echo "## Attribution"
     echo
-    echo "This body is emitted by the tested, model-free \`scripts/sync-pr-body.sh\`"
+    echo "This body is emitted by the tested \`scripts/sync-pr-body.sh\`"
     echo "from a manual \`charly task sync\` run; its \`--self-test\` runs in the pre-commit"
     echo "gate. \`SYNC_AGENT\` carries this run's \`Agent:\` line and \`SYNC_ASSISTED_BY\` the"
     echo "trailer beneath it: rule 7's one canonical order, \`Agent:\` first, trailer last."
