@@ -127,6 +127,26 @@ export function runSelfTest() {
     red("opencode: a paths list that does not name the corpus root fails", ["--root", d, "--check"], /must name the corpus root/);
   }
 
+  // ---- the corpus-absent case: a clean FAIL, never a crash --------------------
+  {
+    const d = mkdtempSync(join(base, "nocorpus-"));
+    mkdirSync(join(d, ".git"), { recursive: true });
+    writeFileSync(join(d, "reasonix.toml"), "# no corpus here\n[skills]\npaths = []\n");
+    writeFileSync(join(d, "opencode.json"), JSON.stringify({ skills: { paths: ["marketplace"] } }) + "\n");
+    for (const scope of ["reasonix", "farm"]) {
+      const r = run(["--check", "--only", scope, "--root", d]);
+      const out = `${r.stdout}${r.stderr}`;
+      const clean = r.status === 1 && /is not checked out/.test(out) && !/ENOENT/.test(out) && !/node:fs/.test(out);
+      results.push({
+        name: `corpus absent: --only ${scope} FAILS cleanly rather than crashing`,
+        ok: clean,
+        status: r.status,
+        first: out.split("\n").find((l) => l.trim()) ?? "(no output)",
+        note: "one guard for both arms, so they cannot diverge again",
+      });
+    }
+  }
+
   // ---- idempotence: the write mode is a fixed point --------------------------
   {
     const d = newFixture("idempotent");

@@ -292,12 +292,33 @@ if (argv.includes("--self-test")) {
     else console.log(`  PASS  check ${check}: mutating ${surface} is caught (${expect})`);
   }
 
+  // THE CORPUS-ABSENT ARM — the one arm here that must NOT turn the gate red. A session worktree that
+  // did not populate its submodules (Part II rule 2) must leave every corpus-dependent check SKIPPING
+  // VISIBLY. The regression this exists for is a check that silently loses its skip and inverts from
+  // PASS to RED on every such tree, which is what checks 8 and 13 did when their coverage arms were
+  // replaced by an unconditional generator call.
+  stage();
+  rmSync(join(tree, "marketplace"), { recursive: true, force: true });
+  const absent = runGate();
+  const skips = ["[skills] paths derivation check skipped", "the .dsh/skills derivation check skipped"];
+  const missingSkips = skips.filter((m) => !absent.out.includes(m));
+  if (absent.code !== 0) {
+    bad(`a tree without the corpus is not GREEN — every corpus-dependent check must SKIP, not fail:\n${absent.out}`);
+  } else if (missingSkips.length) {
+    bad(`a tree without the corpus is green, but did not report the visible skip(s): ${missingSkips.join(" | ")}`);
+  } else {
+    console.log("  PASS  check 8/13: a tree without the corpus SKIPS both derivation arms visibly and stays green");
+  }
+
   rmSync(tmp, { recursive: true, force: true });
   if (failures > 0) {
     console.error(`check-harness-config --self-test: ${failures} FAILURE(S)`);
     process.exit(1);
   }
-  console.log(`check-harness-config --self-test: OK (${mutations.length - skipped}/${mutations.length} arms live${skipped ? `; ${skipped} skipped — surface not materialized in this checkout` : ""}; the structural ones are named in the header)`);
+  // The denominator names BOTH kinds of arm: the mutations above, each of which must turn its own
+  // check RED, and the one corpus-absent arm below it, which must leave the gate GREEN.
+  const arms = mutations.length + 1;
+  console.log(`check-harness-config --self-test: OK (${arms - skipped}/${arms} arms live — "${mutations.length - skipped} mutations that must go RED + 1 corpus-absent tree that must stay GREEN"${skipped ? `; ${skipped} skipped — surface not materialized in this checkout` : ""})`);
   process.exit(0);
 }
 
@@ -599,9 +620,18 @@ ok(existsSync(join(root, ".claude/workflows/audit-deploy-configs.js")), ".claude
   // artifact on disk IS that derivation. A family added upstream with a `skills/` dir and no path
   // entry is exactly the drift this catches, whether it was dropped by hand or omitted by a pin
   // advance that forgot to run the generator.
-  const gen8 = derivedBindings("reasonix");
-  ok(gen8.rc === 0, "reasonix.toml [skills] paths match their derivation (node scripts/sync-skill-bindings.mjs --check)");
-  if (gen8.rc !== 0) for (const l of gen8.out.trim().split("\n")) console.error(`        ${l}`);
+  //
+  // SKIPPED VISIBLY when the corpus is not materialised — a session worktree (Part II rule 2) or any
+  // checkout without submodules — exactly as check 12 does. Without this the check INVERTS from
+  // PASS-skip to RED on every such tree, which is a regression in the gate rather than a finding about
+  // the tree. The structural assertions above hold either way.
+  if (!existsSync(join(root, "marketplace"))) {
+    pass("marketplace submodule not checked out — [skills] paths derivation check skipped (structural assertions above still hold)");
+  } else {
+    const gen8 = derivedBindings("reasonix");
+    ok(gen8.rc === 0, "reasonix.toml [skills] paths match their derivation (node scripts/sync-skill-bindings.mjs --check)");
+    if (gen8.rc !== 0) for (const l of gen8.out.trim().split("\n")) console.error(`        ${l}`);
+  }
 
 }
 
@@ -747,23 +777,30 @@ ok(existsSync(join(root, ".dsh/watch.items")), ".dsh/watch.items (the DSH watch 
 
   ok(existsSync(join(root, ".dsh/skills")), ".dsh/skills (the flat farm DSH discovers at rank 100) exists");
 
-  // COVERAGE — "was the generator run?", the same arm as check 8 for the other binding. The farm is
-  // an ENUMERATION (one entry per corpus skill), so it drifts every time a family is added; the
-  // derivation is the only thing that can keep it correct, and a collision across families is where
-  // the generator hard-fails rather than silently shadowing one of two same-named skills.
-  const gen13 = derivedBindings("farm");
-  ok(gen13.rc === 0, "the .dsh/skills farm matches its derivation (node scripts/sync-skill-bindings.mjs --check)");
-  if (gen13.rc !== 0) for (const l of gen13.out.trim().split("\n")) console.error(`        ${l}`);
-
   // SHAPE, not coverage — an oracle independent of the derivation: every entry must be a symlink
   // into the corpus, because a farm entry that is a real file or a dangling link would be a copy or
   // a lie rather than a binding, and the generator's own `--check` cannot see that it emitted one.
+  // This arm needs no corpus, so it always runs.
   const farm = join(root, ".dsh/skills");
-  const notLinks = readdirSync(farm).filter((n) => !lstatSync(join(farm, n)).isSymbolicLink());
-  ok(
-    notLinks.length === 0,
-    `every .dsh/skills entry is a symlink (real entries: ${notLinks.slice(0, 5).join(", ") || "none"})`,
-  );
+  if (existsSync(farm)) {
+    const notLinks = readdirSync(farm).filter((n) => !lstatSync(join(farm, n)).isSymbolicLink());
+    ok(
+      notLinks.length === 0,
+      `every .dsh/skills entry is a symlink (real entries: ${notLinks.slice(0, 5).join(", ") || "none"})`,
+    );
+  }
+
+  // COVERAGE — "was the generator run?", the same arm as check 8 for the other binding, and skipped
+  // visibly on the same precondition. The farm is an ENUMERATION (one entry per corpus skill), so it
+  // drifts every time a family is added; the derivation is the only thing that can keep it correct,
+  // and a collision across families is where the generator hard-fails rather than shadowing one.
+  if (!existsSync(join(root, "marketplace"))) {
+    pass("marketplace/ not checked out — the .dsh/skills derivation check skipped (the shape arm above still holds)");
+  } else {
+    const gen13 = derivedBindings("farm");
+    ok(gen13.rc === 0, "the .dsh/skills farm matches its derivation (node scripts/sync-skill-bindings.mjs --check)");
+    if (gen13.rc !== 0) for (const l of gen13.out.trim().split("\n")) console.error(`        ${l}`);
+  }
 
 }
 

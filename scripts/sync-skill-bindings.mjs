@@ -75,12 +75,22 @@ function fail(msg) {
 
 // ---------------------------------------------------------------- derivation
 
+/** The corpus root, or a clean FAIL. ONE guard for BOTH derivations: the farm reads skill names and
+ *  the reasonix list reads family directories, but neither has anything to say without the corpus, and
+ *  two guards would drift — which is how `--only reasonix` came to crash with an ENOENT where
+ *  `--only farm` reported cleanly. A session worktree that did not populate its submodules is the case
+ *  this exists for. */
+function corpusRoot(r) {
+  const market = join(r, CORPUS_ROOT);
+  if (!existsSync(market)) fail(`${CORPUS_ROOT}/ is not checked out in ${r} — the corpus is the input`);
+  return market;
+}
+
 /** Every corpus skill, keyed by its flat name. A name collision across families is a HARD failure:
  *  the farm is flat, so two families publishing one name cannot both be bound, and silently picking
  *  one is exactly how a skill disappears from a session's catalog. */
 function corpusSkills(r) {
-  const market = join(r, CORPUS_ROOT);
-  if (!existsSync(market)) fail(`${CORPUS_ROOT}/ is not checked out in ${r} — the corpus is the input`);
+  const market = corpusRoot(r);
   const found = new Map();
   const collisions = [];
   for (const family of familiesOf(market)) {
@@ -122,7 +132,7 @@ function readFarm(r) {
  *  directory, in byte order. The set is what the corpus supports; the order is what makes the file
  *  stable, and byte order is the only order two runs can agree on without a convention. */
 function desiredReasonixPaths(r) {
-  const market = join(r, CORPUS_ROOT);
+  const market = corpusRoot(r);
   const out = [];
   for (const family of familiesOf(market)) {
     for (const sub of ["agents", "skills"]) {
