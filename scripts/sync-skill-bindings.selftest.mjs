@@ -9,7 +9,7 @@
 // The fixtures are temp trees, never this checkout: the self-test must be runnable on a tree whose
 // submodules are not materialised (a session worktree), where the real corpus is absent.
 
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -127,7 +127,12 @@ export function runSelfTest() {
     red("opencode: a paths list that does not name the corpus root fails", ["--root", d, "--check"], /must name the corpus root/);
   }
 
-  // ---- the corpus-absent case: a clean FAIL, never a crash --------------------
+  // ---- the corpus-absent case: a clean, VISIBLE SKIP, never a crash ----------
+  // The verdict here moved from FAIL (exit 1) to SKIP (exit 0) when the guard learned the difference
+  // between a missing corpus and an empty one: the harness-config gate SKIPS on a tree without the
+  // corpus (Part II rule 2) and turns RED on a tree whose corpus reads as zero, so a writer that
+  // failed where the gate skips would put the two arms back into disagreement — which is the defect
+  // (opencharly/opencharly#508), not a detail of it. The anti-crash property asserted here is unchanged.
   {
     const d = mkdtempSync(join(base, "nocorpus-"));
     mkdirSync(join(d, ".git"), { recursive: true });
@@ -136,15 +141,73 @@ export function runSelfTest() {
     for (const scope of ["reasonix", "farm"]) {
       const r = run(["--check", "--only", scope, "--root", d]);
       const out = `${r.stdout}${r.stderr}`;
-      const clean = r.status === 1 && /is not checked out/.test(out) && !/ENOENT/.test(out) && !/node:fs/.test(out);
+      const clean = r.status === 0 && /carries no (skills|families)/.test(out) && !/ENOENT/.test(out) && !/node:fs/.test(out);
       results.push({
-        name: `corpus absent: --only ${scope} FAILS cleanly rather than crashing`,
+        name: `corpus absent: --only ${scope} SKIPS VISIBLY rather than crashing, and agrees with the gate`,
         ok: clean,
         status: r.status,
         first: out.split("\n").find((l) => l.trim()) ?? "(no output)",
         note: "one guard for both arms, so they cannot diverge again",
       });
     }
+  }
+
+  // ---- the corpus PRESENT but EMPTY: the case this defect shipped through -----
+  // `git worktree add` creates the submodule MOUNT POINT, so every session worktree (Part II rule 2)
+  // has `marketplace/` present and EMPTY — and before this arm existed that was indistinguishable
+  // from a corpus, so the writer derived ZERO skills and published it: 353 farm entries deleted,
+  // `reasonix.toml` rewritten to 0 entries, `exit=0 done`. This arm is the one that fails without the
+  // guard: existence is not materialisation.
+  {
+    const d = newFixture("corpus-empty");
+    const farmBefore = readdirSync(join(d, ".dsh", "skills")).sort().join(",");
+    const reasonixBefore = readFileSync(join(d, "reasonix.toml"), "utf8");
+    rmSync(join(d, "marketplace"), { recursive: true, force: true });
+    mkdirSync(join(d, "marketplace"), { recursive: true });
+    const w = run(["--root", d]);
+    const c = run(["--root", d, "--check"]);
+    const farmAfter = readdirSync(join(d, ".dsh", "skills")).sort().join(",");
+    const reasonixAfter = readFileSync(join(d, "reasonix.toml"), "utf8");
+    const skipped = w.status === 0 && /carries no families/.test(`${w.stdout}${w.stderr}`);
+    const checkSkipped = c.status === 0 && /carries no (skills|families)/.test(`${c.stdout}${c.stderr}`);
+    const intact = farmBefore === farmAfter && reasonixBefore === reasonixAfter;
+    results.push({
+      name: "corpus present but EMPTY: the writer SKIPS visibly and writes NOTHING, and --check agrees",
+      ok: skipped && checkSkipped && intact,
+      status: w.status,
+      first: skipped ? "SKIP: marketplace/ is not materialised" : `the writer did not skip (rc=${w.status})`,
+      note: `--check rc=${c.status}; farm+reasonix byte-identical: ${intact}`,
+    });
+  }
+
+  // ---- family directories WITHOUT skill files: the farm half has no input ----
+  // This is the shape a checkout takes when the corpus's family directories are present and its skill
+  // FILES are not — a partial fixture, or a tree whose corpus was never populated. The two derivations
+  // ask the same question about different inputs, so they must answer differently here: `reasonix.toml`
+  // enumerates family DIRECTORIES and still has something to list, while the flat farm has zero skills
+  // and must SKIP — because a farm derivation with no input would otherwise declare all 353 entries
+  // stale, or delete them.
+  {
+    const d = newFixture("families-no-skills");
+    const farmBefore = readdirSync(join(d, ".dsh", "skills")).sort().join(",");
+    for (const fam of readdirSync(join(d, "marketplace"))) {
+      const sk = join(d, "marketplace", fam, "skills");
+      if (!existsSync(sk)) continue;
+      for (const name of readdirSync(sk)) rmSync(join(sk, name, "SKILL.md"), { force: true });
+    }
+    const w = run(["--root", d]);
+    const out = `${w.stdout}${w.stderr}`;
+    const farmAfter = readdirSync(join(d, ".dsh", "skills")).sort().join(",");
+    const farmSkipped = /carries no skills/.test(out);
+    const reasonixRan = /reasonix\.toml \[skills\] paths  unchanged/.test(out);
+    const intact = farmBefore === farmAfter;
+    results.push({
+      name: "family dirs but NO skill files: the farm half SKIPS and deletes nothing, the reasonix half still derives",
+      ok: w.status === 0 && farmSkipped && reasonixRan && intact,
+      status: w.status,
+      first: farmSkipped ? "SKIP: marketplace/ carries no skills" : `no skip seen (rc=${w.status})`,
+      note: `reasonix still derived: ${reasonixRan}; farm byte-identical: ${intact}`,
+    });
   }
 
   // ---- idempotence: the write mode is a fixed point --------------------------
@@ -171,7 +234,7 @@ export function runSelfTest() {
     const output = `${r.stdout}${r.stderr}`;
     if (r.status === 0 && /clean/.test(output)) {
       results.push({ name: "this checkout: the derivation is already a fixed point", ok: true, status: 0, first: "sync-skill-bindings: clean", note: "the real corpus" });
-    } else if (/is not checked out/.test(output)) {
+    } else if (/carries no (skills|families)/.test(output)) {
       results.push({ name: "this checkout: SKIPPED — marketplace/ is not materialised", ok: true, status: r.status, first: "NOTICE skipped", note: "the same precondition the gate guards" });
     } else {
       results.push({ name: "this checkout: the derivation is already a fixed point", ok: false, status: r.status, first: output.split("\n")[0], note: "run without --check to fix" });
