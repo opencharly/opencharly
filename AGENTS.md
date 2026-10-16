@@ -555,8 +555,15 @@ Before declaring completion, answer every applicable item YES. There is one line
 4. **Read the subrepo's own rulebook first.** *(R0)* Its `AGENTS.md` adds repo-specific
    rules on top of Part I, so read it before acting there.
 
-5. **Harness config lives only in the umbrella.** *(R2)* Every harness's configuration lives
-   at this repo's root and nowhere else: no mirrors, no parity gate. *Detail:*
+5. **Harness config lives only in the umbrella — and authored content is not harness config.**
+   *(R2)* Every harness's configuration lives at this repo's root and nowhere else: no mirrors, no
+   parity gate. A skill's `SKILL.md` and an agent definition's `<name>.md` are **authored content**,
+   the same class as `AGENTS.md`: they live in the repo that owns them, under its own `.agents/`
+   trees, and are discovered natively from there. The umbrella populates its own `.agents/` because
+   it authors skills, never because it vendors the corpus. Where a harness rooted at this umbrella
+   cannot reach the corpus natively, the binding that bridges it must be **DERIVED** from the pinned
+   corpus, never maintained by hand — a hand-maintained binding drifts silently every time the corpus
+   grows, which is the same defect as a hand-maintained copy, and a derived one cannot. *Detail:*
    `/charly-internals:agents`.
 
 6. **Session-scoped ownership; issue-first coordination.** *(R6)*

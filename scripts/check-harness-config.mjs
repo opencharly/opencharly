@@ -49,7 +49,9 @@
 //      server.                                                       [discriminating]
 //   7. SOUL.md is injected into every harness that has an additive mechanism.
 //                                                                     [discriminating]
-//   8. reasonix.toml wires the marketplace skill root.               [discriminating]
+//   8. reasonix.toml's [skills] paths ARE their derivation from the
+//      corpus (scripts/sync-skill-bindings.mjs --only reasonix), and are
+//      well-formed.                                       [discriminating]
 //   9. .reasonix/settings.json uses reasonix's OWN hook key.          [discriminating]
 //  10. The Ollama web-search code extension ships as a v2 plugin package AND
 //      its sidecar answers `extension/initialize` with the host's registered
@@ -59,16 +61,16 @@
 //  11. The PR watcher is bound per harness (reasonix, pi, DSH).      [discriminating]
 //  12. The R0 dispatcher table resolves to real skills and the
 //      unrouted-skill count holds under its ratchet.                 [structural]
-//  13. The DSH arm binds the R0 skill corpus (.dsh/skills covers every
-//      marketplace/<family>/skills/<name>, with no name collision across
-//      families) and carries its README signpost.                 [discriminating]
+//  13. The DSH arm's .dsh/skills farm IS its derivation from the corpus
+//      (scripts/sync-skill-bindings.mjs --only farm), every entry is a
+//      symlink, and the README signpost is present.               [discriminating]
 //
 // Usage:
 //   node scripts/check-harness-config.mjs                 # check this tree
 //   node scripts/check-harness-config.mjs --root <dir>    # check another tree
 //   node scripts/check-harness-config.mjs --self-test     # prove the split above
 
-import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { existsSync, lstatSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { dirname, join, resolve } from "node:path";
@@ -166,8 +168,12 @@ if (argv.includes("--self-test")) {
       const dst = join(tree, p);
       mkdirSync(dirname(dst), { recursive: true });
       // `recursive` so a DIRECTORY surface (the DSH `.dsh/skills` farm) stages too; it is a
-      // no-op for the file surfaces. Symlinks within it are copied as symlinks.
-      cpSync(src, dst, { recursive: true });
+      // no-op for the file surfaces. `verbatimSymlinks` is REQUIRED, not decorative: `cpSync`
+      // DEREFERENCES symlinks by default, so without it the staged farm is 353 real directories
+      // whose contents are copies — a tree no assertion about link-ness can be faithful to. The
+      // farm's SHAPE oracle below is what exposed this; the earlier comment claimed the behaviour
+      // `cpSync` does not have.
+      cpSync(src, dst, { recursive: true, verbatimSymlinks: true });
       chmodSync(dst, statSync(src).mode & 0o777);
     }
     // Give check 8's COVERAGE assertion an independent oracle in the staged tree. The
@@ -243,7 +249,7 @@ if (argv.includes("--self-test")) {
     [".reasonix/settings.json", (p) => { const s = JSON.parse(readFileSync(p, "utf8")); s.hooks.SessionStart = s.hooks.SessionStart.filter((h) => !h.command.includes("soul-inject")); writeFileSync(p, JSON.stringify(s)); }, "injects SOUL.md for reasonix", "7 (reasonix arm — an UNWIRED hook must FAIL)"],
     ["reasonix.toml", (p) => writeFileSync(p, readFileSync(p, "utf8").replace(/^paths = \[\n[\s\S]*?\n\]/m, "paths = []")), "wires", "8 (empty [skills] paths must FAIL)"],
     ["reasonix.toml", (p) => writeFileSync(p, readFileSync(p, "utf8").replace(/^paths = \[/m, 'paths = [\n    "marketplace",')), "bare `marketplace` root", "8 (the bare-family-root regression must FAIL)"],
-    ["reasonix.toml", (p) => writeFileSync(p, readFileSync(p, "utf8").replace(/^    "marketplace\/vm\/skills",\n/m, "")), "covers every marketplace skill/agent dir", "8 (a dropped skill path must FAIL on coverage)"],
+    ["reasonix.toml", (p) => writeFileSync(p, readFileSync(p, "utf8").replace(/^    "marketplace\/vm\/skills",\n/m, "")), "match their derivation", "8 (a dropped skill path must FAIL on coverage)"],
     [".reasonix/settings.json", (p) => { const s = JSON.parse(readFileSync(p, "utf8")); s.hooks.PreToolUse[0].match = "*"; writeFileSync(p, JSON.stringify(s)); }, 'native reasonix "match" key', "9 (the Claude `matcher` spelling must not satisfy it)"],
     [".reasonix/plugin/reasonix-plugin.json", (p) => rmSync(p), "reasonix-plugin.json exists", "10"],
     [".reasonix/plugin/sidecar.py", (p) => writeFileSync(p, readFileSync(p, "utf8").replace(/^\s*"name": MANIFEST_NAME,\n/m, "")), "carries every host-required field", "10 (handshake — a sidecar missing a host-required field must FAIL)"],
@@ -261,10 +267,10 @@ if (argv.includes("--self-test")) {
     [".dsh/watch.items", (p) => rmSync(p), "(the DSH watch binding) exists", "11 (DSH arm — a harness with no watch binding must FAIL)"],
     [".dsh/README.md", (p) => rmSync(p), "the DSH harness-config signpost", "13 (a missing signpost must FAIL)"],
     // COVERAGE: dropping one bound skill leaves its corpus SKILL.md unbound.
-    [".dsh/skills", (p) => rmSync(join(p, readdirSync(p).sort()[0]), { recursive: true, force: true }), "is bound by a .dsh/skills", "13 (coverage — an unbound corpus skill must FAIL)", true],
+    [".dsh/skills", (p) => rmSync(join(p, readdirSync(p).sort()[0]), { recursive: true, force: true }), "matches its derivation", "13 (coverage — an unbound corpus skill must FAIL)", true],
     // COLLISION: a second family offering the same skill directory name. A flat
     // farm is keyed by name, so this would silently shadow one of the two.
-    ["marketplace", (p) => { const name = readdirSync(join(tree, ".dsh/skills")).sort()[0]; const dst = join(p, "zzz-collision", "skills", name); mkdirSync(dst, { recursive: true }); writeFileSync(join(dst, "SKILL.md"), ""); }, "no two families share", "13 (collision — a duplicate skill name across families must FAIL)", true],
+    ["marketplace", (p) => { const name = readdirSync(join(tree, ".dsh/skills")).sort()[0]; const dst = join(p, "zzz-collision", "skills", name); mkdirSync(dst, { recursive: true }); writeFileSync(join(dst, "SKILL.md"), ""); }, "collisions", "13 (collision — a duplicate skill name across families must FAIL)", true],
   ];
   // The four corpus-measured arms (check 12's two, check 13's coverage + collision) are
   // measured against `marketplace/DISPATCHER.md`, so they can only be exercised where that
@@ -320,6 +326,23 @@ const jsonOr = (p) => {
 // `[table]` of a TOML document, or undefined. It is deliberately narrow — the gate reads
 // ONE scalar (`url`) from ONE table (`mcp_servers.deepwiki`) of `.codex/config.toml` — so
 // check 6 guards the Codex surface without pulling in a TOML library.
+// The ONE derivation of the harness skill bindings, INVOKED rather than re-implemented.
+//
+// Every coverage assertion that used to live below — check 8's reasonix list, check 13's farm — was a
+// SECOND implementation of `scripts/sync-skill-bindings.mjs`'s derivation, including its `.well-known`
+// exclusion and its collision rule. Two implementations of one derivation drift apart, and the drift
+// is invisible because each agrees with itself. So the generator owns the derivation, and the checks
+// here own the SHAPE oracles that must hold whatever it emits: a derivation that emitted a bare
+// `marketplace` entry, or a farm whose entries do not resolve, would pass its own `--check` and still
+// be wrong. `--check` is exit 1 when the artifact on disk is not what the corpus derives — which is
+// exactly "was the generator run", the same thing the pin-advance path enforces.
+function derivedBindings(binding) {
+  const r = spawnSync(process.execPath, [join(here, "sync-skill-bindings.mjs"), "--check", "--only", binding, "--root", root], {
+    encoding: "utf8",
+  });
+  return { rc: r.status, out: `${r.stdout ?? ""}${r.stderr ?? ""}` };
+}
+
 const tomlString = (p, table, key) => {
   const t = read(p);
   if (t === null) return undefined;
@@ -546,7 +569,12 @@ ok(existsSync(join(root, ".claude/workflows/audit-deploy-configs.js")), ".claude
   }
 }
 
-// 8. reasonix.toml wires the marketplace SKILL roots — and NOT the bare marketplace root.
+// 8. reasonix.toml wires the marketplace SKILL roots — as a DERIVATION, and NOT the bare root.
+//    The list is an ENUMERATION (one entry per family directory), so it drifts silently every time
+//    the corpus grows; the assertion is therefore "was the generator run" rather than a second,
+//    hand-written copy of the generator's arithmetic. The shape arms below stay, because they are an
+//    oracle INDEPENDENT of the derivation: a generator that emitted a bare `marketplace` entry would
+//    pass its own --check and still be wrong.
 //    DISCRIMINATING: an unmodified `main` carries no `[skills]` table at all, so Reasonix
 //    resolves only its builtin + global skills (MEASURED: 12) and none of the
 //    `/charly-<family>:<skill>` references in AGENTS.md resolve. The fix scopes `paths` to
@@ -567,27 +595,14 @@ ok(existsSync(join(root, ".claude/workflows/audit-deploy-configs.js")), ".claude
     malformed.length === 0,
     `every [skills] paths entry is a marketplace <family>/{skills,agents} dir (offenders: ${malformed.join(", ") || "none"})`,
   );
-  // Coverage: when the marketplace tree is checked out, every skill-bearing directory
-  // must be listed — a family added upstream with a `skills/` dir and no path entry would
-  // otherwise load silently as zero skills. Skipped (not faked) when the submodule is
-  // absent, e.g. a worktree that did not populate it.
-  const mkt = join(root, "marketplace");
-  if (existsSync(mkt)) {
-    const expected = [];
-    for (const fam of readdirSync(mkt, { withFileTypes: true })) {
-      if (!fam.isDirectory() || fam.name === ".well-known") continue;
-      for (const sub of ["skills", "agents"]) {
-        if (existsSync(join(mkt, fam.name, sub))) expected.push(`marketplace/${fam.name}/${sub}`);
-      }
-    }
-    const missing = expected.filter((e) => !paths.includes(e));
-    ok(
-      missing.length === 0,
-      `[skills] paths covers every marketplace skill/agent dir (missing: ${missing.join(", ") || "none"})`,
-    );
-  } else {
-    pass("marketplace submodule not checked out — [skills] coverage check skipped (structural assertions above still hold)");
-  }
+  // COVERAGE — "was the generator run?". The derivation lives in ONE place; this asserts the
+  // artifact on disk IS that derivation. A family added upstream with a `skills/` dir and no path
+  // entry is exactly the drift this catches, whether it was dropped by hand or omitted by a pin
+  // advance that forgot to run the generator.
+  const gen8 = derivedBindings("reasonix");
+  ok(gen8.rc === 0, "reasonix.toml [skills] paths match their derivation (node scripts/sync-skill-bindings.mjs --check)");
+  if (gen8.rc !== 0) for (const l of gen8.out.trim().split("\n")) console.error(`        ${l}`);
+
 }
 
 // 9. .reasonix/settings.json uses reasonix's OWN hook key. DISCRIMINATING: `main` uses
@@ -711,7 +726,9 @@ ok(existsSync(join(root, ".dsh/watch.items")), ".dsh/watch.items (the DSH watch 
   }
 }
 
-// 13. The DSH arm. DSH's ONLY native repo-local config home is `<projectRoot>/.dsh/`:
+// 13. The DSH arm. Same contract as check 8 for the other binding: the farm IS its derivation, and
+//     the shape arm (every entry a symlink) is the oracle the derivation cannot provide for itself.
+//     DSH's ONLY native repo-local config home is `<projectRoot>/.dsh/`:
 //     `dsh-skill-filesystem` scans `.dsh/skills` at rank 100 and discovers only depth-1
 //     `<name>/SKILL.md` bundles. The marketplace corpus is THREE levels deep
 //     (`marketplace/<family>/skills/<name>/SKILL.md`), so the corpus is bound as a flat
@@ -728,42 +745,26 @@ ok(existsSync(join(root, ".dsh/watch.items")), ".dsh/watch.items (the DSH watch 
 {
   ok(existsSync(join(root, ".dsh/README.md")), ".dsh/README.md (the DSH harness-config signpost) exists");
 
-  const mkt = join(root, "marketplace");
-  if (!existsSync(mkt)) {
-    pass("marketplace/ not checked out — DSH skill-corpus binding check skipped");
-  } else {
-    const corpus = [];
-    for (const fam of readdirSync(mkt, { withFileTypes: true })) {
-      if (!fam.isDirectory()) continue;
-      const sk = join(mkt, fam.name, "skills");
-      if (!existsSync(sk)) continue;
-      for (const s of readdirSync(sk, { withFileTypes: true })) {
-        if (s.isDirectory() && existsSync(join(sk, s.name, "SKILL.md"))) {
-          corpus.push({ family: fam.name, name: s.name });
-        }
-      }
-    }
+  ok(existsSync(join(root, ".dsh/skills")), ".dsh/skills (the flat farm DSH discovers at rank 100) exists");
 
-    // (b) collision — a flat, name-keyed farm cannot represent two skills with one name.
-    const seen = new Map();
-    const collisions = [];
-    for (const c of corpus) {
-      if (seen.has(c.name)) collisions.push(`${c.name} (${seen.get(c.name)} + ${c.family})`);
-      else seen.set(c.name, c.family);
-    }
-    ok(
-      collisions.length === 0,
-      `no two families share a marketplace skill directory name (collisions: ${collisions.join(", ") || "none"})`,
-    );
+  // COVERAGE — "was the generator run?", the same arm as check 8 for the other binding. The farm is
+  // an ENUMERATION (one entry per corpus skill), so it drifts every time a family is added; the
+  // derivation is the only thing that can keep it correct, and a collision across families is where
+  // the generator hard-fails rather than silently shadowing one of two same-named skills.
+  const gen13 = derivedBindings("farm");
+  ok(gen13.rc === 0, "the .dsh/skills farm matches its derivation (node scripts/sync-skill-bindings.mjs --check)");
+  if (gen13.rc !== 0) for (const l of gen13.out.trim().split("\n")) console.error(`        ${l}`);
 
-    // (a) coverage — every corpus skill is bound.
-    const missing = corpus.filter((c) => !existsSync(join(root, ".dsh/skills", c.name, "SKILL.md")));
-    ok(
-      missing.length === 0,
-      `every marketplace/<family>/skills/<name>/SKILL.md is bound by a .dsh/skills/<name> entry ` +
-        `(${corpus.length} corpus skills, missing: ${missing.map((m) => `${m.family}:${m.name}`).join(", ") || "none"})`,
-    );
-  }
+  // SHAPE, not coverage — an oracle independent of the derivation: every entry must be a symlink
+  // into the corpus, because a farm entry that is a real file or a dangling link would be a copy or
+  // a lie rather than a binding, and the generator's own `--check` cannot see that it emitted one.
+  const farm = join(root, ".dsh/skills");
+  const notLinks = readdirSync(farm).filter((n) => !lstatSync(join(farm, n)).isSymbolicLink());
+  ok(
+    notLinks.length === 0,
+    `every .dsh/skills entry is a symlink (real entries: ${notLinks.slice(0, 5).join(", ") || "none"})`,
+  );
+
 }
 
 if (failures > 0) {

@@ -187,6 +187,9 @@ sync:
           task: pins
           param: [MODE=bump]
         context: [runtime]
+      - run: re-derive the harness skill bindings from the corpus the bump just advanced (the DSH farm and reasonix.toml's [skills] paths — a pin advance that skips this leaves them a family behind)
+        command: node scripts/sync-skill-bindings.mjs
+        context: [runtime]
 
 # -----------------------------------------------------------------------------
 # verify — the FULL pinning gate (every pin, incl. the per-submodule remote
