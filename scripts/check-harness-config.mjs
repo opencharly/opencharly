@@ -74,6 +74,7 @@ import { existsSync, lstatSync, readFileSync, readdirSync, statSync } from "node
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { dirname, join, resolve } from "node:path";
+import { CORPUS_NEEDS, corpusSkipReason } from "./lib/corpus.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const argv = process.argv.slice(2);
@@ -298,16 +299,26 @@ if (argv.includes("--self-test")) {
   // PASS to RED on every such tree, which is what checks 8 and 13 did when their coverage arms were
   // replaced by an unconditional generator call.
   stage();
-  rmSync(join(tree, "marketplace"), { recursive: true, force: true });
-  const absent = runGate();
-  const skips = ["[skills] paths derivation check skipped", "the .dsh/skills derivation check skipped"];
-  const missingSkips = skips.filter((m) => !absent.out.includes(m));
-  if (absent.code !== 0) {
-    bad(`a tree without the corpus is not GREEN — every corpus-dependent check must SKIP, not fail:\n${absent.out}`);
-  } else if (missingSkips.length) {
-    bad(`a tree without the corpus is green, but did not report the visible skip(s): ${missingSkips.join(" | ")}`);
-  } else {
-    console.log("  PASS  check 8/13: a tree without the corpus SKIPS both derivation arms visibly and stays green");
+  // One message per half, from the shared module: the reasonix arm needs family DIRECTORIES, the farm
+  // arm needs skill FILES, and this fixture holds neither.
+  const skips = ["carries no families", "carries no skills", "[skills] paths derivation check skipped", "the .dsh/skills derivation check skipped"];
+  for (const state of ["absent", "present-but-empty"]) {
+    // BOTH non-materialised shapes, because they are not the same tree and the difference is the defect:
+    // `git worktree add` creates the submodule MOUNT POINT, so a session worktree (Part II rule 2) has
+    // `marketplace/` PRESENT and EMPTY, not absent. Testing only the removed directory left the empty
+    // one unguarded — and with it the writer published a zero-skill corpus as a state, emptying the
+    // 353-entry farm (opencharly/opencharly#508).
+    rmSync(join(tree, "marketplace"), { recursive: true, force: true });
+    if (state === "present-but-empty") mkdirSync(join(tree, "marketplace"), { recursive: true });
+    const r = runGate();
+    const missing = skips.filter((m) => !r.out.includes(m));
+    if (r.code !== 0) {
+      bad(`a tree whose corpus is ${state} is not GREEN — every corpus-dependent check must SKIP, not fail:\n${r.out}`);
+    } else if (missing.length) {
+      bad(`a tree whose corpus is ${state} is green, but did not report the visible skip(s): ${missing.join(" | ")}`);
+    } else {
+      console.log(`  PASS  check 8/13: a tree whose corpus is ${state} SKIPS both derivation arms visibly and stays green`);
+    }
   }
 
   rmSync(tmp, { recursive: true, force: true });
@@ -625,8 +636,8 @@ ok(existsSync(join(root, ".claude/workflows/audit-deploy-configs.js")), ".claude
   // checkout without submodules — exactly as check 12 does. Without this the check INVERTS from
   // PASS-skip to RED on every such tree, which is a regression in the gate rather than a finding about
   // the tree. The structural assertions above hold either way.
-  if (!existsSync(join(root, "marketplace"))) {
-    pass("marketplace submodule not checked out — [skills] paths derivation check skipped (structural assertions above still hold)");
+  if (!CORPUS_NEEDS.families(root)) {
+    pass(`${corpusSkipReason(root, "families")} — [skills] paths derivation check skipped (structural assertions above still hold)`);
   } else {
     const gen8 = derivedBindings("reasonix");
     ok(gen8.rc === 0, "reasonix.toml [skills] paths match their derivation (node scripts/sync-skill-bindings.mjs --check)");
@@ -794,8 +805,8 @@ ok(existsSync(join(root, ".dsh/watch.items")), ".dsh/watch.items (the DSH watch 
   // visibly on the same precondition. The farm is an ENUMERATION (one entry per corpus skill), so it
   // drifts every time a family is added; the derivation is the only thing that can keep it correct,
   // and a collision across families is where the generator hard-fails rather than shadowing one.
-  if (!existsSync(join(root, "marketplace"))) {
-    pass("marketplace/ not checked out — the .dsh/skills derivation check skipped (the shape arm above still holds)");
+  if (!CORPUS_NEEDS.skills(root)) {
+    pass(`${corpusSkipReason(root, "skills")} — the .dsh/skills derivation check skipped (the shape arm above still holds)`);
   } else {
     const gen13 = derivedBindings("farm");
     ok(gen13.rc === 0, "the .dsh/skills farm matches its derivation (node scripts/sync-skill-bindings.mjs --check)");

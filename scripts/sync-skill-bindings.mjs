@@ -40,6 +40,7 @@
 import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, readlinkSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { CORPUS_ROOT, CORPUS_NEEDS, corpusFamilies, corpusSkipReason } from "./lib/corpus.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const argv = process.argv.slice(2);
@@ -57,20 +58,29 @@ if (!["all", "farm", "reasonix", "opencode"].includes(only)) fail(`--only takes 
 const FARM = ".dsh/skills";
 const REASONIX = "reasonix.toml";
 const OPENCODE = "opencode.json";
-const CORPUS_ROOT = "marketplace";
-
-// The corpus root carries the published `.well-known/` tree as well as the family directories, so a
-// bare `readdir` invents a family called `.well-known` and binds `marketplace/.well-known/skills` — a
-// directory of generated JSON, not skills. MEASURED the first time this ran: the naive version derived
-// 44 entries where 43 exist, and only the gate's own `malformed entry` assertion would have caught it.
-// Dot-prefixed entries are never families.
-function familiesOf(market) {
-  return readdirSync(market).filter((d) => !d.startsWith(".")).sort();
-}
 
 function fail(msg) {
   console.error(`FAIL: ${msg}`);
   process.exit(1);
+}
+
+/** The corpus root for the derivation that needs `need`, or `null` after reporting a visible SKIP.
+ *
+ *  A session worktree (Part II rule 2) has `marketplace/` present and EMPTY — `git worktree add`
+ *  creates the mount point — so a derivation that treats that as a corpus derives ZERO skills and
+ *  publishes the result as a state: it emptied the 353-entry farm and rewrote `reasonix.toml` to 0
+ *  entries, reporting `exit=0 done` (opencharly/opencharly#508). Existence is not materialisation.
+ *
+ *  PER HALF, deliberately: `reasonix.toml` enumerates family DIRECTORIES while the flat farm enumerates
+ *  skill FILES, and a tree can hold one input without the other — the gate's own staged tree does. A
+ *  guard that stopped the whole run on the first unmet need would silently drop the half that could
+ *  still derive, so each half reports its own SKIP and the other continues. */
+function corpusRootOrSkip(r, need, parts) {
+  if (!CORPUS_NEEDS[need](r)) {
+    parts.push(`SKIP  ${corpusSkipReason(r, need)}`);
+    return null;
+  }
+  return join(r, CORPUS_ROOT);
 }
 
 // ---------------------------------------------------------------- derivation
@@ -80,20 +90,15 @@ function fail(msg) {
  *  two guards would drift — which is how `--only reasonix` came to crash with an ENOENT where
  *  `--only farm` reported cleanly. A session worktree that did not populate its submodules is the case
  *  this exists for. */
-function corpusRoot(r) {
-  const market = join(r, CORPUS_ROOT);
-  if (!existsSync(market)) fail(`${CORPUS_ROOT}/ is not checked out in ${r} — the corpus is the input`);
-  return market;
-}
+
 
 /** Every corpus skill, keyed by its flat name. A name collision across families is a HARD failure:
  *  the farm is flat, so two families publishing one name cannot both be bound, and silently picking
  *  one is exactly how a skill disappears from a session's catalog. */
-function corpusSkills(r) {
-  const market = corpusRoot(r);
+function corpusSkills(r, market) {
   const found = new Map();
   const collisions = [];
-  for (const family of familiesOf(market)) {
+  for (const family of corpusFamilies(r)) {
     const dir = join(market, family, "skills");
     if (!existsSync(dir) || !lstatSync(dir).isDirectory()) continue;
     for (const name of readdirSync(dir).sort()) {
@@ -132,9 +137,8 @@ function readFarm(r) {
  *  directory, in byte order. The set is what the corpus supports; the order is what makes the file
  *  stable, and byte order is the only order two runs can agree on without a convention. */
 function desiredReasonixPaths(r) {
-  const market = corpusRoot(r);
   const out = [];
-  for (const family of familiesOf(market)) {
+  for (const family of corpusFamilies(r)) {
     for (const sub of ["agents", "skills"]) {
       const rel = `${CORPUS_ROOT}/${family}/${sub}`;
       if (existsSync(join(r, rel)) && lstatSync(join(r, rel)).isDirectory()) out.push(rel);
@@ -225,7 +229,10 @@ function run(r, { write, quiet }) {
   // name collision cannot be reported by a check that is not about the farm.
   let skills = null;
   if (wantFarm) {
-    skills = corpusSkills(r);
+    const market = corpusRootOrSkip(r, "skills", parts);
+    if (market === null) skills = null;
+    else {
+    skills = corpusSkills(r, market);
     const families = new Set(skills.values());
     const farm = syncFarm(r, desiredFarm(skills), { write });
     if (farm.changes) stale.push(`${FARM} (${farm.created.length} to create, ${farm.removed.length} to remove, ${farm.retargeted.length} to retarget)`);
@@ -236,12 +243,16 @@ function run(r, { write, quiet }) {
       for (const n of farm.removed) parts.push(`    - ${n}`);
       for (const n of farm.retargeted) parts.push(`    ~ ${n}`);
     }
+    }
   }
   if (wantReasonix) {
+    if (corpusRootOrSkip(r, "families", parts) === null) { /* SKIPPED — the notice is in parts */ }
+    else {
     const want = desiredReasonixPaths(r);
     const reasonix = syncReasonix(r, want, { write });
     if (!reasonix.same) stale.push(`${REASONIX} [skills] paths (${reasonix.have} -> ${reasonix.total} entries${reasonix.orderOnly ? ", order only" : ""})`);
     parts.push(`sync-skill-bindings: ${REASONIX} [skills] paths  ${reasonix.same ? `unchanged (${reasonix.total} entries)` : `STALE (${reasonix.have} -> ${reasonix.total} entries${reasonix.orderOnly ? ", order only" : ""})`}`);
+    }
   }
   if (wantOpencode) {
     const opencode = syncOpencode(r);
