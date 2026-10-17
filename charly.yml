@@ -19,6 +19,17 @@ import:
     # THIS import key, not
     # from the repo's name.
     - openclaw: ./layer-openclaw
+    # opencharly/layer-strata — the Strata family: the inference engine layer, its
+    # cachyos-based image and BOTH beds (the deterministic GPU-free one and the
+    # exclusive-host GPU one). Imported under `strata`, so its entities are addressed
+    # qualified — the beds are `strata.check-strata-pod` / `strata.check-strata-gpu-pod`.
+    # Local path, like every entry here: the version rides the GITLINK, advanced with
+    # `charly task sync` (Part II #3), never a tag in the URL.
+    - strata: ./layer-strata
+    # opencharly/plugin-strata — the `charly strata` management CLI over HTTP, an
+    # out-of-tree command plugin. A DISTINCT key, because the namespace is the key and
+    # `strata` is taken above.
+    - strata-cli: ./plugin-strata
 defaults:
     platform:
         - linux/amd64
@@ -421,6 +432,9 @@ check-all-beds:
         # Excluded: an `iterate:` AI-iteration loop, not a deterministic R10 bed.
         exclude:
             - charly.check-preflight-local
+            # Needs an exclusive NVIDIA host plus pre-staged weights: named venue
+            # `cachyos-gpu-workstation-vm`, run on demand (ledger section 57).
+            - strata.check-strata-gpu-pod
             # The family imports the cachyos namespace transitively (its box is
             # `base: cachyos.cachyos`), so those beds are reachable twice — once via
             # `charly`, once via `openclaw`. Run them once.
