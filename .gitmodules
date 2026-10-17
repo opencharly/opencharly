@@ -1852,3 +1852,11 @@
 	path = charly-registry
 	url = https://github.com/opencharly/charly-registry
 	branch = main
+[submodule "layer-strata"]
+	path = layer-strata
+	url = https://github.com/opencharly/layer-strata.git
+	branch = main
+[submodule "plugin-strata"]
+	path = plugin-strata
+	url = https://github.com/opencharly/plugin-strata.git
+	branch = main
