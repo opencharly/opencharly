@@ -813,7 +813,7 @@ works, because the store is global).
 `nerdctl checkpoint create [--leave-running] <ctr> <cp>` works with rootful crun: without
 `--leave-running` the container is killed (`Exited (137)`), with it the container keeps
 running. Restoring works too: `nerdctl start --checkpoint <cp> <ctr>` resumes the process —
-measured on a counter container that had logged `tick-4`, the restore continued at `tick-8`,
+measured on a counter container that had logged `tick-4`, the restore continued at `tick-9`,
 not from `tick-1`. The container must be stopped first: while it still runs,
 `start --checkpoint` only warns `container <id> is already running` and does nothing.
 `nerdctl rm -f <ctr>` after a checkpoint succeeds.
