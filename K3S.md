@@ -220,6 +220,10 @@ config, e.g. `https://127.0.0.1:6444`); the cluster CA is unchanged, so a pre-ex
 kubeconfig keeps working. Measured: node `Ready` in seconds (~3 s), workloads and the PVC object back,
 CoreDNS resolving, and pods reusing images already in the shared containerd (no re-pull).
 
+Operator-run: this destructive restore was executed on the deployed host under explicit
+operator direction during the specification spikes; it is not an autonomous-validation claim
+(no `disposable: true` target was used).
+
 **Recreate pods that mount restored volumes.** A pod that survived the datadir loss keeps the
 kubelet bind mount of the *deleted* local-path directory, so it sees an empty or missing
 mount (`cat /data/file` → `No such file or directory`) even though the files are back on
@@ -380,6 +384,8 @@ was gone after the revert, the node came back `Ready`, and the system pods were 
 - Restart containerd after the swap (§6.4).
 - The snapshot is only as durable as the disk; for off-host backups use the §6.2
   `sqlite3 .backup` + `storage.tar.gz` pair.
+- Operator-run: the destructive §10.1/§10.2 procedures were executed on the deployed hosts
+  under explicit operator direction, not on a `disposable: true` target.
 
 ## 11. Containerd snapshotters
 

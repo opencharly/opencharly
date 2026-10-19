@@ -292,6 +292,10 @@ Revert: stop the services, move the current store aside, put the snapshot at
 image was back after the revert, containers and k3s pods ran) and the btrfs subvolume branch
 on a scratch store (§12.6).
 
+Operator-run: the destructive swap was executed on the deployed hosts under explicit operator
+direction during the specification spikes; it is not an autonomous-validation claim (no
+`disposable: true` target was used).
+
 ##### The snapshotter API: discard and re-prepare
 
 ```sh
@@ -1014,7 +1018,7 @@ sudo mv /var/lib/containerd.new /var/lib/containerd
 sudo systemctl start containerd && sudo systemctl start k3s
 ```
 
-Measured on a scratch store: moved subvolumes stayed subvolumes (`btrfs subvolume show`
+Operator-run on a scratch store on the deployed host (not a `disposable: true` target): moved subvolumes stayed subvolumes (`btrfs subvolume show`
 succeeds, layer files intact), the copy kept content store and metadata, and the migrated
 store served containers normally.
 
@@ -1024,8 +1028,9 @@ store served containers normally.
   snapshot of a parent subvolume shows the nested child as an empty directory. `btrfs send`
   has the same rule — the child must be sent separately (both measured locally).
 - Store-level snapshot + revert: the procedure is §3.3.4; on btrfs the primitive is a
-  subvolume snapshot. Measured end-to-end: an image removed with `ctr images remove` after
-  the snapshot left 0 images, and after the swap the image was back (1) and a container ran.
+  subvolume snapshot. Operator-run end-to-end on a scratch store: an image removed with
+  `ctr images remove` after the snapshot left 0 images, and after the swap the image was back
+  (1) and a container ran.
 - `chattr +C`: measured that a user can set it on a directory they own on btrfs; it makes new
   files nodatacow. It reduces CoW sharing, so it conflicts with snapshot-based revert for
   that tree.
