@@ -11,8 +11,9 @@ crun with libkrun support, k3s, cgroup v2, systemd, kernel ≥ 5.13 (rootless ov
 1. **One daemon.** One containerd per instance. nerdctl uses namespace `default`, k3s uses
    `k8s.io` on the same socket.
 2. **One runtime family.** Every container runs with crun: `crun` for containers, `krun`
-   (the same binary in libkrun mode) for microVMs. The default runtime handlers never use
-   runc; the optional `nvidia` handler added for GPUs (§14.2) is the only exception.
+   (the same binary in libkrun mode) for microVMs. **Always pass `--runtime` explicitly** —
+   the daemon carries two different "defaults", and only one of them is crun (§3.2). The
+   optional `nvidia` handler added for GPUs (§14.2) is the only other handler in use.
 3. **One snapshotter by default.** `overlayfs` everywhere; the btrfs snapshotter is an
    optional alternative for subvolume-level layer snapshots (§3.3.3).
 4. **One switch for VM isolation.** The only difference between a container and a microVM is
@@ -31,6 +32,19 @@ A non-root `nerdctl` always talks to the **rootless** containerd, even when `--a
 points at the rootful socket (the socket is `root:root 0660`). Rootful commands therefore
 use `sudo`.
 
+**The fallback is silent, and only for a permission-denied socket.** Measured on the
+deployed hosts:
+
+| Command (as a non-root user) | Result |
+|---|---|
+| `nerdctl --address /run/containerd/containerd.sock …` | **no error** — the rootless daemon answers; the rootful daemon is never reached |
+| `nerdctl --address /run/containerd/nope.sock …` | hard error: `cannot access containerd socket …: no such file or directory` |
+| `sudo nerdctl --address /run/containerd/containerd.sock …` | the **rootful** daemon (`buildkit`, `default`, `k8s.io`, `moby`) |
+
+So a *missing* socket errors loudly, while a *forbidden* one reroutes quietly — `--address`
+does not by itself select the daemon. Check `nerdctl info`'s server ID, or the namespace
+list, when it matters which instance answered.
+
 | | Rootful | Rootless |
 |---|---|---|
 | Config | `/etc/containerd/config.toml` | none needed |
@@ -47,6 +61,8 @@ use `sudo`.
 nerdctl has no setting for a default runtime: every `nerdctl run` passes `--runtime "$RT"`.
 Set `RT=/usr/bin/crun` in the shell profile. `nerdctl compose` passes `--runtime` only when a
 service declares `runtime:` — set it in the compose file, otherwise services run on runc.
+That is not a cosmetic difference: the daemon's own unqualified default handler is **runc**
+on these hosts, not crun (§3.2).
 
 ## 2. Host preparation
 
@@ -103,7 +119,8 @@ version = 4
   bin_dirs = ["/var/lib/rancher/k3s/data/current/bin"]
   conf_dir = "/var/lib/rancher/k3s/agent/etc/cni/net.d"
 
-# k3s: crun is the default runtime handler
+# k3s only: crun is the default runtime handler of the CRI plugin.
+# This key does NOT set the daemon-wide default — nerdctl does not read it (§3.2).
 [plugins.'io.containerd.cri.v1.runtime'.containerd]
   default_runtime_name = "crun"
 
@@ -129,7 +146,8 @@ Notes:
 - `version = 4` is current since containerd 2.3.0. containerd 2.1/2.2 need `version = 3`;
   on 2.4 a version-3 file still loads but logs a migration warning on every start.
 - The CRI plugin blocks are used only by k3s. nerdctl selects its runtime per container with
-  `--runtime`.
+  `--runtime`, and the daemon-wide default it falls back to is **not** configured here
+  (§3.2) — so an unqualified `nerdctl run` does not pick crun.
 - `crun` and `krun` use the same shim (`io.containerd.runc.v2`) and differ only in
   `BinaryName`.
 - `pod_annotations = ["krun.*"]` forwards pod annotations to the VM, so
@@ -142,12 +160,14 @@ Apply and check:
 sudo systemctl enable --now containerd
 sudo systemctl restart containerd          # after every config change
 
-sudo containerd config dump | grep -A2 default_runtime_name   # → 'crun'
+sudo containerd config dump | grep -A2 default_runtime_name   # → 'crun' (the CRI plugin's)
 sudo journalctl -u containerd -b | grep 'starting cri plugin' | tail -1
 ```
 
 The journal line shows the CRI plugin's loaded runtime map and CNI dirs — that is the state
-the daemon actually runs with (`config dump` only reads the file).
+the daemon actually runs with (`config dump` only reads the file). The `default_runtime_name`
+it prints is the **CRI** plugin's default (k3s); the daemon-wide default that nerdctl
+would use is a different setting, and there is none configured (§3.2).
 
 ### 3.2 nerdctl
 
@@ -160,6 +180,28 @@ sudo nerdctl info | grep -i 'storage driver'        # → overlayfs
 
 Namespaces and k3s are covered in §6; the CRI default runtime applies to k3s, not to
 nerdctl.
+
+**One daemon, two defaults.** `default_runtime_name` in `config.toml` sets the default of
+the **CRI** plugin, which k3s uses. nerdctl does not read that key: it selects the runtime
+per container with `--runtime`, and with no `--runtime` the **task** plugin's own default
+applies. The two live in different sections of the config, and only the first names crun:
+
+```
+$ sudo containerd config dump | grep -B3 -A2 default_runtime_name
+    [plugins.'io.containerd.cri.v1.runtime'.containerd]
+      default_runtime_name = 'crun'
+```
+
+```
+$ sudo containerd config dump | grep -A3 "plugins.'io.containerd.runtime.v2.task'"
+    [plugins.'io.containerd.runtime.v2.task']
+      platforms = ['linux/amd64']
+```
+
+No `default_runtime_name` in the task plugin, so the unqualified default is the daemon's
+own — measured on the deployed hosts, it is **runc**: a nerdctl container started with no
+`--runtime` restores a CRIU checkpoint successfully, which only a handler that accepts
+`-no-subreaper` can do (§10). Always pass `--runtime "$RT"`; do not rely on either default.
 
 ### 3.3 Containerd snapshotters
 
@@ -242,7 +284,11 @@ snapshot excludes them (§12.6), and the store layout/migration on btrfs is §12
 
 #### 3.3.4 Snapshot and revert
 
-Five levels, all tested on the deployed hosts.
+Five levels, all tested on the deployed hosts: image-level, a container's writable layer, the
+whole store, the snapshotter API, and microVMs. The **process-state (CRIU)** level is a
+separate one, covered in §10 — it captures a running process rather than a filesystem, and
+its restore needs a runtime handler whose `restore` accepts `-no-subreaper` (runc does, crun
+does not), so it sits outside both the five levels and the "all tested" claim.
 
 ##### Image-level (any snapshotter)
 
@@ -389,6 +435,12 @@ systemctl --user is-active containerd buildkit      # → active active
   `host-gateway` resolves to the host's primary address: if that address lies inside
   slirp4netns's own `10.0.2.0/24` (common on a VM whose only address is `10.0.2.15`), the
   path stays blocked and no host service is reachable from a rootless container.
+- **The rootless daemon cannot allocate an ephemeral host port.** `-p 127.0.0.1::2222`
+  (host port left empty) fails with `failed to load networking flags: automatic port
+  allocation is not implemented for rootless mode (Hint: specify the port like
+  "12345:2222", not just "2222")`. The same command on the rootful daemon allocates one
+  (`2222/tcp -> 127.0.0.1:49155`). **Rootless therefore needs an explicit host port** —
+  pick a free one and publish it as `-p 127.0.0.1:<port>:2222`.
 - Resource limits (memory, cpuset, io) require the `Delegate=` line from §2.
 
 ### 4.4 Rootless overlayfs fallback
@@ -793,7 +845,7 @@ names persist in that volume across restarts.
 | Images | `nerdctl save -o img.tar <image>…` | `nerdctl load -i img.tar` |
 | Container filesystem | `nerdctl commit <ctr> <image>` | `nerdctl run --runtime "$RT" <image>` |
 | Volume | `nerdctl run --rm --runtime "$RT" -v <vol>:/v -v "$PWD":/b alpine tar czf /b/<vol>.tgz -C /v .` | the same with `tar xzf /b/<vol>.tgz -C /v` |
-| Process state (CRIU) | `nerdctl checkpoint create [--leave-running] <ctr> <cp>` | `nerdctl start --checkpoint <cp> <ctr>` (stop the container first) |
+| Process state (CRIU) | `nerdctl checkpoint create [--leave-running] <ctr> <cp>` | `nerdctl start --checkpoint <cp> <ctr>` (stop the container first; needs a handler whose `restore` accepts `-no-subreaper` — runc yes, crun no) |
 
 The table is written for the rootful instance: prefix every command with `sudo` (running it
 without `sudo` acts on the rootless instance, whose paths and stores are different).
@@ -807,20 +859,81 @@ Rules:
 - Volumes are never included in a commit or checkpoint; capture them separately.
 - For k3s images, add `-n k8s.io`.
 - Never back up containerd's internal directories.
+- **A plain `nerdctl commit` copies no labels.** The committed image's `Config.Labels` is
+  `null` — the source container's labels are not carried over, so a commit never leaks one
+  container's metadata into another. `nerdctl commit --change` takes a Dockerfile
+  instruction and supports only `CMD` and `ENTRYPOINT` (e.g. `--change 'CMD ["/bin/sh"]'`);
+  any other directive fails with `unknown change directive "LABEL"`, so labels cannot be
+  set at commit time at all. Re-apply the labels on the `nerdctl run` that starts from the
+  committed image instead.
 
-**Checkpointing.** Checkpoint names are global to the containerd namespace, not per container:
-`nerdctl checkpoint ls <ctr>` lists every checkpoint, and creating a name that already exists
-fails with `checkpoint with name <cp> already exists for container <id>`. Checkpoints also outlive their
-container; remove one with `nerdctl checkpoint rm <existing-ctr> <cp>` (any existing container
-works, because the store is global).
+**Checkpointing.** Checkpoint names are global to the **daemon**, not per container and not
+per namespace: `nerdctl checkpoint ls <ctr>` lists every checkpoint on the daemon, and
+creating a name that already exists fails with `checkpoint with name <cp> already exists
+for container <id>` — including when the name was first created in a *different* namespace
+of the same daemon. The records live in the daemon's metadata store and outlive both their
+container and their namespace. Remove one with `nerdctl checkpoint rm <existing-ctr> <cp>`
+(any existing container works, because the store is daemon-global).
 
-`nerdctl checkpoint create [--leave-running] <ctr> <cp>` works with rootful crun: without
-`--leave-running` the container is killed (`Exited (137)`), with it the container keeps
-running. Restoring works too: `nerdctl start --checkpoint <cp> <ctr>` resumes the process —
-measured on a counter container that had logged `tick-4`, the restore continued at `tick-9`,
-not from `tick-1`. The container must be stopped first: while it still runs,
-`start --checkpoint` only warns `container <id> is already running` and does nothing.
-`nerdctl rm -f <ctr>` after a checkpoint succeeds.
+The **create** works with rootful crun: `nerdctl checkpoint create [--leave-running] <ctr>
+<cp>` — without `--leave-running` the container is killed (`Exited (137)`), with it the
+container keeps running. The container must be stopped before a restore: while it still
+runs, `start --checkpoint` only warns `container <id> is already running` and does
+nothing. The **restore** is a different matter — it needs a handler that accepts
+`-no-subreaper`, which crun does not (below).
+
+**Restoring requires a runtime handler whose `restore` accepts `-no-subreaper`.**
+containerd invokes the OCI binary's `restore` subcommand with that flag — measured on the
+deployed hosts by capturing the argv containerd passes to the handler:
+
+```
+--root /run/containerd/runc/<ns> --log <…>/log.json --log-format json --systemd-cgroup
+restore --image-path /tmp/ctrd-checkpoint<N> --work-path <…>/work --detach
+--pid-file <…>/init.pid -no-subreaper --bundle <…> <container-id>
+```
+
+`runc restore --help` documents the option (`--no-subreaper  disable the use of the
+subreaper used to reap reparented processes`) and accepts it; **`crun restore` has no such
+option** — `crun -no-subreaper` fails with `crun: invalid option -- 'n'` (exit 64). So the
+restore outcome depends on the handler, and the difference is measurable with nothing but
+the two handlers swapped:
+
+| Handler | `checkpoint create` | `start --checkpoint` | Counter |
+|---|---|---|---|
+| `/usr/bin/runc` | rc=0 | **rc=0** | resumes: `tick-5` → `tick-9` |
+| `/usr/bin/crun` | rc=0 | **rc=1** | `OCI runtime restore failed: … /usr/bin/crun did not terminate successfully: exit status 64` |
+
+The crun failure surfaces as a bare `exit status 64` because the real message
+(`invalid option -- 'n'`) lands in the container's log file, which containerd then cannot
+read. Check `runc restore --help` (or the handler's own) for `--no-subreaper` before
+relying on a restore.
+
+**Removing a container after a crun checkpoint.** A `checkpoint create` **without**
+`--leave-running` kills the container, and the container's runtime state directory
+(`/run/containerd/runc/<ns>/<id>`) is gone afterwards — measured under **both** handlers.
+**runc**'s delete path tolerates the missing directory and removes the container cleanly.
+**crun**'s does not: it tries to open that directory and fails with `cannot open directory
+/run/containerd/runc/<ns>/<id>: No such file or directory`. The failure is **silent about
+itself** — `nerdctl rm -f <ctr>` prints the error but **exits 0**, and the container and its
+task record both survive; `ctr task rm <ctr>` and `ctr containers rm <ctr>` exit 1 with the
+same message. Check `ctr task ls` for a `STOPPED` task instead of trusting the exit status.
+The remedy is to kill the container's shim first, then drop the task and the container
+record:
+
+```sh
+sudo kill -9 <shim pid>            # the containerd-shim-runc-v2 process for this container
+sudo ctr -n <ns> task rm <id>       # fails with "no running task found: …" — expected
+sudo ctr -n <ns> containers rm <id> # rc=0; the container and its task record are gone
+```
+
+The shim must be killed as root: the task record lives in containerd's metadata store, so
+the kill clears the runtime's side and the two `ctr` calls clear the daemon's side. Note the
+ordering: because the container is killed and its task registered, the next restore then
+fails with `task <id>: already exists` — a different error that masks the real one — so use
+`--leave-running` when the container is meant to keep running.
+
+Restarting containerd does **not** clear such a task — the record is in the daemon's
+metadata store, not in the runtime state directory, so it survives the restart.
 
 **Fast reset.** `--rm` discards the writable layer; a new container starts from the image
 with an empty one, so resetting to a known state costs one container start, independent of
@@ -841,7 +954,7 @@ sudo nerdctl run --rm --runtime "$RT" --read-only --tmpfs /tmp --tmpfs /work <im
 
 | File | Purpose |
 |---|---|
-| `/etc/containerd/config.toml` | rootful containerd: runtimes, CRI default runtime, k3s CNI dirs |
+| `/etc/containerd/config.toml` | rootful containerd: runtimes, the CRI plugin's default runtime (k3s only), k3s CNI dirs |
 | `/etc/rancher/k3s/config.yaml` | k3s: external containerd endpoint (and port override) |
 | `/etc/systemd/system/user@.service.d/delegate.conf` | rootless cgroup delegation |
 | `~/.config/containerd/config.toml` | only for the fuse-overlayfs fallback |
