@@ -361,6 +361,15 @@ Sizing Law**). Code, tests, schemas, generated artifacts, docs, and changelogs m
 together, with no shims, dual paths, or deferred cleanup. Related filed issues may be
 closed together by one PR, as long as they share one R10 story.
 
+**Three axes govern scope, and this section states only the middle one.** *BATCHING* collects
+many small changes into one cutover; **DECOMPOSITION** applies to ONE contract too large to land
+in a single atomic pass - it splits into ordered units landed as forward motion, with the
+tracking issue open until the last unit lands, and its scope is never narrowed; the *NO-SPLIT*
+rule forbids carving one change's own scope in two. **A PR that lands one ordered unit of a
+tracked multi-unit cutover is DECOMPOSITION, not an exemption**, and neither axis is a reason to
+make a cutover small by default. All three, with the forbidden framings for each, are
+`/charly-internals:cutover-policy` "The three axes - do not conflate them".
+
 Verify status, HEAD, merge-base, submodule lineage, and remote base before implementation,
 and again before landing. Never manufacture alternate homes, caches, or clones to make a
 command pass; a denied required action is `BLOCKED`. *Detail:*
