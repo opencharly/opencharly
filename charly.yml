@@ -20,9 +20,9 @@ import:
     # from the repo's name.
     - openclaw: ./layer-openclaw
     # opencharly/layer-strata — the Strata family: the inference engine layer, its
-    # cachyos-based image and BOTH beds (the deterministic GPU-free one and the
-    # exclusive-host GPU one). Imported under `strata`, so its entities are addressed
-    # qualified — the beds are `strata.check-strata-pod` / `strata.check-strata-gpu-pod`.
+    # cachyos-based image and the GPU bed `strata.check-strata-gpu-pod` (the GPU-free
+    # mock mode is a runtime posture, not a bed; the withdrawn mock bed was PR #6).
+    # Imported under `strata`, so its entities are addressed qualified.
     # Local path, like every entry here: the version rides the GITLINK, advanced with
     # `charly task sync` (Part II #3), never a tag in the URL.
     - strata: ./layer-strata
