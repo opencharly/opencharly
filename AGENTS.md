@@ -361,7 +361,7 @@ Sizing Law**). Code, tests, schemas, generated artifacts, docs, and changelogs m
 together, with no shims, dual paths, or deferred cleanup. Related filed issues may be
 closed together by one PR, as long as they share one R10 story.
 
-**Three axes govern scope, and this section states only the middle one.** *BATCHING* collects
+**Three axes govern scope, and this section states the law they all serve.** *BATCHING* collects
 many small changes into one cutover; **DECOMPOSITION** applies to ONE contract too large to land
 in a single atomic pass - it splits into ordered units landed as forward motion, with the
 tracking issue open until the last unit lands, and its scope is never narrowed; the *NO-SPLIT*
