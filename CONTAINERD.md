@@ -879,7 +879,7 @@ metadata store, and the directory holds `cgroup.img`, `core-*.img`, `pages-*.img
 `nerdctl checkpoint ls <ctr>` lists every checkpoint in the data root, and creating
 a name that already exists fails with `checkpoint with name <cp> already exists for
 container <id>` — including when the name was first created in a *different*
-namespace, or even a *different daemon*, that the same client can reach.
+namespace of the same daemon.
 
 The scope is the **data root, not the daemon**: the same daemon and the same
 container seen through a different `--data-root` show a different set of
