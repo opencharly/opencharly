@@ -18,6 +18,21 @@ CONTAINERD.md, cgroup v2, systemd, crun/krun.
 - **k3s does not manage containerd.** It writes no containerd config, imports no airgap
   images, and does not restart the daemon.
 
+**What k3s does not reach.** Two things live on the nerdctl side of the same daemon and
+are therefore outside what a pod can use:
+
+- **The `k8s.io` namespace is rootful-only.** It exists on the rootful daemon that k3s
+  shares; the rootless instance has no such namespace. Everything in this file is
+  therefore a rootful-daemon story.
+- **CRIU checkpoints are a nerdctl surface, not a CRI one.** The CRI plugin exposes no
+  checkpoint operation, so `nerdctl checkpoint create` (CONTAINERD.md §10) is the way to
+  take a process checkpoint — and it needs the rootful daemon, because the rootless
+  instance cannot checkpoint at all (CONTAINERD.md §10, "The rootless instance cannot
+  checkpoint"). A pod's filesystem snapshot is a different thing entirely and is covered
+  by §6.6 and §10 below.
+
+krun's own device model, and the annotations a RuntimeClass sets, are in LIBKRUN.md.
+
 ## 2. Configuration
 
 ### 2.1 containerd (CRI)
