@@ -216,31 +216,28 @@ verify:
     description: Run the full pinning gate on demand (every pin, incl. the remote branch audit)
     dir: .
     plan:
-      - check: the pin contract's edge — every distro-* gitlink equals charly's own box/* gitlink
+      # ONE composition of the pin verb, and ONE only. `mode: verify` runs BOTH halves of
+      # the pin contract in a single call — half 1 the derived EDGE (every `pin_map` entry
+      # equals `pinned_from`'s twin) and half 2 the checkout audit over EVERY `.gitmodules`
+      # path — so the verb is composed HERE once, through the `pins` task that is its ONE
+      # canonical definition (the 6-entry map exists exactly once, in `pins`).
+      #
+      # WHAT THIS REPLACES, and why the old shape was a defect rather than a style choice:
+      # this task used to compose the verb TWICE — the `task: pins` wrapper for the edge half,
+      # then a bare `git-submodules` step carrying `pin_map: {}` for the checkout half. The
+      # second composition could only ever report `0 policy pin(s)`, because the map it was
+      # given was empty, so two honest pastes of one tree printed `verify: 0` and `verify: 6`
+      # depending on which composition was read. One verb, one composition: the wrapper's
+      # failure still fails the task (that is the gate), and the counts are computed once.
+      #
+      # The wrapper's Message is discarded by verb:task (it returns a one-line summary), so
+      # this task no longer reprints the verb's `N policy pin(s) … K checkout(s) clean` line.
+      # That loss is filed at opencharly/plugin-task#33 rather than paid for by re-composing
+      # the verb here, which is what produced the contradictory counts.
+      - check: the pin contract holds — every distro-* gitlink equals charly's own box/* gitlink (the EDGE), and every submodule is clean and checked out at its recorded gitlink (the CHECKOUT AUDIT), composed ONCE through `pins`
         task:
           task: pins
           param: [MODE=verify]
-        context: [runtime]
-      # The verb is composed HERE rather than left to the `pins MODE=verify` step above,
-      # which reaches it through a `task:` wrapper: `task:` (verb:task) returns only a
-      # one-line summary and would DISCARD the verb's Message — the same reason the `map`
-      # task composes the verb directly instead of wrapping it. The coverage that proves
-      # this audit ran (`N checkout(s) clean at their gitlink`, plus the uninitialized
-      # count) exists only in that Message, and a `command:` step's stdout does not
-      # survive the pass path at all.
-      - check: every submodule is clean and checked out at its recorded gitlink — the ONE verb that owns the clause (its coverage rides its Message, the channel that renders on the pass path; a command step's does not)
-        git-submodules:
-          mode: verify
-          pin_map: {}
-        # [runtime] — the value the combined step this one replaces declared (`verify` carried
-        # 15 steps before #412, every one of them [runtime]) and the value every other step of
-        # this task declares. `Runner.ContextSkipReason` (sdk/kit/runner.go) activates only
-        # box→build and live→runtime, and `PlanGrammar.InContext` (sdk/checkkit/checkkit.go) is a
-        # plain membership test, so a `deploy`-declared step names a context the runner never
-        # activates. The seven maintenance tasks declared exactly that; #413 corrected them to
-        # the value the three tasks that already carried one use, and
-        # scripts/check-task-contexts.mjs now turns a set disjoint from [build, runtime] RED if
-        # it comes back.
         context: [runtime]
       - check: every submodule's branch equals its remote default — KEPT INLINE, deliberately, because no verb owns this clause, and it is the expensive half (one git ls-remote per submodule, hence the timeout below)
         timeout: 20m
