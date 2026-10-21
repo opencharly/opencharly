@@ -42,8 +42,9 @@ deployed hosts:
 | `sudo nerdctl --address /run/containerd/containerd.sock …` | the **rootful** daemon (`buildkit`, `default`, `k8s.io`, `moby`) |
 
 So a *missing* socket errors loudly, while a *forbidden* one reroutes quietly — `--address`
-does not by itself select the daemon. Check `nerdctl info`'s server ID, or the namespace
-list, when it matters which instance answered.
+does not by itself select the daemon. When it matters which instance answered, compare
+`nerdctl info`: each daemon reports its own `ID`, and the rootless one lists `name=rootless`
+in `SecurityOptions` (the rootful one does not). The namespace list tells the same story.
 
 | | Rootful | Rootless |
 |---|---|---|
@@ -438,8 +439,9 @@ systemctl --user is-active containerd buildkit      # → active active
 - **The rootless daemon cannot allocate an ephemeral host port.** `-p 127.0.0.1::2222`
   (host port left empty) fails with `failed to load networking flags: automatic port
   allocation is not implemented for rootless mode (Hint: specify the port like
-  "12345:2222", not just "2222")`. The same command on the rootful daemon allocates one
-  (`2222/tcp -> 127.0.0.1:49155`). **Rootless therefore needs an explicit host port** —
+  "12345:2222", not just "2222")`. The rootful daemon allocates one from the same command
+  and answers `2222/tcp -> 127.0.0.1:<port>` with a port from the ephemeral range.
+  **Rootless therefore needs an explicit host port** —
   pick a free one and publish it as `-p 127.0.0.1:<port>:2222`.
 - Resource limits (memory, cpuset, io) require the `Delegate=` line from §2.
 
@@ -867,24 +869,44 @@ Rules:
   set at commit time at all. Re-apply the labels on the `nerdctl run` that starts from the
   committed image instead.
 
-**Checkpointing.** Checkpoint names are global to the **daemon**, not per container and not
-per namespace: `nerdctl checkpoint ls <ctr>` lists every checkpoint on the daemon, and
-creating a name that already exists fails with `checkpoint with name <cp> already exists
-for container <id>` — including when the name was first created in a *different* namespace
-of the same daemon. The records live in the daemon's metadata store and outlive both their
-container and their namespace. Remove one with `nerdctl checkpoint rm <existing-ctr> <cp>`
-(any existing container works, because the store is daemon-global).
+**Checkpointing.** A checkpoint is a **directory of CRIU image files** under the
+**nerdctl data root** — `/var/lib/nerdctl/checkpoints/<name>/` for the rootful
+instance, `$XDG_DATA_HOME/nerdctl/checkpoints/<name>/` for the rootless one. It is
+**not** a containerd object: the checkpoint name appears nowhere in containerd's
+metadata store, and the directory holds `cgroup.img`, `core-*.img`, `pages-*.img`,
+`pstree.img`, `seccomp.img` and the rest of the CRIU image set. The name is the
+**only** key: it is not scoped by container and not scoped by namespace, so
+`nerdctl checkpoint ls <ctr>` lists every checkpoint in the data root, and creating
+a name that already exists fails with `checkpoint with name <cp> already exists for
+container <id>` — including when the name was first created in a *different*
+namespace, or even a *different daemon*, that the same client can reach.
 
-The **create** works with rootful crun: `nerdctl checkpoint create [--leave-running] <ctr>
-<cp>` — without `--leave-running` the container is killed (`Exited (137)`), with it the
-container keeps running. The container must be stopped before a restore: while it still
-runs, `start --checkpoint` only warns `container <id> is already running` and does
+The scope is the **data root, not the daemon**: the same daemon and the same
+container seen through a different `--data-root` show a different set of
+checkpoints, and the rootless client has its own store. The directory outlives
+both its container and its namespace — a checkpoint created in a namespace stays
+on disk after `nerdctl namespace rm` — and it is not cleaned up with the
+container.
+
+Remove one with `nerdctl checkpoint rm <existing-ctr> <cp>`. The container argument
+only has to **exist** — it is used to validate the container, not to scope the
+removal, so any existing container of the same data root works. The same applies
+to `checkpoint ls`: a non-existent container makes both commands fail
+(`no such container`) even though the checkpoints are right there.
+
+The **create** works under **both** handlers: `nerdctl checkpoint create [--leave-running]
+<ctr> <cp>` — measured under runc and crun alike, both rc=0, both leaving the CRIU
+directory behind. Without `--leave-running` the container is killed (`Exited (137)`), with
+it the container keeps running. The container must be stopped before a restore: while it
+still runs, `start --checkpoint` only warns `container <id> is already running` and does
 nothing. The **restore** is a different matter — it needs a handler that accepts
 `-no-subreaper`, which crun does not (below).
 
 **Restoring requires a runtime handler whose `restore` accepts `-no-subreaper`.**
 containerd invokes the OCI binary's `restore` subcommand with that flag — measured on the
-deployed hosts by capturing the argv containerd passes to the handler:
+deployed hosts by capturing the argv containerd passes to the handler. The flag is not
+conditional: there is no config key, no environment variable, and no runtime-type check
+that turns it off, so every containerd-managed restore carries it:
 
 ```
 --root /run/containerd/runc/<ns> --log <…>/log.json --log-format json --systemd-cgroup
@@ -894,7 +916,9 @@ restore --image-path /tmp/ctrd-checkpoint<N> --work-path <…>/work --detach
 
 `runc restore --help` documents the option (`--no-subreaper  disable the use of the
 subreaper used to reap reparented processes`) and accepts it; **`crun restore` has no such
-option** — `crun -no-subreaper` fails with `crun: invalid option -- 'n'` (exit 64). So the
+option** — `crun -no-subreaper` fails with `crun: invalid option -- 'n'` (exit 64). The
+option table is per-subcommand: crun accepts `-no-subreaper` on `run` and `create` (where
+it is ignored), but `restore` has no entry for it, so the flag is rejected there. So the
 restore outcome depends on the handler, and the difference is measurable with nothing but
 the two handlers swapped:
 
@@ -922,12 +946,13 @@ record:
 
 ```sh
 sudo kill -9 <shim pid>            # the containerd-shim-runc-v2 process for this container
-sudo ctr -n <ns> task rm <id>       # fails with "no running task found: …" — expected
+sudo ctr -n <ns> task rm <id>       # rc=1, "no running task found: task <id> not found" — expected
 sudo ctr -n <ns> containers rm <id> # rc=0; the container and its task record are gone
 ```
 
-The shim must be killed as root: the task record lives in containerd's metadata store, so
-the kill clears the runtime's side and the two `ctr` calls clear the daemon's side. Note the
+The shim must be killed as root: the **task** record lives in containerd's metadata store
+(unlike a checkpoint, which is a directory in the nerdctl data root — above), so the kill
+clears the runtime's side and the two `ctr` calls clear the daemon's side. Note the
 ordering: because the container is killed and its task registered, the next restore then
 fails with `task <id>: already exists` — a different error that masks the real one — so use
 `--leave-running` when the container is meant to keep running.
