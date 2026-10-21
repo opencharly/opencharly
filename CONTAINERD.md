@@ -847,7 +847,7 @@ names persist in that volume across restarts.
 | Images | `nerdctl save -o img.tar <image>…` | `nerdctl load -i img.tar` |
 | Container filesystem | `nerdctl commit <ctr> <image>` | `nerdctl run --runtime "$RT" <image>` |
 | Volume | `nerdctl run --rm --runtime "$RT" -v <vol>:/v -v "$PWD":/b alpine tar czf /b/<vol>.tgz -C /v .` | the same with `tar xzf /b/<vol>.tgz -C /v` |
-| Process state (CRIU) | `nerdctl checkpoint create [--leave-running] <ctr> <cp>` | `nerdctl start --checkpoint <cp> <ctr>` (stop the container first; needs a handler whose `restore` accepts `-no-subreaper` — runc yes, crun no) |
+| Process state (CRIU) | `nerdctl checkpoint create [--leave-running] <ctr> <cp>` | `nerdctl start --checkpoint <cp> <ctr>` (stop the container first; needs a handler whose `restore` accepts `-no-subreaper` — runc yes, crun no; the rootful instance only) |
 
 The table is written for the rootful instance: prefix every command with `sudo` (running it
 without `sudo` acts on the rootless instance, whose paths and stores are different).
@@ -894,6 +894,13 @@ removal, so any existing container of the same data root works. The same applies
 to `checkpoint ls`: a non-existent container makes both commands fail
 (`no such container`) even though the checkpoints are right there.
 
+Because the container argument is validated, **remove the checkpoint before the
+container.** Once the container is gone, its checkpoint is unreachable through
+nerdctl: `checkpoint rm` then fails with `error removing checkpoint for
+container: <name>, no such container` (exit 1) and the directory stays in the
+data root. The same applies to a checkpoint whose create failed — nothing is
+stored, and the removal fails for the same reason.
+
 The **create** works under **both** handlers: `nerdctl checkpoint create [--leave-running]
 <ctr> <cp>` — measured under runc and crun alike, both rc=0, both leaving the CRIU
 directory behind. Without `--leave-running` the container is killed (`Exited (137)`), with
@@ -901,6 +908,119 @@ it the container keeps running. The container must be stopped before a restore: 
 still runs, `start --checkpoint` only warns `container <id> is already running` and does
 nothing. The **restore** is a different matter — it needs a handler that accepts
 `-no-subreaper`, which crun does not (below).
+
+**The rootful instance is the one that checkpoints.** On the rootless instance the
+create fails, and it is not a configuration mistake — see "**The rootless instance
+cannot checkpoint**" below.
+
+**Configuring CRIU.** CRIU takes its options from a config file as well as from
+the command line. The files are read in this order, each overriding the one before:
+
+```
+/etc/criu/default.conf  →  $HOME/.criu/default.conf  →  $CRIU_CONFIG_FILE
+                         →  --config <file>  →  the command line / RPC
+```
+
+`--no-default-config` skips the defaults entirely. The file holds **command-line
+options without the `--` prefix**, **one per line**, with the option **and its
+argument on the same line** — `log-file /var/log/criu.log`, never the two on
+separate lines, which makes CRIU glue a `--` onto the value and fail with
+`Can't create log file --/var/log/criu.log`. `#` starts a comment and arguments
+may be double-quoted. That the file is read at all is observable: an unknown
+option in it fails the run with `criu: unrecognized option '--…'`, and the same
+command with `--no-default-config` — which skips the file — succeeds.
+
+**A file that overrides your settings without asking.** crun passes
+`/etc/criu/runc.conf` to CRIU on every dump, and `/etc/criu/crun.conf` when it
+exists; the `org.criu.config` annotation overrides both. CRIU then reports
+`Would overwrite RPC settings with values from /etc/criu/runc.conf` — the file
+is applied whether or not it exists, so the message appears on a host with no
+`/etc/criu/` directory at all, and a file left in place by another tool changes
+your dump's behaviour silently. Point the annotation at your own file to take
+the setting back:
+
+```sh
+nerdctl run --annotation org.criu.config=/etc/criu/my.conf …
+```
+
+**The NON-ROOT capability requirements.** CRIU's own documentation lists
+`CAP_CHECKPOINT_RESTORE` as the minimum capability for a non-root run, together
+with `CAP_SYS_PTRACE` (or `ptrace_scope` 0), and the extras `CAP_NET_ADMIN`,
+`CAP_SYS_CHROOT`, `CAP_SETUID` and `CAP_SYS_RESOURCE`. That list is not enough
+for the seccomp-suspend feature the dump path needs, and the capability CRIU's
+own error message recommends — `setcap cap_checkpoint_restore+eip /usr/bin/criu`
+— is **not** sufficient for it either. The kernel gates the ptrace option
+`PTRACE_O_SUSPEND_SECCOMP` on `capable(CAP_SYS_ADMIN)`, and `capable()` is
+`ns_capable(&init_user_ns, …)` — the **init** user namespace, not the caller's.
+Measured, with the same binary and the same command in the init user namespace:
+
+| File capability on the binary | Result |
+|---|---|
+| none | `CRIU needs to have the CAP_SYS_ADMIN or the CAP_CHECKPOINT_RESTORE capability` |
+| `cap_checkpoint_restore+eip` | `couldn't suspend seccomp: Operation not permitted` — **still refused** |
+| `cap_sys_admin+eip` | **succeeds** — `seccomp_suspend is supported` |
+
+So a non-root dump needs `cap_sys_admin` on the CRIU binary, not
+`cap_checkpoint_restore`. A file capability is granted in the **executing
+process's** user namespace, which is why it cannot help at all inside a rootless
+daemon (below). Note also that a file capability on a binary under a `nosuid`
+mount is **silently discarded at exec** — no error — so a capability test run
+from such a path reports "no capability" whatever the truth is.
+
+**The pre-flight.** Whether a host can take a checkpoint is answerable before
+trying:
+
+```sh
+criu check --unprivileged --feature seccomp_suspend
+# 0   => "seccomp_suspend is supported" => the dump path's seccomp probe passes
+# !=0 => the probe failed => the dump will fail
+```
+
+Three rules make this a usable gate:
+
+- **Use the named form.** `--feature <name>` short-circuits the check, so the
+  exit status **is** the feature's result. The bulk form is **never** a gate:
+  `criu check --extra --unprivileged` reports every optional feature and is
+  non-zero even on a host that checkpoints perfectly (`UFFD is not supported`),
+  so a gate built on it refuses a working host.
+- **`--unprivileged` is required.** Without it CRIU fails earlier, in the mount
+  namespace (`Fail to mount tmfps to /tmp/.criu.move_mount_set_group…`), with
+  the same non-zero status but a different cause.
+- **Read both streams.** The two gates report on **different** streams: the
+  capability gate writes to **stdout**, the seccomp probe to **stderr**. A
+  check that reads one of them sees "no message" for half the failures, so
+  capture each to its own file. The exit status is the authority; the message
+  says *why* — `CRIU needs to have the CAP_SYS_ADMIN …` means the host lacks
+  the capability (remediable), `couldn't suspend seccomp` means the namespace
+  barrier below (not remediable by any capability).
+
+**The rootless instance cannot checkpoint.** This is a kernel property, not a
+configuration gap. The dump path suspends the target's seccomp filter through
+the ptrace option `PTRACE_O_SUSPEND_SECCOMP`, and the kernel gates that option
+on `capable(CAP_SYS_ADMIN)` — the **init** user namespace, not the caller's. A
+rootless daemon's CRIU runs inside the rootless user namespace, where the
+capability does not count, and a file capability is granted *in that same
+namespace*, so no capability combination helps. Measured, on the same host and
+the same image, with only the daemon differing:
+
+| Daemon | `checkpoint create` | CRIU's own failure |
+|---|---|---|
+| rootless | rc=1 | `compel/src/lib/ptrace.c:27: suspending seccomp failed: Operation not permitted` |
+| rootful | **rc=0** | — the checkpoint is written |
+
+Not `--cap-add`, not `--privileged`, not `cap_sys_admin+eip` on the binary, and
+not `--security-opt seccomp=unconfined` (which moves the failure one step
+further down, to `criu/namespaces.c:278`). The pre-flight run **inside the
+daemon's own user namespace** is the honest test, and it is the one that
+discriminates the two daemons on a real host.
+
+**Where the failure is reported, and where the log really is.** containerd's
+error names a dump log under `/run/containerd/…` — the **rootful** runtime root
+— even for the rootless daemon, where that path does not exist. The log is
+really at `/run/user/<uid>/containerd/io.containerd.runtime.v2.task/<ns>/<id>/criu-dump.log`.
+The error text also quotes a `work/criu-work/dump.log` that is not written on
+this path either. Read the file at the runtime root, not at the path in the
+message.
 
 **Restoring requires a runtime handler whose `restore` accepts `-no-subreaper`.**
 containerd invokes the OCI binary's `restore` subcommand with that flag — measured on the
@@ -1284,9 +1404,62 @@ sudo nerdctl run --rm --device nvidia.com/gpu=all nvidia/cuda:12.6.0-base-ubuntu
 Both printed `NVIDIA GeForce RTX 4080 SUPER, 615.78.08`. The image must provide `nvidia-smi`
 (the CUDA base images do); the driver libraries and device nodes are injected by the toolkit.
 
-Rootless: NVIDIA access is **not** available in the rootless instance here (measured:
-`no known GPU vendor found in CDI specs`, and `unresolvable CDI devices nvidia.com/gpu=all`);
-use the rootful daemon for NVIDIA GPUs.
+**Rootless works, once the CDI spec is reachable from the rootless client.** The
+spec dirs are the **client's** choice, not the daemon's: nerdctl resolves CDI on
+its own side, and its default spec dirs differ between the two instances.
+
+| Instance | Default CDI spec dirs |
+|---|---|
+| rootful | `/etc/cdi`, `/var/run/cdi` |
+| rootless | `$XDG_CONFIG_HOME/cdi`, `$XDG_RUNTIME_DIR/cdi` (the runtime dir falls back to `/run/user/<euid>`) |
+
+`nvidia-ctk cdi generate` writes `/etc/cdi/nvidia.yaml`, so on a rootless client
+that file is **invisible** — the client never looks there. The unconfigured
+rootless client reports it like this, and the wording names a daemon
+limitation where the cause is a client-side default:
+
+```
+no known GPU vendor found in CDI specs
+unresolvable CDI devices nvidia.com/gpu=all
+```
+
+Make the spec reachable — either permanently, by linking it into the rootless
+client's config dir:
+
+```sh
+mkdir -p "$HOME/.config/cdi"
+ln -sf /etc/cdi/nvidia.yaml "$HOME/.config/cdi/nvidia.yaml"
+```
+
+or per invocation, with nerdctl's own flag:
+
+```sh
+nerdctl run --cdi-spec-dirs /etc/cdi --device nvidia.com/gpu=all … nvidia-smi …
+```
+
+Both were measured; the control is the spec's presence. With the link in place
+the rootless client resolves the device and prints `NVIDIA GeForce RTX 4080
+SUPER`; move the spec aside and the same command fails with `unresolvable CDI
+devices nvidia.com/gpu=all`; restore it and it works again.
+
+**The CDI spec-dir rules.** A spec is found by extension, not by name: only
+`.json` and `.yaml` are read — a `.yml` file is never opened. Directories are
+not searched recursively, and a missing directory is skipped silently. When
+several directories provide the same device, the **later** directory wins
+(measured: with two spec dirs, reversing their order in the flag reverses
+which device is injected). Two specs of the **same** priority — two files in one
+directory — are a **conflict**, and the device is **dropped** entirely
+(`CDI cache refresh failed: conflicting device "…"`), not resolved in favour of
+one of them. The CDI library itself reads **no** environment variables; the
+XDG split above is applied by nerdctl.
+
+`--cdi-spec-dirs` takes a **comma-separated** list. A colon-separated list is
+not split and resolves nothing, and repeating the same directory does not
+create a conflict — two *different* specs in one directory do.
+
+**`enable_cdi` was removed in containerd v2.4.** A config that still sets it
+teaches a key the daemon no longer reads. CDI is always on; the only question
+is which spec dirs the client scans.
 
 ### 14.3 krun
 

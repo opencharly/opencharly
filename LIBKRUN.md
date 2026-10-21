@@ -302,6 +302,23 @@ or XFS reflink, CONTAINERD.md §13.1). Measured on a `--runtime /usr/bin/krun` c
 image, the committed image printed `A`, and the original image printed nothing (clean) — the
 revert; the `upperdir` copy/restore was exercised on the same container (A → B → A).
 
+**A krun guest's process state is not checkpointable.** The filesystem levels above all
+apply to a krun container unchanged, because its rootfs is an ordinary containerd snapshot.
+The *process* level does not: CRIU checkpoints a container's processes, and a krun guest's
+processes live inside the microVM, whose files CRIU cannot reach. Measured on the same
+host, with the same image and the same command, the crun container checkpoints
+successfully and the krun guest fails with
+
+```
+Error (criu/files-reg.c:1790): Can't lookup mount=3942 for fd=-3 path=/
+Error (criu/cr-dump.c:1440): Collect mappings (pid: …) failed with -1
+```
+
+— CRIU sees the host-side mount table, not the guest's rootfs, so it cannot collect the
+guest's file mappings. A krun container is therefore covered by the image, `upperdir` and
+store levels, and not by the CRIU level of CONTAINERD.md §10 — that section describes the
+crun and runc handlers.
+
 ## 8. BTRFS
 
 A microVM's writable layer is a containerd snapshot — the guest rootfs is that snapshot
