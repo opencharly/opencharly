@@ -34,7 +34,7 @@ The daemon and its config, rootful.
 | containerd ≥ 2.3, written as a `version = 4` config with `imports = ["/etc/containerd/conf.d/*.toml"]` | the config shape the rest of the specs assume; a top-level `[grpc]` address is ignored in v4 and must live under `plugins."io.containerd.server.v1.grpc"` | CONTAINERD.md §3.1 |
 | a `crun` default handler **and** a `krun` handler with `pod_annotations = ["krun.*"]`, plus an `nvidia` handler when the NVIDIA toolkit is installed | the annotations do not reach the handler without `pod_annotations`; a missing handler is silent until a container asks for it | CONTAINERD.md §3.1, §5.2, §14.2 |
 | `SystemdCgroup = true`, and `dbus-user-session` present for the rootless variant | the cgroup driver needs the user D-Bus for a rootless instance | CONTAINERD.md §2, §4 |
-| the narrow seccomp profile at `/etc/containerd/seccomp/crabbox-userns.json` — containerd's own `DefaultProfile()` **plus** `{"names":["unshare","clone"],"action":"SCMP_ACT_ALLOW"}`, `clone3` left `ENOSYS` | the stock profile blocks `unshare`/`clone` with namespace flags, which is what breaks Chromium's sandbox; this profile restores it while keeping `keyctl`/`mount` enforced | CONTAINERD.md §3.1; the A/B is in the change that introduced it |
+| the narrow seccomp profile at `/etc/containerd/seccomp/crabbox-userns.json` — containerd's own `DefaultProfile()` **plus** `{"names":["unshare","clone"],"action":"SCMP_ACT_ALLOW"}`, `clone3` left `ENOSYS` | the stock profile blocks `unshare`/`clone` with namespace flags, which is what breaks Chromium's sandbox; this profile restores it while keeping `keyctl`/`mount` enforced | **not in any spec — measured (RDD7 C10)**, with the stock profile and `unconfined` as its two controls. A spec section documenting the profile is still owed |
 | `kernel.unprivileged_userns_clone=1` where that sysctl exists | where it does not, user namespaces are gated by AppArmor instead | CONTAINERD.md §4 |
 | `containerd.service` and `buildkit.service` enabled | `nerdctl build` fails with `no buildkit host is available` until buildkit runs | CONTAINERD.md §2 |
 | the `shadow`/`uidmap`/`shadow-utils` package — `newuidmap`, `newgidmap` | rootlesskit execs them to write the UID/GID map; the rootless setup tool never checks them | CONTAINERD.md §2 |
@@ -58,7 +58,7 @@ image exists to prevent (CONTAINERD.md §4).
 | Requirement | Why | Source |
 |---|---|---|
 | `crun` built from a commit that carries **both** the passt fix (`ca04fdb6`) **and** the `/proc` remount that makes passt work under a declared PID namespace (`handlers/krun.c:824-838`), with `+LIBKRUN` | no release carries them: 1.30.1 cannot start passt at all (`start passt`, rc 1), so in-guest CRIU is main-only until a release ships both | LIBKRUN.md §7 |
-| `libkrun` **1.x** pinned — not `main` | crun's handler resolves the 1.x API; libkrun `main` is a 2.0 rewrite that drops it | LIBKRUN.md §2 |
+| `libkrun` **1.x** pinned — not `main` | crun's handler resolves the 1.x API; libkrun `main` is a 2.0 rewrite that drops it | **source read (RDD7 S3, B.5)**: `handlers/krun.c` resolves `krun_set_vm_config`, `krun_set_gpu_options` and `krun_start_enter`, which libkrun `main` removes. No spec section states the pin yet |
 | `libkrunfw`, and `/dev/kvm` readable by the krun user | the guest kernel and the VM device | CONTAINERD.md §2 |
 | `bwrap` at **`/usr/bin/bwrap`** and `virgl_render_server` at **`/usr/libexec/virgl_render_server`** | crun hardcodes both paths; Arch installs the server at `/usr/lib/…`, so the image provides the path | CONTAINERD.md §14.3 |
 | mesa Vulkan on the host for the render server; on Arch, `vulkan-virtio` **and** `vulkan-swrast` as separate packages | `mesa` no longer ships Vulkan ICDs; without them every krun GPU run fails `Found no drivers` | CONTAINERD.md §14.3 |
@@ -130,7 +130,7 @@ raise no inotify in the guest. Secrets go there `0600`, never on argv.
 **Sources for §2**, matching the rows above in order: the base contract and the two init
 modes — `CONTAINERD.md` §8 (`--systemd`, `KRUN_INIT_PID1`, the `/crabbox` input path, the
 `pid_max` and `serial-getty@hvc0` findings); `desktop`, `browser`, `code` — `CONTAINERD.md`
-§8 plus the narrow seccomp profile in §3.1 of this file; `tailscale` — `LIBKRUN.md` §7 (the TSI
+§8 plus the narrow seccomp profile in §1.1 of this file; `tailscale` — `LIBKRUN.md` §7 (the TSI
 `TS_DEBUG_DISABLE_UDP_GSO` measurement); `nested`, `k3s`, `k3s-krun` — `CONTAINERD.md` §9 and
 `K3S.md` §2–§8 and `LIBKRUN.md` §6–§7; `k3s-gpu`, `gpu` — `CONTAINERD.md` §14.2–§14.3;
 `criu` — `CONTAINERD.md` §10 and `LIBKRUN.md` §7.
