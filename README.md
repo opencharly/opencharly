@@ -43,12 +43,11 @@ umbrella's own gate scripts read — and leaves the other 418 as index entries:
 | clone shape | on disk | wall clock |
 |---|---|---|
 | `git clone --recurse-submodules` (all 431 checkouts, full history) | 9.5 G | minutes |
-| `git clone` + `scripts/init-submodules.sh` (the working set, blobless) | 73 M | 15 s |
+| `git clone` + `scripts/init-submodules.sh` (the working set, blobless) | 73 M | 15–16 s |
 | `git clone` + `scripts/init-submodules.sh --all` (every path, blobless) | 2.2 G | 6 m 36 s |
 
 Those sizes are the **clone**; the bootstrap adds the binary on top of them (52 M), so a
-bootstrapped light tree measures 124 M — still three orders of magnitude below the
-9.5 G a full checkout occupies.
+bootstrapped light tree measures 125 M, against the 9.5 G a full checkout occupies.
 
 The last of those four sources is what keeps the light tree honest. Two of the
 umbrella's gate scripts compare a surface that lives in a submodule — the committed
@@ -60,7 +59,9 @@ working set therefore includes the repos the gates read, so a light tree's gate
 covers what the full tree's covers — and the light tree now reports **26 of 26
 passed, 0 skipped**, the same as the full tree.
 
-Measured on this machine, from a fresh clone, on 2026-10-22. The `--all` row is the
+Measured on this machine, from a fresh clone, on 2026-10-22. The light row's wall clock
+is a **sample**: repeated runs of the same step on the same tree measured 15 s and 16 s,
+and the whole of it is the network fetch of 13 blobless clones. The `--all` row is the
 maintenance shape: it clones the 431 paths in parallel and then checks them out one at a
 time, and the 6 m 36 s is dominated by the vendored upstream mirrors — `openclaw` alone is
 a 7.6 GB repository fetched blobless.
