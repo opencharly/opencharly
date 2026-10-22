@@ -2,7 +2,7 @@
 unmarked-block	DESIGN.md	$a\\n```yaml\nx: 1\n```	a yaml block without an <!-- example: … --> marker
 duplicate-id	DESIGN.md	s~<!-- example: bed-local uses-context -->~<!-- example: bed-pod uses-context -->~	example id 'bed-pod' is used twice
 unknown-mode	DESIGN.md	s~<!-- example: host-need -->~<!-- example: host-need sometimes -->~	has unknown mode 'sometimes'
-shape	DESIGN.md	s~^        port: \[{host: 18080, guest: 8080}\]~        port: [{host: 18080, box: 8080}]~	example 'complete-project' does not validate
+shape	DESIGN.md	s~^        port: {http: {host: 18080, guest: 8080}}~        port: {http: {host: 18080, box: 8080}}~	example 'complete-project' does not validate
 step-dispatch	DESIGN.md	s~^        - check: the page is served~        - check: the page is served\n          run: twice~	write exactly one intent of
 unresolved	DESIGN.md	s~^        from: hello-box$~        from: hello-boxx~	from: hello-boxx does not resolve
 no-check	DESIGN.md	/^nested-podman:/,/^gpu-stream:/{/^    step:/,/^          command: podman run/d}	has content of its own (package, need) but no check: step
@@ -18,3 +18,4 @@ inner-dispatch	DESIGN.md	s~^            pod:$~            local:~	a kubernetes a
 shared-duplicate	DESIGN.md	s~^dev-box:$~web-shell:~	example 'project' does not validate
 alongside-dispatch	DESIGN.md	$a\\n<!-- example: alongside-probe -->\n```yaml\nx:\n    pod:\n        description: A pod.\n        from: b\n    extra:\n        description: A candy beside the kind key.\n```	beside a pod stands exactly one of: pod, vm, local
 user-config-shape	DESIGN.md	s~^    vm: firecracker$~    vm: vmware~	example 'user-config' does not validate
+protocol-negative-accepted	design/negative/host-request-no-call.yaml	s~^secret_get: {name: openai-key}~call_id: 0123456789abcdef0123456789abcdef\nsecret_get: {name: openai-key}~	accepted by #HostRequest, but must be rejected

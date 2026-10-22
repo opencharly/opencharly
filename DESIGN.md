@@ -309,9 +309,10 @@ owner's tests.
 | D-VAL-7 | A deployment's host needs are kinds of need its deployment kind grants (§16.1). | container plugin, machine plugin, kubernetes plugin, android plugin | — |
 | D-VAL-8 | A candy has substance: content of its own, `from:`, `require:` or an inner node. A mapping that holds only a `description` is never a node, so a misspelled field cannot pass as an inner candy. | build plugin | `rules.cue` |
 | D-VAL-9 | A namespaced reference resolves through the namespace its `import:` binds — the import's own repository reference, at its pinned release — and its resolution is **core-proven**, because the examples do not carry a second repository. | core | — |
-| D-VAL-10 | A word of a non-first-party plugin is written under its namespace (D-PLUG-7); an unnamespaced word that no first-party plugin owns is an error naming the plugin that does. | core | — |
+| D-VAL-10 | An unnamespaced word that no first-party plugin owns is an error naming the plugin that does (D-PLUG-7). | core | — |
 | D-VAL-11 | A `capture_scope: process` capture names a deployment whose driver row declares process capture (D-CAPTURE-4). | container plugin, machine plugin | — |
 | D-VAL-12 | A step's verb needs only operations the venue of its deployment serves (D-VENUE-2): a `check` that runs in the guest needs `exec`. | core | — |
+| D-VAL-13 | Every `package_input:` key names a manager package the same candy lists in `package:`. | build plugin | `rules.cue` |
 
 The other requirements that need the whole load are stated where their concept lives and checked
 by core: a name defined twice (§4.2 rule 2), an undeclared or unused plugin word (D-PLUG-4,
@@ -381,9 +382,7 @@ restate it.
 | Concept or word | Owner |
 |---|---|
 | directives, intents, phases, modifiers and step-level matchers, node tree, linking, the namespace table and name resolution (D-LOAD-6), registry, solver, leases, the store instance and its read-only image-registry view (D-STORE-10), the venue operations (§12.7), the protocol (§8.3–§8.6), the host service, deployment locks, the five role words, the MCP server | core |
-| the commands that drive nodes through the stage driver: `box build`, `box validate`, `box inspect`, `box list`, `box pull`, `box push`, `box load`, `box reconcile`, and every deployment command of §19; `registry` | core |
-| the commands that edit authored files: `box new`, `box set`, `box add-candy`, `box rm-candy`, `box write`, `box cat`, `box merge`, `migrate` | core |
-| `version`, `help`, `mcp serve` | core |
+| the `box` and deployment commands of §19, `migrate`, `registry`, `version`, `help`, `mcp serve` (which of them write authored files is D-CLI-2) | core |
 | the candy body, boxes, sources, the IR and its actions, artifact builds through the one builder (§9.3), the `os`, `init` and `builder` kinds | build plugin |
 | `pod` (and its grants, its venue, its captures, the container-engine driver rows `podman`, `docker`, `containerd`) | container plugin |
 | `vm`, `local` (and their grants, venues, captures, firmware, the hypervisor driver rows `libvirt`, `qemu`, `krun`, `firecracker`) | machine plugin |
@@ -419,9 +418,9 @@ plugin-check:
     description: Beds, check rosters, the check command, and the system verbs.
     module: github.com/opencharly/plugin-check
     provide:
-        kind: {check-roster: {}}
-        command: {check: {}}
-        verb: {command: {}, file: {}, package: {}, service: {}, process: {}, port: {}, http: {}}
+        kind: [check-roster]
+        command: [check]
+        verb: [command, file, package, service, process, port, http]
     step:
         - check: the check command answers
           command: charly check --help
@@ -618,7 +617,7 @@ deployment lock (D-DEP-4); no command has a private path.
 <!-- schema: keys(#ActionAlt) -->
 | Action | Produced by | Scope |
 |---|---|---|
-| `package` | `package:` (OS manager, or a `<manager>:` prefix, §7.1); a manager that declares an input carries it as the owning plugin's own (`#ManagerInput`, D-IR-6) | system |
+| `package` | `package:` (OS manager, or a `<manager>:` prefix, §7.1), with the manager's input from `package_input:` (`#ManagerInput`, D-IR-6) | system |
 | `package_repo` | `package_repo:` | system |
 | `file` | `file:` (a map keyed by literal absolute path, one effect per entry) | system |
 | `service` | `service:` (a map keyed by service name) | system or user |
@@ -662,11 +661,11 @@ Directives: `repo`, `plugin`, `import`, `discover`.
 
 | ID | Requirement |
 |---|---|
-| D-KIND-1 | The table above is the complete first-party kind set; `candy` is never a kind word. A non-first-party kind is namespaced — a claim that becomes **checkable** through D-KIND-4. |
+| D-KIND-1 | The table above is the complete first-party kind set; `candy` is never a kind word. Any other kind is a word of a non-first-party plugin (D-PLUG-7), which D-KIND-4 keeps from shadowing a first-party one. |
 | D-KIND-2 | Vocabulary data — operating systems, inits, builders — is nodes in the repositories that own it, each piece with exactly one owning node. |
 | D-KIND-3 | Every node has `description:`. A node's key is only its name, its identity; prose never goes into a key. A step is the inverse: its intent value is its description and `id:` its identity. |
 | D-KIND-4 | A namespace is never a kind word or a directive (`#Namespace`), so the namespace table and the kind set stay disjoint (D-VAL-4) and a plugin's kind can never shadow a first-party one. |
-| D-KIND-5 | Every first-party kind has a typed definition in `DESIGN.cue`; `#Opaque` marks only an S10 payload, a field whose schema another system or another plugin's module owns. |
+| D-KIND-5 | Every first-party kind and verb has a typed definition in `DESIGN.cue`; `#Opaque` appears only at S10 sites (§3.1). |
 
 The vocabulary, device and documentation kinds, each typed:
 
@@ -782,7 +781,8 @@ release:
 | `input` | the choices this candy declares: a bounded set, never a substitution |
 | `with` | supplies the choices of the candy this one is `from:` |
 | `provide` | capabilities it provides (§15) |
-| `package` | packages: OS names, `<manager>:<locator>` (a set of unique names), or a manager's own input where it declares one (`#ManagerPackage`, D-IR-6); on a plugin candy, the OS packages the plugin needs in order to run (D-CANDY-6) |
+| `package` | packages: OS names and `<manager>:<locator>`s, a set of unique names; on a plugin candy, the OS packages the plugin needs in order to run (D-CANDY-6) |
+| `package_input` | a manager's own input, keyed by a `<manager>:<locator>` of `package` (D-IR-6, D-VAL-13) |
 | `os_override` | per-OS overrides of `package` and `package_repo`, keyed by an `os` family or an `os` node name; the most specific key wins |
 | `file` | files by literal absolute path, one effect each |
 | `package_repo` | package repositories by name |
@@ -810,7 +810,7 @@ release:
 | D-CANDY-3 | A candy never names an init system: service strings and environment values are init-neutral (no `%`-specifiers). The init comes from the `os` (§7.1). |
 | D-CANDY-4 | An artifact's labels carry its stack's resolved steps, provides and needs, so a pulled artifact can be checked and wired without its project. |
 | D-CANDY-5 | A candy has no authored version: its digest addresses its content, and its human-readable coordinate is its repository release. |
-| D-CANDY-6 | On a plugin candy (§8.1), `package:` and `os_override:` declare the OS packages the plugin needs in order to run, resolved against the `os` family of the host that runs it. The `packaging:` metadata that builds charly's own native packages declares only what core needs: a plugin's packages enter those packages through the union of the plugins a variant lists, never as a transcribed list; `charly doctor` reports a declared plugin's missing packages, and `charly local-install` installs them on the host only when the user configuration allows it (D-STORE-9). |
+| D-CANDY-6 | On a plugin candy (§8.1), `package:` and `os_override:` declare the OS packages the plugin needs in order to run, resolved against the `os` family of the host that runs it. The `packaging:` metadata that builds charly's own native packages declares only what core needs: a plugin's packages enter those packages through the union of the plugins a variant lists, never as a transcribed list. Reporting and installing them on a host is D-STORE-9. |
 | D-CANDY-7 | Every capability type that §15's need and provide tables define appears in the OCI label contract, and the contract's **completeness gate is its proof**: a capability type the tables define but the labels cannot carry is a contract that cannot be honoured by `charly deploy from-box`, which reads labels and nothing else. |
 
 ### 11.2 Examples
@@ -821,15 +821,15 @@ A candy, and a box built on the Fedora source of the `fedora` repository (import
 ```yaml
 labtools-charts:
     description: The charts the lab cluster installs, declared where content is declared.
-    package:
-        - package: helm:labtools-charts/monitoring
-          input:
-              release: web-pushgateway
-              namespace: web
-              version: 2.5.0
-              wait: 5m
-              values:
-                  replicaCount: 2
+    package: [helm:labtools-charts/monitoring]
+    package_input:
+        helm:labtools-charts/monitoring:
+            release: web-pushgateway
+            namespace: web
+            version: 2.5.0
+            wait: 5m
+            values:
+                replicaCount: 2
     step:
         - check: the release is installed in its namespace
           command: helm list --namespace web --filter web-pushgateway
@@ -966,6 +966,8 @@ arch:
 pacstrap:
     builder:
         description: Bootstraps an Arch root filesystem with pacstrap.
+        bootstrap:
+            command: pacstrap -c -G -M /rootfs base
 
 supervisord:
     init:
@@ -1030,7 +1032,7 @@ Every deployment kind takes these fields:
 <!-- schema: #MachineOnly -->
 | Field | Meaning |
 |---|---|
-| `port` | published ports: `{host, guest}` |
+| `port` | published ports, keyed by the `provide: port` each one publishes: `{host, guest}` |
 | `volume` | persistent directories by name, each optionally `encrypted` |
 | `env` | environment variables of the guest |
 | `cpu` | CPU count |
@@ -1115,7 +1117,7 @@ charly binary.
 | D-CAPTURE-1 | A capture is taken after its deployment's runtime checks first pass, before any teardown of the cycle; the captured artifact is immutable and outlives the deployment. |
 | D-CAPTURE-2 | Realizing a node that starts from a capture realizes the captured deployment first if the artifact does not exist. |
 | D-CAPTURE-3 | A capture is deleted only when nothing in state references it. |
-| D-CAPTURE-4 | A capture takes the filesystem, or with `capture_scope: process` also the running processes. A process capture is granted only where the kind's driver row declares it (D-VAL-11) — a rootful container engine whose runtime restores checkpoints, or a microVM checkpointing inside its own guest — and fails before anything is captured otherwise. |
+| D-CAPTURE-4 | A capture takes the filesystem, or with `capture_scope: process` also the running processes, where the kind's driver row declares process capture (D-VAL-11) — a rootful container engine whose runtime restores checkpoints, or a microVM checkpointing inside its own guest. |
 | D-CAPTURE-5 | `restore` returns a deployment to a capture it took, in place and under its lock: its filesystem, and its processes when the capture holds them. It is the one way back to a known state; a kind, a driver or a bed has no second one. A `kubernetes` deployment captures and restores its cluster state. |
 
 ### 12.4 Examples
@@ -1143,7 +1145,7 @@ web-shell-pod:
     pod:
         description: The shell as a rootless pod.
         from: web-shell
-        port: [{host: 2222, guest: 22}]
+        port: {ssh: {host: 2222, guest: 22}}
         disposable: true
         step:
             - check: sshd listens
@@ -1154,7 +1156,7 @@ web-shell-vm:
     vm:
         description: The same shell as a VM.
         from: web-shell
-        port: [{host: 2223, guest: 22}]
+        port: {ssh: {host: 2223, guest: 22}}
         cpu: 2
         ram: 2Gi
         disposable: true
@@ -1420,7 +1422,7 @@ local_install: false
 | ID | Requirement |
 |---|---|
 | D-DRV-1 | A deployment kind whose engine is interchangeable takes its driver from the user configuration (`#Driver`): `pod` from the container engines `podman`, `docker`, `containerd`; `vm` from the hypervisors `libvirt`, `qemu`, `krun`, `firecracker`. A driver is a row of its kind's plugin, never a plugin, kind, field or command of its own. |
-| D-DRV-2 | No authored document names a driver. A box runs unchanged under every driver of its kind, and a need a driver cannot grant fails before realization (D-HW-7). |
+| D-DRV-2 | No authored document names a driver. A box runs unchanged under every driver of its kind; a need its driver cannot grant is an unmet need (D-HW-3). |
 | D-DRV-3 | A driver row declares what it gives: the form it consumes (§9.2), the operations its venue serves (§12.7), the capture scopes it supports (D-CAPTURE-4), and the isolation and privilege it can grant (§16.1). The kind's methods read the row; a difference between two drivers is a row value, never a code branch outside the row. |
 
 ### 12.7 Venues
@@ -1541,7 +1543,7 @@ plugin:
 | D-PLUG-4 | A project declares every plugin it uses in `plugin:` (same shape as an import). The registry is exactly the words of the declared plugins of the project and its imports; an undeclared word is an error at its `file:line`. Placement never changes which plugin runs: a declared plugin runs in-process only on the exact match of D-CORE-4; otherwise it is fetched as a prebuilt binary for the host platform, or built from source for a `path:` declaration. |
 | D-PLUG-5 | Commands that run without a project (`secret`, `config`, `doctor` without a node, `clean`, `cache`) use the `plugin:` list of the user configuration, or of the system configuration a native package installs. |
 | D-PLUG-6 | `charly box validate` reports every declared plugin, the words it provides, whether each is used, and how it runs; a declared plugin whose words are never used is an error (D-LAW-2). |
-| D-PLUG-7 | A word of a plugin outside the first-party set — kind, verb, command, type or api — is written under the namespace its project binds the plugin to (`strata.status`, `qdrant.collection`), so it never shadows a first-party word (D-VAL-10); D-KIND-1 is its kind instance. |
+| D-PLUG-7 | A word of a plugin outside the first-party set — kind, verb, command, type or api — is written under the namespace its project binds the plugin to (`strata.status`, `qdrant.collection`), so it never shadows a first-party word. |
 
 ### 14.2 A complete project
 
@@ -1604,7 +1606,7 @@ hello-pod:
     pod:
         description: The hello box as a rootless pod on host port 18080.
         from: hello-box
-        port: [{host: 18080, guest: 8080}]
+        port: {http: {host: 18080, guest: 8080}}
         disposable: true
         step:
             - check: the page answers on the published port
@@ -1621,14 +1623,14 @@ hello-pod-copy:
     pod:
         description: A second pod started from the capture.
         from: hello-pod-checked
-        port: [{host: 18081, guest: 8080}]
+        port: {http: {host: 18081, guest: 8080}}
         disposable: true
 
 hello-vm:
     vm:
         description: The same hello box as a VM.
         from: hello-box
-        port: [{host: 18082, guest: 8080}]
+        port: {http: {host: 18082, guest: 8080}}
         cpu: 2
         ram: 2Gi
         disposable: true
@@ -1834,7 +1836,7 @@ second concept per instance.
 | D-HW-4 | A GPU lease names the concrete GPU the solver chose, and only it is granted; the user configuration lists which host GPUs may be leased; a `preemptible` holder yields to a non-preemptible request. |
 | D-HW-5 | No candy, box or deployment carries raw runtime settings (capability lists, security options, device paths, libvirt XML); a grant with no need type is added as a new type by its plugin. |
 | D-HW-6 | A venue declares the capabilities **and the version** it grants, and every versioned host need is asserted as a **preflight**: the kind's own version (a kernel for `nesting`, an engine for `engine_api`) or the server's (a cluster's API version). **One rule, three instances** — the version rule is not Kubernetes-specific, which is why it is stated on the need and not on a kind. |
-| D-HW-7 | `isolation`, `privilege` and `nesting: userns` are needs like any other: a kind grants each through its driver row (a runtime, a RuntimeClass, a seccomp profile) and preflights it (D-HW-6). Under `isolation: microvm` a leased GPU is not grantable — `device: render` is granted as a paravirtual GPU — and the venue serves no `exec`. |
+| D-HW-7 | `isolation`, `privilege` and `nesting: userns` are needs like any other: a kind grants each through its driver row (a runtime, a RuntimeClass, a seccomp profile) and preflights it (D-HW-6). Under `isolation: microvm` a leased GPU is not grantable — `device: render` is granted as a paravirtual GPU — and the venue's operations are D-VENUE-2's. |
 
 ## 17. Store, state and configuration
 
@@ -1889,9 +1891,9 @@ needed, then captures it. The interaction commands — `shell`, `cmd`, `cp`, `lo
 
 | ID | Requirement |
 |---|---|
-| D-CLI-1 | One command per operation, valid for every deployment kind and every driver; no kind-, driver- or application-specific command groups. An application's own commands are reached with `charly cmd` (D-CLI-3) or under its plugin's namespace (D-PLUG-7). |
+| D-CLI-1 | One command per operation, valid for every deployment kind and every driver; no kind- or driver-specific command groups (an application's commands: D-CLI-3). |
 | D-CLI-2 | Only `box new`, `box set`, `box add-candy`, `box rm-candy`, `box write`, `box reconcile`, `deploy adopt` and `migrate` write authored files, and each prints what it changed. |
-| D-CLI-3 | Tools inside a deployment are reached with `charly cmd <deployment> <tool>`; there are no first-party per-application commands. |
+| D-CLI-3 | Tools inside a deployment are reached with `charly cmd <deployment> <tool>`, and an application's own commands under its plugin's namespace (D-PLUG-7); there are no first-party per-application commands. |
 | D-CLI-4 | Every command supports `--format json`; help and MCP tools are generated from the same command definitions. |
 | D-CLI-5 | Every command works with only the `charly` binary installed, for projects whose plugins are released `{repo, release, digest}` references; the OS packages a plugin declares (D-CANDY-6) are the one further requirement, met by the operator's own package manager or by `charly local-install` under D-STORE-9. |
 
@@ -1936,7 +1938,7 @@ sshd-account:
 
 | ID | Requirement |
 |---|---|
-| D-VERB-1 | A first-party verb observes a system fact or speaks a generic protocol; application-specific checking uses `http` (JSON-path matchers) or `command`. State changes are fields (§9.4); a `run:` step carries only `command`. |
+| D-VERB-1 | A verb observes and never changes state: a state change is a field (§9.4), and the one step that changes state is a `run:` step (D-VERB-5). Which verbs exist is D-VERB-6. |
 | D-VERB-2 | A verb shares its name with the field whose state it checks (`package`, `service`, `file`). |
 | D-VERB-3 | Step modifiers are defined once in `spec`: every step takes `id`, `run_as`, `phase` (default `any`) and `timeout` (default `60s`); checks add `eventually` (re-run the check while its result does not match, until the deadline), `retry_interval` (default `2s`), `on_host` (observe from the host venue), `exit_status` (default `0`), `stdout` and `stderr`. A matcher is exactly one comparison. |
 | D-VERB-4 | A verb with several operations takes one operation key (`kube: {wait_ready: …}`), never a `method:` string; operation inputs use plain field names. |
@@ -2023,7 +2025,7 @@ A digest or version mismatch fails; there is no fallback to another version.
 
 ### A.4 `scripts/design-consistency.sh` — DESIGN.md ↔ DESIGN.cue
 
-Six checks. Each failure names the file, the line, and the two disagreeing sides.
+Seven checks. Each failure names the file, the line, and the two disagreeing sides.
 
 1. **Tables.** A table whose content mirrors the schema is preceded by a marker:
 
@@ -2070,6 +2072,9 @@ Six checks. Each failure names the file, the line, and the two disagreeing sides
    written as `?: _|_`, and exactly one open struct `{...}` — the `#Opaque` definition. Every other
    line that uses `#Opaque` marks itself `// S10`, so no first-party word is left untyped
    (D-KIND-5).
+7. **Table shape.** Every row of every table in this document and in TODO.md carries its
+   header's cell count and ends with `|`, so a stray cell cannot silently misalign a normative
+   table.
 
 ### A.5 `scripts/design-examples.sh` — examples and negative cases
 

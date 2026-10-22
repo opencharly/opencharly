@@ -1,0 +1,10 @@
+# rule: D-IR-6
+# expect: package_input.ripgrep: field not allowed
+x:
+  description: A candy that gives an OS package a manager input.
+  package: [ripgrep]
+  package_input:
+    ripgrep: {version: "14"}
+  step:
+    - check: ripgrep runs
+      command: rg --version

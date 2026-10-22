@@ -117,6 +117,12 @@ violation: [
 	for x in _check if !x.namespaced && x.found && x.kind != "" && !list.Contains(x.want, x.kind) {
 		{rule: "D-VAL-2", node: x.node, message: "\(x.field): \(x.ref) is a \(x.kind), want \(strings.Join(x.want, " or "))"}
 	},
+	// D-VAL-13
+	for c in _candies for f, m in c.value if f == "package_input" for k, _ in m
+	let listed = [for g, l in c.value if g == "package" for p in l if p == k {p}]
+	if len(listed) == 0 {
+		{rule: "D-VAL-13", node: c.at, message: "package_input: \(k) is not a package the candy lists"}
+	},
 	// D-VAL-4
 	for a, _ in _ns if _node[a] != _|_ {
 		{rule: "D-VAL-4", node: a, message: "namespace \(a) is also a top-level node name"}

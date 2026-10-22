@@ -6,6 +6,7 @@
 #   <!-- example: <id> -->               a complete document
 #   <!-- example: <id> context -->       part of the shared project context (also validated alone)
 #   <!-- example: <id> uses-context -->  a fragment of the shared project
+#   <!-- example: <id> user-config -->   a user configuration, validated by cue vet -d '#UserConfig' alone
 # An unmarked block, a ```yml fence or an indented yaml fence fails the check, so no example
 # escapes validation. The context blocks and every uses-context block form ONE project, validated
 # as one document (so project-wide rules see all of it). Each document must pass

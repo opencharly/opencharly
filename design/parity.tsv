@@ -127,7 +127,7 @@ refs:refs	refs	plugin-refs	merged	M8	D-SDK-1 D-STORE-3	repository fetching into 
 step:apk-install	step	plugin-installstep	merged	M1	§9.4	IR `package` action	candy manifest providers
 step:builder	step	plugin-installstep	merged	M1	D-IR-7	a `builder` node builds the manager's packages	candy manifest providers
 step:file	step	plugin-installstep	merged	M1	§9.4	IR `file` action	candy manifest providers
-step:helm-release	step	plugin-helm	merged	M1	D-IR-6	`package: helm:` with its manager input	candy manifest providers
+step:helm-release	step	plugin-helm	merged	M1	D-IR-6	`package: [helm:…]` with its `package_input:`	candy manifest providers
 step:local-pkg-install	step	plugin-installstep	merged	M1	D-IR-7	IR `package` action of a builder's output	candy manifest providers
 step:op	step	plugin-installstep	merged	M1	§9.4	IR `command` action	candy manifest providers
 step:plugin-tree	step	plugin-deploy-firecracker	merged	M8	D-PROTO-2 D-STORE-3	plugin binaries are store entries core delivers	candy manifest providers

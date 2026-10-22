@@ -32,3 +32,5 @@ opaque-unmarked	DESIGN.cue	$a\\n#Leak: {x: #Opaque}	an #Opaque use outside S10
 verb-both-tables	DESIGN.cue	s~^\tinterface:      #InterfaceCheck$~\tinterface:      #InterfaceCheck\n\thttp: #HttpCheck~	words in both verb tables (#FactVerb, #ProtocolVerb): http
 parity-dangling-id	design/parity.tsv	s~D-FLOW-1 §10.1~D-FLOW-9 §10.1~	D-FLOW-9 is not a requirement of DESIGN.md
 parity-mechanism-column	design/parity.tsv	s~^loader:loader\tloader\tplugin-loader\tmerged\tauthoring~loader:loader\tloader\tplugin-loader\tmerged\tcore~	mechanism core is not M1–M8, workflow or authoring
+parity-dangling-section	design/parity.tsv	s~§12.2 D-NEST-2~§99.2 D-NEST-2~	§99.2 names no section of DESIGN.md
+table-no-trailing-pipe	DESIGN.md	s~^\(| D-CODE-5 | .*\) |$~\1~	a table row does not end with a
