@@ -593,8 +593,9 @@ Before declaring completion, answer every applicable item YES. There is one line
    because it vendors the corpus. Where a harness rooted at this umbrella cannot reach the corpus
    natively, the binding that bridges it must be **DERIVED** from the pinned corpus, never maintained
    by hand — a hand-maintained binding drifts silently every time the corpus grows, which is the same
-   defect as a hand-maintained copy, and a derived one cannot. *Detail:*
-   `/charly-internals:skills`.
+   defect as a hand-maintained copy, and a derived one cannot. *Detail:* `/charly-internals:skills`
+   (the authored-content contract, for BOTH `.agents/skills/<name>/SKILL.md` and
+   `.agents/agents/<name>.md`) and `/charly-internals:agents` (what a harness loads and binds).
 
 6. **Session-scoped ownership; issue-first coordination.** *(R6)*
    - A file, branch, worktree, or PR you did not author belongs to another session. Never
