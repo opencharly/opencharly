@@ -149,14 +149,14 @@ These apply to every image above and are the ones that cost a debugging round wh
    rather than treated as a failure (K3S.md §6–§7).
 3. **The inner engine must not start rate-limited.** `systemctl reset-failed containerd`
    before (re)starting it: five rapid starts hit `StartLimitBurst=5`/`start-limit-hit`, after
-   which every start is refused. Measured: the next start after a reset is active in 82 ms.
+   which every start is refused. Measured: the next start after a reset is active in 82 ms (RDD8 track T7, item N2).
 4. **A readiness probe never reports its deadline as a duration.** The one recorded "94.7 s"
-   boot was `90 × ~1.05 s` — the harness's poll budget — against a real 486–644 ms.
+   boot was `90 × ~1.05 s` — the harness's poll budget — against a real 486–644 ms (T7, N2).
 5. **`/etc/machine-id` is emptied before a commit and restored after**, and
    `MACAddressPolicy=none` is set, or every lease cloned from one image shares a MAC and
-   traffic reaches the wrong lease.
+   traffic reaches the wrong lease (K3S.md §6–§7; RDD7 N6).
 6. **Nothing in these images is set to `seccomp=unconfined` or run with `--no-sandbox`.** The
-   narrow profile exists so neither is needed.
+   narrow profile exists so neither is needed (measured, RDD7 C10; §1.1 of this file).
 
 ## 4. Non-goals
 
