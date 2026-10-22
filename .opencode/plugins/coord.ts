@@ -125,8 +125,9 @@ export const VERBS = [
   "OWNING",
   "HANDING OVER",
   "TAKING OVER",
-  "BLOCKS",
-  "UNBLOCKS",
+  "WAITING",
+  "HOLDING",
+  "CLEARED",
   "STATUS",
   "RESOLVED",
 ];
@@ -401,7 +402,7 @@ export default {
           "Post ONE verb-labelled coordination comment (or claim) on a GitHub " +
           "issue/PR, with the canonical agent footer (`Agent:` first, " +
           "`Assisted-by:` last). Use it for CLAIM / OWNING / HANDING OVER / " +
-          "TAKING OVER / BLOCKS / UNBLOCKS / STATUS / RESOLVED per AGENTS.md. " +
+          "TAKING OVER / WAITING / HOLDING / CLEARED / STATUS / RESOLVED per AGENTS.md. " +
           "Implemented natively in TypeScript.",
         input: {
           type: "object",
