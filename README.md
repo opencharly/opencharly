@@ -102,7 +102,7 @@ Each class has ONE placement rule, and the class prefix in the repo name states 
 - **Core & contract** — bare names (`charly`, `sdk`, `spec`, `marketplace`, `docs`): the product, the wire/IR contract, the generated corpus, the site.
 - **Distro image families** — `distro-<distro>`: the base and builder, distro-exclusive OS layers, that distro's VMs and beds.
 - **Package repositories** — `charly-<distro>` for the published repo and `pkg-<distro>` for package source: packaging plus its publishing bed.
-- **Candy layers** — `layer-<name>`: ONE candy with its files beside it, and/or a family's `skill:` entities.
+- **Candy layers** — `layer-<name>`: ONE candy with its files beside it. A family's `skill:` entities live beside the code, plugin, or config they describe (`AGENTS.md` Part II #5), never in a repo that holds nothing else: **a repo whose only content is skills is not a class**.
 - **Product families** — `layer-<family>`: a family's box(es), candy, VM, beds and skills (`layer-agentteams` is the canonical example; `layer-openclaw` follows it).
 - **Plugins** — `plugin-<word>`: the provider candy, its Go module and its CUE schema.
 - **Pods / service bundles** — `pod-<name>`: a candy with `service:` plus its skill.

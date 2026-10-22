@@ -46,11 +46,12 @@ as your own.
 > admission is a violation and is not landable: stop, run the root-cause-analyzer process,
 > and re-derive conclusions after loading the skills.
 
-Skills live in the opencharly/marketplace repo, which every supported harness loads
-natively. A skill is addressed as `/charly-<family>:<skill>`; a harness that cannot resolve
-that form reads `<family>/skills/<skill>/SKILL.md` by path. Missing registration is a
-harness-profile defect, never permission to skip. Load every matching row — never pre-load,
-never load the whole index. The rows live in the [Skill Dispatcher](#skill-dispatcher)
+Skills are **authored** in the repo that owns them ([Part II #5](#part-ii--umbrella-rules)) and
+**published** as the opencharly/marketplace corpus — the generated projection every supported
+harness loads natively. A skill is addressed as `/charly-<family>:<skill>`; a harness that cannot
+resolve that form reads `<family>/skills/<skill>/SKILL.md` from the corpus by path. Missing
+registration is a harness-profile defect, never permission to skip. Load every matching row — never
+pre-load, never load the whole index. The rows live in the [Skill Dispatcher](#skill-dispatcher)
 below the rules.
 
 ## The ground-truth rules R1–R10
@@ -331,6 +332,14 @@ Every repo's **name carries its class**, and the class decides what that repo ma
 - **Every other repo carries its class prefix:** `distro-`, `charly-`/`pkg-`, `layer-`,
   `plugin-`, `pod-`, `vm-`.
 - **A product family is a layer-class repo** (`layer-<family>`), never a bare name.
+- **A repo whose only content is skills is not a class.** No prefix exists for it and none may be
+  invented: a `layer-*`, `distro-*`, `plugin-*`, `pod-*`, `vm-*`, `charly-*` or `pkg-*` repo must
+  hold the code, plugin, or config its name promises, with its skills beside that content
+  (Part II #5). A `*-skills` carrier
+  that exists only to own prose is retired by this rule — its skills move to the repo of the entity
+  they describe, or to this umbrella when they are general guidance. A carrier CANDY inside a repo
+  that already holds code is a different thing and is unaffected: it is the shape image-owned skills
+  need (`/charly-internals:skills`).
 
 This is a contract, not a habit. `opencharly/openclaw` was created as a product family with
 a bare name and renamed to `layer-openclaw`. A repo that does not fit its class is a defect
@@ -564,16 +573,30 @@ Before declaring completion, answer every applicable item YES. There is one line
 4. **Read the subrepo's own rulebook first.** *(R0)* Its `AGENTS.md` adds repo-specific
    rules on top of Part I, so read it before acting there.
 
-5. **Harness config lives only in the umbrella — and authored content is not harness config.**
+5. **Harness config lives only in the umbrella — and a skill lives with the thing it describes.**
    *(R2)* Every harness's configuration lives at this repo's root and nowhere else: no mirrors, no
    parity gate. A skill's `SKILL.md` and an agent definition's `<name>.md` are **authored content**,
-   the same class as `AGENTS.md`: they live in the repo that owns them, under its own `.agents/`
-   trees, and are discovered natively from there. The umbrella populates its own `.agents/` because
-   it authors skills, never because it vendors the corpus. Where a harness rooted at this umbrella
-   cannot reach the corpus natively, the binding that bridges it must be **DERIVED** from the pinned
-   corpus, never maintained by hand — a hand-maintained binding drifts silently every time the corpus
-   grows, which is the same defect as a hand-maintained copy, and a derived one cannot. *Detail:*
-   `/charly-internals:agents`.
+   the same class as `AGENTS.md`: they live under the `.agents/` trees of the repo that owns them and
+   are discovered natively from there. **Which repo owns a skill is decided by what the repo
+   CONTAINS, never by what the skill is about:**
+   - **A skill belongs with the code, plugin, or config it describes** — the same repo and the same
+     lifecycle, so the skill and the thing it documents are edited, reviewed, and tagged together
+     and the skill cannot drift from the surface it explains. If the described entity lives
+     somewhere, the skill goes there.
+   - **A general-guidance skill — one with no code, plugin, or config behind it — belongs in this
+     umbrella**, because the umbrella is the only repo every consumer shares and guidance with no
+     home repo has no other place a consumer can reach it from.
+   - **A repo whose only content is skills is not a valid class**, and neither is a `*-skills`
+     carrier that exists only to own prose. The class rule that retires them is
+     [Repo classes and naming](#repo-classes-and-naming).
+
+   The umbrella populates its own `.agents/` because it authors general-guidance skills, never
+   because it vendors the corpus. Where a harness rooted at this umbrella cannot reach the corpus
+   natively, the binding that bridges it must be **DERIVED** from the pinned corpus, never maintained
+   by hand — a hand-maintained binding drifts silently every time the corpus grows, which is the same
+   defect as a hand-maintained copy, and a derived one cannot. *Detail:* `/charly-internals:skills`
+   (the authored-content contract, for BOTH `.agents/skills/<name>/SKILL.md` and
+   `.agents/agents/<name>.md`) and `/charly-internals:agents` (what a harness loads and binds).
 
 6. **Session-scoped ownership; issue-first coordination.** *(R6)*
    - A file, branch, worktree, or PR you did not author belongs to another session. Never
@@ -667,8 +690,12 @@ Before declaring completion, answer every applicable item YES. There is one line
 - `README.md` — the org map, user overview, and the maintenance-command table
   (`./charly/bin/charly task list`; build the binary once per clone with
   `./charly/scripts/bootstrap-charly.sh`).
-- The opencharly/marketplace repo — every skill (`<family>/skills/<skill>/SKILL.md`) and
-  the full skill index in its README.
+- this umbrella's own `.agents/skills/<name>/SKILL.md` trees — where the org's GENERAL-GUIDANCE
+  skills are authored (Part II #5). Every other skill lives in the repo of the code, plugin, or
+  config it describes.
+- The opencharly/marketplace repo — the GENERATED corpus: every skill
+  (`<family>/skills/<skill>/SKILL.md`) and the full skill index in its README. Every file there
+  is a projection, so guidance is edited at its source repo and regenerated, never in place.
 - [opencharly.ai](https://opencharly.ai) — the public site, generated from sources; never
   hand-edit a generated page.
 - `CHANGELOG/` — history only.
