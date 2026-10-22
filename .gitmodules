@@ -936,10 +936,6 @@
 	path = layer-charly-infrastructure
 	url = https://github.com/opencharly/layer-charly-infrastructure.git
 	branch = main
-[submodule "layer-charly-ollama"]
-	path = layer-charly-ollama
-	url = https://github.com/opencharly/layer-charly-ollama.git
-	branch = main
 [submodule "pod-check-redis-init-layer"]
 	path = pod-check-redis-init-layer
 	url = https://github.com/opencharly/pod-check-redis-init-layer.git

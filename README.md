@@ -3,7 +3,7 @@
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/opencharly/opencharly)
 
 **One clone of the whole org — and the place all charly development happens.**
-`opencharly/opencharly` is an org-level umbrella repo: every OpenCharly repo (429 today)
+`opencharly/opencharly` is an org-level umbrella repo: every OpenCharly repo (430 today)
 is pinned here as a git submodule ("gitlink", in the org's vocabulary), flat at the
 root — submodule path == repo name for all but one alias (`.github`, pinned at the
 `dotgithub/` path).
@@ -102,7 +102,7 @@ Each class has ONE placement rule, and the class prefix in the repo name states 
 - **Core & contract** — bare names (`charly`, `sdk`, `spec`, `marketplace`, `docs`): the product, the wire/IR contract, the generated corpus, the site.
 - **Distro image families** — `distro-<distro>`: the base and builder, distro-exclusive OS layers, that distro's VMs and beds.
 - **Package repositories** — `charly-<distro>` for the published repo and `pkg-<distro>` for package source: packaging plus its publishing bed.
-- **Candy layers** — `layer-<name>`: ONE candy with its files beside it, and/or a family's `skill:` entities.
+- **Candy layers** — `layer-<name>`: ONE candy with its files beside it. A family's `skill:` entities live beside the code, plugin, or config they describe (`AGENTS.md` Part II #5), never in a repo that holds nothing else: **a repo whose only content is skills is not a class**.
 - **Product families** — `layer-<family>`: a family's box(es), candy, VM, beds and skills (`layer-agentteams` is the canonical example; `layer-openclaw` follows it).
 - **Plugins** — `plugin-<word>`: the provider candy, its Go module and its CUE schema.
 - **Pods / service bundles** — `pod-<name>`: a candy with `service:` plus its skill.
@@ -195,12 +195,12 @@ six vendored OpenClaw upstream forks.
 
 ### Charly candy layers
 
-21 repos — the charly meta/skill candy layers.
+20 repos — the charly meta/skill candy layers.
 
 | path | repo | role |
 |---|---|---|
 | `layer-charly-build/` | [opencharly/layer-charly-build](https://github.com/opencharly/layer-charly-build) | The charly-build candy — 15 build skills (extracted from charly/candy) |
-| `layer-charly-check/` | [opencharly/layer-charly-check](https://github.com/opencharly/layer-charly-check) | The charly-check candy — 13 check skills (extracted from charly/candy) |
+| `layer-charly-check/` | [opencharly/layer-charly-check](https://github.com/opencharly/layer-charly-check) | The charly-check candy — 14 check skills (extracted from charly/candy) |
 | `layer-charly-coder/` | [opencharly/layer-charly-coder](https://github.com/opencharly/layer-charly-coder) | image layer / candy |
 | `layer-charly-comfyui/` | [opencharly/layer-charly-comfyui](https://github.com/opencharly/layer-charly-comfyui) | image layer / candy |
 | `layer-charly-distros/` | [opencharly/layer-charly-distros](https://github.com/opencharly/layer-charly-distros) | image layer / candy |
@@ -210,12 +210,11 @@ six vendored OpenClaw upstream forks.
 | `layer-charly-immich/` | [opencharly/layer-charly-immich](https://github.com/opencharly/layer-charly-immich) | The charly-immich candy — 2 immich skills (extracted from charly/candy) |
 | `layer-charly-infrastructure/` | [opencharly/layer-charly-infrastructure](https://github.com/opencharly/layer-charly-infrastructure) | image layer / candy |
 | `layer-charly-internals/` | [opencharly/layer-charly-internals](https://github.com/opencharly/layer-charly-internals) | The charly-internals concept candy — contributor skills (go, plugin, agents, install-plan, cutover-policy, …)… |
-| `layer-charly-internals-extra/` | [opencharly/layer-charly-internals-extra](https://github.com/opencharly/layer-charly-internals-extra) | The charly-internals-extra candy — 8 internals skills (extracted from charly/candy) |
+| `layer-charly-internals-extra/` | [opencharly/layer-charly-internals-extra](https://github.com/opencharly/layer-charly-internals-extra) | The charly-internals-extra candy — 2 internals skills (extracted from charly/candy) |
 | `layer-charly-jupyter/` | [opencharly/layer-charly-jupyter](https://github.com/opencharly/layer-charly-jupyter) | image layer / candy |
 | `layer-charly-kubernetes/` | [opencharly/layer-charly-kubernetes](https://github.com/opencharly/layer-charly-kubernetes) | The charly-kubernetes candy — 3 kubernetes skills (extracted from charly/candy) |
 | `layer-charly-languages/` | [opencharly/layer-charly-languages](https://github.com/opencharly/layer-charly-languages) | image layer / candy |
 | `layer-charly-local/` | [opencharly/layer-charly-local](https://github.com/opencharly/layer-charly-local) | image layer / candy |
-| `layer-charly-ollama/` | [opencharly/layer-charly-ollama](https://github.com/opencharly/layer-charly-ollama) | image layer / candy |
 | `layer-charly-openwebui/` | [opencharly/layer-charly-openwebui](https://github.com/opencharly/layer-charly-openwebui) | image layer / candy |
 | `layer-charly-pod/` | [opencharly/layer-charly-pod](https://github.com/opencharly/layer-charly-pod) | image layer / candy |
 | `layer-charly-selkies/` | [opencharly/layer-charly-selkies](https://github.com/opencharly/layer-charly-selkies) | image layer / candy |
@@ -278,7 +277,7 @@ six vendored OpenClaw upstream forks.
 
 ### Other layers
 
-143 repos.
+144 repos.
 
 | path | repo | role |
 |---|---|---|
@@ -396,6 +395,7 @@ six vendored OpenClaw upstream forks.
 | `layer-sqlite/` | [opencharly/layer-sqlite](https://github.com/opencharly/layer-sqlite) | image layer / candy |
 | `layer-ssh-client/` | [opencharly/layer-ssh-client](https://github.com/opencharly/layer-ssh-client) | image layer / candy |
 | `layer-steam/` | [opencharly/layer-steam](https://github.com/opencharly/layer-steam) | image layer / candy |
+| `layer-strata/` | [opencharly/layer-strata](https://github.com/opencharly/layer-strata) | The strata candy + `box/strata` — Qwen3.8-Flash-Next on one consumer NVIDIA card, OpenAI/Anthropic/Responses-compatible API on :8080 |
 | `layer-summarize/` | [opencharly/layer-summarize](https://github.com/opencharly/layer-summarize) | image layer / candy |
 | `layer-supervisord/` | [opencharly/layer-supervisord](https://github.com/opencharly/layer-supervisord) | charly candy: layer-supervisord (standalone repo of the candy de-submodule cutover) |
 | `layer-sway-desktop/` | [opencharly/layer-sway-desktop](https://github.com/opencharly/layer-sway-desktop) | image layer / candy |
@@ -429,7 +429,7 @@ six vendored OpenClaw upstream forks.
 
 ### Plugins
 
-119 repos — charly plugin candies. Their `providers:` blocks register the kinds,
+120 repos — charly plugin candies. Their `providers:` blocks register the kinds,
 deploys, verbs, steps, builds, builders, commands, engines, loaders, refs,
 agent runtimes and terminals charly speaks.
 
@@ -542,6 +542,7 @@ agent runtimes and terminals charly speaks.
 | `plugin-spice/` | [opencharly/plugin-spice](https://github.com/opencharly/plugin-spice) | charly plugin |
 | `plugin-ssh/` | [opencharly/plugin-ssh](https://github.com/opencharly/plugin-ssh) | charly plugin |
 | `plugin-status/` | [opencharly/plugin-status](https://github.com/opencharly/plugin-status) | charly plugin |
+| `plugin-strata/` | [opencharly/plugin-strata](https://github.com/opencharly/plugin-strata) | The `charly strata` management CLI — read-only inspection of a deployed Strata engine |
 | `plugin-substrate/` | [opencharly/plugin-substrate](https://github.com/opencharly/plugin-substrate) | charly plugin |
 | `plugin-task/` | [opencharly/plugin-task](https://github.com/opencharly/plugin-task) | Generic declarative task runner for charly — kind:task entities + command:task + verb:task |
 | `plugin-tmux/` | [opencharly/plugin-tmux](https://github.com/opencharly/plugin-tmux) | charly plugin |
