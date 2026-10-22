@@ -2,7 +2,7 @@
 # expect: pipeline.stage.next.pipeline: c is a candy, want pipeline
 c:
   description: A candy, not a pipeline.
-  package: [jq]
+  package: {jq: {}}
   step:
     - check: jq runs
       command: jq --version

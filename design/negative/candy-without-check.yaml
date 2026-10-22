@@ -2,4 +2,4 @@
 # expect: has content of its own (package) but no check: step
 x:
   description: A candy.
-  package: [jq]
+  package: {jq: {}}

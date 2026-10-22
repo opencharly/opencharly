@@ -21,7 +21,7 @@ _ns: {for k, _ in *doc.import | {} {(k): true}}
 _refKind: {for n, v in _node {(n): [if _kindOf[n] == "candy" for f, _ in v if f == "from" {"box"}, _kindOf[n]][0]}}
 
 _candyFieldSet: {for f in _candyField {(f): true}}
-_noContent: {description: _, from: _, require: _, platform: _, builder_box: _, entrypoint: _, tag: _, capture_scope: _}
+_noContent: {description: _, from: _, require: _, platform: _, build_with: _, entrypoint: _, tag: _, capture_scope: _}
 
 // The candies of the document: top level, and one level inside top-level candies and local or
 // android bodies — each with its path and value.
@@ -41,8 +41,8 @@ _refs: [
 	for c in _candies for f, l in c.value if f == "require" for r in l {
 		{node: c.at, field: "require", ref: r, want: ["candy"]}
 	},
-	for n, v in _node if _kindOf[n] == "candy" for f, m in v if f == "builder_box" for _, r in m {
-		{node: n, field: "builder_box", ref: r, want: ["box"]}
+	for n, v in _node if _kindOf[n] == "candy" for f, m in v if f == "build_with" for _, r in m {
+		{node: n, field: "build_with", ref: r, want: ["builder"]}
 	},
 	for n, v in _node for k, b in v if k == "pod" || k == "vm" for f, r in b if f == "from" {
 		{node: n, field: "\(k).from", ref: r, want: ["box", "source"]}
@@ -65,8 +65,8 @@ _refs: [
 	for n, v in _node for k, b in v if k == "builder" for f, r in b if f == "box" {
 		{node: n, field: "builder.box", ref: r, want: ["box"]}
 	},
-	for n, v in _node for k, b in v if k == "check-roster" for f, l in b if f == "bed" for r in l {
-		{node: n, field: "check-roster.bed", ref: r, want: ["pod", "vm", "local", "android", "kubernetes"]}
+	for n, v in _node for k, b in v if k == "pipeline" for f, st in b if f == "stage" for sn, x in st for g, l in x if g == "bed" for r in l {
+		{node: n, field: "pipeline.stage.\(sn).bed", ref: r, want: ["pod", "vm", "local", "android", "kubernetes"]}
 	},
 	for n, v in _node for k, b in v if k == "pipeline" for f, st in b if f == "stage" for sn, x in st for g, r in x if g == "pipeline" {
 		{node: n, field: "pipeline.stage.\(sn).pipeline", ref: r, want: ["pipeline"]}
@@ -116,12 +116,6 @@ violation: [
 	},
 	for x in _check if !x.namespaced && x.found && x.kind != "" && !list.Contains(x.want, x.kind) {
 		{rule: "D-VAL-2", node: x.node, message: "\(x.field): \(x.ref) is a \(x.kind), want \(strings.Join(x.want, " or "))"}
-	},
-	// D-VAL-13
-	for c in _candies for f, m in c.value if f == "package_input" for k, _ in m
-	let listed = [for g, l in c.value if g == "package" for p in l if p == k {p}]
-	if len(listed) == 0 {
-		{rule: "D-VAL-13", node: c.at, message: "package_input: \(k) is not a package the candy lists"}
 	},
 	// D-VAL-4
 	for a, _ in _ns if _node[a] != _|_ {

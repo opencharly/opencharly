@@ -2,7 +2,7 @@
 # expect: a check carries exactly one verb of
 x:
   description: A candy whose check uses a verb that is neither a fact nor a protocol.
-  package: [nginx]
+  package: {nginx: {}}
   step:
     - check: the port answers
       addr: 127.0.0.1:80

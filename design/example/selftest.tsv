@@ -2,7 +2,7 @@
 unmarked-block	DESIGN.md	$a\\n```yaml\nx: 1\n```	a yaml block without an <!-- example: … --> marker
 duplicate-id	DESIGN.md	s~<!-- example: bed-local uses-context -->~<!-- example: bed-pod uses-context -->~	example id 'bed-pod' is used twice
 unknown-mode	DESIGN.md	s~<!-- example: host-need -->~<!-- example: host-need sometimes -->~	has unknown mode 'sometimes'
-shape	DESIGN.md	s~^        port: {http: {host: 18080, guest: 8080}}~        port: {http: {host: 18080, box: 8080}}~	example 'complete-project' does not validate
+shape	DESIGN.md	s~^        publish: {http: 18080}~        publish: {http: [18080]}~	example 'complete-project' does not validate
 step-dispatch	DESIGN.md	s~^        - check: the page is served~        - check: the page is served\n          run: twice~	write exactly one intent of
 unresolved	DESIGN.md	s~^        from: hello-box$~        from: hello-boxx~	from: hello-boxx does not resolve
 no-check	DESIGN.md	/^nested-podman:/,/^gpu-stream:/{/^    step:/,/^          command: podman run/d}	has content of its own (package, need) but no check: step

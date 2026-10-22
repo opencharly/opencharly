@@ -2,7 +2,7 @@
 # expect: builder.box: c is a candy, want box
 c:
   description: A candy, not a box.
-  package: [jq]
+  package: {jq: {}}
   step:
     - check: jq runs
       command: jq --version
