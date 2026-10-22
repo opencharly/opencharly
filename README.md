@@ -39,46 +39,64 @@ that binary form of the same materialization: it runs the same script, so it car
 same two requirements. Without the `export`, the same commands run as
 `./charly/bin/charly task …`; both forms are the same binary.
 
-**The umbrella is a view over the org, not a 9.5 GB checkout.** It pins 431 repos as
-gitlinks, and the pins live in the umbrella's **index** — every pin is audited from the
-index, so a checkout is only needed for the repos you actually build against or edit.
+**The umbrella is a view over the org, not a 9.5 GB checkout (measured 2026-10-22).**
+It pins every OpenCharly repo as gitlinks, and the pins live in the umbrella's **index** —
+every pin is audited from the index, so a checkout is only needed for the repos you
+actually build against or edit.
 `scripts/init-submodules.sh` materializes a **working set** — the repos the project
 loads from, the pin contract's own repos, the harness corpus root, and the repos the
-umbrella's own gate scripts read — and leaves the other 418 as index entries:
+umbrella's own gate scripts read — and leaves the rest as index entries:
 
 | clone shape | on disk | wall clock |
 |---|---|---|
-| `git clone --recurse-submodules` (all 431 checkouts, full history) | 9.5 G | minutes |
-| `git clone` + `scripts/init-submodules.sh` (the working set, blobless) | 73–75 M | 15–17 s |
-| `git clone` + `scripts/init-submodules.sh --all` (every path, blobless) | 1.9–2.2 G | 6 m 10 s – 6 m 43 s |
+| `git clone --recurse-submodules` (every checkout, full history) | 9.5 G | minutes |
+| `git clone` + `scripts/init-submodules.sh` (the working set, blobless) | 73–76 M | 14–17 s |
+| `git clone` + `scripts/init-submodules.sh --all` (every path, blobless) | 1.9–2.2 G | 6 m 3 s – 6 m 43 s |
 
-Those sizes are the **clone**; the bootstrap adds the binary and its build cache on top of
-them (52 M), so a bootstrapped light tree measures 125–126 M, against the 9.5 G a full
-checkout occupies. Sizes are `du -sh` at whole-unit granularity, and the packs move with
-the upstream repos, so each size in the table is the band the runs produced rather than
-one number: the light clone measured between 73 M and 75 M, and the full shape between
-1.9 G and 2.2 G. The full shape's band is the `openclaw` mirror's module store — 478 MiB
-of packs in a from-scratch clone against 786 MiB in a tree whose store was reused across
-runs, which holds more of that mirror's history.
+Every figure in the table was measured on this machine on 2026-10-22.
+
+Those sizes are the **clone**; the bootstrap builds the binary and leaves its build cache
+in the tree, so a bootstrapped light tree measures 125–127 M, against the 9.5 G a full
+checkout occupied on 2026-10-22. Sizes are `du -sh` at whole-unit granularity, and the
+packs move with the upstream repos, so the two shapes the runs repeated carry a **band** —
+the range the runs produced — rather than a number that stays put: the light clone
+measured between 73 M and 76 M, and the `--all` shape between 1.9 G and 2.2 G. The
+`--recurse-submodules` row is the **baseline** this replaces: one measurement, of a full
+checkout; it tracks the upstream mirrors, so it moves as they do. The `--all` shape's band
+is the `openclaw` mirror's module store — 480–520 M in a from-scratch clone, and more
+in a tree whose store was reused across runs, which holds more of that mirror's history
+and grows as the mirror does.
+
+**The bands are re-derived, not remembered.** `scripts/measure-clone.sh` measures the
+shapes above from fresh clones of the tree under test and prints every reading;
+`scripts/check-readme-measurements.mjs` reads the bands this table commits, asserts
+that the prose agrees with the table, and — handed that script's log — asserts that
+every reading falls inside its band. The second is a step of `charly task verify` and
+of the pre-commit hook, so a band a reading has outgrown, or a figure the prose and the
+table disagree about, is a **failed gate** rather than a sentence nobody notices.
 
 The last of those four sources is what keeps the light tree honest. Two of the
 umbrella's gate scripts compare a surface that lives in a submodule — the committed
 rulebook in `action-review/` and the authored coordination grammar in
 `layer-charly-internals/` — and a gate **skips** a comparison whose surface is not
-checked out, so it still exits 0. Measured on a light clone: `charly task verify`
-reported 26 of 26 steps passed while six cross-repo comparisons never ran. The
+checked out, so it still exits 0. Measured on a light clone, 2026-10-22: `charly task
+verify` reported 26/26 steps passed while six cross-repo comparisons never ran. The
 working set therefore includes the repos the gates read, so a light tree's gate
-covers what the full tree's covers — and the light tree now reports **26 of 26
-passed, 0 skipped**, the same as the full tree.
+covers what the full tree's covers — and the light tree now reports **every step
+passed, none skipped**, the same as the full tree.
 
-Measured on this machine, from a fresh clone, on 2026-10-22. **The wall clocks are
-samples** of repeated runs of the same step, so the table carries the band the runs
-actually produced rather than a single number: the light row's fresh clones measured
-between 15 s and 17 s — the whole of it is the network fetch of 13 blobless clones — and
-the `--all` row's from-scratch materializations measured between 6 m 10 s and 6 m 43 s.
-The `--all` row is the maintenance shape: it clones the 431 paths in parallel and then
-checks them out one at a time, and its time is dominated by the vendored upstream mirrors
-— `openclaw` alone is a 7.6 GB repository fetched blobless.
+**The wall clocks are samples** of repeated runs of the same step, measured from a fresh
+clone, so the two shapes the runs repeated carry the band the runs actually produced
+across this branch — rather than a single number: the light row's fresh clones measured
+between 14 s and 17 s — the whole of it is the network fetch of the working set's
+blobless clones — and the `--all` row's from-scratch materializations measured between
+6 m 3 s and 6 m 43 s.
+The `--recurse-submodules` row is stated coarsely, as *minutes*: that shape was measured
+once, and its time is the mirrors' fetch. The `--all` row is the maintenance shape: it
+clones every declared path in parallel and then checks them out one at a time, and its
+time is dominated by the vendored upstream mirrors — `openclaw` alone, whose history
+measured 7.6 GB on 2026-10-22, is the largest of them, and a blobless fetch still brings
+down every commit and tree it holds.
 
 `scripts/init-submodules.sh` clones **blobless** (`--filter=blob:none`): every commit and
 every tree are present, so *"is this pin an ancestor of the remote's tip?"* stays
@@ -120,8 +138,9 @@ The same law governs the manifest's **own** command steps: a braced reference in
 `command:` step's text is claimed by the plan runner and expanded against the task's
 merged environment, and one it cannot resolve does not fail the step — it **skips** it,
 so the gate reads green over a check that never ran. A command step's text therefore
-carries no value at all: read the environment with a bare `$NAME`, which the shell
-expands at run time and the runner never sees.
+carries no value at all: read the environment at run time, so the runner never sees
+it — with a bare `$NAME`, or, under `set -eu`, through `$(printenv NAME 2>/dev/null
+|| true)` so an unset variable cannot abort the step before it runs.
 `node scripts/check-task-command-vars.mjs` holds that line, in the pre-commit gate and
 in `charly task verify`.
 

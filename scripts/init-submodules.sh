@@ -2,9 +2,10 @@
 # init-submodules.sh — materialize the umbrella's submodules ON DEMAND: a derived
 # WORKING SET by default, the named paths on request, or every declared path.
 #
-# WHY THIS EXISTS: the umbrella is a view over the org — 431 submodules at the root,
-# each a real repo owned elsewhere. A full `--recurse-submodules` clone materializes
-# 431 checkouts and 9.5 G on disk (8.3 G of it in .git/modules, ~87 % of it in the
+# WHY THIS EXISTS: the umbrella is a view over the org — every repo in it is a
+# submodule at the root, owned elsewhere. A full `--recurse-submodules` clone
+# materializes a checkout for every one of them, and 9.5 G on disk (8.3 G of it in
+# .git/modules, ~87 % of it in the
 # six vendored upstream mirrors; measured 2026-10-22). The pins live in the
 # umbrella's INDEX, and every pin is audited from the index, so a checkout is
 # only needed for the repos you actually build against or edit.
@@ -416,7 +417,7 @@ submodule_worktree_count() {
 # its index is populated, and its worktree carries the files. The HEAD
 # comparison alone is NOT enough — `git submodule status` reports a cloned-but-
 # empty path as at-the-pin, which is how a half-materialized tree once passed
-# as "OK" (measured: 385 of 431 paths, no files on disk).
+# as "OK" (observed 2026-10-22: 385 of 431 paths, no files on disk).
 is_materialized() {
   local path="$1" head recorded
   head="$(git -C "$ROOT/$path" rev-parse HEAD 2>/dev/null || true)"
@@ -687,7 +688,7 @@ run_live() {
 
   # The VERDICT counts what is really on disk, not what HEAD claims. This is
   # the control that was missing: a HEAD-only criterion called a
-  # half-materialized tree OK (measured: 385 of 431 paths, no files at all).
+  # half-materialized tree OK (observed 2026-10-22: 385 of 431 paths, no files at all).
   local total initialized
   total="$(declared_submodules | wc -l)"
   initialized=0
@@ -1023,7 +1024,7 @@ other"
   # The state a killed run leaves: HEAD at the pin, an EMPTY index, an EMPTY
   # worktree. git calls that path FINE (' ' = at the recorded commit) — which
   # is exactly how a HEAD-only criterion passed a half-materialized tree
-  # (measured: 385 of 431 paths, no files on disk).
+  # (observed 2026-10-22: 385 of 431 paths, no files on disk).
   git -C "$fixture/corpus" rm -r --cached . >/dev/null 2>&1 || true
   rm -rf "$fixture/corpus"/* 2>/dev/null || true
   local broken_state broken_index broken_files

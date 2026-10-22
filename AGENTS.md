@@ -552,9 +552,10 @@ Before declaring completion, answer every applicable item YES. There is one line
    Every Go build happens inside `charly/` (no nested `go.work`). *Detail:*
    `/charly-internals:git-workflow`.
 
-   **A clone is a WORKING SET, not 431 checkouts.** The umbrella pins 431 repos as
-   gitlinks, and the pins live in its **index** — every pin is audited from the index, so
-   a checkout is only needed for the repos a session actually builds against or edits.
+   **A clone is a WORKING SET, not a checkout per repo.** The umbrella pins every
+   OpenCharly repo as gitlinks, and the pins live in its **index** — every pin is audited
+   from the index, so a checkout is only needed for the repos a session actually builds
+   against or edits.
    Materialize them with `charly task init` (the derived working set: the project's
    `import:` paths, the pin contract's own repos, the harness corpus root, and the
    repos the umbrella's own gate scripts read — a gate that compares a surface in
@@ -584,8 +585,9 @@ Before declaring completion, answer every applicable item YES. There is one line
    expands it against the task's merged env, so an unresolvable reference does not
    fail the step — it **skips** it, and the gate reads green over a check that never
    ran. A command step's text therefore carries **no** value: read the environment
-   with a bare `$NAME` (the shell expands it at run time, out of the process
-   environment, and the expander never sees it). `node
+   at run time, out of the process environment, so the expander never sees it — with
+   a bare `$NAME`, or, under `set -eu`, through `$(printenv NAME 2>/dev/null || true)`
+   so an unset variable cannot abort the step before it runs. `node
    scripts/check-task-command-vars.mjs` holds that line, in the pre-commit gate and
    in `charly task verify`. Materializing is never a licence to edit in place —
    rule 1 still holds. *Detail:* `/charly-internals:git-workflow` (umbrella mechanics).

@@ -247,8 +247,8 @@ hooks:
 
 # -----------------------------------------------------------------------------
 # init — materialize the umbrella's submodules ON DEMAND.
-# The umbrella is a VIEW over the org: 431 submodules at the root, each a real
-# repo owned elsewhere. Materializing all of them costs 9.5 G on disk and
+# The umbrella is a VIEW over the org: every repo in it is a submodule at the
+# root, owned elsewhere. Materializing all of them costs 9.5 G on disk and
 # minutes of network (measured 2026-10-22); the pins live in the umbrella's
 # INDEX, and every pin is audited from the index, so a checkout is only needed
 # for the repos you actually build against or edit.
@@ -303,7 +303,7 @@ init:
         # A step with no timeout is bounded by the runner's per-step never-hang
         # floor — the host's readiness per-attempt ceiling, 120 s in the pinned
         # spec's readinessPerAttemptFallback — and a full wave needs longer than
-        # that: git clones the 431 paths in parallel and then checks them out ONE
+        # that: git clones every declared path in parallel and then checks them out ONE
         # AT A TIME, and a blobless checkout lazily fetches its tree's blobs
         # from the remote. Measured on 2026-10-22: an --all wave hit that floor
         # with 385 of 431 paths cloned but never checked out — a state `git
@@ -380,8 +380,8 @@ verify:
         command: |
           set -eu
           fail() { echo "FAIL: $*" >&2; exit 1; }
-          # One ls-remote per submodule is the EXPENSIVE half of this gate: the same
-          # 431 calls took 197 s to 212 s SERIAL, and 13 s to 15 s run in PARALLEL
+          # One ls-remote per submodule is the EXPENSIVE half of this gate: those
+          # calls took 197 s to 212 s SERIAL, and 13 s to 15 s run in PARALLEL
           # at -P 16 (measured 2026-10-22, over repeated runs of this step). The
           # clause is unchanged — same .gitmodules parsing, same comparison, same
           # message, same exit status — and it gains one property a serial loop
@@ -391,11 +391,13 @@ verify:
           # in this text. The plan runner expands a braced reference in a command's text
           # against the task's merged env (kit.ExpandOpVars), so a braced read HERE is
           # CLAIMED by the runner — and an unresolvable one does not fail the step, it
-          # SKIPS it, and the gate reads green while the audit never ran. Measured on this
-          # tree, 2026-10-22: a braced read of AUDIT_JOBS → the whole step skipped
+          # SKIPS it, and the gate reads green while the audit never ran. Observed
+          # 2026-10-22: a braced read of AUDIT_JOBS → the whole step skipped
           # ("unresolved variables: AUDIT_JOBS:-16") and `charly task verify` still
-          # exited 0. A bare `$NAME` is expanded by the SHELL at run time, out of the
-          # process environment, and the expander never sees it.
+          # exited 0. The value is read at RUN TIME, out of the process environment, so
+          # the expander never sees it — through `printenv` rather than a bare `$NAME`,
+          # because this step runs under `set -eu`, where an unset variable would abort
+          # the step before the audit ran at all.
           JOBS="$(printenv AUDIT_JOBS 2>/dev/null || true)"
           [ -n "$JOBS" ] || JOBS=16
           case "$JOBS" in ''|*[!0-9]*) fail "AUDIT_JOBS must be a positive integer (got '$JOBS')";; esac
@@ -464,6 +466,12 @@ verify:
         context: [runtime]
       - check: the command-text gate discriminates — each mutation turns it RED (fixtures)
         command: node scripts/check-task-command-vars.mjs --self-test
+        context: [runtime]
+      - check: the README's MEASURED figures agree with each other — the table, the prose that quotes it, and the date every dated figure carries (fixtures)
+        command: node scripts/check-readme-measurements.mjs
+        context: [runtime]
+      - check: the measurement gate discriminates — each mutation turns it RED (fixtures)
+        command: node scripts/check-readme-measurements.mjs --self-test
         context: [runtime]
       - check: every step of every task in this file declares a `context:` the plan runner activates — a set disjoint from [build, runtime] (the `[deploy]` this file used to carry) is a no-op in EVERY mode (fixtures)
         command: node scripts/check-task-contexts.mjs
