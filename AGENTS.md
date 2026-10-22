@@ -561,8 +561,12 @@ Before declaring completion, answer every applicable item YES. There is one line
    the bootstrap builds the binary from the `charly` checkout, and the project cannot load
    before its `import:` paths exist. `charly task init` is the SAME operation through the
    binary — the working set, the named paths (`CHARLY_INIT_PATHS=<a,b>`) or every one
-   (`CHARLY_INIT_MODE=all`) — and needs nothing
-   else installed. The mode travels in the **environment**, never as a task parameter:
+   (`CHARLY_INIT_MODE=all`) — and needs `git` and `python3`, which the script
+   DECLARES and CHECKS: the derivation reads `charly.yml`, `reasonix.toml` and the
+   gate scripts, and a missing requirement must fail loud with its name, never
+   become a silently empty working set. The script is the **pre-bootstrap** path —
+   it materializes `charly` before the binary exists, so it cannot be the binary's
+   own implementation. The mode travels in the **environment**, never as a task parameter:
    an upper-case parameter's value is substituted into the command's text and the shell
    then parses that text, so it is source, not data (a lower-case parameter is not
    substituted at all — the expander's grammar is upper-case-initial — so it vanishes

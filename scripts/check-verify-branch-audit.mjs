@@ -156,30 +156,36 @@ function runCases(script) {
   };
 }
 
-/** The contract, in one place, so --self-test and the gate assert the SAME expectations. */
+/** The contract, in one place, so --self-test and the gate assert the SAME expectations.
+ *  Each assertion carries a STABLE ID ("C:names-all"), not just a case letter: the
+ *  self-test must be able to say WHICH property caught a mutation, or a coarse
+ *  assertion can stand in for the sharp one and the test proves nothing. */
 function judge(cases) {
   const found = [];
-  const need = (name, cond, detail) => {
-    if (!cond) found.push(`${name}: ${detail}`);
+  const need = (id, cond, detail) => {
+    if (!cond) found.push(`${id}: ${detail}`);
   };
   const tail = (c) => c.stderr.trim().split("\n").pop();
 
-  need("A", cases.A.status === 0, `every branch= equal to the remote default must be GREEN (exit ${cases.A.status}): ${tail(cases.A)}`);
-  need("A", /branch == remote default for every one/.test(cases.A.stdout), "the step must report its OK line");
+  need("A:status", cases.A.status === 0, `every branch= equal to the remote default must be GREEN (exit ${cases.A.status}): ${tail(cases.A)}`);
+  need("A:ok-line", /branch == remote default for every one/.test(cases.A.stdout), "the step must report its OK line");
 
-  need("B", cases.B.status !== 0, "a branch= that is not the remote default must FAIL");
-  need("B", /mod-03/.test(cases.B.stderr), `the failing path must be named: ${tail(cases.B)}`);
+  need("B:status", cases.B.status !== 0, "a branch= that is not the remote default must FAIL");
+  need("B:names", /mod-03/.test(cases.B.stderr), `the failing path must be named: ${tail(cases.B)}`);
 
   // The parallel audit cannot stop at the first mismatch without losing the rest,
-  // so EVERY mismatching path is named.
+  // so EVERY mismatching path is named. This is the COMPLETENESS property, and
+  // it is its own id: a mutation that makes the audit look at fewer paths must
+  // be caught HERE and not by the step's own "suspiciously few submodules" guard
+  // (which lives in the step, and which the judge cannot see).
+  need("C:status", cases.C.status !== 0, "several wrong branch= values must FAIL");
   for (const p of WRONG) {
-    need("C", cases.C.status !== 0, "several wrong branch= values must FAIL");
-    need("C", new RegExp(p).test(cases.C.stderr), `every mismatching path must be named; ${p} is missing: ${tail(cases.C)}`);
+    need("C:names-all", new RegExp(p).test(cases.C.stderr), `every mismatching path must be named; ${p} is missing: ${tail(cases.C)}`);
   }
 
-  need("D", cases.D.status !== 0, "a path with no branch= must FAIL");
-  need("D", new RegExp(PATHS[0]).test(cases.D.stderr), `the path with no branch= must be named: ${tail(cases.D)}`);
-  need("D", /missing branch=/.test(cases.D.stderr), "a path with no branch= must be reported AS a missing branch=, not as a plain mismatch");
+  need("D:status", cases.D.status !== 0, "a path with no branch= must FAIL");
+  need("D:names", new RegExp(PATHS[0]).test(cases.D.stderr), `the path with no branch= must be named: ${tail(cases.D)}`);
+  need("D:missing-branch", /missing branch=/.test(cases.D.stderr), "a path with no branch= must be reported AS a missing branch=, not as a plain mismatch");
 
   return found;
 }
@@ -209,27 +215,33 @@ if (argv.includes("--self-test")) {
   }
   console.log("  PASS  the unmutated step is GREEN on every fixture");
 
-  // Each mutation reintroduces ONE defect class and names the case that must catch it.
+  // Each mutation reintroduces ONE defect class and names the EXACT assertion that
+  // must catch it. The id is the point: a mutation caught by a COARSE assertion
+  // (the step failed, so "must FAIL" holds) proves nothing about the sharp one
+  // (every mismatching path is named). The "first submodule only" mutation is
+  // the sharp case — the step's own "suspiciously few submodules" guard also
+  // fires, and the judge cannot see that guard, so the completeness assertion
+  // is the only thing that can catch it here.
   const mutations = [
     [
       "the comparison never fails",
       (s) => s.replace('if [ "$branch" != "$default" ]; then', "if false; then"),
-      "B",
+      "B:status",
     ],
     [
-      "the audit only inspects the FIRST submodule (the rest are never compared)",
-      (s) => s.replace("| awk '{print $2}' > \"$paths\"", "| awk 'NR==1{print $2}' > \"$paths\""),
-      "C",
+      "the audit only inspects the FIRST submodule (the rest are never compared) — the step's own count guard still passes, so the COMPLETENESS of the comparison is what must catch this",
+      (s) => s.replace("printf '%s\\0%s\\0%s\\0' \"$path\" \"$url\" \"$branch\" >> \"$tmp\"", "printf '%s\\0%s\\0%s\\0' \"$path\" \"$url\" \"$branch\" >> \"$tmp\"; break"),
+      "C:status",
     ],
     [
       "the mismatch message does not name the path",
       (s) => s.replace(/echo "\$path: branch=\$branch but remote default is \$shown"/, 'echo "branch mismatch"'),
-      "C",
+      "C:names-all",
     ],
     [
       "the step no longer requires a branch= on every path",
       (s) => s.replace(/\[ -n "\$branch" \] \|\| fail "\$path: missing branch= in \.gitmodules"/, 'true'),
-      "D",
+      "D:missing-branch",
     ],
   ];
   let stFails = 0;
@@ -242,10 +254,10 @@ if (argv.includes("--self-test")) {
     }
     const caught = judge(runCases(mutated)).some((f) => f.startsWith(`${mustCatch}:`));
     if (caught) {
-      console.log(`  PASS  mutation '${name}' is caught by case ${mustCatch}`);
+      console.log(`  PASS  mutation '${name}' is caught by assertion ${mustCatch}`);
     } else {
       stFails += 1;
-      console.error(`  FAIL  mutation '${name}' was NOT caught by case ${mustCatch}`);
+      console.error(`  FAIL  mutation '${name}' was NOT caught by assertion ${mustCatch}`);
     }
   }
   if (stFails) {

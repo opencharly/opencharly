@@ -32,7 +32,9 @@
 //   V. No step's `command:` text contains a `${…}` reference.
 //   B. COVERAGE: every `command:` key in the file is a step's OWN command — the channel
 //      this rule governs. A `command:` key anywhere else (a plugin input field named
-//      `command`) would silently escape the rule, so it is reported instead of ignored.
+//      `command`, under a step's own inputs OR outside any plan step) would silently
+//      escape the rule, so it is reported instead of ignored. A `command:` line inside
+//      a block scalar's body is TEXT, not a key, and is not reported.
 //
 // NOT asserted, and why: whether a reference WOULD resolve. That needs the task's merged
 // env at run time (its params, its vars and its env), which a static read of the file
@@ -72,9 +74,17 @@ const indentOf = (l) => l.match(/^\s*/)[0].length;
  * The shape this reads is the plan grammar's own: a `plan:` holds list items, each list
  * item is a step, and a step's keys sit two columns in. A `command:` key at exactly that
  * depth is the step's own command (the generic `command` verb, whose text the plan runner
- * expands and the shell then parses). A `command:` key at any OTHER depth is a plugin
- * input field — DATA, not source — and it is reported as uncovered rather than silently
- * escaped (assertion B).
+ * expands and the shell then parses). A `command:` key at any OTHER depth — under a
+ * plugin's own inputs, or OUTSIDE any plan step at all — is a plugin input field: DATA,
+ * not source. It is REPORTED as uncovered rather than silently escaped (assertion B).
+ *
+ * TWO THINGS THIS SCAN MUST GET RIGHT, and both are asserted live by --self-test:
+ *   1. EVERY `command:` key is looked at, wherever it sits. A key outside a plan step
+ *      is a key like any other (a `defaults:` block may carry one), and skipping it
+ *      would leave a hole in the very coverage assertion B claims.
+ *   2. A `command:` line inside a BLOCK SCALAR'S BODY is a word in a sentence, not a
+ *      key: `run: |` bodies are free text. So the scan tracks every block body and
+ *      reads its lines as text.
  */
 function parseCommandSteps(src) {
   const lines = src.split("\n");
@@ -84,12 +94,62 @@ function parseCommandSteps(src) {
   let inPlan = false;
   let planIndent = -1;
   let step = null;
+  // Inside a block scalar's body: the lines are TEXT, never keys.
+  let inBlock = false;
+  let blockIndent = 0;
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const t = line.trim();
-    if (t === "" || t.startsWith("#")) continue;
     const ind = indentOf(line);
+
+    if (inBlock) {
+      if (t === "" || ind > blockIndent) continue; // still the body
+      inBlock = false; // the body ended; this line is a key again
+    }
+    if (t === "" || t.startsWith("#")) continue;
+
+    // A `command:` KEY is looked at FIRST, at any depth — including a depth where
+    // no step is open. It is the one key this gate governs, so it must never be
+    // reachable only through the step machinery.
+    const cmd = line.match(/^(\s*)command:\s*(.*)$/);
+    if (cmd) {
+      const keyIndent = cmd[1].length;
+      const keyLine = i + 1;
+      const inline = cmd[2].trim();
+      const isBlock = inline === "" || /^[|>][-+0-9]*$/.test(inline);
+      const owner = step;
+      const isStepOwn = owner !== null && inPlan && keyIndent === owner.indent + 2;
+
+      if (!isStepOwn) {
+        uncovered.push({ line: keyLine, indent: keyIndent, entity, step: owner });
+        if (isBlock) {
+          inBlock = true;
+          blockIndent = keyIndent;
+        }
+        continue;
+      }
+
+      if (isBlock) {
+        // A block scalar: the body is every following line indented deeper than the key.
+        const body = [];
+        let k = i + 1;
+        for (; k < lines.length; k++) {
+          const l2 = lines[k];
+          if (l2.trim() !== "" && indentOf(l2) <= keyIndent) break;
+          body.push(l2.trim() === "" ? "" : l2.slice(keyIndent + 2));
+        }
+        i = k - 1;
+        owner.cmd = body.join("\n");
+        owner.cmdLine = keyLine;
+        owner.cmdBodyStart = keyLine + 1;
+      } else {
+        owner.cmd = inline;
+        owner.cmdLine = keyLine;
+        owner.cmdBodyStart = -1;
+      }
+      continue;
+    }
 
     if (ind === 0) {
       const e = line.match(/^([A-Za-z0-9_.-]+):/);
@@ -97,12 +157,21 @@ function parseCommandSteps(src) {
       inPlan = false;
       planIndent = -1;
       step = null;
+      if (BLOCK_SCALAR_RE.test(line)) {
+        inBlock = true;
+        blockIndent = ind;
+      }
       continue;
     }
     if (!inPlan) {
       if (t === "plan:") {
         inPlan = true;
         planIndent = ind;
+      } else if (BLOCK_SCALAR_RE.test(line)) {
+        // Another key's block body: arbitrary text, never keys.
+        let k = i + 1;
+        while (k < lines.length && (lines[k].trim() === "" || indentOf(lines[k]) > ind)) k++;
+        i = k - 1;
       }
       continue;
     }
@@ -128,35 +197,6 @@ function parseCommandSteps(src) {
     if (!step) continue;
     if (ind <= step.indent) {
       step = null;
-      continue;
-    }
-
-    const cmd = line.match(/^(\s*)command:\s*(.*)$/);
-    if (cmd) {
-      const keyIndent = cmd[1].length;
-      const keyLine = i + 1;
-      if (keyIndent !== step.indent + 2) {
-        uncovered.push({ line: keyLine, indent: keyIndent, step });
-        continue;
-      }
-      if (cmd[2].trim() === "" || /^[|>][-+0-9]*$/.test(cmd[2].trim())) {
-        // A block scalar: the body is every following line indented deeper than the key.
-        const body = [];
-        let k = i + 1;
-        for (; k < lines.length; k++) {
-          const l2 = lines[k];
-          if (l2.trim() !== "" && indentOf(l2) <= keyIndent) break;
-          body.push(l2.trim() === "" ? "" : l2.slice(keyIndent + 2));
-        }
-        i = k - 1;
-        step.cmd = body.join("\n");
-        step.cmdLine = keyLine;
-        step.cmdBodyStart = keyLine + 1;
-      } else {
-        step.cmd = cmd[2].trim();
-        step.cmdLine = keyLine;
-        step.cmdBodyStart = -1;
-      }
       continue;
     }
     if (BLOCK_SCALAR_RE.test(line)) {
@@ -199,13 +239,17 @@ function findings(text) {
   }
 
   for (const u of uncovered) {
+    const where = u.step
+      ? `task \`${u.step.entity}\` — step \`${u.step.key}\``
+      : `${u.entity ? `task \`${u.entity}\`` : "the file"}`;
+    const detail = u.step
+      ? `carries a \`command:\` key at indent ${u.indent}, which is NOT the step's own command (a step's keys sit two columns in, at ${u.step.indent + 2})`
+      : `carries a \`command:\` key at indent ${u.indent}, OUTSIDE any plan step`;
     out.push({
       kind: "B",
       line: u.line,
       msg:
-        `task \`${u.step.entity}\` — step \`${u.step.key}\` carries a \`command:\` key at indent ` +
-        `${u.indent}, which is NOT a step's own command (a step's keys sit two columns in, at ` +
-        `${u.step.indent + 2}). This rule governs the step's own command text; a \`command:\` key ` +
+        `${where} ${detail}. This rule governs a step's own command text; a \`command:\` key ` +
         `elsewhere is a plugin input field and is NOT covered by it — assert it here, or move it`,
     });
   }
@@ -250,6 +294,11 @@ if (argv.includes("--self-test")) {
     [
       "a `command:` key appears where it is NOT a step's own command (a plugin input field) — the rule's coverage is asserted, not assumed",
       (s) => s.replace("        git-submodules:\n          mode: status\n", "        git-submodules:\n          mode: status\n          command: echo hi\n"),
+      "B",
+    ],
+    [
+      "a `command:` key appears OUTSIDE any plan step (a `defaults:` block's own input) — the rule's coverage is not bounded by the plan",
+      (s) => s.replace("    keep_images: 3\n", "    keep_images: 3\n    command: echo hi\n"),
       "B",
     ],
   ];

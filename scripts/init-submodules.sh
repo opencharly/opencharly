@@ -188,6 +188,20 @@ fi
 SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
 [ -n "$ROOT" ] || ROOT="$(cd "$(dirname "$SCRIPT")/.." && pwd)"
 
+# REQUIREMENTS, checked and NAMED. `git` is the substrate; `python3` reads the
+# committed sources (charly.yml, reasonix.toml) and scans the gate scripts for
+# the paths they quote, which is a text scan with a comment-aware rule — a shell
+# rewrite of it would be a second, weaker implementation of the same derivation
+# (R2). A missing requirement must be a LOUD failure that names it: the
+# alternative is a derivation that fails and is SWALLOWED, and this script's
+# whole contract is that a failed derivation never becomes a green run.
+for req in git python3; do
+  if ! command -v "$req" >/dev/null 2>&1; then
+    echo "init: FAIL — '$req' is not installed; this script needs git and python3" >&2
+    exit 1
+  fi
+done
+
 # ── the derivation ──────────────────────────────────────────────────────────────
 # One implementation, shared by the live path and the self-test. It reads the
 # committed sources; it never consults the network and never mutates anything.
@@ -443,6 +457,23 @@ repairable() {
 # blobs from the remote, which is the slow half of a wave.
 land_pin() {
   local path="$1" recorded out rc=0 gitdir
+  # R6 — THE NO-CLOBBER GUARD LIVES HERE, and not only in the repair pass that
+  # calls this function. `land_pin` is the ONE thing in this script that touches
+  # a checkout, and it ends in `checkout -q -f --detach`, which DISCARDS tracked
+  # changes. A direct `--land` on a checkout that carries work would therefore
+  # throw that work away, so the guard the repair pass applies is expressed here,
+  # once (R2), and it FAILS CLOSED on any invocation:
+  #   - the checkout must carry NOTHING: an empty index AND an empty worktree
+  #     (a dirty or populated checkout is somebody's work), and
+  #   - its HEAD must be an upstream commit (a local commit is somebody's work).
+  if ! never_checked_out "$path"; then
+    echo "init: FAIL — $path: refusing to land the pin — the checkout carries content (an index, a worktree, or uncommitted work); left untouched" >&2
+    return 1
+  fi
+  if ! repairable "$path"; then
+    echo "init: FAIL — $path: refusing to land the pin — its HEAD is not an upstream commit (local work); left untouched" >&2
+    return 1
+  fi
   recorded="$(recorded_gitlink "$path")"
   if [ -z "$recorded" ]; then
     echo "init: FAIL — $path has no recorded gitlink in the index" >&2
@@ -572,8 +603,26 @@ run_live() {
     return 1
   fi
   local -a want=()
+  # A DERIVATION THAT FAILS MUST FAIL LOUD. `mapfile -t want < <(derive)` does
+  # NOT propagate the process substitution's exit status (mapfile reports its
+  # own), so a derivation that exits non-zero used to be swallowed: `want` came
+  # out EMPTY, the run validated nothing, materialized nothing, and the verdict
+  # `0 -eq 0` printed "init: OK — 0 of 0 requested path(s)". A green run over a
+  # derivation failure. The status is therefore captured EXPLICITLY, and both a
+  # failure and an EMPTY result stop the run.
   case "$MODE" in
-    all) mapfile -t want < <(declared_submodules) ;;
+    all)
+      local declared_set
+      if ! declared_set="$(declared_submodules)"; then
+        echo "init: FAIL — the declared submodule set could not be read from $ROOT/.gitmodules" >&2
+        return 1
+      fi
+      if [ -z "$declared_set" ]; then
+        echo "init: FAIL — .gitmodules declares NO submodule path (an empty index is a drift, not an empty tree)" >&2
+        return 1
+      fi
+      mapfile -t want <<<"$declared_set"
+      ;;
     working-set)
       # NAMED paths win over the derived set: a caller that asked for paths
       # gets exactly those, and the list action reports what WOULD be
@@ -581,7 +630,16 @@ run_live() {
       if [ "${#PATHS[@]}" -gt 0 ]; then
         want=("${PATHS[@]}")
       else
-        mapfile -t want < <(derive_working_set)
+        local derived_set
+        if ! derived_set="$(derive_working_set)"; then
+          echo "init: FAIL — the working set could not be derived (the derivation's own reason is above)" >&2
+          return 1
+        fi
+        if [ -z "$derived_set" ]; then
+          echo "init: FAIL — the working set derived EMPTY (a committed source it reads has drifted)" >&2
+          return 1
+        fi
+        mapfile -t want <<<"$derived_set"
       fi
       ;;
   esac
@@ -1062,6 +1120,65 @@ other"
     echo "  PASS  the command line wins over the environment (the other way round)"
   else
     echo "  FAIL  the environment overrode the command line: $(printf '%s' "$env_list" | tr '\n' ' ')" >&2
+    fails=$((fails + 1))
+  fi
+
+  # ── claim 17: a DERIVATION THAT FAILS FAILS LOUD ─────────────────────────
+  # The fail-open this claim exists for: `mapfile -t want < <(derive)` does NOT
+  # propagate the process substitution's exit status, so a derivation that exited
+  # non-zero produced an EMPTY set, and the run validated nothing, materialized
+  # nothing and printed "init: OK — 0 of 0 requested path(s)" — a green run over
+  # a derivation failure. Two broken derivations, both of which must stop the
+  # run with a NAMED reason and NO "OK" line.
+  local broken_manifest="$BASE/umbrella-nomanifest" broken_empty="$BASE/umbrella-empty"
+  cp -a "$fixture" "$broken_manifest"
+  rm -f "$broken_manifest/charly.yml"
+  cp -a "$fixture" "$broken_empty"
+  printf 'repo: github.com/opencharly/fixture\n' >"$broken_empty/charly.yml"
+  # Every OTHER source must go too, or the derivation is not empty: source 3
+  # reads reasonix.toml and the .dsh symlink farm, source 4 reads the gate
+  # scripts.
+  rm -f "$broken_empty/reasonix.toml"
+  rm -rf "$broken_empty/.dsh" "$broken_empty/scripts"
+  local derivation_bad=0
+  for variant in absent empty; do
+    local vroot vout vrc
+    if [ "$variant" = "absent" ]; then vroot="$broken_manifest"; else vroot="$broken_empty"; fi
+    vout="$(bash "$SCRIPT" --root "$vroot" 2>&1)" && vrc=0 || vrc=$?
+    if [ "$vrc" -eq 0 ]; then
+      echo "  FAIL  a $variant derivation did not fail loud (rc=0): $vout" >&2
+      derivation_bad=1
+    elif grep -q 'init: OK' <<<"$vout"; then
+      echo "  FAIL  a $variant derivation still printed an OK line: $vout" >&2
+      derivation_bad=1
+    elif grep -q '0 of 0 requested' <<<"$vout"; then
+      echo "  FAIL  a $variant derivation reported '0 of 0 requested path(s)': $vout" >&2
+      derivation_bad=1
+    elif ! grep -qi 'deriv' <<<"$vout"; then
+      echo "  FAIL  a $variant derivation failed without naming the derivation: $vout" >&2
+      derivation_bad=1
+    fi
+  done
+  if [ "$derivation_bad" -eq 0 ]; then
+    echo "  PASS  a derivation that fails (absent manifest, empty derivation) fails loud and never reports 0 of 0"
+  else
+    fails=$((fails + 1))
+  fi
+
+  # ── claim 18: a DIRECT --land on a dirty checkout is REFUSED ──────────────
+  # `land_pin` is the one thing here that touches a checkout, and it ends in
+  # `checkout -f --detach`, which DISCARDS tracked changes. The no-clobber guard
+  # therefore lives INSIDE land_pin, so it holds for a direct invocation and not
+  # only for the repair pass that usually calls it.
+  echo "dirt" >"$fixture/core/file.txt"
+  local land_out land_rc land_head land_file
+  land_out="$(bash "$SCRIPT" --root "$fixture" --land core 2>&1)" && land_rc=0 || land_rc=$?
+  land_head="$(git -C "$fixture/core" rev-parse HEAD 2>/dev/null || true)"
+  land_file="$(cat "$fixture/core/file.txt" 2>/dev/null || true)"
+  if [ "$land_rc" -ne 0 ] && [ "$land_file" = "dirt" ] && [ "$land_head" = "$head_sha" ]; then
+    echo "  PASS  a direct --land on a dirty checkout is refused and the work survives"
+  else
+    echo "  FAIL  a direct --land clobbered a dirty checkout (rc=$land_rc, file='$land_file', HEAD $land_head != $head_sha): $land_out" >&2
     fails=$((fails + 1))
   fi
 
