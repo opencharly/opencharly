@@ -1,0 +1,14 @@
+# rule: D-VAL-2
+# expect: pipeline.stage.next.pipeline: c is a candy, want pipeline
+c:
+  description: A candy, not a pipeline.
+  package: [jq]
+  step:
+    - check: jq runs
+      command: jq --version
+p:
+  pipeline:
+    description: A pipeline whose stage runs a candy as a pipeline.
+    stage:
+      next:
+        pipeline: c
