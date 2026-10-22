@@ -333,8 +333,9 @@ Every repo's **name carries its class**, and the class decides what that repo ma
   `plugin-`, `pod-`, `vm-`.
 - **A product family is a layer-class repo** (`layer-<family>`), never a bare name.
 - **A repo whose only content is skills is not a class.** No prefix exists for it and none may be
-  invented: a `layer-*`, `distro-*`, `plugin-*`, `pod-*` or `vm-*` repo must hold the code, plugin,
-  or config its name promises, with its skills beside that content (Part II #5). A `*-skills` carrier
+  invented: a `layer-*`, `distro-*`, `plugin-*`, `pod-*`, `vm-*`, `charly-*` or `pkg-*` repo must
+  hold the code, plugin, or config its name promises, with its skills beside that content
+  (Part II #5). A `*-skills` carrier
   that exists only to own prose is retired by this rule — its skills move to the repo of the entity
   they describe, or to this umbrella when they are general guidance. A carrier CANDY inside a repo
   that already holds code is a different thing and is unaffected: it is the shape image-owned skills
@@ -688,8 +689,10 @@ Before declaring completion, answer every applicable item YES. There is one line
   north stars.
 - `README.md` — the org map, user overview, and the maintenance-command table
   (`./charly/bin/charly task list`; build the binary once per clone with
-  `./charly/scripts/bootstrap-charly.sh`). It also holds this umbrella's OWN general-guidance
-  skills, at `.agents/skills/<name>/SKILL.md` (Part II #5).
+  `./charly/scripts/bootstrap-charly.sh`).
+- this umbrella's own `.agents/skills/<name>/SKILL.md` trees — where the org's GENERAL-GUIDANCE
+  skills are authored (Part II #5). Every other skill lives in the repo of the code, plugin, or
+  config it describes.
 - The opencharly/marketplace repo — the GENERATED corpus: every skill
   (`<family>/skills/<skill>/SKILL.md`) and the full skill index in its README. Every file there
   is a projection, so guidance is edited at its source repo and regenerated, never in place.
