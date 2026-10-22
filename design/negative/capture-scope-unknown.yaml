@@ -1,0 +1,6 @@
+# rule: D-CAPTURE-4
+# expect: capture_scope
+x:
+  description: A capture with a scope charly does not take.
+  from: y
+  capture_scope: memory

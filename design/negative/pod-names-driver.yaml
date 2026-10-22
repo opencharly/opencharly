@@ -1,0 +1,7 @@
+# rule: D-DRV-2
+# expect: node.x.pod.engine
+x:
+  pod:
+    description: A pod that names its engine.
+    from: b
+    engine: containerd

@@ -21,7 +21,7 @@ _ns: {for k, _ in *doc.import | {} {(k): true}}
 _refKind: {for n, v in _node {(n): [if _kindOf[n] == "candy" for f, _ in v if f == "from" {"box"}, _kindOf[n]][0]}}
 
 _candyFieldSet: {for f in _candyField {(f): true}}
-_noContent: {description: _, from: _, require: _, platform: _, builder_box: _, entrypoint: _, tag: _}
+_noContent: {description: _, from: _, require: _, platform: _, builder_box: _, entrypoint: _, tag: _, capture_scope: _}
 
 // The candies of the document: top level, and one level inside top-level candies and local or
 // android bodies — each with its path and value.
@@ -61,6 +61,15 @@ _refs: [
 	},
 	for c in _candies for f, nd in c.value if f == "need" for t, m in nd if t == "harness" for a, _ in m {
 		{node: c.at, field: "need.harness", ref: a, want: ["harness"]}
+	},
+	for n, v in _node for k, b in v if k == "builder" for f, r in b if f == "box" {
+		{node: n, field: "builder.box", ref: r, want: ["box"]}
+	},
+	for n, v in _node for k, b in v if k == "check-roster" for f, l in b if f == "bed" for r in l {
+		{node: n, field: "check-roster.bed", ref: r, want: ["pod", "vm", "local", "android", "kubernetes"]}
+	},
+	for n, v in _node for k, b in v if k == "pipeline" for f, st in b if f == "stage" for sn, x in st for g, r in x if g == "pipeline" {
+		{node: n, field: "pipeline.stage.\(sn).pipeline", ref: r, want: ["pipeline"]}
 	},
 ]
 

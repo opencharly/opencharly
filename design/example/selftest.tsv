@@ -17,3 +17,4 @@ union-disagrees	DESIGN.cue	/^#Document: {/,/^}/s~repo?:     #Repo~repo!: #Repo~	
 inner-dispatch	DESIGN.md	s~^            pod:$~            local:~	a kubernetes admits inside it exactly one of: pod, vm
 shared-duplicate	DESIGN.md	s~^dev-box:$~web-shell:~	example 'project' does not validate
 alongside-dispatch	DESIGN.md	$a\\n<!-- example: alongside-probe -->\n```yaml\nx:\n    pod:\n        description: A pod.\n        from: b\n    extra:\n        description: A candy beside the kind key.\n```	beside a pod stands exactly one of: pod, vm, local
+user-config-shape	DESIGN.md	s~^    vm: firecracker$~    vm: vmware~	example 'user-config' does not validate
