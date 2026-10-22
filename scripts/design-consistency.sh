@@ -164,7 +164,7 @@ done < "$work/unmarked"
 # ── 2 word lists that mirror definitions ─────────────────────────────────────────
 LIST_PAIRS=(
 	"_candyField=#Candy #BoxFields"
-	"_deployField=#DeploymentFields #Pod #Vm #TopLocal #Android #KubernetesFields keys(#KubernetesAlt)"
+	"_deployField=#DeploymentFields #Pod #Vm #TopLocal #AndroidFields keys(#AndroidAlt) keys(#KubernetesAlt)"
 	"_directiveWord=#Document"
 )
 for pair in "${LIST_PAIRS[@]}"; do

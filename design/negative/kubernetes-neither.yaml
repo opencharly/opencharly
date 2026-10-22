@@ -1,5 +1,5 @@
 # rule: D-DEP-6
-# expect: create!:"kind" | "k3s"
+# expect: node.x.kubernetes
 x:
   kubernetes:
     description: A cluster.

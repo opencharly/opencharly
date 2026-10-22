@@ -1,0 +1,10 @@
+# rule: D-HW-8
+# expect: gpu.nvidia.lease: field not allowed
+x:
+  description: A candy that authors the lease mode instead of asking for sole use.
+  package: {cuda-toolkit: {}}
+  need:
+    gpu: {nvidia: {lease: exclusive}}
+  step:
+    - check: the GPU answers
+      command: nvidia-smi -L

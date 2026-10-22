@@ -1,0 +1,7 @@
+# rule: D-DEP-1
+# expect: node.x.vm.firmware
+x:
+  vm:
+    description: A VM that names its firmware, which is the os boot content.
+    from: b
+    firmware: uefi
