@@ -189,6 +189,103 @@ the daemon actually runs with (`config dump` only reads the file). The `default_
 it prints is the **CRI** plugin's default (k3s); the daemon-wide default that nerdctl
 would use is a different setting, and there is none configured (§3.2).
 
+#### 3.1.1 The narrow seccomp profile — Chromium's sandbox without `unconfined`
+
+containerd's stock profile blocks the `unshare`/`clone` calls Chromium's sandbox makes with
+namespace flags, so a browser or desktop lease either hangs or has to be run with
+`seccomp=unconfined` and `--no-sandbox`. The narrow profile restores exactly those two
+syscalls and keeps everything else the stock profile enforces.
+
+**Generate it from the installed containerd, never from a copied JSON blob.** The profile is
+capability-dependent (`DefaultProfile` walks `Process.Capabilities.Bounding`) and changes
+between containerd releases, so generate it on the host, from the containerd version that
+host runs, for the capability set the lease actually uses:
+
+```go
+// gen-seccomp.go — go.mod requires the containerd version on this host, e.g.
+// github.com/containerd/containerd/v2 v2.4.2
+package main
+
+import (
+	"encoding/json"
+	"os"
+
+	"github.com/containerd/containerd/v2/contrib/seccomp"
+	specs "github.com/opencontainers/runtime-spec/specs-go"
+)
+
+func main() {
+	// The default OCI capability set, which is what a lease runs with when no
+	// --cap-add/--cap-drop is given. A lease that adds a capability regenerates
+	// this file with that capability in Bounding.
+	sp := &specs.Spec{Process: &specs.Process{Capabilities: &specs.LinuxCapabilities{
+		Bounding: []string{
+			"CAP_CHOWN", "CAP_DAC_OVERRIDE", "CAP_FSETID", "CAP_FOWNER", "CAP_MKNOD",
+			"CAP_NET_RAW", "CAP_SETGID", "CAP_SETUID", "CAP_SETFCAP", "CAP_SETPCAP",
+			"CAP_NET_BIND_SERVICE", "CAP_SYS_CHROOT", "CAP_KILL", "CAP_AUDIT_WRITE",
+		},
+	}}}
+
+	p := seccomp.DefaultProfile(sp)
+	p.Syscalls = append(p.Syscalls, specs.LinuxSyscall{
+		Names:  []string{"unshare", "clone"},
+		Action: specs.ActAllow,
+	})
+
+	enc := json.NewEncoder(os.Stdout)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(p); err != nil {
+		panic(err)
+	}
+}
+```
+
+```sh
+go run gen-seccomp.go > crabbox-userns.json
+install -D -m 0644 crabbox-userns.json /etc/containerd/seccomp/crabbox-userns.json
+```
+
+The appended rule is exactly `{"names":["unshare","clone"],"action":"SCMP_ACT_ALLOW"}`. Three
+points are part of the contract, not style:
+
+- **No `args` filter on that rule.** A rule that allows the two syscalls only for
+  `CLONE_NEWUSER` is **not** enough — Chromium still hangs, because it makes namespace calls
+  that do not match that single flag.
+- **`clone3` stays `ENOSYS`.** Do not add `clone3` to the allow rule and do not drop the
+  default profile's `clone3` `ENOSYS` entry; that entry is what makes glibc fall back to
+  `clone` instead of failing on `clone3`.
+- **`keyctl` and `mount` stay `EPERM`.** They are the control that the profile is still
+  narrow; an A/B does not pass unless they remain denied.
+
+**`kernel.unprivileged_userns_clone`.** On a host where that sysctl exists it must be `1`,
+or no container can create a user namespace and the profile has nothing to permit:
+
+```sh
+if [ -e /proc/sys/kernel/unprivileged_userns_clone ]; then
+  sysctl -w kernel.unprivileged_userns_clone=1
+fi
+```
+
+Pass the file per container:
+
+```sh
+sudo nerdctl run --rm --security-opt seccomp=/etc/containerd/seccomp/crabbox-userns.json \
+  --runtime /usr/bin/crun <lease-image> <command>
+```
+
+Never `unconfined`, and never `--no-sandbox` in the workload. The profile is accepted only
+with a three-way A/B on the host, with the same image and the same command (measured,
+RDD7 C10):
+
+| Run | Expected |
+|---|---|
+| stock profile (no `--security-opt seccomp=…`) | Chromium hangs — the sandbox cannot make its namespace calls |
+| this profile | Chromium starts and renders, and `keyctl` and `mount` still return `EPERM` |
+| `--security-opt seccomp=unconfined` | Chromium starts and renders — proves the image and the command are not the variable |
+
+The middle row is the one that matters: it must both work **and** keep `keyctl`/`mount`
+denied. A profile that works with `keyctl`/`mount` allowed is not this profile.
+
 ### 3.2 nerdctl
 
 ```sh

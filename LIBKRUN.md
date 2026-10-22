@@ -5,7 +5,8 @@ libkrun's virtio device model, and how to set up and use **virtio-vsock** and **
 through libkrun's C API directly.
 
 Baseline: libkrun 1.19.6 + libkrunfw 5.6.2 (guest kernel 6.12.109), crun 1.30.1 with
-libkrun support, Linux host with `/dev/kvm`, cgroup v2, systemd.
+libkrun support, Linux host with `/dev/kvm`, cgroup v2, systemd. See §10 for the two
+version bounds that are load-bearing.
 
 ## 1. Device inventory
 
@@ -348,6 +349,33 @@ from libkrunfw and are unaffected by the host filesystem.
 The same model on XFS (CONTAINERD.md §13): the guest rootfs is an `overlayfs` snapshot, XFS
 provides only the `overlayfs`/`native` snapshotters (btrfs/zfs skip), and store
 snapshot/revert uses the reflink copies of CONTAINERD.md §13.1.
+
+## 10. Versions
+
+Two version bounds are load-bearing. Both are measured; neither is a preference.
+
+**libkrun 1.x is the pin — `main` is not usable.** crun's krun handler resolves three
+libkrun entry points: `krun_set_vm_config`, `krun_set_gpu_options` and `krun_start_enter`.
+libkrun `main` (the 2.0 API rewrite) removes them, so a crun built against `main` cannot
+resolve them. Pin libkrun to the 1.x line; the
+baseline in this file is 1.19.6. Source read: crun `src/libcrun/handlers/krun.c` and
+libkrun `main` (RDD7 S3, B.5).
+
+**crun 1.30.1 cannot start passt, and passt is what in-guest CRIU needs.** Measured:
+`HANDLER_CONFIGURE_AFTER_MOUNTS: start passt` fails with rc 1, so a krun guest gets no
+`virtio-net` interface and §7's in-guest CRIU path fails before its first check. The fix
+needs two things in the same crun:
+
+- the passt fix `ca04fdb6`, and
+- the `/proc` remount in `src/libcrun/handlers/krun.c:824-838`, which makes passt work
+  under a declared PID namespace.
+
+No release carries both, so the passt / in-guest-CRIU path is **main-only until a release
+ships them**. A released crun remains correct for containers and for TSI-backed krun
+guests; passt is the exception (RDD7 S3/B.5, RDD8 T8).
+
+Everything else in this file is independent of these bounds. Where a recipe needs passt or
+in-guest CRIU, it needs the main-only crun.
 
 ## Appendix A — building a libkrun launcher
 
