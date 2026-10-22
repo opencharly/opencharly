@@ -139,7 +139,7 @@ async function fire() {
   const lintSrc = join(root, "marketplace/scripts");
   if (!existsSync(join(lintSrc, "pr_body_lint.py"))) {
     console.log(`  SKIP  ${rel} fired assertions: ${lintSrc} is absent (the marketplace submodule is not materialized in this checkout)`);
-    console.log(`  SKIP  materialize it with: git -C ${root} submodule update --init --depth 1 marketplace`);
+    console.log(`  SKIP  materialize it with: bash scripts/init-submodules.sh  (the working set includes the marketplace)`);
     return;
   }
   const scratch = mkdtempSync(join(tmpdir(), "check-pr-body-gate-"));

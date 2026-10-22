@@ -157,15 +157,16 @@ pin-check:
 # -----------------------------------------------------------------------------
 self-test:
   task:
-    description: Self-test the committed CI body/pin-evidence builders + the dispatcher splice
+    description: Self-test the committed CI body/pin-evidence builders + the dispatcher splice + the submodule initializer
     dir: .
     plan:
-      - run: self-test sync-pin-evidence + sync-pr-body + sync-dispatcher
+      - run: self-test sync-pin-evidence + sync-pr-body + sync-dispatcher + init-submodules
         command: |
           set -eu
           bash scripts/sync-pin-evidence.sh --self-test
           bash scripts/sync-pr-body.sh --self-test
           bash scripts/sync-dispatcher.sh --self-test
+          bash scripts/init-submodules.sh --self-test
         context: [runtime]
 
 # -----------------------------------------------------------------------------
@@ -183,10 +184,81 @@ hooks:
         context: [runtime]
 
 # -----------------------------------------------------------------------------
+# init — materialize the umbrella's submodules ON DEMAND.
+# The umbrella is a VIEW over the org: 431 submodules at the root, each a real
+# repo owned elsewhere. Materializing all of them costs 9.5 G on disk and
+# minutes of network; the pins live in the umbrella's INDEX, and every pin is
+# audited from the index, so a checkout is only needed for the repos you
+# actually build against or edit.
+# The working set is DERIVED by scripts/init-submodules.sh (the manifest's
+# import: paths, the pin contract, and the harness corpus root) — never
+# hand-listed, and a derived path that is not a declared submodule fails loud.
+#
+#   charly task init                                          the derived working set
+#   CHARLY_INIT_MODE=all    charly task init                  every declared path
+#   CHARLY_INIT_MODE=list   charly task init                  print it, change nothing
+#   CHARLY_INIT_PATHS=a,b   charly task init                  the named paths
+#
+# MODE=all is what a PIN WAVE needs: the pin verb fails loud on an uninitialized
+# path, by design (a sync over a tree it could not fully advance must never
+# report success). The daily tree is light; the maintenance acts are not.
+# -----------------------------------------------------------------------------
+init:
+  task:
+    description: Materialize the umbrella's submodules — the derived working set by default; CHARLY_INIT_MODE=all|list and CHARLY_INIT_PATHS select the others
+    dir: .
+    plan:
+      - run: materialize the umbrella's submodules
+        # The MODE arrives in the OPERATOR'S ENVIRONMENT, and the script reads
+        # it — this command text carries NO operator value at all, which is the
+        # whole point. Measured, not assumed:
+        #   - the plan runner substitutes an UPPER-CASE param's VALUE into the
+        #     command TEXT, and the shell then PARSES that text, so a param
+        #     carrying a shell metacharacter EXECUTES (measured: `--param
+        #     'EVIL=$(touch /tmp/marker)'` created the marker);
+        #   - a LOWER-CASE param is not substituted at all — the expander's
+        #     grammar is upper-case-initial (sdk/kit/checkvars_expand.go) — so
+        #     the reference reaches the shell, the shell has no such variable,
+        #     and the empty word VANISHES: the command runs with the value
+        #     silently missing;
+        #   - a param cannot reach a command step's process environment either:
+        #     the step's `env:` modifier is applied VERBATIM, so it cannot carry
+        #     one;
+        #   - the plan runner ALSO expands a braced UPPER-CASE reference in the
+        #     command text against the task's own merged env, and one it cannot
+        #     resolve SKIPS a `check:` step instead of failing it (measured on
+        #     this tree, 2026-10-22: the branch-audit step's braced
+        #     `AUDIT_JOBS:-16` read was skipped — "unresolved variables:
+        #     AUDIT_JOBS:-16" — and `charly task verify` still exited 0 while
+        #     the 431-call branch audit never ran). A braced read of the
+        #     environment would therefore be a silent no-op, not a read.
+        # An ENVIRONMENT value is DATA: the shell never re-parses the result of
+        # a parameter expansion, so the value cannot become source. The step
+        # inherits the operator's environment (measured), and the script owns
+        # the mode, the comma-split and the validation of every path against
+        # the declared set (an undeclared path fails loud).
+        command: bash scripts/init-submodules.sh
+        # A step with no timeout is bounded by the runner's never-hang floor
+        # (measured: 120 s), and a full wave needs longer than that: git clones
+        # the 431 paths in parallel and then checks them out ONE AT A TIME, and
+        # a blobless checkout lazily fetches its tree's blobs from the remote.
+        # Measured on 2026-10-22: an --all wave hit the floor at 120 s with
+        # 385 of 431 paths cloned but never checked out — a state `git submodule
+        # status` reports as at-the-pin. The timeout is raised here so the wave
+        # finishes, and the script verifies and repairs the tree either way.
+        timeout: 30m
+        context: [runtime]
+
+# -----------------------------------------------------------------------------
 # sync — bump every submodule pin per the pin contract (preview; does not commit).
 # The charly-pinned set is the six distro-* repos: charly rolls to its own
 # default-branch HEAD FIRST, and distro-* are then pinned from charly's NEW
 # gitlinks (the verb's phase order).
+#
+# A WAVE NEEDS THE FULL SET: the pin verb fails loud on an uninitialized path
+# (a sync over a tree it could not fully advance must never report success), so
+# run `CHARLY_INIT_MODE=all charly task init` before a wave. The daily tree
+# stays light; the maintenance acts do not.
 # -----------------------------------------------------------------------------
 sync:
   task:
@@ -244,17 +316,57 @@ verify:
         command: |
           set -eu
           fail() { echo "FAIL: $*" >&2; exit 1; }
-          mapfile -t MODULES < <(git config -f .gitmodules --get-regexp '^submodule\..*\.path$' | awk '{print $2}')
-          [ "${#MODULES[@]}" -ge 20 ] || fail "suspiciously few submodules (${#MODULES[@]})"
-          for path in "${MODULES[@]}"; do
+          # One ls-remote per submodule is the EXPENSIVE half of this gate: the same
+          # 431 calls measured 211.6 s SERIAL, and 14.4 s run in PARALLEL at -P 16
+          # (measured on this tree, 2026-10-22). The clause is unchanged — same
+          # .gitmodules parsing, same comparison, same message, same exit status —
+          # and it gains one property a serial loop could not have: a parallel run
+          # cannot stop at the first mismatch without losing the rest, so EVERY
+          # mismatching path is named.
+          # The parallelism is an OPERATOR value, and it travels in the ENVIRONMENT, never
+          # in this text. The plan runner expands a braced reference in a command's text
+          # against the task's merged env (kit.ExpandOpVars), so a braced read HERE is
+          # CLAIMED by the runner — and an unresolvable one does not fail the step, it
+          # SKIPS it, and the gate reads green while the audit never ran. Measured on this
+          # tree, 2026-10-22: a braced read of AUDIT_JOBS → the whole step skipped
+          # ("unresolved variables: AUDIT_JOBS:-16") and `charly task verify` still
+          # exited 0. A bare `$NAME` is expanded by the SHELL at run time, out of the
+          # process environment, and the expander never sees it.
+          JOBS="$(printenv AUDIT_JOBS 2>/dev/null || true)"
+          [ -n "$JOBS" ] || JOBS=16
+          case "$JOBS" in ''|*[!0-9]*) fail "AUDIT_JOBS must be a positive integer (got '$JOBS')";; esac
+          [ "$JOBS" -ge 1 ] || fail "AUDIT_JOBS must be at least 1 (got '$JOBS')"
+          tmp="$(mktemp)"; paths="$(mktemp)"
+          trap 'rm -f "$tmp" "$paths"' EXIT
+          git config -f .gitmodules --get-regexp '^submodule\..*\.path$' | awk '{print $2}' > "$paths"
+          count="$(grep -c . "$paths" || true)"
+          [ "$count" -ge 20 ] || fail "suspiciously few submodules ($count)"
+          while IFS= read -r path; do
             url="$(git config -f .gitmodules --get "submodule.$path.url" 2>/dev/null || true)"
             branch="$(git config -f .gitmodules --get "submodule.$path.branch" 2>/dev/null || true)"
             [ -n "$url" ] || fail "$path: no url in .gitmodules"
             [ -n "$branch" ] || fail "$path: missing branch= in .gitmodules"
-            default="$(git ls-remote --symref "$url" HEAD | sed -n 's/^ref: refs\/heads\/\(.*\)\tHEAD/\1/p')"
-            [ "$branch" = "$default" ] || fail "$path: branch=$branch but remote default is $default"
-          done
-          echo "verify: OK — ${#MODULES[@]} submodule(s): branch == remote default for every one"
+            printf '%s\0%s\0%s\0' "$path" "$url" "$branch" >> "$tmp"
+          done < "$paths"
+          set +e
+          xargs -0 -P "$JOBS" -n 3 sh -c '
+            path="$1"; url="$2"; branch="$3"
+            out=$(git ls-remote --symref "$url" HEAD 2>&1); rc=$?
+            if [ "$rc" -ne 0 ]; then
+              echo "$path: git ls-remote failed: $out" >&2
+              exit 1
+            fi
+            default=$(printf "%s\n" "$out" | sed -n "s/^ref: refs\/heads\/\(.*\)\tHEAD/\1/p")
+            if [ "$branch" != "$default" ]; then
+              shown="$default"; [ -n "$shown" ] || shown="<none>"
+              echo "$path: branch=$branch but remote default is $shown" >&2
+              exit 1
+            fi
+          ' _ < "$tmp"
+          rc=$?
+          set -e
+          [ "$rc" -eq 0 ] || fail "the branch audit failed for one or more submodules (each one is named above)"
+          echo "verify: OK — $count submodule(s): branch == remote default for every one"
         context: [runtime]
       - check: charly's own nested submodules are at their gitlinks — KEPT INLINE, because the verb has no recursive-nested clause
         command: |
@@ -268,7 +380,7 @@ verify:
             [ -z "$drift" ] || fail "charly nested submodules not at their gitlinks:
           $drift"
             notinit="$(printf '%s\n' "$nested" | grep -cE '^-' || true)"
-            [ "$notinit" = "0" ] || echo "verify: notice — ${notinit} of charly's nested submodules are NOT INITIALIZED (no checkout); a + or U drift would still FAIL."
+            [ "$notinit" = "0" ] || echo "verify: notice — $notinit of charly's nested submodules are NOT INITIALIZED (no checkout); a + or U drift would still FAIL."
           else
             echo "verify: notice — charly/ is NOT INITIALIZED: its nested-submodule check is EMPTY (git submodule update --init charly)."
           fi
@@ -276,6 +388,18 @@ verify:
         context: [runtime]
       - check: the nested-submodule step above — an uninitialized nested path is a NOTICE, a `+`/`U` drift still FAILS (fixtures)
         command: node scripts/check-verify-submodules.mjs
+        context: [runtime]
+      - check: the branch-audit step above — every branch= is compared against the remote default, and EVERY mismatch is named (fixtures)
+        command: node scripts/check-verify-branch-audit.mjs
+        context: [runtime]
+      - check: the branch-audit gate discriminates — each mutation turns it RED (fixtures)
+        command: node scripts/check-verify-branch-audit.mjs --self-test
+        context: [runtime]
+      - check: no `command:` step in this file carries a braced reference in its text — the plan runner CLAIMS one, and an unresolvable one SKIPS the step instead of failing it, so the gate would read green over a check that never ran (fixtures)
+        command: node scripts/check-task-command-vars.mjs
+        context: [runtime]
+      - check: the command-text gate discriminates — each mutation turns it RED (fixtures)
+        command: node scripts/check-task-command-vars.mjs --self-test
         context: [runtime]
       - check: every step of every task in this file declares a `context:` the plan runner activates — a set disjoint from [build, runtime] (the `[deploy]` this file used to carry) is a no-op in EVERY mode (fixtures)
         command: node scripts/check-task-contexts.mjs

@@ -543,6 +543,42 @@ Before declaring completion, answer every applicable item YES. There is one line
    Every Go build happens inside `charly/` (no nested `go.work`). *Detail:*
    `/charly-internals:git-workflow`.
 
+   **A clone is a WORKING SET, not 431 checkouts.** The umbrella pins 431 repos as
+   gitlinks, and the pins live in its **index** — every pin is audited from the index, so
+   a checkout is only needed for the repos a session actually builds against or edits.
+   Materialize them with `charly task init` (the derived working set: the project's
+   `import:` paths, the pin contract's own repos, the harness corpus root, and the
+   repos the umbrella's own gate scripts read — a gate that compares a surface in
+   a submodule **skips** that comparison when the submodule is not checked out, so
+   a working set that omitted it would leave the light tree's gate green over a
+   smaller set of comparisons than the full tree's), with
+   `CHARLY_INIT_PATHS=<a,b> charly task init` for named repos,
+   and with `CHARLY_INIT_MODE=all charly task init` for every one. The clone is **blobless**
+   (`--filter=blob:none`): commits and trees are present, so the ancestry question stays
+   decidable, while history's blobs are never fetched — `--depth 1` is NOT a substitute,
+   because a shallow clone answers "not an ancestor" for a healthy pin. On a fresh clone
+   the order is `bash scripts/init-submodules.sh` → `./charly/scripts/bootstrap-charly.sh`:
+   the bootstrap builds the binary from the `charly` checkout, and the project cannot load
+   before its `import:` paths exist. `charly task init` is the SAME operation through the
+   binary — the working set, the named paths (`CHARLY_INIT_PATHS=<a,b>`) or every one
+   (`CHARLY_INIT_MODE=all`) — and needs nothing
+   else installed. The mode travels in the **environment**, never as a task parameter:
+   an upper-case parameter's value is substituted into the command's text and the shell
+   then parses that text, so it is source, not data (a lower-case parameter is not
+   substituted at all — the expander's grammar is upper-case-initial — so it vanishes
+   in the shell); an environment value is data. The same law
+   covers a **braced reference in a command's text**: the plan runner claims one and
+   expands it against the task's merged env, so an unresolvable reference does not
+   fail the step — it **skips** it, and the gate reads green over a check that never
+   ran. A command step's text therefore carries **no** value: read the environment
+   with a bare `$NAME` (the shell expands it at run time, out of the process
+   environment, and the expander never sees it). `node
+   scripts/check-task-command-vars.mjs` holds that line, in the pre-commit gate and
+   in `charly task verify`. Materializing is
+   never a licence
+   to edit in place — rule 1 still holds. *Detail:*
+   `/charly-internals:git-workflow` (umbrella mechanics).
+
 3. **Pins are gitlinks; a pin declares its INTENT, and CURRENCY is the question.** *(R6, R10)*
    Pin only MERGED refs. Every pin declares what "current" means for it: `upstream:<ref>` is
    a **leaf**, judged against the REMOTE; `derived-from:<path>` — and every `pin_map` entry,
@@ -559,7 +595,13 @@ Before declaring completion, answer every applicable item YES. There is one line
    as the work list:** producer PR → merge → tag → consumer pin bump → this repo's gitlink.
    Advance pins only with `./charly/bin/charly task sync` plus a PR, never with a hand-pin or
    a branch checkout — and ask **`currency`**, not consistency, when the question is whether
-   this repo is CURRENT. *Detail:* `/charly-internals:git-workflow` (pinning).
+   this repo is CURRENT. **A pin is the INDEX entry; the checkout follows it.** An
+   unmaterialized path is not a broken pin: its pin is still audited from the index and
+   reported as *uninitialized (pin audited, no checkout)* — a notice, not a failure. A
+   **pin wave**, though, needs the full set (`CHARLY_INIT_MODE=all charly task init` first),
+   because the bump fails loud on a path it could not advance — a sync over a tree it
+   could not fully advance must never report success. *Detail:*
+   `/charly-internals:git-workflow` (pinning).
 
 4. **Read the subrepo's own rulebook first.** *(R0)* Its `AGENTS.md` adds repo-specific
    rules on top of Part I, so read it before acting there.

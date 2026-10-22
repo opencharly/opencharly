@@ -63,7 +63,7 @@ fi
 
 if [ ! -f "$LINT" ]; then
   echo "pre-push: $LINT is absent (the marketplace submodule is not materialized here) — body lint SKIPPED."
-  echo "pre-push: materialize it with: git -C $ROOT submodule update --init --depth 1 marketplace"
+  echo "pre-push: materialize it with: bash scripts/init-submodules.sh  (the working set includes the marketplace)"
   exit 0
 fi
 
@@ -81,7 +81,7 @@ fi
 # one broken submodule blocks every legitimate push in the clone.
 if ! python3 "$LINT" --help >/dev/null 2>&1; then
   echo "pre-push: the body linter cannot run here (it needs its sibling module from the marketplace submodule) — body lint SKIPPED." >&2
-  echo "pre-push: materialize it with: git -C $ROOT submodule update --init --depth 1 marketplace" >&2
+  echo "pre-push: materialize it with: bash scripts/init-submodules.sh  (the working set includes the marketplace)" >&2
   exit 0
 fi
 
