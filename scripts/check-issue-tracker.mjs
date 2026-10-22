@@ -179,6 +179,10 @@ if (mod) {
       res.setHeader("content-type", "application/json");
       res.end(JSON.stringify([
         { body: "OWNING — gate\n\n*Agent: `other-slug` · session `ses_x`*\n*Assisted-by: H (x)*" },
+        // The retired `BLOCKS`/`UNBLOCKS` labels are gone; the blocked side now says
+        // `WAITING` and the blocking side `HOLDING`. The tracker's parseVerb path
+        // must read the new labels, and the LATEST coordination comment still wins.
+        { body: "WAITING — producer pin\n\n*Agent: `other-slug` · session `ses_x`*\n*Assisted-by: H (x)*" },
       ]));
       return;
     }
@@ -197,6 +201,7 @@ if (mod) {
     const st = await HANDLERS.tracker_status({}, { ...ctx });
     ok(typeof st?.content === "string" && st.content.includes("o/r#7"), "tracker_status EXECUTES liveScope and reports the ledger scope");
     ok(st.content.includes("other-slug"), "tracker_status surfaces the latest coordination verb's OWNER slug (coordination check)");
+    ok(st.content.includes("via WAITING"), "tracker_status reads the new-grammar `WAITING` label and reports it as the latest coordination verb");
     // tracker_sync runs liveScope and classifies OK/merged/closed/stall.
     const sy = await HANDLERS.tracker_sync({}, { ...ctx });
     ok(typeof sy?.content === "string" && /OK\s+o\/r#7/.test(sy.content), "tracker_sync EXECUTES the live join and classifies the scope");

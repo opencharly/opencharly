@@ -161,7 +161,15 @@ if (mod) {
   eq(canonicalVerb("handing_over"), "HANDING OVER", "canonicalVerb normalises `handing_over` → `HANDING OVER`");
   eq(canonicalVerb("taking over"), "TAKING OVER", "canonicalVerb collapses runs of spaces");
   eq(canonicalVerb("STATUS"), "STATUS", "canonicalVerb keeps the canonical label");
+  eq(canonicalVerb("waiting"), "WAITING", "canonicalVerb normalises `waiting` → `WAITING`");
+  eq(canonicalVerb("holding"), "HOLDING", "canonicalVerb normalises `holding` → `HOLDING`");
+  eq(canonicalVerb("cleared"), "CLEARED", "canonicalVerb normalises `cleared` → `CLEARED`");
   eq(canonicalVerb("nope"), "", "canonicalVerb rejects a verb outside the closed set");
+  // The retired coordination labels are OUTSIDE the closed set: `BLOCKS` belongs to
+  // the validator's VERDICT vocabulary, and a coordination comment must never read
+  // like a verdict. `UNBLOCKS` is retired outright.
+  eq(canonicalVerb("BLOCKS"), "", "canonicalVerb rejects the retired `BLOCKS` label");
+  eq(canonicalVerb("UNBLOCKS"), "", "canonicalVerb rejects the retired `UNBLOCKS` label");
 
   // args > env > conf ; the live session always wins.
   const id = resolveIdentity(
@@ -288,6 +296,14 @@ if (mod) {
   // verdict arrives as (comment = the BLOCK/PASS review, verdict = the run status).
   eq(DEFAULT_EVENTS, "merged,closed,comment,verdict,stall", "DEFAULT_EVENTS includes comment AND verdict beside the terminal + silence set");
   ok(VERBS.includes("HANDING OVER") && VERBS.includes("TAKING OVER"), "VERBS carries the spaced multi-word labels");
+  // The closed set is CLOSED: the nine labels, in order, and nothing else. A verb
+  // outside it is not a coordination comment, so a retired label must never
+  // reappear here and quietly come back to life.
+  eq(
+    [...VERBS],
+    ["CLAIM", "OWNING", "HANDING OVER", "TAKING OVER", "WAITING", "HOLDING", "CLEARED", "STATUS", "RESOLVED"],
+    "VERBS is the nine-label closed set, in order",
+  );
   ok(TIERS.length === 5, "TIERS carries the five documented attribution tiers");
 
   // R3 — the rate-limit policy is NAMED, `coord_watch` is BOUNDED by default, and
@@ -499,7 +515,7 @@ if (mod) {
         if (body !== undefined) args.push("--body", body);
         return run("bash", args).stdout ?? "";
       };
-      for (const [verb, body] of [["STATUS", "hi"], ["handing_over", undefined], ["taking over", "x"]]) {
+      for (const [verb, body] of [["STATUS", "hi"], ["handing_over", undefined], ["taking over", "x"], ["WAITING", "x"], ["HOLDING", "x"], ["CLEARED", "x"]]) {
         const canon = canonV(verb);
         eq(shellComment(verb, body), `${buildC(canon, body, idc)}\n`, `shell coord.sh vs TS buildComment: '${verb}' is byte-identical`);
       }
