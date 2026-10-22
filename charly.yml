@@ -187,9 +187,9 @@ hooks:
 # init — materialize the umbrella's submodules ON DEMAND.
 # The umbrella is a VIEW over the org: 431 submodules at the root, each a real
 # repo owned elsewhere. Materializing all of them costs 9.5 G on disk and
-# minutes of network; the pins live in the umbrella's INDEX, and every pin is
-# audited from the index, so a checkout is only needed for the repos you
-# actually build against or edit.
+# minutes of network (measured 2026-10-22); the pins live in the umbrella's
+# INDEX, and every pin is audited from the index, so a checkout is only needed
+# for the repos you actually build against or edit.
 # The working set is DERIVED by scripts/init-submodules.sh (the manifest's
 # import: paths, the pin contract, and the harness corpus root) — never
 # hand-listed, and a derived path that is not a declared submodule fails loud.
@@ -226,8 +226,8 @@ init:
         #     one;
         #   - the plan runner ALSO expands a braced UPPER-CASE reference in the
         #     command text against the task's own merged env, and one it cannot
-        #     resolve SKIPS a `check:` step instead of failing it (measured on
-        #     this tree, 2026-10-22: the branch-audit step's braced
+        #     resolve SKIPS a `check:` step instead of failing it (observed
+        #     2026-10-22: the branch-audit step's braced
         #     `AUDIT_JOBS:-16` read was skipped — "unresolved variables:
         #     AUDIT_JOBS:-16" — and `charly task verify` still exited 0 while
         #     the 431-call branch audit never ran). A braced read of the
@@ -238,14 +238,16 @@ init:
         # the mode, the comma-split and the validation of every path against
         # the declared set (an undeclared path fails loud).
         command: bash scripts/init-submodules.sh
-        # A step with no timeout is bounded by the runner's never-hang floor
-        # (measured: 120 s), and a full wave needs longer than that: git clones
-        # the 431 paths in parallel and then checks them out ONE AT A TIME, and
-        # a blobless checkout lazily fetches its tree's blobs from the remote.
-        # Measured on 2026-10-22: an --all wave hit the floor at 120 s with
-        # 385 of 431 paths cloned but never checked out — a state `git submodule
-        # status` reports as at-the-pin. The timeout is raised here so the wave
-        # finishes, and the script verifies and repairs the tree either way.
+        # A step with no timeout is bounded by the runner's per-step never-hang
+        # floor — the host's readiness per-attempt ceiling, 120 s in the pinned
+        # spec's readinessPerAttemptFallback — and a full wave needs longer than
+        # that: git clones the 431 paths in parallel and then checks them out ONE
+        # AT A TIME, and a blobless checkout lazily fetches its tree's blobs
+        # from the remote. Measured on 2026-10-22: an --all wave hit that floor
+        # with 385 of 431 paths cloned but never checked out — a state `git
+        # submodule status` reports as at-the-pin. The timeout is raised here so
+        # the wave finishes, and the script verifies and repairs the tree either
+        # way.
         timeout: 30m
         context: [runtime]
 
@@ -317,12 +319,12 @@ verify:
           set -eu
           fail() { echo "FAIL: $*" >&2; exit 1; }
           # One ls-remote per submodule is the EXPENSIVE half of this gate: the same
-          # 431 calls measured 211.6 s SERIAL, and 14.4 s run in PARALLEL at -P 16
-          # (measured on this tree, 2026-10-22). The clause is unchanged — same
-          # .gitmodules parsing, same comparison, same message, same exit status —
-          # and it gains one property a serial loop could not have: a parallel run
-          # cannot stop at the first mismatch without losing the rest, so EVERY
-          # mismatching path is named.
+          # 431 calls took 197 s to 212 s SERIAL, and 13 s to 15 s run in PARALLEL
+          # at -P 16 (measured 2026-10-22, over repeated runs of this step). The
+          # clause is unchanged — same .gitmodules parsing, same comparison, same
+          # message, same exit status — and it gains one property a serial loop
+          # could not have: a parallel run cannot stop at the first mismatch without
+          # losing the rest, so EVERY mismatching path is named.
           # The parallelism is an OPERATOR value, and it travels in the ENVIRONMENT, never
           # in this text. The plan runner expands a braced reference in a command's text
           # against the task's merged env (kit.ExpandOpVars), so a braced read HERE is

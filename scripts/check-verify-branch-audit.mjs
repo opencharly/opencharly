@@ -10,7 +10,7 @@
 // WHAT THIS GATE DOES NOT COVER, and who does: this gate exercises the step's TEXT
 // through spawnSync("/bin/sh", …), so it CANNOT see what the PLAN RUNNER does with
 // that text — and the plan runner claims a braced reference in it, skipping the step
-// when it cannot resolve (measured 2026-10-22: the step read its parallelism as
+// when it cannot resolve (observed 2026-10-22: the step read its parallelism as
 // `JOBS="${AUDIT_JOBS:-16}"`, the step was SKIPPED, and `charly task verify` exited 0
 // while the audit never ran). That half — the text the plan runner would claim — is
 // asserted by scripts/check-task-command-vars.mjs, against the same shipped file.

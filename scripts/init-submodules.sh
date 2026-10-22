@@ -5,9 +5,9 @@
 # WHY THIS EXISTS: the umbrella is a view over the org — 431 submodules at the root,
 # each a real repo owned elsewhere. A full `--recurse-submodules` clone materializes
 # 431 checkouts and 9.5 G on disk (8.3 G of it in .git/modules, ~87 % of it in the
-# six vendored upstream mirrors). The pins live in the umbrella's INDEX, and every
-# pin is audited from the index, so a checkout is only needed for the repos you
-# actually build against or edit.
+# six vendored upstream mirrors; measured 2026-10-22). The pins live in the
+# umbrella's INDEX, and every pin is audited from the index, so a checkout is
+# only needed for the repos you actually build against or edit.
 #
 # BLOBLESS, NOT SHALLOW: `--filter=blob:none` keeps every commit and every tree, so
 # the ancestry question the pin contract asks (`merge-base --is-ancestor <pin>

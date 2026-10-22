@@ -27,10 +27,16 @@ export PATH="$PWD/charly/bin:$PATH"    # from here on this page reads `charly �
 charly task hooks                      # installs this clone's pre-commit gate
 ```
 
-The bootstrap script is the umbrella's one non-`charly` entrypoint, and it has to be:
-the build that produces the `charly` binary cannot itself be a `charly` task. Every
-command after it is the installed-binary form — `charly task …`, exactly as on a host
-that installed a package. Without the `export`, the same commands run as
+The umbrella has **two** non-`charly` entrypoints, and both have to be: the build that
+produces the `charly` binary cannot itself be a `charly` task, and neither can the
+materialization — the working set includes `charly` itself, so the binary does not exist
+yet when the first clone happens. `scripts/init-submodules.sh` materializes the working
+set, and `charly/scripts/bootstrap-charly.sh` builds the binary from the `charly`
+checkout it materialized; the initializer needs `git` and `python3`, and it checks both
+and names a missing one. Every command after the bootstrap is the installed-binary form
+— `charly task …`, exactly as on a host that installed a package. `charly task init` is
+that binary form of the same materialization: it runs the same script, so it carries the
+same two requirements. Without the `export`, the same commands run as
 `./charly/bin/charly task …`; both forms are the same binary.
 
 **The umbrella is a view over the org, not a 9.5 GB checkout.** It pins 431 repos as
@@ -43,11 +49,17 @@ umbrella's own gate scripts read — and leaves the other 418 as index entries:
 | clone shape | on disk | wall clock |
 |---|---|---|
 | `git clone --recurse-submodules` (all 431 checkouts, full history) | 9.5 G | minutes |
-| `git clone` + `scripts/init-submodules.sh` (the working set, blobless) | 73 M | 15–16 s |
-| `git clone` + `scripts/init-submodules.sh --all` (every path, blobless) | 2.2 G | 6 m 36 s |
+| `git clone` + `scripts/init-submodules.sh` (the working set, blobless) | 73–75 M | 15–17 s |
+| `git clone` + `scripts/init-submodules.sh --all` (every path, blobless) | 1.9–2.2 G | 6 m 10 s – 6 m 43 s |
 
-Those sizes are the **clone**; the bootstrap adds the binary on top of them (52 M), so a
-bootstrapped light tree measures 125 M, against the 9.5 G a full checkout occupies.
+Those sizes are the **clone**; the bootstrap adds the binary and its build cache on top of
+them (52 M), so a bootstrapped light tree measures 125–126 M, against the 9.5 G a full
+checkout occupies. Sizes are `du -sh` at whole-unit granularity, and the packs move with
+the upstream repos, so each size in the table is the band the runs produced rather than
+one number: the light clone measured between 73 M and 75 M, and the full shape between
+1.9 G and 2.2 G. The full shape's band is the `openclaw` mirror's module store — 478 MiB
+of packs in a from-scratch clone against 786 MiB in a tree whose store was reused across
+runs, which holds more of that mirror's history.
 
 The last of those four sources is what keeps the light tree honest. Two of the
 umbrella's gate scripts compare a surface that lives in a submodule — the committed
@@ -59,12 +71,14 @@ working set therefore includes the repos the gates read, so a light tree's gate
 covers what the full tree's covers — and the light tree now reports **26 of 26
 passed, 0 skipped**, the same as the full tree.
 
-Measured on this machine, from a fresh clone, on 2026-10-22. The light row's wall clock
-is a **sample**: repeated runs of the same step on the same tree measured 15 s and 16 s,
-and the whole of it is the network fetch of 13 blobless clones. The `--all` row is the
-maintenance shape: it clones the 431 paths in parallel and then checks them out one at a
-time, and the 6 m 36 s is dominated by the vendored upstream mirrors — `openclaw` alone is
-a 7.6 GB repository fetched blobless.
+Measured on this machine, from a fresh clone, on 2026-10-22. **The wall clocks are
+samples** of repeated runs of the same step, so the table carries the band the runs
+actually produced rather than a single number: the light row's fresh clones measured
+between 15 s and 17 s — the whole of it is the network fetch of 13 blobless clones — and
+the `--all` row's from-scratch materializations measured between 6 m 10 s and 6 m 43 s.
+The `--all` row is the maintenance shape: it clones the 431 paths in parallel and then
+checks them out one at a time, and its time is dominated by the vendored upstream mirrors
+— `openclaw` alone is a 7.6 GB repository fetched blobless.
 
 `scripts/init-submodules.sh` clones **blobless** (`--filter=blob:none`): every commit and
 every tree are present, so *"is this pin an ancestor of the remote's tip?"* stays

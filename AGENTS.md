@@ -578,10 +578,8 @@ Before declaring completion, answer every applicable item YES. There is one line
    with a bare `$NAME` (the shell expands it at run time, out of the process
    environment, and the expander never sees it). `node
    scripts/check-task-command-vars.mjs` holds that line, in the pre-commit gate and
-   in `charly task verify`. Materializing is
-   never a licence
-   to edit in place — rule 1 still holds. *Detail:*
-   `/charly-internals:git-workflow` (umbrella mechanics).
+   in `charly task verify`. Materializing is never a licence to edit in place —
+   rule 1 still holds. *Detail:* `/charly-internals:git-workflow` (umbrella mechanics).
 
 3. **Pins are gitlinks; a pin declares its INTENT, and CURRENCY is the question.** *(R6, R10)*
    Pin only MERGED refs. Every pin declares what "current" means for it: `upstream:<ref>` is

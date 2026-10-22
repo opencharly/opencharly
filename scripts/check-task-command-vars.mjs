@@ -2,8 +2,8 @@
 // check-task-command-vars.mjs — no `command:` step of any `charly task` in THIS repo's
 // charly.yml may carry a `${…}` reference in its text.
 //
-// THE DEFECT THIS CLOSES (measured on this tree, 2026-10-22, and introduced by this
-// branch's own commit): the branch-audit step read its parallelism as
+// THE DEFECT THIS CLOSES (observed 2026-10-22, and introduced by this branch's own
+// commit): the branch-audit step read its parallelism as
 // `JOBS="${AUDIT_JOBS:-16}"`. The plan runner expands `${NAME}` in a command's text
 // against the task's merged env — kit.ExpandOpVars (sdk/kit/checkvars_expand.go) rewrites
 // every string inside the step's PluginInput, and a step's `command:` IS the generic
