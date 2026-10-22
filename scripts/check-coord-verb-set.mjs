@@ -35,6 +35,10 @@
 //
 // Usage: node scripts/check-coord-verb-set.mjs [--root <dir>] [--self-test]
 // exit 0 clean · 1 finding
+//
+// `--self-test` runs the arms in a CHILD process under a controlled TMPDIR and then
+// checks, FROM THE OUTSIDE, that the child left no fixture directory behind. The child
+// mode is `--self-test-arms`; it is internal, and the observer is what calls it.
 
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
@@ -464,6 +468,13 @@ function check(dir) {
   );
 }
 
+/**
+ * The self-test's arms. Returns the number of failed arms — the CALLER exits.
+ *
+ * The exit is deliberately NOT here: the `finally` below removes this run's fixture
+ * directory, and an exit from inside the `try` skips it — the leak
+ * opencharly/opencharly#576 names. The caller exits, outside the try.
+ */
 function selfTest() {
   const dir = mkdtempSync(join(tmpdir(), "check-coord-verb-set-"));
   try {
@@ -653,13 +664,54 @@ function selfTest() {
     }
 
     console.log(`check-coord-verb-set --self-test: ${bad === 0 ? "OK" : `FAIL (${bad})`}`);
-    process.exit(bad === 0 ? 0 : 1);
+    return bad;
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
 }
 
-if (argv.includes("--self-test")) selfTest();
+/**
+ * The self-test's OUTER observer.
+ *
+ * The arms run in a CHILD process under a controlled TMPDIR, and this parent then looks
+ * at that directory from the outside. The child removes its fixture directory in a
+ * `finally`; a child that exits from inside its `try` skips that `finally` and leaves
+ * the directory behind. That is the leak opencharly/opencharly#576 names, and this is
+ * the control that catches it — the observer is a DIFFERENT process, so it still runs
+ * when the child's exit short-circuits the cleanup. An in-process assertion could not
+ * do that: the process that would make it is the one the early exit kills.
+ */
+function selfTestObserved() {
+  const scratch = mkdtempSync(join(tmpdir(), "check-coord-verb-set-run-"));
+  let rc = 1;
+  try {
+    const r = spawnSync(process.execPath, [fileURLToPath(import.meta.url), "--self-test-arms"], {
+      encoding: "utf8",
+      env: { ...process.env, TMPDIR: scratch, TMP: scratch, TEMP: scratch },
+    });
+    if (r.stdout) process.stdout.write(r.stdout);
+    if (r.stderr) process.stderr.write(r.stderr);
+    if (r.status !== 0) {
+      console.error(`  FAIL  the self-test arms exited ${r.status}`);
+    } else {
+      const leftover = readdirSync(scratch).filter((n) => n.startsWith("check-coord-verb-set-"));
+      if (leftover.length === 0) {
+        console.log("  PASS  the self-test left no fixture directory behind");
+        rc = 0;
+      } else {
+        console.error(
+          `  FAIL  the self-test left ${leftover.length} fixture directory(ies) behind: ${leftover.join(", ")}`,
+        );
+      }
+    }
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+  return rc;
+}
+
+if (argv.includes("--self-test-arms")) process.exit(selfTest() === 0 ? 0 : 1);
+if (argv.includes("--self-test")) process.exit(selfTestObserved());
 check(root);
 console.log(`check-coord-verb-set: ${failures === 0 ? "OK" : `${failures} FAILURE(S)`}`);
 process.exit(failures === 0 ? 0 : 1);
