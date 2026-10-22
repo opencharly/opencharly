@@ -307,6 +307,12 @@ verify:
       - check: the validator rule-map gate discriminates — each mismatch fixture turns it RED
         command: node scripts/check-validator-rule-map.mjs --self-test
         context: [runtime]
+      - check: the coordination closed set is the SAME nine labels on every surface that enumerates it (opencharly/opencharly#567)
+        command: node scripts/check-coord-verb-set.mjs
+        context: [runtime]
+      - check: the coordination closed-set gate discriminates — each mutation turns it RED (fixtures)
+        command: node scripts/check-coord-verb-set.mjs --self-test
+        context: [runtime]
       - check: the pi wake binding delegates to the neutral watchers, wakes, re-arms, cleans up, and ships inert + wired
         command: node scripts/check-pi-watch.mjs
         context: [runtime]
