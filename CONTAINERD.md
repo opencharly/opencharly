@@ -89,7 +89,26 @@ Requirements:
   `kvm`).
 - **crun with CRIU and libkrun**: `crun --version` shows `+CRIU` and `+LIBKRUN`.
 - For rootless: `/etc/subuid` and `/etc/subgid` entries for the user
-  (`user:100000:65536` in both).
+  (`user:100000:65536` in both), **and the uidmap helpers that consume them**:
+  `newuidmap` and `newgidmap` (Arch/CachyOS: the `shadow` package; Debian/Ubuntu:
+  `uidmap`; Fedora: `shadow-utils`). They are not setuid — they carry
+  `cap_setuid=ep` / `cap_setgid=ep` instead — and rootlesskit execs them to write the
+  UID/GID map. `containerd-rootless-setuptool.sh` checks the binaries *it* installs and
+  never these two, so a setup that reports success can still leave a host whose rootless
+  containerd will not start; the failure surfaces much later as
+  `failed to setup UID/GID map: newuidmap … failed: : exec: "newuidmap": executable file
+  not found in $PATH`. A/B: the same `rootlesskit --state-dir=<dir> true` returns `rc=0`
+  with the helpers on `$PATH`, and exactly that error with those two binaries alone
+  removed from a `$PATH` built out of every other entry.
+- For the **fuse-overlayfs** fallback (§4.4): the **`/dev/fuse`** device node.
+  `fuse-overlayfs` is a libfuse3 client and libfuse3 opens the device. The setup tool
+  checks the two *binaries* and never the *node*, so the fallback can install
+  "successfully" and then fail at the mount with
+  `fuse: device /dev/fuse not found. Kernel module not loaded?` followed by
+  `fuse-overlayfs: cannot mount` — a message that names a **kernel module**, which is not
+  the same thing as the missing **device node**. A/B: the same mount succeeds with the
+  node present, and fails with those two lines under a `tmpfs` mounted over `/dev` in a
+  private mount namespace (`sudo unshare -m`).
 
 One-time rootless delegation (as root):
 
@@ -443,6 +462,15 @@ systemctl --user is-active containerd buildkit      # → active active
   and answers `2222/tcp -> 127.0.0.1:<port>` with a port from the ephemeral range.
   **Rootless therefore needs an explicit host port** —
   pick a free one and publish it as `-p 127.0.0.1:<port>:2222`.
+- **Publishing a port below 1024 is two different questions, and one host setting answers
+  only the first.** The **publish** side is governed by the host's
+  `net.ipv4.ip_unprivileged_port_start` (default `1024`), so a rootless
+  `-p 127.0.0.1:880:<cport>` fails with `listen tcp 127.0.0.1:880: bind: permission
+  denied` until it is lowered (`sysctl net.ipv4.ip_unprivileged_port_start=880`, made
+  persistent in `/etc/sysctl.d/`). The **container** side is governed by the CNI netns's
+  own threshold, which is `0`, so a process inside a rootless lease binds a low port
+  freely with no sysctl at all; only `--net host` keeps the `1024` threshold and the
+  capability requirement. Do not prepare the host for the second case — it needs nothing.
 - Resource limits (memory, cpuset, io) require the `Delegate=` line from §2.
 
 ### 4.4 Rootless overlayfs fallback
@@ -704,6 +732,17 @@ Rules:
 - Do not combine `--systemd` with krun.
 - A plain httpd with an empty docroot answers `403`; that is a successful HTTP response for
   reachability checks (`curl -s ... >/dev/null` exits 0).
+- **The exit code of a systemd container is a function of the STACK, not a constant.** systemd
+  as PID 1 halts through `reboot_pid_ns()`, which kills the namespace init with a signal, so
+  the reported status is `128 + signal`. Measured on two containerd releases against the same
+  image and the same commands: a privileged `nerdctl stop` reported **130** on both, but
+  `--stop-signal SIGTERM` reported **137** on 2.3.5 and **130** on 2.4.2, and a busybox
+  `poweroff -f` without `CAP_SYS_BOOT` reported **1** on 2.3.5 and **0** on 2.4.2. What is
+  stable across both: `130` and `0` mean a clean halt, `129` a reboot request,
+  `systemctl exit 42` → `42`, and a plain workload's `SIGTERM` → `137`. Never key a script on
+  a single number without pinning the stack it was measured on; `SIGTERM` against a systemd
+  container is the worst choice, because systemd re-execs on it and the stop then ends on the
+  timeout kill.
 
 Checks:
 
@@ -839,6 +878,30 @@ container's IP without an outer publish; for a rootless outer, the outer publish
 The inner store lives in the `-v <name>:/var` volume. Recreate it for a clean nested
 instance (`nerdctl rm -f inner && nerdctl volume rm inner-var`), and remember that container
 names persist in that volume across restarts.
+
+**An inner krun works, and needs two things — not three.** Pass `/dev/kvm` to the outer
+container (`--device /dev/kvm`); without it the inner create fails at once with
+`[libcrun:krun]: /dev/kvm unavailable`. Then make the inner image's libkrun **findable by the
+dynamic loader**: the library is `libkrun.so.1` from the `libkrun` package (with `libkrunfw`
+beside it), and it must be on a path the loader searches — the system library directory, or
+a `LD_LIBRARY_PATH` set to the directory that actually holds it. A path that does not exist
+is the failure mode to know, because crun's message misdirects:
+
+```
+failed to open `libkrun.so.1`, `libkrun-sev.so.1`, and `libkrun-awsnitro.so.1`
+  for krun_config: libkrun-awsnitro.so.1: cannot open shared object file
+```
+
+Those are three `dlopen` candidates and the check is **all three NULL**
+(`src/libcrun/handlers/krun.c:967-971`), with `dlerror()` read after the *third* call — so the
+text blames `libkrun-awsnitro.so.1` whichever library actually failed. The `-sev` and
+`-awsnitro` variants are only *required* when the `krun.variant` annotation names them
+(`:438-454`); a plain krun needs only the base library. Measured, three arms: no library
+resolvable → the message above; only the two variant libraries resolvable → the different
+and decisive `the container requires libkrun but it's not available`; base library resolvable
+→ the inner guest boots (`uname -r` shows the libkrunfw kernel, not the host's). If the image
+also wants GPU/Vulkan in the guest, it needs `virglrenderer`, `bzip2-libs` and a
+`libbz2.so.1.0` symlink, which some libkrun builds request by that soname.
 
 ## 10. Images, state and fast reset
 
@@ -1014,13 +1077,51 @@ further down, to `criu/namespaces.c:278`). The pre-flight run **inside the
 daemon's own user namespace** is the honest test, and it is the one that
 discriminates the two daemons on a real host.
 
-**Where the failure is reported, and where the log really is.** containerd's
-error names a dump log under `/run/containerd/…` — the **rootful** runtime root
-— even for the rootless daemon, where that path does not exist. The log is
-really at `/run/user/<uid>/containerd/io.containerd.runtime.v2.task/<ns>/<id>/criu-dump.log`.
-The error text also quotes a `work/criu-work/dump.log` that is not written on
-this path either. Read the file at the runtime root, not at the path in the
-message.
+**Where the failure is reported, and where the log really is.** containerd prints a dump
+log under `/run/containerd/…`, and for a rootless daemon that path is **valid inside the
+daemon's own mount namespace and invisible from the host**. It is not "the rootful runtime
+root": `containerd-rootless.sh` bind-mounts `$XDG_RUNTIME_DIR/containerd` onto
+`/run/containerd`, so with the wrapper's default state the two are the *same inode* — proven
+by `stat` reporting the identical device:inode pair (`54:29590456`) on both sides, with the
+named file present under `nsenter -U -m` and absent outside. The same behaviour is identical
+on containerd 2.4.1 and 2.4.2 (the producer, `cmd/containerd-shim-runc-v2/process/init.go`,
+is byte-identical between them), so this is a namespace fact, not a version defect. A daemon
+given its own XDG state prints a path that resolves directly on the host.
+
+**Who may read a checkpoint.** The store holds the container's **process memory**
+(`core-*.img`, `pages-*.img`), and what protects it is the **directory**, not the files:
+the checkpoint directory is mode `0700` owned by the daemon's user, while the CRIU image
+files inside are `0644` (CRIU creates them that way, so its own process can write them) and
+`descriptors.json` is `0600`. So a **rootful** checkpoint is not readable by an ordinary
+local user because the directory is not traversable — measured: a `0644` image read failed
+`rc=1` in the `0700` directory, and the *same file, same mode, same user* read `rc=0` once
+the directory was copied to mode `0755`. A `descriptors.json` read failed in both, because
+its own `0600` blocks it. For a **rootless** daemon the chain is the user's own — runtime
+root `0755`, task dir `0711`, `criu-dump.log` `0644` — so the user who owns the container can
+read the log; do not tell them the file is root-only (the `0700 root:root` in this area is
+the rootful **data** root `/var/lib/containerd`). Never relax a mode to "make it readable":
+that would expose the process memory.
+
+**The rootless limitation above is containerd's own checkpoint path, not rootless CRIU.**
+Two further configurations do checkpoint without a rootful daemon. They are not equivalent,
+and the difference is the point:
+
+- **A rootless krun container** can run CRIU **inside the guest**, and this one costs nothing
+  in privilege: the guest kernel's root performs the dump, the host's init-userns barrier never
+  applies, and the host sees only the unprivileged VMM process. Measured: `criu check` →
+  `Looks good`, a dump at tick 4, and a restore into a **fresh** VM continuing at 5 with no
+  privilege on the host. This is the recommended rootless path.
+- **A rootless crun container** can run CRIU in-container with
+  `--security-opt seccomp=unconfined` plus `SYS_ADMIN`/`SYS_PTRACE`/`CHECKPOINT_RESTORE` and
+  `criu --unprivileged`. The init-userns barrier applies only to **seccomp-filtered** tasks
+  (`compel/src/lib/infect.c:310-311` calls the suspend only when the target has a filter),
+  which is precisely why removing or weakening the filter lets it through. **That is a
+  documented security tradeoff, not a free path**: an explicitly opted-in lease runs without
+  seccomp and with `CAP_SYS_ADMIN` inside its user namespace. State the cost wherever the
+  configuration is offered; do not present it as equivalent to the krun path.
+
+So the honest statement is that *containerd's own* rootless `checkpoint create` is blocked,
+not that rootless cannot checkpoint.
 
 **Restoring requires a runtime handler whose `restore` accepts `-no-subreaper`.**
 containerd invokes the OCI binary's `restore` subcommand with that flag — measured on the
@@ -1369,10 +1470,29 @@ sudo nvidia-ctk runtime configure --runtime=containerd
 sudo systemctl restart containerd
 ```
 
+Four facts about that command, each measured, because three of them cost a cycle if you get
+them wrong:
+
+- **`--enable-cdi` is wrong on containerd 2.x.** CDI is always enabled and the key is
+  ignored: `level=warning msg="Ignoring unknown key in TOML for plugin" … key=enable_cdi`
+  (`enable_cdi` was removed in containerd 2.4). `cdi_spec_dirs` still defaults to
+  `['/etc/cdi','/var/run/cdi']`.
+- **`--drop-in-config ""` silently writes no handler.** The command succeeds and the config
+  registers nothing — a state that looks configured.
+- **`--set-as-default` is unnecessary.** The handler is selected per pod or per container.
+- **The default drop-in path can be refused** (`permission denied`) when the existing file
+  is not writable by the invoking user. Direct it at a path you own with `--drop-in-config`,
+  or add the handler keys to `config.toml` by hand. A refused run writes nothing, so compare
+  the file before and after rather than trusting the command's silence.
+
+Verify the handler is **live**, not merely written — `crictl info` lists the runtimes. For a
+plain `nerdctl run`, nerdctl does not accept the CRI handler name at all
+(`--runtime nvidia` → `invalid runtime name nvidia`): use CDI
+(`--device nvidia.com/gpu=…` / `--gpus …`) on the default runtime, or `--runtime <binary>`.
+
 Measured: the command writes `/etc/containerd/conf.d/99-nvidia.toml` and adds
 `imports = ["/etc/containerd/conf.d/*.toml"]` to `/etc/containerd/config.toml`. The drop-in
 registers the runtime handler
-
 ```toml
 [plugins."io.containerd.cri.v1.runtime".containerd.runtimes.nvidia]
   runtime_type = "io.containerd.runc.v2"
@@ -1428,13 +1548,34 @@ client's config dir:
 
 ```sh
 mkdir -p "$HOME/.config/cdi"
-ln -sf /etc/cdi/nvidia.yaml "$HOME/.config/cdi/nvidia.yaml"
+ln -sf /var/run/cdi/nvidia.yaml "$HOME/.config/cdi/nvidia.yaml"
 ```
 
-or per invocation, with nerdctl's own flag:
+or per invocation, with nerdctl's own flag (`--cdi-spec-dirs` is **comma**-separated; a
+colon-separated list is taken as one path):
 
 ```sh
-nerdctl run --cdi-spec-dirs /etc/cdi --device nvidia.com/gpu=all … nvidia-smi …
+nerdctl run --cdi-spec-dirs /var/run/cdi --device nvidia.com/gpu=all … nvidia-smi …
+```
+
+**Link the refreshed spec, not a hand-made one.** The toolkit ships
+`nvidia-cdi-refresh.{path,service}` (wanted by `multi-user.target`, ordered before
+docker/containerd/crio) plus a udev rule; it regenerates **`/var/run/cdi/nvidia.yaml`** at
+boot, when `modules.dep` or `nvidia-ctk` changes, and on nvidia module load. A one-shot
+`nvidia-ctk cdi generate --output=/etc/cdi/nvidia.yaml` is a **snapshot**: the driver
+version appears 115 times in the generated spec, so every driver upgrade silently leaves it
+pointing at libraries that no longer exist — the failure reads
+`failed to fulfil mount request: open /usr/lib/libcuda.so.<old>: no such file or directory`.
+A hand-made `/etc/cdi` spec is never refreshed; `/var/run/cdi` is.
+
+**Verify by listing the DEVICE, never by an exit code.** `nvidia-ctk cdi list` returns
+**`rc=0`** on an invalid spec (`invalid device, empty device edits`, `Found 0 CDI devices`),
+and two same-priority spec dirs that both define a device make it a **conflict**, whose
+outcome is that the device is **dropped** — so a file's existence proves nothing about the
+device's availability. The gate is that the requested device appears in the list:
+
+```sh
+nvidia-ctk cdi list | grep -q 'nvidia.com/gpu=all'
 ```
 
 Both were measured; the control is the spec's presence. With the link in place

@@ -26,10 +26,16 @@ are therefore outside what a pod can use:
   therefore a rootful-daemon story.
 - **CRIU checkpoints are a nerdctl surface, not a CRI one.** The CRI plugin exposes no
   checkpoint operation, so `nerdctl checkpoint create` (CONTAINERD.md §10) is the way to
-  take a process checkpoint — and it needs the rootful daemon, because the rootless
-  instance cannot checkpoint at all (CONTAINERD.md §10, "The rootless instance cannot
-  checkpoint"). A pod's filesystem snapshot is a different thing entirely and is covered
-  by §6.6 and §10 below.
+  take a process checkpoint. Against a **rootless** daemon that command is blocked
+  (CONTAINERD.md §10, "The rootless instance cannot checkpoint") — but that is
+  containerd's own checkpoint path, **not** a statement that rootless cannot checkpoint.
+  Two configurations do, without a rootful daemon: a rootless **krun** container runs CRIU
+  **inside the guest**, where the guest kernel's root performs the dump and the host sees
+  only an unprivileged VMM; and a rootless **crun** container can run CRIU in-container with
+  `seccomp=unconfined` plus the three capabilities (`SYS_ADMIN`, `SYS_PTRACE`,
+  `CHECKPOINT_RESTORE`) and `criu --unprivileged`, at a weaker isolation. Do not read this
+  file's rootful framing as a prohibition on rootless process state. A pod's filesystem
+  snapshot is a different thing entirely and is covered by §6.6 and §10 below.
 
 krun's own device model, and the annotations a RuntimeClass sets, are in LIBKRUN.md.
 
