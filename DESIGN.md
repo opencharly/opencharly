@@ -2156,7 +2156,8 @@ of the measured host documents, each naming the mechanism of §1.1 that absorbs 
 (a requirement or a section, resolved by A.4 check 4), the target form, and the evidence. A
 disposition is `kept`, `renamed`, `merged` (into a row of a mechanism), `non-first-party` (a
 namespaced word, D-PLUG-7) or `retired` (with its replacement, or the zero-use count that makes it
-dead, D-LAW-2). The ledger is written in **current** vocabulary on purpose: §2's terms bind this
+dead, D-LAW-2). The `mechanism` column is one of `M1`–`M8`, or `workflow` or `authoring` for the two
+things that sit on top of them (§1.1); A.4 check 4 enforces it. The ledger is written in **current** vocabulary on purpose: §2's terms bind this
 document, and the ledger's job is to name what exists today.
 
 The ledger is the check, not the structure: a capability with no home amends a mechanism here, first

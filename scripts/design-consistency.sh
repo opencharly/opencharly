@@ -18,7 +18,8 @@
 #   4 ids      requirement IDs are unique and numbered 1..n per area in order of appearance;
 #              every ID (ranges D-X-a..b included) in DESIGN.md, TODO.md, DESIGN.cue, the design/
 #              files and the parity ledger resolves, and every § reference in DESIGN.md, TODO.md,
-#              DESIGN.cue and design/parity.tsv
+#              DESIGN.cue and design/parity.tsv; the ledger's mechanism column is M1–M8,
+#              workflow or authoring (§1.1)
 #   5 words    no "Not" term of the §2 registry (or its plural) appears outside §2; every key in DESIGN.cue is
 #              singular (keys ending in `s` must be listed in D-NAME-1); every S<n> pattern
 #              reference is defined in §3.1 and a range S1–S<n> ends at the last; a backticked
@@ -213,6 +214,14 @@ for f in "$md" "$root/TODO.md" "$schema" "$root/design/parity.tsv"; do
 	done
 done > "$work/secrefs"
 if [[ -s "$work/secrefs" ]]; then cat "$work/secrefs"; fail=1; fi
+
+# the ledger's `mechanism` column names a mechanism of §1.1, or one of the two things on top of them
+if [[ -f "$root/design/parity.tsv" ]]; then
+	awk -F'\t' '!/^#/ && $1 != "current" && $5 !~ /^(M[1-8]|workflow|authoring)$/ {
+		printf "FAIL design/parity.tsv:%d: mechanism %s is not M1–M8, workflow or authoring (§1.1)\n", NR, $5 }' \
+		"$root/design/parity.tsv" > "$work/mechcol"
+	if [[ -s "$work/mechcol" ]]; then cat "$work/mechcol"; fail=1; fi
+fi
 
 # references: every @ref kind list in DESIGN.cue is a `want:` list in rules.cue and vice versa
 g -o '@ref([^)]*)' "$schema" | sed 's/@ref(//; s/)//; s/ //g' |
