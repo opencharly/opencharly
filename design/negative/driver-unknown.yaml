@@ -1,0 +1,5 @@
+# rule: D-DRV-1
+# expect: driver.vm
+# def: #UserConfig
+driver:
+  vm: vmware

@@ -20,6 +20,15 @@
 // A `// D-…` comment marks the line that enforces that requirement; every tag has a negative case
 // in design/negative/. Rules a single document cannot express are indexed in DESIGN §5.4.
 // In charly the tag tables below are composed from the declared plugins (§3.3).
+//
+// The eight mechanisms of DESIGN §1.1 each own one table here; an instance of a mechanism is a row
+// of its table, never a definition of its own:
+//   M1 content → IR      #CandyFields, #ActionAlt        M5 lifecycle and state   #MethodIO (capture, restore)
+//   M2 artifact          #ArtifactRef, #MethodIO.build   M6 venue                 #VenueOutputAlt, _venueOperationWord
+//   M3 kind × driver     #KindNode, #Driver              M7 observation           #FactVerb, #ProtocolVerb
+//   M4 need → grant      #Need                           M8 store                 #HostMethodIO store_get, store_put
+// `#Opaque` marks only an S10 payload — a field whose schema another system or another plugin's
+// module owns. Every use carries `// S10` (design-consistency.sh check 6).
 package design
 
 import (
@@ -60,7 +69,7 @@ import (
 // A manager whose install needs ATTRIBUTES beyond a locator carries them in a body whose payload the
 // OWNING PLUGIN owns (#Opaque) — so no core def learns a chart field and none can drift from the
 // plugin's schema. `helm` is already a manager word; the gap was generic (§7.1).
-#ManagerInput: #Opaque
+#ManagerInput: #Opaque // S10: the owning manager plugin's input
 #ManagerPackage: {
 	package!: #Package
 	input?:   #ManagerInput
@@ -111,14 +120,21 @@ _buildManagerWord: [for w, p in _managerPhase if p == "build" {w}]
 _packageManagerWord: ["dnf", "apt", "pacman", "apk", "zypper"]
 _gpuWord:            ["nvidia", "amd", "intel", "any"]
 _deviceWord:         ["kvm", "render", "fuse", "tun", "vhost-net", "vsock", "hwrng", "kfd"]
-_nestingWord:        ["container", "vm"]
-_engineWord:         ["podman", "docker", "nerdctl", "libvirt"]
+_nestingWord:        ["container", "vm", "userns"]
+_isolationWord:      ["microvm"]
+_privilegeWord:      ["rootful"]
+// M3: the driver words. A container engine drives `pod`; a hypervisor drives `vm`. An engine's own
+// command-line tool is plugin data of its driver row, never a word of its own.
+_containerEngineWord: ["podman", "docker", "containerd"]
+_hypervisorWord:      ["libvirt", "qemu", "krun", "firecracker"]
+_engineWord:          list.Concat([_containerEngineWord, ["libvirt"]])
 _phaseWord:          ["any", "build", "runtime"]
+_captureScopeWord:   ["filesystem", "process"]
+_recorderWord:       ["screen", "audio", "terminal", "log"]
+_packageFormatWord:  ["rpm", "deb", "pac", "apk"]
+_skillCategoryWord:  ["development", "commands", "kind", "images"]
+_docProjectionWord:  ["recipe", "cli", "registry", "candy", "box", "plugin", "landing"]
 _directive: {repo: _, plugin: _, import: _, discover: _}
-// Kinds owned by plugins outside this schema: only their envelope is checked here.
-_otherKind: ["init", "builder", "task", "check-roster", "harness", "pipeline", "cua", "jetkvm", "skill", "hook", "marketplace", "doc"]
-// Verbs owned by plugins outside this schema: their input is defined by the owning plugin.
-_otherVerb: ["helm", "wl", "vnc", "spice", "dbus", "record", "cua", "jetkvm", "vision", "mcp"]
 
 // ── tag tables (S4) ─────────────────────────────────────────────────────────
 // Every kind word and the node definition it selects (§10).
@@ -130,7 +146,17 @@ _otherVerb: ["helm", "wl", "vnc", "spice", "dbus", "record", "cua", "jetkvm", "v
 	kubernetes: #KubernetesNode
 	local:      #TopLocalNode
 	android:    #AndroidNode
-	for k in _otherKind {(k): {(k)!: #OtherBody}}
+	init:           {init!: #Init}
+	builder:        {builder!: #Builder}
+	"check-roster": {"check-roster"!: #CheckRoster}
+	harness:        {harness!: #Harness}
+	pipeline:       {pipeline!: #Pipeline}
+	cua:            {cua!: #Cua}
+	jetkvm:         {jetkvm!: #Jetkvm}
+	skill:          {skill!: #Skill}
+	hook:           {hook!: #Hook}
+	marketplace:    {marketplace!: #Marketplace}
+	doc:            {doc!: #Doc}
 }
 // A top-level node (§4.2 rule 3): the candy is the default entry, selected when no kind key is
 // written; it admits no kind key. Registry key `kind:candy` is reserved for it (§8.2).
@@ -140,26 +166,46 @@ _otherVerb: ["helm", "wl", "vnc", "spice", "dbus", "record", "cua", "jetkvm", "v
 }
 #Node: or([for _, n in #NodeAlt {n}])
 
-// Every check verb and its input (§20).
-#Verb: {
-	command: #Text
-	file:    #FileCheck
-	package: #PackageCheck
-	service: #ServiceCheck
-	process: #ProcessCheck
-	port:    #PortCheck
-	http:    #HttpCheck
-	kube:    #Kube
-	adb:     #Adb
-	appium:  #Appium
-	cdp:     #Cdp
-	for w in _otherVerb {(w): #Opaque}
+// M7 — every check verb and its input (§20), in exactly two tables. A fact verb observes the state
+// of the system a venue reaches; a protocol verb speaks one generic protocol. An application's own
+// checks are `http` or `command`, or the namespaced word of a non-first-party plugin (D-PLUG-7).
+#FactVerb: {
+	command:        #Text
+	file:           #FileCheck
+	package:        #PackageCheck
+	service:        #ServiceCheck
+	process:        #ProcessCheck
+	port:           #PortCheck
+	user:           #UserCheck
+	group:          #GroupCheck
+	mount:          #MountCheck
+	"kernel-param": #KernelParamCheck
+	dns:            #DnsCheck
+	interface:      #InterfaceCheck
 }
+#ProtocolVerb: {
+	http:   #HttpCheck
+	kube:   #Kube
+	helm:   #HelmCheck
+	adb:    #Adb
+	appium: #Appium
+	cdp:    #Cdp
+	wl:     #Wl
+	vnc:    #Screen
+	spice:  #Screen
+	dbus:   #Dbus
+	mcp:    #Mcp
+	record: #Record
+	cua:    #CuaCheck
+	jetkvm: #JetkvmCheck
+	vision: #VisionCheck
+}
+#Verb: {#FactVerb, #ProtocolVerb} // D-VERB-6: a verb is a fact or a protocol, nothing else
 
 // Field names of the bodies that can hold named nodes. Optional fields cannot be enumerated
 // inside CUE, so these lists are written out; design-consistency.sh checks them against the
 // definitions.
-_candyField:  ["description", "from", "step", "require", "need", "provide", "package", "os_override", "file", "package_repo", "env", "path_append", "service", "user", "volume", "route", "export", "module", "packaging", "shm_size", "platform", "builder_box", "entrypoint", "tag", "input", "with"]
+_candyField:  ["description", "from", "step", "require", "need", "provide", "package", "os_override", "file", "package_repo", "env", "path_append", "service", "user", "volume", "route", "export", "module", "packaging", "shm_size", "platform", "builder_box", "entrypoint", "tag", "input", "with", "ready", "capture_scope"]
 _deployField: ["description", "from", "require", "need", "step", "port", "volume", "env", "cpu", "ram", "disk_size", "network", "disposable", "preemptible", "update_gate", "parallel", "instrument", "iterate", "ephemeral", "firmware", "host", "device", "api_level", "adb", "create", "connect", "cluster_node", "with"]
 
 _kindWord:      [for k, _ in #KindNode {k}]
@@ -219,12 +265,21 @@ _alt: {
 	path_append?:  [...#AbsPath]
 	service?:      {[#Name]: #Service}
 	user?:         {[#Name]: #User}
-	volume?:       {[#Name]: {path!: #AbsPath}}
+	volume?:       {[#Name]: #Volume}
 	route?:        {host!: #Text, port!: #Port}
 	export?:       {[#Name]: {path!: #AbsPath, mode?: #FileMode}}
 	module?:       #Text   // a plugin candy (§8.1)
-	packaging?:    #Opaque // owned by the operations plugin
+	packaging?:    #Packaging
 	shm_size?:     #Size
+	// The declared readiness condition of D-LAW-5 that a realization waits on, with its deadline;
+	// the elapsed time is recorded, never the deadline (§12.1).
+	ready?:        {command!: #Text, deadline: *"300s" | #Duration}
+}
+// The native-package metadata of charly's own packages (D-CANDY-6), owned by the operations plugin.
+#Packaging: {
+	name!:   #Name
+	format!: [...or(_packageFormatWord)] & list.UniqueItems()
+	depend?: {[or(_packageFormatWord)]: #NameSet}
 }
 
 // Box build settings: declared only on a box.
@@ -233,6 +288,8 @@ _alt: {
 	builder_box?: {[#BuildManager]: #Ref} @ref(box)   // D-IR-7: a box that builds nothing is meaningless
 	entrypoint?:  [...#Text]
 	tag?:         #Text
+	// D-CAPTURE-4: what a capture takes — the filesystem, or the filesystem and its processes.
+	capture_scope?: or(_captureScopeWord)
 }
 
 #Candy: { // D-HW-5, D-SCH-5: closed — no raw runtime settings, no removed field
@@ -247,6 +304,8 @@ _alt: {
 }
 
 #PackageRepo: {url!: #Text, gpgkey?: #Text}
+// A persistent directory; `encrypted` is granted by the kind as an encrypted filesystem (M4).
+#Volume: {path!: #AbsPath, encrypted: *false | bool}
 
 #FileAttr: {mode?: #FileMode, owner?: #Name, linux_capability?: #NameSet}
 #FileAlt: { // D-IR-4
@@ -282,6 +341,8 @@ _alt: {
 	gpu?:        {[or(_gpuWord)]: {lease: *"shared" | "exclusive", optional: *false | bool}}
 	device?:     {[or(_deviceWord)]: #Optional}
 	nesting?:    {[or(_nestingWord)]: #Optional}
+	isolation?:  {[or(_isolationWord)]: #Optional} // D-HW-7: microVM isolation is a need, never a runtime setting
+	privilege?:  {[or(_privilegeWord)]: #Optional} // D-HW-7: so is a rootful engine
 	engine_api?: {[or(_engineWord)]: #Optional}
 	mount?:      {[#Name]: {host!: #AbsPath, path!: #AbsPath, writable: *false | bool, optional: *false | bool}}
 	kind?:       {[#Name]: #Optional}
@@ -358,6 +419,14 @@ _intentWord: ["run", "check", "harness-check", "harness-run"]
 #ProcessCheck: {name!: #Text, running: *true | bool}
 #PortCheck:    {port!: #Port, host?: #Text, listening?: bool, reachable?: bool}
 #HttpCheck:    {url!: #Text, request_method: *"GET" | "POST" | "PUT" | "DELETE" | "HEAD", status?: int, body?: #Matcher, header?: #Matcher}
+#UserCheck:    {name!: #Name, exists: *true | bool, uid?: #Count, group?: #NameSet}
+#GroupCheck:   {name!: #Name, exists: *true | bool, user?: #NameSet}
+#MountCheck:   {path!: #AbsPath, mounted: *true | bool, fstype?: #Text, writable?: bool}
+#KernelParamCheck: {name!: #Text, value?: #Text}
+#DnsCheck:     {name!: #Text, resolvable: *true | bool, address?: #Text}
+#InterfaceCheck: {name!: #Text, up: *true | bool, address?: #Text}
+#HelmCheck:    {release!: #Name, namespace?: #Namespace, status: *"deployed" | "failed" | "pending"}
+#VisionCheck:  {prompt!: #Text}
 
 // D-VERB-4: one operation key per multi-operation verb.
 #KubeAlt: {
@@ -383,6 +452,42 @@ _intentWord: ["run", "check", "harness-check", "harness-run"]
 	screenshot: {screenshot!: {url?: #Text}}
 }
 #Cdp: or([for _, a in #CdpAlt {a}])
+#WlAlt: {
+	window:     {window!: {app_id?: #Text, title?: #Text}}
+	screenshot: {screenshot!: {}}
+}
+#Wl: or([for _, a in #WlAlt {a}])
+// vnc and spice are one observation over two remote-display protocols.
+#ScreenAlt: {
+	connect:    {connect!: {}}
+	screenshot: {screenshot!: {}}
+}
+#Screen: or([for _, a in #ScreenAlt {a}])
+#DbusAlt: {
+	name:     {name!: {bus: *"session" | "system", name!: #Text}}
+	property: {property!: {bus: *"session" | "system", service!: #Text, path!: #AbsPath, interface!: #Text, name!: #Text}}
+}
+#Dbus: or([for _, a in #DbusAlt {a}])
+#McpAlt: {
+	tool: {tool!: {endpoint!: #Name, name!: #Name}}
+	call: {call!: {endpoint!: #Name, tool!: #Name, argument?: #Opaque}} // S10: the tool's own input
+}
+#Mcp: or([for _, a in #McpAlt {a}])
+#RecordAlt: {
+	screen:    {screen!: {duration!: #Duration}}
+	transcode: {transcode!: {source!: #Name, codec!: #Text}}
+}
+#Record: or([for _, a in #RecordAlt {a}])
+#CuaAlt: {
+	screenshot: {screenshot!: {}}
+	ask:        {ask!: {prompt!: #Text}}
+}
+#CuaCheck: or([for _, a in #CuaAlt {a}])
+#JetkvmAlt: {
+	screenshot: {screenshot!: {}}
+	power:      {power!: {}}
+}
+#JetkvmCheck: or([for _, a in #JetkvmAlt {a}])
 
 // ── source and os (§11.3, §11.4) ──────────────────────────────────────────────
 #SourceNode:   {source!: #Source}
@@ -391,7 +496,7 @@ _intentWord: ["run", "check", "harness-check", "harness-run"]
 #SourceAlt: {
 	oci:       {oci!: #Text, #SourceFields}
 	disk:      {disk!: {url!: #Text, sha256!: #Sha256}, #SourceFields}
-	iso:       {iso!: {url!: #Text, sha256!: #Sha256, answer?: #Opaque}, #SourceFields}
+	iso:       {iso!: {url!: #Text, sha256!: #Sha256, answer?: #Opaque}, #SourceFields} // S10: the installer's own answer file
 	bootstrap: {bootstrap!: {builder!: #Ref @ref(builder), package?: #PackageSet}, #SourceFields}
 }
 #Source: or([for _, a in #SourceAlt {a}])
@@ -404,10 +509,106 @@ _intentWord: ["run", "check", "harness-check", "harness-run"]
 	package_manager!: or(_packageManagerWord)
 	container_init!:  #Ref @ref(init) // D-CANDY-3: the os owns the init
 	system_init!:     #Ref @ref(init)
-	boot?:            #Opaque
+	boot?:            #Boot
 }
+// The boot content of the disk form: a kernel the os provides, which a microVM hypervisor boots beside
+// a root drive (§9.2).
+#Boot: {kernel!: #Text, initrd?: #Text, command_line?: #Text}
 
-#OtherBody: {description!: #Text, step?: [...#Step], spec?: #Opaque}
+// ── vocabulary, workflow and documentation kinds (§10) — every first-party kind is typed ──
+// Vocabulary data (D-KIND-2). One renderer serves every init from these rows.
+#Init: {
+	description!: #Text
+	unit_dir?:    #AbsPath
+	entrypoint?:  [...#Text]
+	render?:      {service!: #Text, enable?: #Text}
+}
+// One builder implementation serves every row (D-PLUG-2): a root-filesystem bootstrap, or a
+// build-time manager's packages built in a box.
+#Builder: {
+	description!: #Text
+	manager?:     #BuildManager
+	box?:         #Ref @ref(box)
+	command?:     #Text
+	output?:      #AbsPath
+}
+#CheckRoster: {
+	description!: #Text
+	bed!:         [...#Ref] & list.UniqueItems() @ref(pod, vm, local, android, kubernetes)
+	parallel:     *false | bool
+}
+#Harness: {
+	description!: #Text
+	command!:     [...#Text]
+	model?:       #Text
+	need?:        #Need
+}
+// The one workflow kind (D-FLOW-1): a named set of stages run in the host venue; a named host
+// routine is a pipeline of one stage.
+#Pipeline: {
+	description!: #Text
+	argument?:    {[#EnvName]: {description?: #Text, default?: #Text, required: *false | bool}}
+	input_file?:  [...#Text]
+	output_file?: [...#Text]
+	schedule?:    {cron!: #Text}
+	stage!:       {[#Name]: #Stage}
+}
+#StageFields: {
+	after?:    #NameSet
+	when?:     #Text
+	timeout?:  #Duration
+	attempt:   *1 | #Count
+	on_error:  *"fail" | "continue" | "skip"
+	approval?: {message!: #Text, timeout?: #Duration}
+	lane?:     {over!: #Text, limit: *1 | #Count} // a pooled fan-out over a runtime list
+}
+#StageAlt: { // D-FLOW-1: a stage does exactly one thing
+	step:     {step!: [...#Step], #StageFields}
+	pipeline: {pipeline!: #Ref @ref(pipeline), #StageFields}
+	ask:      {ask!: {prompt!: #Text}, #StageFields}
+}
+#Stage: or([for _, a in #StageAlt {a}])
+#Cua:    {description!: #Text, display!: #Text, model?: #Text}
+#Jetkvm: {description!: #Text, address!: #Address, secret?: #Ref}
+// A skill's body is derived from its name: `.agents/skills/<name>/SKILL.md`, or
+// `.agents/agents/<name>.md` for an agent definition (P3).
+#Skill: {
+	description!: #Text
+	family!:      #Name
+	category:     *"development" | or(_skillCategoryWord)
+	trigger?:     [...#Text]
+	agent?:       {model: *"inherit" | #Text, tool?: [...#Text]}
+}
+#Hook: {
+	description!: #Text
+	event!:       #Text
+	matcher?:     #Text
+	language:     *"sh" | "py"
+	content!:     #Text
+}
+#Marketplace: {
+	description!: #Text
+	family!: {[#Name]: {
+		category:     *"development" | or(_skillCategoryWord)
+		description?: #Text
+		keyword?:     [...#Text]
+		profile?:     [..."developer" | "user" | "container"] & list.UniqueItems()
+		mcp?:         {[#Name]: #McpServer}
+	}}
+}
+#McpServerAlt: {
+	url:     {url!: #Text}
+	command: {command!: [...#Text]}
+}
+#McpServer: or([for _, a in #McpServerAlt {a}])
+#Doc: {
+	description!:   #Text
+	release_repo?:  [...#Repo]
+	extra_repo?:    [...#Repo]
+	projection?:    {[or(_docProjectionWord)]: bool}
+	hand_authored?: [...#Text]
+	landing:        *"README.md" | #Text
+}
 
 // ── deployments (§12) ────────────────────────────────────────────────────────
 #DeploymentFields: {
@@ -417,8 +618,8 @@ _intentWord: ["run", "check", "harness-check", "harness-run"]
 	preemptible:  *false | bool
 	update_gate:  *"full" | "restart-only" | "skip"
 	parallel:     *false | bool
-	instrument?:  [...#Opaque]
-	iterate?:     #Opaque
+	instrument?:  {[#Name]: {recorder!: or(_recorderWord), output?: #Name}}
+	iterate?:     {goal!: #Text, harness!: #Ref @ref(harness), round: *1 | #Count}
 	ephemeral?:   {ttl!: #Duration}
 	need?:        #Need
 	with?:        #With   // supplies the `input:` choices of the candy this deployment names
@@ -426,7 +627,7 @@ _intentWord: ["run", "check", "harness-check", "harness-run"]
 // D-DEP-7: ports, volumes, environment, sizing and network belong to pod and vm only.
 #MachineOnly: {
 	port?:      [...{host!: #Port, guest!: #Port}]
-	volume?:    {[#Name]: {path!: #AbsPath}}
+	volume?:    {[#Name]: #Volume}
 	env?:       {[#EnvName]: #InitNeutral}
 	cpu?:       #Count
 	ram?:       #Size
@@ -435,14 +636,14 @@ _intentWord: ["run", "check", "harness-check", "harness-run"]
 }
 
 // D-DEP-1, D-DEP-2: pod and vm share one field set and one inner set; no `require` — content
-// comes from the box.
+// comes from the box. No driver field: the engine or hypervisor is user configuration.
 #MachineFields: {
 	#DeploymentFields
 	#MachineOnly
 	from!: #Ref @ref(box, source)
 	[#InnerNodeName]: #InnerOfMachine
 }
-#Pod: {#MachineFields}
+#Pod: {#MachineFields} // D-DRV-2: a deployment never names its driver
 #Vm:  {#MachineFields, firmware: *"uefi" | "bios" | "uefi-secure"}
 
 // D-NEST-2: what each body admits, as tag tables keyed by kind word. Only #InnerOfLocalAlt and
@@ -521,13 +722,30 @@ _deploymentKind: [for k, _ in #InnerOfMachineAlt {k}]
 	from!:    #Ref @ref(box, source)   // the agent is deployed FROM a box, like any inner kind
 	need?:    #Need
 	provide?: #Provide
-	spec?:    #Opaque
+	spec?:    #Opaque // S10: the agent runtime's own configuration
+}
+
+// ── the user configuration (§17) — what the user sets, never an authored document (D-LAW-6) ──
+// validate: cue vet -d '#UserConfig' DESIGN.cue ~/.config/charly/config.yml
+#UserConfig: {
+	driver?:         #Driver
+	gpu?:            {[#Name]: {vendor!: or(_gpuWord)}} // the host GPUs a lease may take (D-HW-4)
+	image_registry?: #Text
+	secret_backend:  *"secret-service" | "gpg" | "file"
+	local_install:   *false | bool                    // the switch of D-STORE-9
+	plugin?:         {[#Name]: #RepositoryRef}        // the project-less list of D-PLUG-5
+	section?:        {[#Name]: #Opaque}               // S10: each plugin's own section, under its own schema
+}
+// M3: one driver row per deployment kind whose engine is interchangeable.
+#Driver: { // D-DRV-1: a driver is a word of its kind's driver table
+	pod: *"podman" | or(_containerEngineWord)
+	vm:  *"libvirt" | or(_hypervisorWord)
 }
 
 // ════════════════════════════════════════════════════════════════ Part 2 — protocol (§8)
 // Moves to spec/protocol when implemented. A word payload (a kind's body, a verb's input, a
 // command's arguments, an api's messages, a kind's state and grants) is #Opaque here because the
-// owning plugin's CUE module defines it; it is validated against that definition on receipt.
+// owning plugin's CUE module defines it (S10); it is validated against that definition on receipt.
 
 _roleWord: ["kind", "verb", "command", "type", "api"]
 #Role:   or(_roleWord)
@@ -577,10 +795,10 @@ _detailCodeWord:   ["reason", "path", "field", "ref", "count", "duration"]
 }
 
 // ── messages shared by several methods ────────────────────────────────────────
-#Resolved: {kind!: #Name, digest!: #Digest, value!: #Opaque}
+#Resolved: {kind!: #Name, digest!: #Digest, value!: #Opaque} // S10
 #NodeInput: {
 	identity!:  #Ref
-	body!:      #Opaque
+	body!:      #Opaque // S10
 	reference!: {[#Ref]: #Resolved} // the linked references of the node (§4.1 stage 4)
 }
 #ArtifactRef: {form!: "image" | "disk", digest!: #Digest}
@@ -600,13 +818,16 @@ _detailCodeWord:   ["reason", "path", "field", "ref", "count", "duration"]
 #Action: or([for _, a in #ActionAlt {a}])
 
 // ── venues: where commands of a deployment run; `via` is the venue it is reached through ──
-#Via: {via?: #VenueOutput}
+// M6: every interaction with a deployment is one of these operations of its venue.
+_venueOperationWord: ["exec", "copy", "log", "console", "display", "forward"]
+// D-VENUE-2: a venue declares the operations it serves; one it lacks is refused, never emulated.
+#VenueFields: {via?: #VenueOutput, operation!: [...or(_venueOperationWord)] & list.UniqueItems()}
 #VenueOutputAlt: {
-	container: {container!: {engine!: or(_engineWord), name!: #Text}, #Via}
-	ssh:       {ssh!: {host!: #Text, port!: #Port, user!: #Text, key_secret!: #Ref}, #Via}
-	shell:     {shell!: {}, #Via}
-	adb:       {adb!: {serial!: #Text}, #Via}
-	kube:      {kube!: {cluster!: #Text, namespace!: #Namespace}, #Via}
+	container: {container!: {engine!: or(_containerEngineWord), name!: #Text, namespace: *"default" | #Namespace, isolation?: or(_isolationWord)}, #VenueFields}
+	ssh:       {ssh!: {host!: #Text, port!: #Port, user!: #Text, key_secret!: #Ref}, #VenueFields}
+	shell:     {shell!: {}, #VenueFields}
+	adb:       {adb!: {serial!: #Text}, #VenueFields}
+	kube:      {kube!: {cluster!: #Text, namespace!: #Namespace}, #VenueFields}
 }
 #VenueOutput: or([for _, a in #VenueOutputAlt {a}])
 
@@ -614,8 +835,8 @@ _detailCodeWord:   ["reason", "path", "field", "ref", "count", "duration"]
 // D-ROLE-1, D-ROLE-2
 #MethodIO: {
 	validate: {role: "kind", input: #NodeInput, output: {diagnostic: [...#Diagnostic]}}
-	resolve:  {role: "kind", input: #NodeInput, output: {value!: #Opaque, digest!: #Digest}}
-	migrate:  {role: "kind", input: {identity!: #Ref, body!: #Opaque}, output: {body!: #Opaque, change: [...#Text]}}
+	resolve:  {role: "kind", input: #NodeInput, output: {value!: #Opaque, digest!: #Digest}} // S10
+	migrate:  {role: "kind", input: {identity!: #Ref, body!: #Opaque}, output: {body!: #Opaque, change: [...#Text]}} // S10
 	build:    {role: "kind", input: {identity!: #Ref, start!: #ArtifactRef, ir!: [...#Action], form!: "image" | "disk"}, output: {artifact!: #ArtifactRef}}
 	realize:  {role: "kind", input: {#NodeInput, artifact?: #ArtifactRef, ir?: [...#Action], parent?: #VenueOutput}, output: {venue!: #VenueOutput}}
 	start:    {role: "kind", input: #NodeInput, output: #Done}
@@ -627,20 +848,23 @@ _detailCodeWord:   ["reason", "path", "field", "ref", "count", "duration"]
 	activate: {role: "kind", input: {identity!: #Ref, revision!: #Digest}, output: #Done}
 	log:      {role: "kind", input: {#NodeInput, follow: *false | bool}, output: #Done}
 	venue:    {role: "kind", input: #NodeInput, output: #VenueOutput}
-	capture:  {role: "kind", input: #NodeInput, output: {artifact!: #ArtifactRef}}
-	grant:    {role: "kind", input: {#NodeInput, need!: #Need}, output: {item: [...{need!: #Text, grant!: #Opaque}]}}
+	// M5: a capture takes the deployment's filesystem, or also its processes; restore returns a
+	// deployment to a capture it took.
+	capture:  {role: "kind", input: {#NodeInput, scope: *"filesystem" | or(_captureScopeWord)}, output: {artifact!: #ArtifactRef, process?: #Digest}}
+	restore:  {role: "kind", input: {#NodeInput, artifact!: #ArtifactRef, process?: #Digest}, output: #Done}
+	grant:    {role: "kind", input: {#NodeInput, need!: #Need}, output: {item: [...{need!: #Text, grant!: #Opaque}]}} // S10
 	destroy:  {role: "kind", input: #NodeInput, output: #Done}
-	check:    {role: "verb", input: {input!: #Opaque, venue!: #VenueOutput, run_as?: #Name}, output: #CheckOutput}
-	run:      {role: "command", input: {argument!: #Opaque}, output: #Done}
-	bind:     {role: "type", input: {need!: {type!: #TypeName, name!: #Text, attribute!: #Opaque}, provided_by!: #Ref, deployment!: #Ref}, output: {binding!: #Opaque}}
-	unbind:   {role: "type", input: {binding!: #Opaque}, output: #Done}
-	call:     {role: "api", input: {request!: #Opaque}, output: {reply!: #Opaque}}
+	check:    {role: "verb", input: {input!: #Opaque, venue!: #VenueOutput, run_as?: #Name}, output: #CheckOutput} // S10
+	run:      {role: "command", input: {argument!: #Opaque}, output: #Done} // S10
+	bind:     {role: "type", input: {need!: {type!: #TypeName, name!: #Text, attribute!: #Opaque}, provided_by!: #Ref, deployment!: #Ref}, output: {binding!: #Opaque}} // S10
+	unbind:   {role: "type", input: {binding!: #Opaque}, output: #Done} // S10
+	call:     {role: "api", input: {request!: #Opaque}, output: {reply!: #Opaque}} // S10
 }
 _methodWord: [for m, _ in #MethodIO {m}]
 #Method: or(_methodWord)
 
 // D-ROLE-5: one observation; core applies the step's modifiers and step-level matchers.
-#CheckOutput: {exit_status?: int, stdout?: string, stderr?: string, observed?: #Opaque}
+#CheckOutput: {exit_status?: int, stdout?: string, stderr?: string, observed?: #Opaque} // S10
 
 // D-PROTO-1: the plugin service's control methods beside the role methods.
 #PluginMethodIO: {
@@ -714,16 +938,16 @@ _errorCodeWord: ["invalid", "not_found", "unmet", "conflict", "unavailable", "de
 	venue_exec: {input: {identity!: #Ref, command!: [...#Text], run_as?: #Name}, output: {exit_status!: int}}
 	store_get:  {input: {digest!: #Digest}, output: {data!: bytes}}
 	store_put:  {input: {data!: bytes}, output: {digest!: #Digest}}
-	state_get:  {input: {identity!: #Ref, name!: #Name}, output: {value?: #Opaque}}
-	state_put:  {input: {identity!: #Ref, name!: #Name, value!: #Opaque}, output: #Done}
+	state_get:  {input: {identity!: #Ref, name!: #Name}, output: {value?: #Opaque}} // S10
+	state_put:  {input: {identity!: #Ref, name!: #Name, value!: #Opaque}, output: #Done} // S10
 	project:    {input: {identity!: #Ref}, output: #Resolved}
-	config_get: {input: #Done, output: {config!: #Opaque}}
-	call:       {input: {key!: #ApiKey, request!: #Opaque}, output: {reply!: #Opaque}}
+	config_get: {input: #Done, output: {config!: #Opaque}} // S10: the caller's #UserConfig section
+	call:       {input: {key!: #ApiKey, request!: #Opaque}, output: {reply!: #Opaque}} // S10
 	secret_get: {input: {name!: #Ref}, output: {value!: bytes}}
 	secret_put: {input: {name!: #Ref, value!: bytes}, output: #Done}
 	report:     {input: #Event, output: #Done}
 	// the transaction state_put cannot be, and the record's write leg
-	state_commit: {input: {identity!: #Ref, revision!: #Digest, entry!: [...{name!: #Name, value!: #Opaque}]}, output: #Done}
+	state_commit: {input: {identity!: #Ref, revision!: #Digest, entry!: [...{name!: #Name, value!: #Opaque}]}, output: #Done} // S10
 	audit_append: {input: {event!: #AuditEvent}, output: #Done}
 }
 _hostMethodWord: [for m, _ in #HostMethodIO {m}]

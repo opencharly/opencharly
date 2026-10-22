@@ -112,6 +112,14 @@ for y in "$work"/*.yaml; do
 	case "$mode" in
 	alone | context | shared) ;;
 	uses-context) continue ;; # validated as part of the shared project
+	user-config)
+		count=$((count + 1))
+		if ! out="$("$cue" vet -c -d '#UserConfig' "$schema" "$doc" 2>&1)"; then
+			bad "DESIGN.md:$line: example '$id' does not validate:"
+			echo "$out" | sed 's/^/    /' | head -20
+		fi
+		continue
+		;;
 	*) bad "DESIGN.md:$line: example '$id' has unknown mode '$mode'"; continue ;;
 	esac
 	count=$((count + 1))

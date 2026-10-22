@@ -16,15 +16,17 @@
 #              the §5.4 rules marked `rules.cue`, each with a negative; every §5.4 owner is an
 #              owner in the §7.1 ownership table
 #   4 ids      requirement IDs are unique and numbered 1..n per area in order of appearance;
-#              every ID (ranges D-X-a..b included) in DESIGN.md, TODO.md, DESIGN.cue and the
-#              design/ files resolves, and every § reference in DESIGN.md, TODO.md and DESIGN.cue
+#              every ID (ranges D-X-a..b included) in DESIGN.md, TODO.md, DESIGN.cue, the design/
+#              files and the parity ledger resolves, and every § reference in DESIGN.md, TODO.md,
+#              DESIGN.cue and design/parity.tsv
 #   5 words    no "Not" term of the §2 registry (or its plural) appears outside §2; every key in DESIGN.cue is
 #              singular (keys ending in `s` must be listed in D-NAME-1); every S<n> pattern
 #              reference is defined in §3.1 and a range S1–S<n> ends at the last; a backticked
 #              protocol method is spelled as its word list spells it; kind words,
 #              directives and the field names of node-bearing bodies are disjoint (D-SCH-6)
 #   6 patterns DESIGN.cue uses only §3.1's constructs (D-PAT-1): no close(), no matchN, no
-#              forbidden field ?: _|_, exactly one open struct {...} (#Opaque)
+#              forbidden field ?: _|_, exactly one open struct {...} (#Opaque), and every other use of
+#              #Opaque marks itself `// S10` — no first-party word is left untyped (D-KIND-5)
 #
 # Usage: scripts/design-consistency.sh [root]
 # Self-test: scripts/design-selftest.sh scripts/design-consistency.sh design/consistency/selftest.tsv
@@ -185,6 +187,7 @@ cut -d: -f2 "$work/defs" | sort -u > "$work/ids"
 
 refs_in=("$md" "$schema" "$root"/design/example/*.cue "$root"/design/negative/*.yaml)
 [[ -f "$root/TODO.md" ]] && refs_in+=("$root/TODO.md")
+[[ -f "$root/design/parity.tsv" ]] && refs_in+=("$root/design/parity.tsv")
 for f in "${refs_in[@]}"; do
 	rel="${f#"$root"/}"
 	g -no 'D-[A-Z]*-[0-9][0-9]*\(\.\.[0-9][0-9]*\)\?' "$f" | while IFS=: read -r ln ref; do
@@ -200,9 +203,12 @@ done > "$work/refs"
 if [[ -s "$work/refs" ]]; then cat "$work/refs"; fail=1; fi
 
 g -o '^#\{2,3\} [0-9][0-9]*\(\.[0-9][0-9]*\)\?' "$md" | sed 's/^#* //' | sort -u > "$work/sections"
-for f in "$md" "$root/TODO.md" "$schema"; do
+for f in "$md" "$root/TODO.md" "$schema" "$root/design/parity.tsv"; do
 	[[ -f "$f" ]] || continue
-	g -no '§[0-9][0-9]*\(\.[0-9][0-9]*\)\?' "$f" | while IFS=: read -r ln ref; do
+	# the ledger's evidence column cites sections of other documents; its `home` column cites DESIGN.md
+	src="$f"
+	if [[ "$f" == */parity.tsv ]]; then awk -F'\t' '{ print $6 }' "$f" > "$work/parity-home"; src="$work/parity-home"; fi
+	g -no '§[0-9][0-9]*\(\.[0-9][0-9]*\)\?' "$src" | while IFS=: read -r ln ref; do
 		grep -qx "${ref#§}" "$work/sections" || echo "FAIL ${f#"$root"/}:$ln: $ref names no section of DESIGN.md"
 	done
 done > "$work/secrefs"
@@ -217,6 +223,12 @@ missing="$(setdiff "$work/refkinds" "$work/wantkinds" | tr '\n' ' ')"
 extra="$(setdiff "$work/wantkinds" "$work/refkinds" | tr '\n' ' ')"
 [[ -z "$missing" ]] || bad "design/example/rules.cue: no reference rule checks the @ref kinds: $missing"
 [[ -z "$extra" ]] || bad "design/example/rules.cue: want: lists that match no @ref attribute of DESIGN.cue: $extra"
+
+# the two verb tables share no word (D-VERB-6): a verb is a fact verb or a protocol verb, never both
+words "keys(#FactVerb)" | sort -u > "$work/factverb"
+words "keys(#ProtocolVerb)" | sort -u > "$work/protoverb"
+both="$(comm -12 "$work/factverb" "$work/protoverb" | tr '\n' ' ')"
+[[ -z "$both" ]] || bad "DESIGN.cue: words in both verb tables (#FactVerb, #ProtocolVerb): $both"
 
 # ── 3 rules ─────────────────────────────────────────────────────────────────────
 g -no '// D-[A-Z]*-[0-9]*\(, D-[A-Z]*-[0-9]*\)*' "$schema" | sed 's|// ||' |
@@ -327,6 +339,9 @@ done > "$work/patterns-out"
 open="$(g -c '{\.\.\.}' "$schema")"
 [[ "$open" == 1 ]] || echo "FAIL DESIGN.cue: $open open structs {...}; exactly one (#Opaque) is allowed" >> "$work/patterns-out"
 g -q '^#Opaque: {\.\.\.}' "$schema" || echo "FAIL DESIGN.cue: the one open struct is not the #Opaque definition" >> "$work/patterns-out"
+# every use of #Opaque outside its definition and outside comments marks itself `// S10` (D-KIND-5)
+g -n '#Opaque' "$schema" | g -v '^[0-9]*:#Opaque: {\.\.\.}' | g -v '^[0-9]*:[[:space:]]*//' | g -v '// S10' |
+	while IFS=: read -r ln _; do echo "FAIL DESIGN.cue:$ln: an #Opaque use outside S10 — type the field, or mark a foreign payload // S10"; done >> "$work/patterns-out"
 if [[ -s "$work/patterns-out" ]]; then cat "$work/patterns-out"; fail=1; fi
 
 # ── 7 table shape ───────────────────────────────────────────────────────────────

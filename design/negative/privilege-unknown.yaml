@@ -1,0 +1,10 @@
+# rule: D-HW-7
+# expect: field not allowed
+x:
+  description: A candy that asks for a privilege charly does not grant.
+  package: [ripgrep]
+  need:
+    privilege: {root: {}}
+  step:
+    - check: ripgrep runs
+      command: rg --version
