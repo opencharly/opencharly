@@ -144,7 +144,7 @@ committed rulebook (`action-review/charly.yml`), and the live `AI_REVIEW_PROMPT`
 | ARCH | Placement: core, sdk or candy, with the bias outward. | [Clean Architecture](#prioritize-clean-architecture-above-all-else) | `/charly-internals:plugin` |
 | DISP | Autonomous destroy/rebuild touches `disposable: true` targets only. | [Disposable-Only Autonomy](#disposable-only-autonomy) | `/charly-internals:disposable` |
 | QUAL | `gofmt`/lint findings visible in the diff. | R2, R5 | `/charly-internals:go-quality` |
-| COORD | `BLOCKS` is posted when this PR blocks another item, the footer order holds, and a successor names its predecessor. | Part II #6, #7, #11 | `/charly-internals:git-workflow` (B2b) |
+| COORD | `WAITING`/`HOLDING` is posted when this PR waits on or holds another item, the footer order holds, and a successor names its predecessor. | Part II #6, #7, #11 | `/charly-internals:git-workflow` (B2b) |
 
 ## Skill Dispatcher
 
@@ -432,8 +432,8 @@ and a REST re-run of a failed check.
    into that control as well as into the code. Post the RCA summary in the round's PR
    comment. An `INCONCLUSIVE` has no code finding; its RCA classifies the engine or provider
    cause, and that cause is escalated, not "fixed" in your diff.
-5. **Answer coordination first.** A `BLOCKS`, a `TAKING OVER`, or a question addressed to
-   your slug is answered before your own push (Part II #11).
+5. **Answer coordination first.** A `WAITING`, a `HOLDING`, a `TAKING OVER`, or a question
+   addressed to your slug is answered before your own push (Part II #11).
 6. **Everything the verdict asks for is in place BEFORE the next push or re-run.** That
    includes a requested T4 sign-off comment (Part II #7) and every PR-body change. Make
    all of them first, then push or re-run exactly once. One BLOCK that requests a T4
@@ -590,7 +590,10 @@ Before declaring completion, answer every applicable item YES. There is one line
    - On a contended or blocking scope, every agent comment and PR body carries
      `Agent:` FIRST and `Assisted-by:` LAST.
    - A coordination comment opens with one label from `CLAIM` · `OWNING` · `HANDING OVER` ·
-     `TAKING OVER` · `BLOCKS` · `UNBLOCKS` · `STATUS` · `RESOLVED`.
+     `TAKING OVER` · `WAITING` · `HOLDING` · `CLEARED` · `STATUS` · `RESOLVED`. The set is
+     closed: a comment whose first non-blank line is any other word is not a coordination
+     comment. `WAITING` is the blocked side ("I am waiting on you") and `HOLDING` is the
+     blocking side ("I am holding you up"), so the first line states which side speaks.
    - **The latest `OWNING` wins.** Never push to another slug's claimed branch without a
      handover, a takeover, or operator sign-off.
    - **Takeover is comment-first — no comment, no takeover, ever.** The takeover
@@ -620,7 +623,7 @@ Before declaring completion, answer every applicable item YES. There is one line
    - every open PR;
    - every blocker;
    - every long-running operation;
-   - every thread you have claimed or posted a `BLOCKS` on.
+   - every thread you have claimed or posted a `WAITING` or `HOLDING` on.
 
    Reconcile any interruption into it FIRST, then act; an interruption is an addition, never
    a reset. *Detail:* `/charly-internals:agents` (todo ledger).
@@ -646,11 +649,14 @@ Before declaring completion, answer every applicable item YES. There is one line
       is done, what is next, and when the next update is due. Silence is what starts the
       takeover window (#7).
     - **Say so the moment you block someone.** When your issue or PR blocks another
-      session's progress, or theirs blocks yours, post `BLOCKS` on **both** threads at once.
-      Name the blocked item, the blocking file or change, and what would unblock it. If the
-      block persists, ask the operator. When it clears, post `UNBLOCKS` on both threads.
-    - **Answer coordination before your own work.** A `BLOCKS`, a `TAKING OVER`, or a
-      question addressed to your slug is read in full and answered before your next push.
+      session's progress, or theirs blocks yours, say it in the grammar: post `HOLDING` if
+      you are the blocking side, `WAITING` if you are the blocked side, on **both** threads
+      at once. Name the blocked item, the blocking file or change, and what would unblock
+      it. If the block persists, ask the operator. When it clears, post `CLEARED` on both
+      threads.
+    - **Answer coordination before your own work.** A `WAITING`, a `HOLDING`, a `TAKING
+      OVER`, or a question addressed to your slug is read in full and answered before your
+      next push.
 
     *Detail:* `/charly-internals:git-workflow` (B2b.1).
 

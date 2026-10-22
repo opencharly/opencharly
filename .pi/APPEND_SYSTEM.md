@@ -79,7 +79,7 @@ and stop, never retry it there.
 
 On a contended or blocking scope, every comment and PR body carries `Agent:` FIRST and
 `Assisted-by:` LAST, and a coordination comment opens with one label: `CLAIM` · `OWNING` ·
-`HANDING OVER` · `TAKING OVER` · `BLOCKS` · `UNBLOCKS` · `STATUS` · `RESOLVED`. pi has no
+`HANDING OVER` · `TAKING OVER` · `WAITING` · `HOLDING` · `CLEARED` · `STATUS` · `RESOLVED`. pi has no
 `coord` tool: post with `gh` (`gh pr comment`, `gh issue comment`); the watcher family
 supplies the wake.
 
