@@ -1,0 +1,8 @@
+# rule: D-PLUG-2
+# expect: node.b.builder
+b:
+  builder:
+    description: A builder row that tries to do two things.
+    bootstrap:
+      command: pacstrap -c /rootfs base
+    manager: npm

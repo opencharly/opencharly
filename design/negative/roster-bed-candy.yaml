@@ -1,0 +1,12 @@
+# rule: D-VAL-2
+# expect: check-roster.bed: c is a candy, want pod or vm or local or android or kubernetes
+c:
+  description: A candy, not a deployment.
+  package: [jq]
+  step:
+    - check: jq runs
+      command: jq --version
+g:
+  check-roster:
+    description: A roster that names a candy as a bed.
+    bed: [c]
