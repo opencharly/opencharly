@@ -1,0 +1,157 @@
+---
+name: cutover-policy
+description: |-
+  The 'Hard Cutover by Default' policy for schema changes, API renames, and deprecations — forbidden patterns, required deliverables, rationale, examples. Use when planning or reviewing a breaking change.
+---
+
+# cutover-policy
+
+Every schema change, API rename, or deprecation in OpenCharly ships as a **single hard-cutover PR** — for BOTH code (Go types, exported functions, CLI flags, OCI labels) and config (charly.yml, vm.yml field names and shapes). A cutover is never phased, at plan authoring or execution, regardless of estimated time, scope, or context; the full no-exception statement and stop conditions are in "No exception clause" below.
+
+This skill is the source of truth for the policy. The project rulebook (`AGENTS.md`) links here rather than re-stating the full policy inline.
+
+## One phase, many tasks, one cutover — the workflow
+
+**A "phase" is the whole cutover. "Tasks" are the breakdown inside it.** Never treat tasks as separate phases with their own sign-off.
+
+1. **Plan**: write a plan file that describes the cutover as ONE phase. Decompose into tasks with `TaskCreate`. The plan file names the cutover, not a sequence of cutovers.
+2. **Implement**: execute every task in the same working tree. **Prove the highest-risk unknowns on a live `disposable: true` bed FIRST (Risk Driven Development — never trust a skill / the project rulebook / code for a high-risk call; the archetypal one is whether this layer composition, at its latest versions, builds / deploys / runs together).** Transitional aliases, legacy-accepting code paths, or temporary dual-dispatch are permitted DURING implementation. They MUST be deleted BEFORE the R10 acceptance run — not merely before commit. R10 is the fresh-rebuild gate against the FINAL code; a transitional / legacy-accepting / dual-dispatch path still present when the R10 acceptance run executes means R10 verified a state that will NOT ship, and the deletion then rides untested into the commit — the exact R5 silent-skip regression. Delete every such path FIRST, THEN run the R10 acceptance gate. (Mid-flight smoke / RDD verification runs WITH transitional code present are encouraged — they never authorize the push; only the final-code R10 acceptance run, on the committed tree you push, does.)
+3. **Test at the end, not between tasks**: run unit tests, `charly box build`, `charly deploy add` + `charly check live`, and the R10 fresh-rebuild re-verification AFTER all tasks are marked complete. Testing between tasks is cheap smoke-confirmation; the acceptance gate is the full-stack run against the final, transitional-free code (every transitional / legacy / dual-mode path already deleted — see step 2).
+4. **Ship or fix**: if any verification step fails, fix it in the same working tree and re-run the full verification. Do NOT push a partial state (local work-in-progress commits before the first push are fine; the project rulebook "Commit, push, land").
+
+**Forbidden**: "Phase 1 landed, Phase 2 pending" as a stopping point — the system stays half-migrated (legacy paths alongside new ones, migrations not yet run, tests green for some beds only). Splitting a cutover across conversation turns is forbidden with no exception, at plan authoring or execution; an approved plan is a CONTRACT, fixed once approved — the only legal deviation is a STOP-and-ask at a genuine crossroad. See "No exception clause" below for the full stop-condition and forbidden-trigger catalog.
+
+## Blocking vs non-blocking surfaced issues — fix it or file it (the project rulebook R1)
+
+The one-phase rule forbids splitting a SINGLE cutover's scope across turns or plans. It does NOT forbid a genuinely separate issue, surfaced mid-cutover, from being filed and landed on its own. The classification itself (blocking vs non-blocking, the discriminator, the objective "separable" test, and the file-it procedure) is defined ONCE in `/charly-internals:strict-policy` "R1, applied. Fix it or file it"; apply it to every issue the cutover surfaces. What this skill adds is the cutover side:
+
+- **A blocking issue is part of THIS cutover's scope.** It is fixed in the SAME working tree and proved under the CURRENT cutover's R10. It can never be split out: that is the forbidden phasing.
+- **A filed non-blocking issue lands through its OWN cutover**, usually batched with related filed issues (see "Cutover sizing — the batch law" below), with its own full R10 and never a solo ceremony per small fix.
+- **Backports / cherry-picks are the canonical non-blocking example.** They are never part of the current cutover's post-execution flow. They are filed, and BATCHED **PER RELEASE TARGET**: a backport's R10 runs against ITS target base, so backports to the SAME target share one honest R10 story and land as one batch cutover. Backports to different targets can never share a gate, so each target's batch is its own cutover, and a lone backport is simply a one-member batch. Pause only if the backport target or release strategy is a genuine crossroad.
+
+**This does not loosen the no-split rule.** "No pre/post-approval split" and "no author-it-as-two-plans" forbid carving ONE change's scope into two to avoid doing it all now. The non-blocking path applies to a DIFFERENT, separable change — one this cutover surfaced, or any other issue you find — never to the current change's own scope. You file it autonomously (you do not wait for authorization); you pause to ask only at a genuine unexpected/unplanned crossroad. A finding raised ON your PR (a validator finding or a reviewer comment) is never filed away: it is fixed, or rebutted with evidence. Mislabeling a blocking issue "non-blocking" to ship faster is the forbidden split wearing a disguise; when unsure, it is blocking. (This section operationalizes the project rulebook R1, "fix it or file it", and "Hard Cutover by Default".)
+
+## Cutover sizing — the batch law (LARGE by default)
+
+**The mandate (the project rulebook "Hard Cutover by Default" → "the Cutover Sizing Law"): a cutover ships the LARGEST coherent scope one R10 gate can honestly prove, and the landing ceremony is paid ONCE per theme, never once per fix.** The batch law governs how FILED issues are SIZED into cutovers. It is never a deferral device: the deferral itself is R1's *file it*.
+
+**Why.** Every landing has a fixed cost that is independent of change size: the R10 bed gate (with any re-runs), 2–3 fresh-validator PR legs across the multi-repo chain, landing mechanics (CalVer stamp, tags, pointer bumps), and the coordination round-trips — in practice hours per ceremony. A sub-~1.5k-line solo cutover is therefore ceremony-dominated (measured: ~85% overhead on sub-800-line solo landings); the same fixes batched pay the ceremony once. "Atomic" means one commit per cutover on `main` — it has never meant "smallest independently landable slice". A cutover that is honestly one theme is one atomic cutover no matter how many fixes it carries.
+
+**The batch discipline:**
+
+- **Filed non-blocking issues are COLLECTED into thematic batches** — e.g. a gate-infrastructure batch, a check/bed-correctness batch, a docs/lessons batch, a lint-category sweep (`/charly-internals:go-quality`'s "a handful of large thematic cutovers" is this law applied to lint findings). A batch PR closes every filed issue it serves (`Closes <repo>#<n>`, then close each one by hand after the merge, because `Closes` does not close it by itself).
+- **Batching is forward motion, not deferral.** The issue already IS the record, and the batch is how its fix lands. The forbidden deferral is the UNFILED "someday" (no issue, no evidence, no owner). The forbidden phasing is splitting one change's own scope. A batch of genuinely separable, filed fixes is neither.
+- **Solo ceremonies are the exception**, reserved for: (a) a blocking or urgent fix that cannot wait for its batch (an active-gate breaker, a security issue, a `main` regression); (b) a properly-sized cutover — a substantial coherent scope in its own right (rule of thumb: a ≥~1.5k-line diff, or any planned program wave).
+- **Theme coherence bounds the batch**, not size: a batch's members must share one honest R10 story (one gate run proves them all). Mixing themes to inflate a batch is as wrong as splitting one.
+- **Gate sizing follows the same law**: run only the beds that exercise the change (the project rulebook R10 — "a gate that cannot fail on the change proves nothing (waste)"); an over-broad roster is not diligence. "Cross-cutting → full roster" applies to genuinely shared-state paths (loader / deploy ledger / store / arbiter), not to every change.
+- **Validator chains parallelize independent legs**: sdk and plugins-docs legs of one cutover validate concurrently; sequential only where B2's dependency order forces (a consumer pointer needs the merged producer).
+
+**The sizing decision procedure — how a piece of work becomes a cutover (apply IN ORDER):**
+
+| # | Question | If YES |
+|---|---|---|
+| 1 | Is it BLOCKING for an open cutover (its R10/claim fails without it)? | Fix in THAT cutover's tree — it is not a separate cutover at all (R1, blocking) |
+| 2 | Is it urgent standalone (an active-gate breaker, a `main` regression, a security issue)? | SOLO cutover, now |
+| 3 | Is it a planned program wave, or a substantial coherent scope in its own right (rule of thumb ≥~1.5k-line diff)? | Its OWN properly-sized cutover |
+| 4 | Otherwise (a small, non-blocking, separable fix or doc divergence) | FILE it (R1): add the evidence to the existing issue, or file ONE in the owning repo, and list it under `## Filed issues`. Its fix lands with the thematic batch it belongs to — ONE cutover when the theme is served. Backports batch PER RELEASE TARGET (same target = one R10 story = one batch; a lone backport is a one-member batch) |
+
+**The three axes — do not conflate them:** (a) **BATCHING** (this law) governs MANY separate small changes → collect them into one theme-coherent cutover; (b) **DECOMPOSITION** (the forbidden-excuse catalog's "a large cutover decomposes into atomic per-unit cutovers landed one after another") governs ONE contract that is too large to land in a single atomic commit → split it into ordered units as FORWARD MOTION only — it is never a reason to make cutovers small by default, and never a deferral device; (c) **the NO-SPLIT rule** governs ONE change's own scope → it may never be carved in two to avoid doing it all now. All three serve the same law: *a cutover is the largest coherent scope that ONE R10 gate can honestly prove — never smaller (batch instead), never incoherently larger (decompose instead).*
+
+**Forbidden internal-voice triggers (the sizing set)** are folded into the master catalog in "No exception clause" below.
+
+## Forbidden patterns (by default)
+
+- **Backcompat unmarshalers** that accept both old and new YAML forms.
+- **`deprecated.go` shims** or type aliases that re-export removed identifiers.
+- **Silent upconverters** that rewrite stale configs at load time.
+- **Dual-mode code paths** where both the old and new surface work simultaneously.
+- **"Phase 2 cleanup" comments** or TODOs for work that the cutover PR was supposed to complete.
+
+Each of these has a specific failure mode that has occurred historically: the first three drag legacy-state complexity forward indefinitely; the fourth multiplies the test matrix; the fifth is the anti-pattern the project rulebook R1 forbids (no unfiled "pre-existing" / "out of scope" / "follow-up PR" classifications). Every one of these patterns is deleted BEFORE the R10 acceptance run, not merely before commit — the acceptance run must exercise the final, transitional-free code (the step-2 timing rule above; the project rulebook "Hard Cutover by Default").
+
+## Required for every breaking change
+
+- A new **migration-table entry** in `candy/plugin-migrate/migrations.cue` (a declarative `ops:` list, or an `apply:` `goHooks` hook for a structural reshape). The table is an ORDERED, version-free list — there is no `#SchemaVersion`, no `version:` stamp, and no floor to bump, so the entry IS the whole schema-side change. Every step is one idempotent reshape applied by the op-walker on the one `charly migrate` command — there are no per-cutover sub-verbs, and running `charly migrate` twice is a no-op. See `/charly-build:migrate`.
+- A **fresh release git tag** `v<YYYY.DDD.HHMM>` — ONE per merge, applied by the org-wide `tag-on-merge` workflow at MERGE from the current UTC merge time (never by the author at push time; author-time stamps collide/mis-order across concurrent PRs). Tag EVERY landing — a content change, a submodule extraction, an image drop. Tags are **immutable** — only ever added, never moved or force-pushed. Every component is fixed-width zero-padded (4-digit year, 3-digit day-of-year, 4-digit HHMM) so tags sort chronologically under a plain alphanumeric sort; tag-on-merge computes `v$(date -u +%Y.%j.%H%M)` at merge. Every repo (superproject, `box/<distro>`, `plugins`, `docs`) is tagged on its own merged HEAD — the tag marks the merge, so no `charly.yml` is required; the proxy-consumed root-module repos (`sdk`, `spec`, `plugin-gh`) use their Go-module `v0.<YYYYDDD>.<HHMM leading-zeros-stripped>` scheme instead (a semver requirement, not an exemption). See `/charly-build:migrate` "Per-merge release git tags", `/charly-internals:git-workflow` "CalVer", and the project rulebook "Commit, push, land".
+- **Hard load-time errors** for any residual legacy field, with a one-line remediation hint pointing at the migration command.
+- **Deletion — in the same PR** — of every Go type, function, CLI flag, OCI label, YAML field, skill doc paragraph, and test fixture that references the removed surface.
+- **Relocation step-sequence PARITY (when the cutover relocates a dispatcher, orchestrator, or runner).** Before relocating, ENUMERATE the original's per-CLASS behavior arms — e.g. bring-up / update / teardown × each substrate or shape class — and PROVE each class's step sequence matches the original in the relocated code. Fixing one arm of a class while missing its siblings is the CHARACTERISTIC relocation defect: a generic fallback that silently mis-handles a special class passes every unit test and fails ONLY on that class's live bed. The acceptance roster MUST therefore carry a bed per SPECIAL class (a gate that cannot fail on the class proves nothing — see `/charly-check:check` "R10 gate by change class").
+- **Stale-reference sweep (R5).** Every reference, comment, docstring, error message, skill paragraph, migration help-text, test fixture, and hook string naming a deleted identifier MUST be updated or deleted in the same commit. After commit, `git grep '<deleted-id>'` returns ONLY historical mentions in `CHANGELOG/` or migration help-text.
+- **Relocation is ADD-BEFORE-DELETE across repos — the content-existence invariant.** A relocation that moves content OUT of a shared root (an umbrella root, a repo root, a submodule root) into ANOTHER repo's root is a MULTI-REPO cutover even though each repo's own diff is atomic: the replacement MUST be **MERGED at its new home BEFORE the removal merges**, or the two land in **ONE** PR. At no commit, on any repo's `main`, may the content exist in **no** repository — that is the whole invariant. When the add and the remove are separate PRs: the REMOVING PR is **not landable** while the ADD is open/unlanded — it names the add and posts `WAITING` on it (`/charly-internals:git-workflow` B2b); the ADD's PR body names the single repo+commit where the content will exist after the cutover (the **atomicity anchor**). Never delete first and add later. **Field evidence:** the four root narratives were removed from charly (`charly#791`) before the umbrella add landed (its PR auto-closed at the block limit with no successor), so for a window they existed in NO repository's `main` — opencharly/opencharly#356. The `charly task verify` root-ref gate asserts the invariant's end state.
+- **A `CHANGELOG/` entry at merge** — the PR body IS the changelog: the org-wide
+  tag-on-merge workflow writes the merged PR's title + body to the repo's per-CalVer file
+  (`CHANGELOG/<YYYY.DDD.HHMM>.md`, the version shared by the changelog filename and the
+  release tag) at merge time, in EVERY repo, `plugins` and `docs` included. The author
+  stages no CHANGELOG file and mints no CalVer. Historical content lives ONLY in the
+  repo's `CHANGELOG/`; the project rulebook and the skills state the new standing rules
+  forward-looking, with no history. See the project rulebook "Where things are
+  documented".
+- **Engineering-discipline gates (R1–R5).** See `/charly-internals:strict-policy`. Every failure during the cutover triggers `/charly-internals:root-cause-analyzer` BEFORE any remediation (R1). Every issue surfaced is fixed in the cutover, filed as non-blocking, or escalated (R1). Duplication is refactored on first surface (R2). Workarounds are forbidden (R3). Stale references are swept (R5).
+
+## Rationale
+
+Phased migrations accumulate mid-state complexity that, in practice, rarely gets removed. "We'll clean up in Phase 2" is a fiction that the history of this project has shown over and over. Making hard cutover the default across the project closes the loophole where this behavior sneaks in via PRs whose plans didn't explicitly call for a clean cutover.
+
+## No exception clause
+
+There is no pre-approval split, no post-approval split, no phased rollout, no grace period, no "resume in the next session", no "author it as two plans" fallback — regardless of estimated time, scope, or context, at plan authoring or execution. Every cutover runs as ONE phase, in the SAME conversation, through R10; compact context and continue, as many times as it takes.
+
+The ONLY valid stop conditions, at any stage, are:
+
+1. An error you cannot resolve that requires user input.
+2. The plan contradicts itself, the project rulebook, or a loaded skill.
+
+In either case STOP and ask. Do NOT silently downgrade scope, narrow tests, abbreviate the R10 matrix, or commit a partial state. An approved plan is a CONTRACT; implement it as written.
+
+**Forbidden internal-voice triggers (each is a confession, NOT a defence) — the full catalog; this skill is its sole owner, every other skill points here:**
+
+- "this is too large for one turn" / "we should split this into two plans" / "let me ask whether to phase it" / "I'll narrow scope just for this canary ..."
+- "session budget concerns mean ..." / "to fit context space ..." / "for tractable wall-clock ..." / "I've run out of / exhausted context (space)" / "this needs a fresh session / a fresh context to run safely" / "the correct next step is a fresh session (pointed at task #N)" — running low on context is answered by compacting-and-continuing, or by DELEGATING the unit to a fresh teammate / sub-agent (its whole purpose is carrying work forward with a fresh context budget) — never by stopping; that teammate IS the "fresh session," delivered on demand (see the project rulebook "Agents, Workflows & Teams" + `/charly-internals:agents`)
+- "continuing would leave a broken, unbuildable tree" — a FABRICATED excuse with ZERO evidence it has ever happened; never raise it
+- "it's huge / a multi-cutover sub-program / a multi-session effort" / "it can't be finished this session / at a session boundary" — a large cutover DECOMPOSES into atomic per-unit cutovers, landed one after another as forward motion, never as a reason to stop
+- "I've scoped it as a focused effort for later" / "it's ready to grind whenever you want / as its own focused sequence" — decomposition used to DEFER rather than to keep going is the same forbidden phasing
+- "I'll revert this working foundation and report it as scoped-for-later" — reverting already-working code to manufacture a stopping point is the worst form of the excuse; a spike that proved the mechanism works means you KEEP the working code and land it
+- "it's secondary / lower-priority / a nice-to-have / optional / not required" / "it's NON-\<gate\>, so it's not required" — the change is still IN the contract's scope
+- "an honest assessment" / "a scoping finding" / "the spike's deliverable" / "exhaustively confirmed scope" — honesty-dressing rescues none of the above; an honest report of remaining work is legitimate only as a preface to continuing it in the SAME turn
+- (the sizing set, see "Cutover sizing" above) "I'll land this small fix through its own quick PR" (it has a batch) / "each issue gets its own atomic cutover" (only blocking/urgent ones do) / "to keep the diff focused I'll split these" (theme, not diff size, bounds the cutover) / "run the full roster to be safe" (run the beds that can FAIL on the change) / "decompose it into small cutovers" as a default (decomposition is the too-big remedy, not a sizing preference)
+
+If you catch yourself forming any of these: STOP forming them. The plan executes as written.
+
+## What a clean cutover PR looks like
+
+One PR, one commit, with these deliverables:
+
+- **Code deletions** — every Go type, struct field, function, and label constant for the removed surface, deleted (not deprecated).
+- **Schema deletions** — every removed YAML field rejected by the loader with a hard error.
+- **Replacement surface** — the new types / schema / deploy target that supersede the deleted ones.
+- **Migration** — one idempotent migration-table entry (`candy/plugin-migrate/migrations.cue`) that harvests legacy fields into the new shape, preserves pre-existing user keys, and never clobbers customizations.
+- **Load-time error** — old projects loading under the new code get a hard error naming the legacy field and pointing at `charly migrate`.
+- **Documentation refresh** — every referring skill revised in the same sweep; no stale references to any deleted identifier in the marketplace corpus, `README.md`, or `AGENTS.md` (R5 grep self-test).
+- **Test deletions** — fixtures and assertions exercising the legacy surface removed; new fixtures exercise the replacement.
+- **CHANGELOG entry at merge** — the merged PR's title + body are written by the
+  tag-on-merge workflow to the repo's per-CalVer file `CHANGELOG/<YYYY.DDD.HHMM>.md`
+  (the version shared by the changelog filename and the release tag); the repo's
+  `CHANGELOG/` is the only home for its history. The author stages no CHANGELOG file.
+
+The commit uses the Conventional Commits `!` breaking-change marker; the body lists every deleted identifier, every removed YAML field, and every updated test. `charly migrate` is runnable against old projects from that commit forward, with no additional steps.
+
+See `CHANGELOG/` for the catalog of past cutovers that followed this shape — each took the same steps: **delete old surface + publish migration + hard load error**.
+
+## When the policy might not apply
+
+- **Purely additive changes** — new field that defaults to "off" with no removal of existing surface. No cutover needed; just add it.
+- **Internal refactoring** — a Go function rename that isn't part of any stable API. No cutover needed; normal refactor rules apply.
+- **Bug fixes** — behavior change without schema or API change. No cutover.
+- **Documentation-only changes** — `*.md`, comment-only edits, or a submodule pointer bump to an all-documentation submodule commit, with zero behavior change. No hard-cutover machinery to run; the gate is the non-runtime standards (the project rulebook "Documentation-only change class") and the honest tier is `documentation reviewed`. R1–R5 still apply — a stale-doc divergence is still an incident (R1), swept claim-keyed (R5).
+
+The policy kicks in when the change is **visible to consumers** (YAML authors, other Go packages, OCI-label readers) AND removes something that was previously usable.
+
+## Cross-References
+
+- `/charly-build:migrate` — the single `charly migrate` command, its CalVer schema versioning, and the CUE-anchored declarative migration table
+- `/charly-internals:vm-spec` — example output of a cutover (new types replacing deleted ones)
+- `/charly-internals:capabilities` — example of coordinated label-map cleanup during a cutover
+- `/charly-internals:install-plan` — shared IR that survived the cutover unchanged (non-example — additive extension of the deploy-target surface)
+- the project rulebook "Hard Cutover by Default" — summary pointing at this skill
+
+Live-deploy verification: see /charly-check:check (the 11 Testing Standards) and /charly-internals:disposable.

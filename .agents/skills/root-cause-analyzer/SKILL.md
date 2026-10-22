@@ -1,0 +1,66 @@
+---
+name: root-cause-analyzer
+description: |-
+  R1 mandatory failure analysis — the 8-step root cause analysis process. MUST be invoked before any remediation when an unexpected error, warning, or anomaly occurs.
+---
+
+# Root Cause Analyzer
+
+## Overview
+
+The root-cause-analyzer is an **enforcer agent** at `marketplace/internals/agents/root-cause-analyzer.md`. It is the mandatory first response to any failure, error, warning, or anomaly (R1).
+
+## When to Use
+
+**MUST be invoked** when ANY of the following occurs:
+
+- A build, test, or deploy command fails unexpectedly
+- A warning or error message appears in output
+- A check step fails or times out
+- A validator reports an anomaly
+- **A validation failure on your own PR**: a `charly/pr-validator` BLOCK or `INCONCLUSIVE`, a red CI check, or an auto-close. Each is an anomaly in YOUR process, not just in the code. The RCA runs BEFORE the fix, its step 4 names the **missed control** (why your own pre-push gate did not catch it), and the root fix goes into that control as well as into the code. Post the RCA summary in the round's PR comment (the project rulebook "Before every update push: read everything, fix everything").
+- Documentation, a skill, or a comment diverges from observed reality
+- Any unexpected behavior that cannot be immediately explained
+
+## What It Does
+
+The agent runs an 8-step root cause analysis process:
+
+1. **Establish expected behavior** — what should happen
+2. **Capture actual behavior** — what actually happened (with evidence)
+3. **Identify the mechanism** — how the system produced the actual behavior
+4. **Find the missed control** — what should have prevented it
+5. **Assess blast radius** — what else is affected
+6. **Determine root cause** — the fundamental issue, not a symptom
+7. **Propose root fix** — a fix that prevents recurrence
+8. **Document the finding** — record the RCA result, then CLASSIFY it (the project rulebook R1, *fix it or file it*). A **blocking** finding (this change introduces it, this change's gate is red or warns because of it, or this change's claim is false without the fix; unsure → blocking) is fixed in this change. A **non-blocking**, genuinely separable finding is FILED: add the RCA to an existing issue, or file ONE in the owning repo, and list it under the PR body's `## Filed issues`. See `/charly-internals:strict-policy` "R1, applied. Fix it or file it".
+
+## Failure-signature enumeration and measurement discipline
+
+A full RCA is not one named cause. A visible symptom is usually a CONJUNCTION of independent issues, so naming a single cause and moving on is repeatedly wrong while the others stay live — the field failure this section exists to prevent (a single cause named three times in a row, each time wrong, and once declared fixed from a measurement taken inside a downtime window). Three rules bind every RCA:
+
+- **Enumerate EVERY distinct failure signature FIRST, before naming any cause.** One symptom ("the server restarts") usually has MULTIPLE independent signatures. Bucket them from the raw log before you theorize:
+
+  ```
+  grep -o 'cause="[^"]*"' <log> | sort | uniq -c | sort -rn
+  ```
+
+  Adapt the key to the log's shape — whatever field names the failure reason. A histogram with more than one signature means more than one issue; never explain them away as a single cause.
+
+- **Never verify a fix from a single sample.** Measure against a stable baseline over a window in which the system is PROVABLY UP — readiness confirmed by a separate probe, never by the mere absence of errors. A zero reading during downtime is NOT evidence: it is the expected output of a system that could not attempt the operation at all.
+
+- **Distinguish "the symptom stopped because it was fixed" from "it stopped because the system was down."** Both read as "zero failures"; only the first is a fix. State the measurement window and how you proved the system was up during it.
+
+Enumerate per-issue, fix each, and re-measure EACH independently. A fix validated only against the conjunction's aggregate reading is unproven.
+
+**Worked example — three independent issues under one "server restarts" symptom.** A restart-loop symptom had three independent causes: a snapshot loop exhausting a resource, a blocking plugin stalling a request thread, and a stale worktree serving an old binary. Naming one cause and shipping its fix — three times in a row — each time left the loop running, because the other two were still live; one "fix confirmed" came from a `0 failures / 90s` reading taken while the server was down, so no attempt could have occurred. Enumerating the failure signatures FIRST surfaced all three at once; each was fixed and re-measured independently against a stable baseline window, and only then did the symptom clear.
+
+## Cross-References
+
+- `/charly-internals:strict-policy` — R1 mandate and forbidden-rationalization rules
+- `/charly-internals:agents` — agent roster and conventions
+- `/charly-internals:cutover-policy` — how RCA findings feed into cutovers
+
+## When to Use This Skill
+
+Invoke when you need to understand the root-cause-analyzer agent's purpose, when it must be invoked, or what its 8-step process covers. The agent itself is at `marketplace/internals/agents/root-cause-analyzer.md`.

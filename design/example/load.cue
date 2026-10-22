@@ -24,7 +24,8 @@ doc: #Envelope
 }
 
 // ── nodes ───────────────────────────────────────────────────────────────────────
-_node: {for n, v in doc if _directive[n] == _|_ {(n): v}}
+_directiveSet: {for w in _directiveWord {(w): true}}
+_node: {for n, v in doc if _directiveSet[n] == _|_ {(n): v}}
 _kindKeys: {for n, v in _node {(n): [for k, _ in v if #KindNode[k] != _|_ {k}]}}
 // The kind of a top-level node: its kind key, or "candy" (the default entry of #NodeAlt).
 _kindOf: {for n, ks in _kindKeys {(n): [for k in ks {k}, "candy"][0]}}

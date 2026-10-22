@@ -9,8 +9,9 @@
 #                _word       a word list in DESIGN.cue
 #                keys(#Alt)  the tags of a registry definition (an S4 union's alternatives)
 #              col=N picks the table column whose `backticked` words are compared (default 1).
-#   2 lists    the word lists that mirror definitions equal them (the pairs in LIST_PAIRS), and the
-#              @ref kind lists of DESIGN.cue equal the `want:` lists of design/example/rules.cue
+#   2 lists    the word lists that mirror definitions equal them (the pairs in LIST_PAIRS), the
+#              @ref kind lists of DESIGN.cue equal the `want:` lists of design/example/rules.cue,
+#              and the two verb tables #FactVerb and #ProtocolVerb share no word (D-VERB-6)
 #   3 rules    every `// D-…` tag in DESIGN.cue names a requirement of DESIGN.md and has a
 #              negative case; every negative names a tag or a §5.4 rule; rules.cue emits exactly
 #              the §5.4 rules marked `rules.cue`, each with a negative; every §5.4 owner is an
@@ -28,6 +29,7 @@
 #   6 patterns DESIGN.cue uses only §3.1's constructs (D-PAT-1): no close(), no matchN, no
 #              forbidden field ?: _|_, exactly one open struct {...} (#Opaque), and every other use of
 #              #Opaque marks itself `// S10` — no first-party word is left untyped (D-KIND-5)
+#   7 shape    every table row of DESIGN.md and TODO.md has its header's cell count and ends with |
 #
 # Usage: scripts/design-consistency.sh [root]
 # Self-test: scripts/design-selftest.sh scripts/design-consistency.sh design/consistency/selftest.tsv

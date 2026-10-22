@@ -50,9 +50,12 @@ defaults:
 # The umbrella project manifest — the maintenance TASK surface.
 #
 # The umbrella is a view of the org: ~400 submodules at the root, each a real repo
-# owned elsewhere. It declares NO candies/boxes of its own — only the maintenance
-# TASK surface (`charly task <name>`), which replaced the former Taskfile.yml + the
-# human-facing scripts/*.sh.
+# owned elsewhere. It ships NO image and composes NO box — its only candy is the
+# `opencharly-guidance` CONCEPT candy below, which exists to OWN the org's
+# general-guidance skills (Part II #5: a skill with no code, plugin, or config
+# behind it belongs here, the one repo every consumer shares). Everything else on
+# this manifest is the maintenance TASK surface (`charly task <name>`), which
+# replaced the former Taskfile.yml + the human-facing scripts/*.sh.
 #
 # Run `charly task list` for the surface. The binary comes from the `charly/`
 # submodule: build it ONCE per clone with `./charly/scripts/bootstrap-charly.sh`
@@ -86,6 +89,65 @@ defaults:
 # enforces the rule on every task in this file. #413 is where the seven maintenance tasks
 # were corrected.
 # =============================================================================
+
+# -----------------------------------------------------------------------------
+# The org's GENERAL-GUIDANCE skills (AGENTS.md Part II #5).
+#
+# A skill with no code, plugin, or config behind it belongs here, because the
+# umbrella is the one repo every consumer shares and guidance with no home repo
+# has nowhere else a consumer can reach it from. Every OTHER skill lives in the
+# repo of the code, plugin, or config it describes — the destination map for a
+# relocation is measured, never read off prose (opencharly/opencharly#606), and
+# this family's own re-derivation is opencharly/opencharly#611.
+#
+# `opencharly-guidance` is a CONCEPT candy: it ships no install content, composes
+# no box, and appears in no image — so these `skill:` nodes add nothing to any
+# image. Its whole job is to OWN the routing metadata. The prose is the FILE at
+# `.agents/skills/<name>/SKILL.md`; nothing here inlines a `description:` or a
+# `content:` (an inline body that disagrees with its file is a hard error in the
+# marketplace generator, and copying a body back into a node is how a skill
+# drifts from the file that is its source).
+# -----------------------------------------------------------------------------
+opencharly-guidance:
+    candy:
+        description: |-
+            Concept candy owning the umbrella's general-guidance skills — the ones with no code,
+            plugin, or config behind them (AGENTS.md Part II #5). It ships no install content and
+            composes no image; it carries the family's `skill:` routing nodes, and the prose lives
+            in `.agents/skills/<name>/SKILL.md` at this repo's root.
+        plan:
+            - run: this documentation-only candy ships no install content (it carries the org's general-guidance skill entities); validate-satisfying no-op
+              command: "true"
+              context:
+                - build
+            - check: every general-guidance skill node resolves to an authored body under .agents/skills
+              id: opencharly-guidance-present
+              context:
+                - build
+              command: "true"
+agents-skill:
+    skill:
+        name: agents
+        family: internals
+        owner: opencharly-guidance
+        triggers:
+            - "Verify a cutover by running the R10 beds (drive `charly check run <bed>`)"
+            - "Evaluate/audit a deployment config (image or deploy, yours)"
+            - "Sub-agents / dynamic workflows / agent teams / agent-lifecycle or commit-push gate hooks"
+            - "Monitor a subagent's progress / stop a stalled, idle, or looping worker"
+            - "Todo ledger / interruption safety / never drop in-flight work across a new instruction"
+cutover-policy-skill:
+    skill:
+        name: cutover-policy
+        family: internals
+        owner: opencharly-guidance
+        triggers:
+            - "Hard-cutover concerns / rename sweeps"
+root-cause-analyzer-skill:
+    skill:
+        name: root-cause-analyzer
+        family: internals
+        owner: opencharly-guidance
 
 # -----------------------------------------------------------------------------
 # map — list every submodule with its pin and sync state.
