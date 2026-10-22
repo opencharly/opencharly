@@ -163,7 +163,7 @@ is never bent.
 
 | # | Pattern | CUE form | Used for |
 |---|---|---|---|
-| S1 | **Closed definition** | `#X: {a!: T, b?: U}` | every struct. A definition is closed by CUE, recursively, including the struct literals of its unions; `close()` is never written. A field it does not declare is a `field not allowed` error. |
+| S1 | **Closed definition** | `#Endpoint: {port!: #Port, path?: #AbsPath}` | every struct. A definition is closed by CUE, recursively, including the struct literals of its unions; `close()` is never written. A field it does not declare is a `field not allowed` error. |
 | S2 | **Named scalar** | `#Name: =~"^[a-z][a-z0-9-]*$"`, `#Port`, `#Size` | every constrained scalar; never an inline constraint at the use site |
 | S3 | **Literal enum** | `*"system" \| "user"` inline, or `or(_methodWord)` from a word list | closed sets of values (`*` marks the declared default). A set that tools or documents list is a word list, and the enum is derived from it. |
 | S4 | **Key-tagged union** | `#SourceAlt: {oci: {oci!: …, F}, disk: {disk!: …, F}}`, `#Source: or([for _, a in #SourceAlt {a}])` | every "exactly one of". The alternatives live in one tag table whose keys are the tags — the keys the author writes — and the union is derived from it. One entry may be the default: selected when no tag is written, it admits none of the tags (the candy in `#NodeAlt`). The loader dispatches on the tags (D-LOAD-5). |
@@ -172,7 +172,7 @@ is never bent.
 | S7 | **Conditional field** | `if from != _\|_ {#BoxFields}` | fields declared only when another field is present; closedness rejects them otherwise. It adds fields to one concept (a box is a candy, §2); it never defines a second one. |
 | S8 | **Reserved-name pattern** | `[#InnerNodeName]: #InnerOfMachine` where `#InnerNodeName` is an S2 scalar excluding field names and kind words | bodies that hold named inner or alongside nodes; the admitted nodes are a tag table keyed by kind word |
 | S9 | **Reference field** | `from?: #Ref @ref(box, source)` | every field that names a node; the attribute lists the kinds it may name (`box` = a candy with `from:`). A field derived from a type table (`#NeedType`) takes its kinds from its row's `ref` list instead, because a derived field carries no attribute. Core reads both to link the project (§4.1 stage 4). |
-| S10 | **Foreign-owned payload** | `#ManagerInput: #Opaque` — the ONE open struct (§8) | a shape whose **fields** the owning system defines: a manager's input, a plugin's own records. A foreign system's word lives *inside* one and never becomes an authored key of charly's own (D-IR-5) — the boundary law's positive half |
+| S10 | **Foreign-owned payload** | `input?: #Opaque` (a manager package's input) — `#Opaque` is the ONE open struct (§8) | a shape whose **fields** the owning system defines: a manager's input, a plugin's own records. A foreign system's word lives *inside* one and never becomes an authored key of charly's own (D-IR-5) — the boundary law's positive half |
 
 | Never | Why |
 |---|---|
@@ -639,8 +639,8 @@ deployment lock (D-DEP-4); no command has a private path.
 | D-IR-3 | Every action has golden tests: IR in; rendered build fragment and applied effect out. |
 | D-IR-4 | A `file:` entry has exactly one effect — `content`, `copy`, `dir`, `link`, `download` or `extract` — and a `download` or `extract` is pinned by `sha256`. |
 | D-IR-5 | A foreign system enters the IR in one of three roles — a **manager word** (`_managerWord`), a **venue kind** (`#VenueOutputAlt`) or a **deployment kind** — and its own command line never becomes charly vocabulary: no foreign subcommand, flag or chart-CLI string is an authored field, a verb word or an intent (§2). |
-| D-IR-6 | An action for a manager that declares an input carries it as `#ManagerInput`, validated against the owning plugin's schema at **authoring** time, never at execution. |
-| D-IR-7 | A manager word's **work is owned by its phase**: a build-phase manager's package is built by a `builder` node, so a `build_with` key must be a build-time manager (`#BuildManager`); an apply-phase manager's package is applied by the deployment kind. A body may **declare** a package of either phase — `#PackageSet` is unscoped — because the phase decides who does the work, never what may be written. |
+| D-IR-6 | An action for a manager that declares an input carries it as its `input` (`#Opaque`, S10), validated against the owning plugin's schema at **authoring** time, never at execution. |
+| D-IR-7 | A manager word's **work is owned by its phase**: a build-phase manager's package is built by a `builder` node, so a `build_with` key must be a build-time manager (`#BuildManager`); an apply-phase manager's package is applied by the deployment kind. A body may **declare** a package of either phase — `#PackageMap` is unscoped — because the phase decides who does the work, never what may be written. |
 
 ## 10. Kinds and directives
 
@@ -2094,8 +2094,8 @@ Seven checks. Each failure names the file, the line, and the two disagreeing sid
    ```
 
    The table's column `N` (default 1) must list, as backticked words, exactly the names of the
-   sources, in both directions. A source is a struct definition `#Def` (its field names), a word
-   list `_word`, or `keys(#XAlt)` (the tags of a tag table). Field names come from
+   sources, in both directions. A source is a struct definition such as `#Os` (its field names), a
+   word list such as `_kindWord`, or `keys(` a tag table `)` such as `keys(#ActionAlt)` (its tags). Field names come from
    `cue exp gengotypes`, the generator of §6, whose Go structs carry every field, optional ones
    included, as `json` tags; the CUE language itself cannot enumerate optional fields. A marker
    with no table under it fails; marker-shaped lines inside fenced code are illustrations and
@@ -2127,7 +2127,9 @@ Seven checks. Each failure names the file, the line, and the two disagreeing sid
    keys, word lists — is singular: a key ending in `s` must be one of the singular nouns and
    predicates listed in D-NAME-1. Every schema-pattern reference `S<n>` in DESIGN.md, DESIGN.cue
    and TODO.md names a pattern §3.1 defines, and a range `S1–S<n>` ends at the last one. Kind
-   words, directives and the field names of node-bearing bodies are disjoint (D-SCH-6).
+   words, directives and the field names of node-bearing bodies are disjoint (D-SCH-6). Every
+   backticked definition or word-list name (`#…`, `_…`) outside a code block names a definition
+   of `DESIGN.cue`, so prose cannot cite a shape the schema no longer has.
 6. **Patterns (D-PAT-1).** `DESIGN.cue` contains no `close(`, no `matchN`, no forbidden field
    written as `?: _|_`, and exactly one open struct `{...}` — the `#Opaque` definition. Every other
    line that uses `#Opaque` marks itself `// S10`, so no first-party word is left untyped

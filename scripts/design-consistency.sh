@@ -26,7 +26,8 @@
 #              singular (keys ending in `s` must be listed in D-NAME-1); every S<n> pattern
 #              reference is defined in §3.1 and a range S1–S<n> ends at the last; a backticked
 #              protocol method is spelled as its word list spells it; kind words,
-#              directives and the field names of node-bearing bodies are disjoint (D-SCH-6)
+#              directives and the field names of node-bearing bodies are disjoint (D-SCH-6); every
+#              backticked `#…`/`_…` name in DESIGN.md prose is a definition of DESIGN.cue
 #   6 patterns DESIGN.cue uses only §3.1's constructs (D-PAT-1): no close(), no matchN, no
 #              forbidden field ?: _|_, exactly one open struct {...} (#Opaque), and every other use of
 #              #Opaque marks itself `// S10` — no first-party word is left untyped (D-KIND-5)
@@ -47,6 +48,8 @@ fail=0
 bad() { echo "FAIL $*"; fail=1; }
 # g: grep for listings. "No match" (exit 1) is an empty result, not a failure; a real error
 # (exit 2) still fails. Under `set -e -o pipefail` a bare grep would end the script silently.
+# g is for listings only: it maps "no match" to success, so a presence TEST is `grep -q`, never
+# `g -q` — `g -q … || bad` can never fail (self-tests open-struct-not-opaque, prose-stale-definition).
 g() { grep "$@" || (($? == 1)); }
 
 # ── sources ────────────────────────────────────────────────────────────────────
@@ -346,13 +349,21 @@ for other in _directiveWord _candyField _deployField; do
 	[[ -z "$both" ]] || bad "DESIGN.cue: kind words and $other overlap: $both"
 done
 
+# prose names only definitions the schema has: a backticked #… or _… outside a code block
+awk '/^[[:space:]]*```/ { f = !f; next }
+	!f { s = $0; while (match(s, /`[#_][A-Za-z][A-Za-z0-9_]*/)) { print FNR "\t" substr(s, RSTART + 1, RLENGTH - 1); s = substr(s, RSTART + RLENGTH) } }' "$md" |
+	while IFS=$'\t' read -r ln d; do
+		grep -q "^$d:" "$schema" || echo "FAIL DESIGN.md:$ln: \`$d\` names no definition of DESIGN.cue"
+	done > "$work/defnames"
+if [[ -s "$work/defnames" ]]; then cat "$work/defnames"; fail=1; fi
+
 # ── 6 patterns (D-PAT-1) ─────────────────────────────────────────────────────────
 g -n 'close(\|matchN\|?: *_|_' "$schema" | g -v '^[0-9]*:[[:space:]]*//' | while IFS=: read -r ln _; do
 	echo "FAIL DESIGN.cue:$ln: a construct §3.1 rules out (close(), matchN or a forbidden field ?: _|_)"
 done > "$work/patterns-out"
 open="$(g -c '{\.\.\.}' "$schema")"
 [[ "$open" == 1 ]] || echo "FAIL DESIGN.cue: $open open structs {...}; exactly one (#Opaque) is allowed" >> "$work/patterns-out"
-g -q '^#Opaque: {\.\.\.}' "$schema" || echo "FAIL DESIGN.cue: the one open struct is not the #Opaque definition" >> "$work/patterns-out"
+grep -q '^#Opaque: {\.\.\.}' "$schema" || echo "FAIL DESIGN.cue: the one open struct is not the #Opaque definition" >> "$work/patterns-out"
 # every use of #Opaque outside its definition and outside comments marks itself `// S10` (D-KIND-5)
 g -n '#Opaque' "$schema" | g -v '^[0-9]*:#Opaque: {\.\.\.}' | g -v '^[0-9]*:[[:space:]]*//' | g -v '// S10' |
 	while IFS=: read -r ln _; do echo "FAIL DESIGN.cue:$ln: an #Opaque use outside S10 — type the field, or mark a foreign payload // S10"; done >> "$work/patterns-out"
