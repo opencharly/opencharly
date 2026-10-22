@@ -1,0 +1,201 @@
+# Agent Roster & Primitives
+
+Companion reference for `/charly-internals:agents`. Owns the primitives per
+harness, when to use which Claude Code primitive, the charly agent roster,
+the shipped workflows, and the agent-team primitive's setup.
+
+## The harnesses — where each primitive lives
+
+OpenCharly is driven from multiple agent harnesses' multi-agent primitives:
+
+| | Claude Code | Codex | Kimi |
+|---|---|---|---|
+| Rulebook | `AGENTS.md` | `AGENTS.md` | `AGENTS.md` |
+| Skills | plugin manager (`charly-*@charly-plugins`, the opencharly/marketplace repo) | See the marketplace skill's Codex setup section for marketplace registration, plugin installation, and catalog settings; use the AGENTS.md dispatcher and read selected `<family>/skills/<name>/SKILL.md` files when skill descriptions are omitted | kimi plugin (the whole marketplace is one plugin, installed by GitHub URL) / on-demand `Skill` tool; when not in the session listing, `Read` the marketplace repo's `<family>/skills/<name>/SKILL.md` |
+| Sub-agents | custom agents (the marketplace's `internals/agents/*.md`, `.claude/agents/`) | fresh native agent threads (`.codex/agents/*.toml` roles, e.g. `pr-validator`) | built-in `coder` / `explore` / `plan` only — no custom subagent registry |
+| Fresh validator / teammate | sub-agent or team teammate with the agent brief | fresh agent thread with the role toml | a fresh separate `kimi` session (interactive or `kimi -p`) briefed with the agent `.md` by path — context isolation is what makes it independent |
+| Dynamic workflows | `.claude/workflows/*.js` (run `/<name>`) | re-derived per thread | re-derived per session (no workflow runtime) |
+| Teams | `~/.claude/teams/` (experimental) | concurrent fresh threads | concurrent fresh sessions |
+| Gates | `permissions.allow` + the auto-mode classifier + `PreToolUse(Bash)` hooks (`.claude/settings.json` wires pre-commit-gate.sh + pre-push-gate.sh, since umbrella `5e485a8`) | sandbox + on-request approvals (`.codex/config.toml`) | hooks + `[[permission.rules]]` in user-level `~/.kimi-code/config.toml` (no project-level config; repo-guarded delegation to `.claude/hooks/`) — no auto-mode classifier |
+| Hook events | UserPromptSubmit / PreToolUse / Stop / TaskCreated / TaskCompleted / TeammateIdle | — (approvals instead) | UserPromptSubmit / PreToolUse / Stop / SubagentStart / SubagentStop |
+
+**Harness-agnostic invariants:** the agent briefs in the marketplace's
+`internals/agents/*.md` are written for any harness's fresh
+evaluator; the `pr-validator` is always a fresh, independent context rooted
+at the superproject, loading the protected-main rulebook and triggered
+skills (the marketplace's `<family>/skills/<name>/SKILL.md`, read by path
+from the harness's marketplace load) before candidate
+actions; and the two-step landing (author opens, fresh evaluator
+validates/merges/tags) is the sole landing path in every harness.
+
+## The three Claude Code primitives — when to use which
+
+| | Sub-agent | Dynamic workflow | Agent team |
+|---|---|---|---|
+| What it is | A worker Claude spawns (Agent tool / @-mention) | A JS script the runtime executes | Multiple full Claude sessions: a lead + teammates |
+| Holds the plan | Claude, turn by turn | The script | The lead + a shared task list |
+| Intermediate results | Claude's context | Script variables | Each teammate's own context |
+| Scale | a few per turn | dozens–hundreds of agents/run | 3–5 teammates |
+| Lives in | the marketplace's `internals/agents/*.md` (or `.claude/agents/`) | `.claude/workflows/*.js` (run `/<name>`) | runtime only — `~/.claude/teams/`, not pre-authored |
+| Reads the rulebook | yes (full hierarchy, except Explore/Plan) | each `agent()` does | yes (each teammate) |
+
+- **Sub-agent** — isolate a verbose side task (run a bed, probe a deploy)
+  and get back a verdict; the noisy output stays out of the main context.
+- **Dynamic workflow** — codify a repeatable fan-out (run every bed; audit
+  every deploy config) as a script you can rerun. Triggered by the word
+  `workflow` in a prompt, by `/effort ultracode`, or by a saved `/<name>`.
+- **Agent team** — parallel exploration/review where teammates challenge
+  each other (competing-hypotheses triage of a check failure). Experimental;
+  opt-in only (see "Agent teams" below).
+
+**Preference: agents over background tasks.** Everything that can run as an
+agent should run as an agent — prefer an addressable, operator-visible
+sub-agent or agent-team teammate over an opaque background dynamic
+workflow. Team agents are the default for parallel work: the operator
+watches and messages them live, which is exactly the visibility a
+background workflow hides. Reach for a background `Workflow` only as a last
+resort, when deterministic scripted control flow (loops/conditionals/large
+fan-out) genuinely cannot be expressed as a team — and even then it
+surfaces its work as agents and stays bed-scoped (see "Implementation
+workflows are bed-scoped too" in `references/parallel-bed-testing.md`). The
+one exception is long-running work that outlives a single turn (a
+VM/emulator check bed): no agent can reliably hold it — a sub-agent returns
+synchronously (its background children die on return) and a teammate is
+torn down on idle — so it runs as a harness-tracked background task owned
+by the persistent session, driven by the completion notification (see "The
+binding rule: running a bed is R10-class" in
+`references/parallel-bed-testing.md`). "Prefer agents" governs bounded
+work.
+
+## The charly agent roster (the marketplace's `internals/agents/`)
+
+**Executors** — run `charly check` and return verbatim proof:
+
+- **`check-bed-runner`** — runs `charly check run <bed>` one-shot (the full
+  R10 sequence: build → check image → deploy → check live → fresh `charly
+  update` → teardown) on a disposable check bed; returns per-step status,
+  exit code (0 pass / 1 infra / 2 checks-failed), and the failing-step log
+  tail. A persistent owner runs every full bed as a `run_in_background`
+  task (main session / background agent / split-pane teammate — see
+  "Bed-scoped parallel real-deployment testing" in
+  `references/parallel-bed-testing.md`; an in-process teammate cannot, its
+  background children die on yield) and pastes the verbatim verdict;
+  teammates do bed-local edits and short foreground checks (`charly check
+  box`), never the full run. There is no duration/600s carve-out — the
+  600s figure is a Bash foreground cap, irrelevant to a backgrounded bed.
+- **`deploy-verifier`** — read-mostly: `charly check box` / `charly check
+  live` / `charly status` against an image or a running deploy (the charly
+  repo's images or a user's own deploy config). Answers "does this deploy
+  config work?" without mutating anything.
+
+**Enforcers** — gate claims (dev discipline):
+
+- **`root-cause-analyzer`** — R1 mandatory invocation on any
+  failure/anomaly; 8-step RCA before any fix.
+- **`testing-validator`** — blocks "it works" claims lacking R10 proof;
+  owns the 4-tier confidence table (must match the project rulebook).
+- **`layer-validator`** — pre-edit `charly.yml` sanity gate; defers the
+  full schema to `/charly-image:layer` + `charly box validate`.
+- **`pr-validator`** — the fresh PR evaluator (the validating half of the
+  two-step landing). Spawned with new context, it independently
+  re-validates a PR against R0–R10 and the relevant skills and certifies
+  `Verdict: PASS|BLOCK` for the ORG-WIDE `charly/pr-validator` GitHub
+  Actions gate, whose check run is the branch-protection context. The
+  landing (native auto-merge squash, then the tag-on-merge workflow's
+  CHANGELOG-from-PR-body + CalVer tag) is performed by
+  the org-wide workflows when the gate goes green — the
+  agent neither posts the status nor merges; branch protection makes the
+  check the
+  mechanical gate. Never the agent that authored the PR — the point is
+  independent evaluation. See `/charly-internals:git-workflow` (B1 step 2,
+  B5).
+
+**Every roster agent runs unrestricted — its spec omits the `tools:`
+field**, so it inherits all tools (the full set the main session has: Read
+/ Bash / Edit / Write / Skill / SendMessage / Agent / Task* / … plus MCP
+tools and full plugin-skill-by-name access), exactly as the project
+rulebook's Candyboxing mandates: never secure by whitelisting commands,
+trust the walls, not the tools. The wall is the disposable target, branch
+protection, and the validator's fresh-context independence — never a
+narrowed tool set. An agent's role (enforcer vs. executor) is defined by
+its prompt and spec, not by a tool whitelist. Tools and skill access are two
+independent concerns: omitting `tools:` makes the agent inherit all tools
+(verified equivalent to the built-in general-purpose agent, `Tools: *`, for
+tool inheritance), but it does not make `Skill(<name>)` resolve a charly-*
+skill, which depends on per-session skill registration a sub-agent usually
+lacks. So an agent reaches a charly-* skill by **`Read`ing its `SKILL.md` by
+path** — the reliable method; `Skill(<name>)` is an optional fast-path that
+may return `Unknown skill`, and that failure is expected, never "skills
+unavailable". Do not add a `tools:` line to a roster agent — omission is
+the documented way to inherit all tools (`tools: "*"` is not valid and
+yields zero tools).
+
+Invoke by name in a prompt, `@`-mention, or the `Agent` tool (scoped id
+`charly-internals:<name>`). Custom agents load at session start, so the
+shipped workflows do not depend on `agentType:` — they inline each agent's
+role in a self-contained `agent()` prompt and `schema`, which runs even
+before a reload registers a newly-added agent. Reach for `agentType:` only
+once the agent is loaded (a fresh session) or when reusing the definition
+as an agent-team teammate.
+
+## The shipped workflows (`.claude/workflows/`)
+
+- **The bed roster is now NATIVE, not a workflow.** A whole-roster run is a
+  `kind:check-roster` entity: `charly check run <roster>`. The plugin engine
+  (candy/plugin-check) enumerates every disposable bed (namespace-qualified),
+  runs them on a bounded `lanes` worker pool, serializes beds sharing an
+  `requires_exclusive:`/`requires_shared:` token, refuses host-local beds by
+  default, and aggregates honest exit codes. The former `/verify-beds` agent
+  workflow is DELETED — the classifier (host-local refusal, token
+  serialization, bounded parallelism) lives in the engine, not a workflow. An
+  edited `.claude/workflows/*.js` is not what `Workflow({name})` runs — the
+  registry is snapshotted at session start; drive an edited workflow with
+  `Workflow({scriptPath})`, which takes precedence.
+- **`/audit-deploy-configs [image|deploy …]`** — validates, runs `charly
+  check box` and optionally `charly check live`, and calls `deploy-verifier`
+  over a set of deploy configs; aggregates a health report.
+- **`/triage-check-failure <bed>`** — competing-hypotheses RCA of a failed
+  bed run: parallel `root-cause-analyzer`-style agents each validate a
+  hypothesis on the live bed, cross-check adversarially, converge on the
+  root cause, and hand back a fix to re-run the real bed (per R1).
+- **`/verify-status [substrate …]`** — a substrate-coverage plan for the
+  unified `charly status` surface. It runs no beds — every substrate bed is
+  disqualified from sub-agent ownership (`check-pod` measured ≥600s,
+  `check-k3s-vm` is a VM bed, `check-android-emulator-pod` is an android
+  bed, `check-local-vm` is a VM bed and the `check-*-local` beds are host-local), so a runner form would be invalid by
+  construction. It emits, per substrate, the exact `charly check run <bed>`
+  command, the `summary.yml` path to read, and the `status-shows-*`
+  deploy-scope assertion that bed proves; the persistent session owns each
+  run as a `run_in_background` task, and the `local` bed runs inside the
+  disposable eval VM, never on the host. `gateComplete` is `false` by
+  construction. The bed-safety classifier lives in one place — the native
+  `kind:check-roster` engine — and is not duplicated here.
+
+## Agent teams (experimental — enabled in committed settings)
+
+Agent teams (`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`) are enabled in the
+committed `.claude/settings.json` (`env` block). The experimental caveats
+remain: no in-process session resume (`/resume`/`/rewind` don't restore
+teammates), one team at a time (clean up before creating another), no
+nested teams (only the lead manages the team), and the lead is fixed for
+the team's lifetime. Enabling requires a `claude` restart, because the
+`env` flag is read at process start.
+
+Teammates reuse the same agent definitions as roles — their `tools` and
+`model` apply; the `skills`/`mcpServers` frontmatter does not apply on the
+team path (each teammate loads the project rulebook and project/user skills
+on spawn, like any session). Set the default teammate model in `/config`
+(pick "Default (leader's model)" to inherit). No hook is wired to the
+`TaskCreated` / `TaskCompleted` / `TeammateIdle` events — team coordination
+discipline is owned entirely by this skill (see
+`references/hooks-and-lifecycle.md` "Hooks doctrine" for the current hook
+inventory).
+
+## See also
+
+- Entry: `../SKILL.md`
+- `references/orchestration-model.md` — the default execution model, model
+  tiers, responsibility matrix.
+- `references/parallel-bed-testing.md` — bed-scoped ownership, the
+  implementation-workflow shape, the binding rule for running a bed.
+- `references/hooks-and-lifecycle.md` — hooks doctrine, teammate lifecycle.
