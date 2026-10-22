@@ -50,7 +50,7 @@ system, and it is what keeps the target small while losing no capability.
 |---|---|---|---|---|
 | M1 | Content → IR | a candy's content compiles to the IR's seven actions; managers, builders, operating systems and inits are data nodes | `#Content`, `#ActionAlt` | §9.4, §11 |
 | M2 | Artifact | `build(start, IR, form)` produces an image or a disk, by one builder | `#ArtifactRef`, the `build` method | §9.2, §9.3 |
-| M3 | Deployment = kind × driver | five deployment kinds; what drives a kind (engine, hypervisor, cluster tool) is a row of the driver table chosen by the user configuration; a deployment is run from an artifact, created, or connected | the kind table, `_driverWord`, `#ConnectAlt` | §12.1, §12.6 |
+| M3 | Deployment = kind × driver | six deployment kinds; what drives a kind (engine, hypervisor, cluster tool) is a row of the driver table chosen by the user configuration; a deployment is run from an artifact, created, or connected | the kind table, `_driverWord`, `#ConnectAlt` | §12.1, §12.6 |
 | M4 | Need → grant | one table of capability types; every need entry is `optional` or not and `exclusive` or not, whatever its type; a deployment gets nothing it does not need, and its kind decides how — and at which lease — a need is granted | `#NeedType`, `#ProvideType`, `#NeedEntry` | §15, §16 |
 | M5 | Lifecycle and state | realize, start, stop, destroy, capture with a scope, restore; leases on every held resource | `#MethodIO`, `#GrantItem` | §9.3, §12.3, §16.2 |
 | M6 | Venue | every interaction with a deployment is one operation of its venue | `#VenueOutputAlt` | §12.7 |
@@ -91,25 +91,25 @@ forms included). A registered term has one meaning; a second meaning gets its ow
 | **stack** | the ordered content of a box: its `from:` chain, then `require:`d candies, inner candies and own fields (D-CANDY-2) | — |
 | **source** | a `source:` node: an external starting point with an origin and an `os` | base image |
 | **origin** | how a source starts: `oci`, `disk`, `iso` or `bootstrap` | — |
-| **os** | an `os:` node: an operating system's family, version, package manager and inits | distro |
+| **os** | an `os:` node: an operating system's family, version, package manager, inits and boot content | distro |
 | **artifact** | the built form of a box: an **image** (OCI) or a **disk** | — |
 | **form** | which artifact a deployment needs: image for `pod` and Kubernetes workloads; for `vm`, the form its hypervisor boots — a disk, a root drive with the `os` kernel, or an image (§9.2) | — |
 | **capture** | a box whose `from:` names a deployment: that deployment's checked state | snapshot, golden image |
-| **deployment** | a node of a deployment kind: `pod`, `vm`, `kubernetes`, `local`, `android` | fleet, member |
+| **deployment** | a node of a deployment kind: `pod`, `vm`, `kubernetes`, `local`, `android`, `agent` | fleet, member |
 | **host** | a machine charly applies to or runs on, reached by a `connect:` (the shell of the one charly runs on, ssh, or an IP-KVM) | — |
 | **guest** | the system inside a `pod` (container) or `vm` | — |
 | **venue** | where a deployment is reached: container exec, ssh, host shell, IP-KVM, adb, or the cluster API; every interaction is one of its operations (§12.7) | substrate |
-| **driver** | the engine or hypervisor that drives a deployment kind: a data row chosen by the user configuration (§12.6) | — |
+| **driver** | the engine, hypervisor or cluster tool that drives a deployment kind: a data row chosen by the user configuration (§12.6) | — |
 | **isolation** | the boundary a deployment runs behind, beyond the kind's own: `microvm`, a guest kernel of its own (§16.1) | — |
 | **restore** | returning a deployment to a capture it took (§12.3) | revert, rollback |
-| **workload** | a `pod` or `vm` inside a `kubernetes` node | — |
+| **workload** | a `pod`, `vm` or `agent` inside a `kubernetes` node | — |
 | **inner node** | a node written inside another node's body | child |
 | **alongside node** | a node written beside a `pod` or `vm` kind key | peer |
 | **bed** | a deployment with `disposable: true`, proven by `charly check run` | — |
 | **step** | one entry of a `step:` list: one intent, its verb, modifiers | plan, feature |
 | **intent** | a step's kind of work: `run`, `check`, `harness-run`, `harness-check` | — |
-| **pipeline** | a `pipeline` node: the one workflow kind, stages of steps run in the host venue (§10.1) | task |
-| **stage** | one entry of a pipeline: steps, another pipeline, or a question to the operator | — |
+| **pipeline** | a `pipeline` node: the one workflow kind, a named set of stages run in the host venue (§10.1) | task |
+| **stage** | one entry of a pipeline: steps, another pipeline, beds, or a question to the operator | — |
 | **phase** | when a step runs: `build` (against the artifact), `ready` (gating a realization: the readiness condition of D-LAW-5), `runtime` (against a running deployment), or `any` | — |
 | **verb** | the operation a step performs or observes: a **fact verb** (`command`, `file`, …) or a **protocol verb** (`http`, `display`, …) (§20) | probe |
 | **operation** | one of a multi-operation verb's choices (`kube: {node: …}`) | — |
@@ -523,7 +523,7 @@ drives. It is closed: adding a method amends this document.
 | `store_get`, `store_put` | content-addressed store entries (D-STORE-3) | always; entries are immutable |
 | `state_get`, `state_put` | the state records of a deployment (D-DEP-5), in the shape the calling kind's module defines | the caller's plugin owns that deployment's kind, under the lock core holds (D-DEP-4) |
 | `project` | the resolved value of a node (§5.3) | the node is in the call's project |
-| `config_get` | the calling plugin's section of the user configuration (D-STORE-2), e.g. which container engine or hypervisor to drive | always |
+| `config_get` | the calling plugin's section of the user configuration (D-STORE-2), e.g. which driver of each kind to use | always |
 | `call` | an `api` method of another plugin | the caller's plugin candy lists that api in `need:` (D-CAP-5) |
 | `secret_get` | the value of a secret | the secret is bound to the deployment the call operates on (D-CAP-4), or the caller created it |
 | `secret_put` | stores a secret the caller generates for a deployment it owns (an ssh key for its venue) in the configured backend | the caller's plugin owns that deployment's kind |
@@ -658,7 +658,7 @@ deployment lock (D-DEP-4); no command has a private path.
 | `init` | an init system's service rendering | build plugin |
 | `builder` | a builder: bootstraps a root filesystem or builds a language manager's packages | build plugin |
 | `harness` | an AI CLI invocation used by `harness-run`/`harness-check` | agent plugin |
-| `pipeline` | the one workflow kind: stages of steps run in the host venue (§10.1) | agent plugin |
+| `pipeline` | the one workflow kind: a named set of stages run in the host venue (§10.1) | agent plugin |
 | `skill`, `hook`, `marketplace`, `doc` | harness and documentation inputs | documentation plugin |
 
 Directives: `repo`, `plugin`, `import`, `discover`.
@@ -1395,7 +1395,7 @@ check-android-device:
 
 ### 12.6 Drivers
 
-A driver is the engine or hypervisor that drives a deployment kind. It is chosen by the user
+A driver is the engine, hypervisor or cluster tool that drives a deployment kind. It is chosen by the user
 configuration (`#UserConfig`, §17), so the same box runs unchanged on every machine, and it is a data
 row of its kind's plugin. The driver table (`_driverWord`) has one row per driven kind: the container
 engines of `pod`, the hypervisors of `vm`, and the cluster tools (`kind`, `k3s`) of `kubernetes`.
