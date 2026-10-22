@@ -110,7 +110,7 @@ forms included). A registered term has one meaning; a second meaning gets its ow
 | **intent** | a step's kind of work: `run`, `check`, `harness-run`, `harness-check` | — |
 | **pipeline** | a `pipeline` node: the one workflow kind, stages of steps run in the host venue (§10.1) | task |
 | **stage** | one entry of a pipeline: steps, another pipeline, or a question to the operator | — |
-| **phase** | when a step runs: `build` (against the artifact), `runtime` (against a running deployment), or `any` | — |
+| **phase** | when a step runs: `build` (against the artifact), `ready` (gating a realization: the readiness condition of D-LAW-5), `runtime` (against a running deployment), or `any` | — |
 | **verb** | the operation a step performs or observes: a **fact verb** (`command`, `file`, …) or a **protocol verb** (`http`, `display`, …) (§20) | probe |
 | **operation** | one of a multi-operation verb's choices (`kube: {node: …}`) | — |
 | **modifier** | a step field shared by every verb (`id`, `timeout`, `eventually`, …) | — |
@@ -171,7 +171,7 @@ is never bent.
 | S6 | **Shared fragment** | `#StepFields: {id?: #Name, …}` embedded in S1/S4 | fields shared by several definitions, and only fields every embedder allows; never a validator |
 | S7 | **Conditional field** | `if from != _\|_ {#BoxFields}` | fields declared only when another field is present; closedness rejects them otherwise. It adds fields to one concept (a box is a candy, §2); it never defines a second one. |
 | S8 | **Reserved-name pattern** | `[#InnerNodeName]: #InnerOfMachine` where `#InnerNodeName` is an S2 scalar excluding field names and kind words | bodies that hold named inner or alongside nodes; the admitted nodes are a tag table keyed by kind word |
-| S9 | **Reference field** | `from?: #Ref @ref(box, source)` | every field that names a node; the attribute lists the kinds it may name (`box` = a candy with `from:`). Core reads these attributes to link the project (§4.1 stage 4). |
+| S9 | **Reference field** | `from?: #Ref @ref(box, source)` | every field that names a node; the attribute lists the kinds it may name (`box` = a candy with `from:`). A field derived from a type table (`#NeedType`) takes its kinds from its row's `ref` list instead, because a derived field carries no attribute. Core reads both to link the project (§4.1 stage 4). |
 | S10 | **Foreign-owned payload** | `#ManagerInput: #Opaque` — the ONE open struct (§8) | a shape whose **fields** the owning system defines: a manager's input, a plugin's own records. A foreign system's word lives *inside* one and never becomes an authored key of charly's own (D-IR-5) — the boundary law's positive half |
 
 | Never | Why |
@@ -238,7 +238,7 @@ positions; every diagnostic carries its `file:line`.
 | 1 | Read | the project root, its `discover:` documents and its `import:` closure (each fetched into the store by digest) → documents, and the **namespace table** (`import:` key → the repository reference it binds, at its pinned release) — established FIRST, because a namespaced reference resolves through it and nothing else (D-LOAD-6) | core |
 | 2 | Register | the `plugin:` declarations of the project and its imports → each plugin's manifest and CUE module, read as data → the registry | core |
 | 3 | Parse | documents + registry → node tree, each node dispatched to its definition by its tags (§4.2, D-LOAD-5) | core |
-| 4 | Link | node tree + the `@ref` attributes of the composed schema (S9) → the reference graph, checked and topologically ordered (§5.1) | core |
+| 4 | Link | node tree + the `@ref` attributes and type-table `ref` lists of the composed schema (S9) → the reference graph, checked and topologically ordered (§5.1) | core |
 | 5 | Validate | linked nodes + composed schema → diagnostics (§5.2) | core + kind plugins |
 | 6 | Resolve | linked nodes, in reference order → resolved project (§5.3) | kind plugins + core solver |
 
@@ -278,7 +278,7 @@ Stages 1–5 execute no command and expand no variable; the only plugin code the
 
 ### 5.1 Linking
 
-1. Every field marked `@ref` contributes an edge from its node to the node it names; a dotted
+1. Every field marked `@ref`, and every key of a type-table field whose row has a `ref` list (S9), contributes an edge from its node to the node it names; a dotted
    name walks into inner nodes, and a namespaced name resolves through its import.
 2. Core checks every edge against the kinds the attribute admits (D-VAL-2) and the whole graph
    for cycles (D-VAL-3).
@@ -1419,6 +1419,33 @@ local_install: false
 
 ### 12.7 Venues
 
+A desktop that is ready when its display answers, and a workstation reached through an IP-KVM,
+which serves `display`, `console` and `power` but no `exec`:
+
+<!-- example: display-venue uses-context -->
+```yaml
+desk-session:
+    description: A Wayland desktop session, ready once its display answers.
+    package: {sway: {}, foot: {}}
+    step:
+        - check: the compositor's display answers
+          phase: ready
+          display: {screenshot: {}}
+          eventually: 60s
+        - check: the terminal window is open
+          phase: runtime
+          display: {window: {app_id: foot}}
+
+lab-workstation:
+    local:
+        description: The lab workstation, observed and powered through its IP-KVM.
+        connect: {kvm: {address: 10.0.0.42:443, secret: lab-kvm}}
+        step:
+            - check: the login screen is shown
+              phase: runtime
+              display: {ask: {prompt: "Is a login screen shown?"}}
+```
+
 Every interaction with a deployment is one operation of its venue: `exec` (a shell, a command, a
 step), `copy`, `log`, `console`, `display` (a screen over VNC or SPICE, its keys and its pointer) and
 `forward` (a port) and `power`. The deployment commands of §19 are these operations, for every kind
@@ -2080,7 +2107,7 @@ Seven checks. Each failure names the file, the line, and the two disagreeing sid
 2. **Word lists and references.** The word lists in `DESIGN.cue` that mirror definitions —
    `_candyField`, `_deployField`, `_directiveWord` — equal the fields of those definitions; the
    two verb tables `#FactVerb` and `#ProtocolVerb` share no word (D-VERB-6); and
-   every kind list of an `@ref` attribute (S9) in `DESIGN.cue` equals a `want:` list of
+   every kind list of an `@ref` attribute or a type-table `ref` list (S9) in `DESIGN.cue` equals a `want:` list of
    `design/example/rules.cue`, in both directions, so the executable reference rule cannot drift
    from the schema.
 3. **Rules.** Every `// D-…` tag in `DESIGN.cue` names a requirement of this document and has a

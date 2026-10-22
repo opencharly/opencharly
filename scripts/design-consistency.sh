@@ -10,7 +10,8 @@
 #                keys(#Alt)  the tags of a registry definition (an S4 union's alternatives)
 #              col=N picks the table column whose `backticked` words are compared (default 1).
 #   2 lists    the word lists that mirror definitions equal them (the pairs in LIST_PAIRS), the
-#              @ref kind lists of DESIGN.cue equal the `want:` lists of design/example/rules.cue,
+#              @ref kind lists and type-table `ref` lists of DESIGN.cue equal the `want:` lists of
+#              design/example/rules.cue,
 #              and the two verb tables #FactVerb and #ProtocolVerb share no word (D-VERB-6)
 #   3 rules    every `// D-…` tag in DESIGN.cue names a requirement of DESIGN.md and has a
 #              negative case; every negative names a tag or a §5.4 rule; rules.cue emits exactly
@@ -226,8 +227,10 @@ if [[ -f "$root/design/parity.tsv" ]]; then
 fi
 
 # references: every @ref kind list in DESIGN.cue is a `want:` list in rules.cue and vice versa
-g -o '@ref([^)]*)' "$schema" | sed 's/@ref(//; s/)//; s/ //g' |
-	while read -r l; do tr ',' '\n' <<<"$l" | sort | paste -sd,; done | sort -u > "$work/refkinds"
+{ g -o '@ref([^)]*)' "$schema" | sed 's/@ref(//; s/)//; s/ //g'
+  # a type-table row whose keys name nodes states its kinds as `ref: [...]` (S9)
+  g -v '^[[:space:]]*//' "$schema" | g -o 'ref: \[[^]]*\]' | sed 's/ref: \[//; s/\]//; s/[" ]//g'
+} | while read -r l; do tr ',' '\n' <<<"$l" | sort | paste -sd,; done | sort -u > "$work/refkinds"
 g -o 'want: \[[^]]*\]' "$root/design/example/rules.cue" | sed 's/want: \[//; s/\]//; s/[" ]//g' |
 	while read -r l; do tr ',' '\n' <<<"$l" | sort | paste -sd,; done | sort -u > "$work/wantkinds"
 missing="$(setdiff "$work/refkinds" "$work/wantkinds" | tr '\n' ' ')"

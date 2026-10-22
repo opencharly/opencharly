@@ -15,7 +15,8 @@
 //   S6 shared fragment        #F: {…} embedded in S1/S4 definitions
 //   S7 conditional field      if from != _|_ {#BoxFields}   (declared only under the condition)
 //   S8 reserved-name pattern  [#InnerNodeName]: T
-//   S9 reference field        from?: #Ref @ref(source, box)   (the kinds a reference may name)
+//   S9 reference field        from?: #Ref @ref(source, box)   (the kinds a reference may name);
+//                             a type-table row whose keys name nodes states the kinds as `ref: [...]`
 // A field a definition does not declare is rejected by closedness with "field not allowed".
 //
 // A `// D-…` comment marks the line that enforces that requirement; every tag has a negative case
@@ -332,12 +333,13 @@ _alt: {
 	optional:  *false | bool // D-CAP-1
 	exclusive: *false | bool // D-HW-8
 }
-// A need type: what its entries are keyed by, and the attributes its entries add.
+// A need type: what its entries are keyed by, the attributes its entries add, and — for a type whose
+// keys name nodes — the kinds they may name, as `ref` (S9): the linker reads it as it reads @ref.
 #NeedType: {
 	env:        {key: #EnvName, entry: {}}
 	secret:     {key: #Name, entry: {}}
 	endpoint:   {key: #Name, entry: {protocol!: or(_protocolWord)}}
-	harness:    {key: #Ref, entry: {}}
+	harness:    {key: #Ref, entry: {}, ref: ["harness"]}
 	gpu:        {key: or(_gpuWord), entry: {}}
 	device:     {key: or(_deviceWord), entry: {}}
 	nesting:    {key: or(_nestingWord), entry: {}}
