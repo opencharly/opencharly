@@ -21,7 +21,8 @@
 #   # rule: D-…            the rule it breaks (a DESIGN.cue tag or a §5.4 rule)
 #   # expect: <text>       text the failure output must contain
 #   # def: #Reply          optional; the definition to validate against (default #Document)
-# A §5.4 rule (D-VAL-*) is checked through rules.cue; a protocol case (# def:) with
+# A §5.4 rule (D-VAL-*) is checked through rules.cue, and the case must pass the schema so it
+# isolates that rule; a protocol case (# def:) with
 # `cue vet -d <def>`; any other through the loader dispatch, and the root union must reject it
 # too. A case that passes, or fails without its expected text, fails the check.
 #
@@ -158,6 +159,12 @@ for n in "$root"/design/negative/*.yaml; do
 		continue
 	fi
 	if [[ "$rule" == D-VAL-* ]]; then
+		# a §5.4 case breaks its whole-document rule and nothing else: the schema must accept it
+		if ! out="$("$cue" vet -c -d '#Document' "$schema" "$n" 2>&1)"; then
+			bad "design/negative/$name ($rule): also fails the schema, so it does not isolate its rule:"
+			echo "$out" | sed 's/^/    /' | head -10
+			continue
+		fi
 		if ! out="$("$cue" export "$schema" "$load" "$rules" -l '"doc"' "$n" -e violation 2>&1)"; then
 			bad "design/negative/$name ($rule): rejected by the schema instead of by rules.cue:"
 			echo "$out" | sed 's/^/    /' | head -10

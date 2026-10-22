@@ -2124,7 +2124,8 @@ rule, with a header:
 # def: #Request    optional: validate against this definition instead (protocol messages)
 ```
 
-A §5.4 case must be rejected by `rules.cue` with a violation of its rule. A protocol case must be
+A §5.4 case must pass the schema and be rejected by `rules.cue` with a violation of its rule, so it
+isolates that rule. A protocol case must be
 rejected by `cue vet -d <def>`. Any other case must be rejected by the loader's view and by the
 root union. In every case the output must contain the expected text, so a case rejected for an
 incidental reason — not the rule it claims — fails the check.

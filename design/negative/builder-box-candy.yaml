@@ -9,4 +9,5 @@ c:
 b:
   builder:
     description: A builder whose box is a candy.
+    manager: npm
     box: c
