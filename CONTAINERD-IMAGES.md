@@ -19,11 +19,18 @@ Two boundaries, both deliberate:
 An image is only "conforming" if its own `plan:` proves it (see §5). An image that merely
 contains the packages is not conforming.
 
-## 1. Host images — one per supported distro base
+## 1. Host images — the CachyOS box now
 
-`distro-arch`, `distro-cachyos`, `distro-fedora`, `distro-debian`, `distro-ubuntu`. Each
-host image is built twice from the same definition — once rootful, once with the rootless
-checklist — never as two divergent Dockerfiles.
+The **CachyOS** host box (`containerd-host` in `distro-cachyos`) is the one built now.
+Other distro boxes (`distro-arch`, `distro-fedora`, `distro-debian`, `distro-ubuntu`) are
+**additive**: each is a separate build and each needs its own `disposable: true` bed before
+it is claimed as supported. Each host image is built twice from the same definition — once
+rootful, once with the rootless checklist — never as two divergent Dockerfiles.
+
+The containerd **namespace is uniformly `default`** — every nerdctl operation, every pod and
+every lease runs there. There is exactly **one override**: the namespace set in charly's
+settings, or on the deploy. `k8s.io` is used only by a deploy that explicitly targets k3s's
+own store (CONTAINERD.md §1, §6).
 
 ### 1.1 `containerd-host` (new)
 
@@ -34,7 +41,7 @@ The daemon and its config, rootful.
 | containerd ≥ 2.3, written as a `version = 4` config with `imports = ["/etc/containerd/conf.d/*.toml"]` | the config shape the rest of the specs assume; a top-level `[grpc]` address is ignored in v4 and must live under `plugins."io.containerd.server.v1.grpc"` | CONTAINERD.md §3.1 |
 | a `crun` default handler **and** a `krun` handler with `pod_annotations = ["krun.*"]`, plus an `nvidia` handler when the NVIDIA toolkit is installed | the annotations do not reach the handler without `pod_annotations`; a missing handler is silent until a container asks for it | CONTAINERD.md §3.1, §5.2, §14.2 |
 | `SystemdCgroup = true`, and `dbus-user-session` present for the rootless variant | the cgroup driver needs the user D-Bus for a rootless instance | CONTAINERD.md §2, §4 |
-| the narrow seccomp profile at `/etc/containerd/seccomp/crabbox-userns.json` — containerd's own `DefaultProfile()` **plus** `{"names":["unshare","clone"],"action":"SCMP_ACT_ALLOW"}`, `clone3` left `ENOSYS` | the stock profile blocks `unshare`/`clone` with namespace flags, which is what breaks Chromium's sandbox; this profile restores it while keeping `keyctl`/`mount` enforced | **not in any spec — measured (RDD7 C10)**, with the stock profile and `unconfined` as its two controls. A spec section documenting the profile is still owed |
+| the narrow seccomp profile at `/etc/containerd/seccomp/crabbox-userns.json` — containerd's own `DefaultProfile()` **plus** `{"names":["unshare","clone"],"action":"SCMP_ACT_ALLOW"}`, `clone3` left `ENOSYS` | the stock profile blocks `unshare`/`clone` with namespace flags, which is what breaks Chromium's sandbox; this profile restores it while keeping `keyctl`/`mount` enforced | CONTAINERD.md §3.1.1 (RDD7 C10); the stock profile and `unconfined` are its two controls |
 | `kernel.unprivileged_userns_clone=1` where that sysctl exists | where it does not, user namespaces are gated by AppArmor instead | CONTAINERD.md §4 |
 | `containerd.service` and `buildkit.service` enabled | `nerdctl build` fails with `no buildkit host is available` until buildkit runs | CONTAINERD.md §2 |
 | the `shadow`/`uidmap`/`shadow-utils` package — `newuidmap`, `newgidmap` | rootlesskit execs them to write the UID/GID map; the rootless setup tool never checks them | CONTAINERD.md §2 |
@@ -58,7 +65,7 @@ image exists to prevent (CONTAINERD.md §4).
 | Requirement | Why | Source |
 |---|---|---|
 | `crun` built from a commit that carries **both** the passt fix (`ca04fdb6`) **and** the `/proc` remount that makes passt work under a declared PID namespace (`handlers/krun.c:824-838`), with `+LIBKRUN` | no release carries them: 1.30.1 cannot start passt at all (`start passt`, rc 1), so in-guest CRIU is main-only until a release ships both | LIBKRUN.md §7 |
-| `libkrun` **1.x** pinned — not `main` | crun's handler resolves the 1.x API; libkrun `main` is a 2.0 rewrite that drops it | **source read (RDD7 S3, B.5)**: `handlers/krun.c` resolves `krun_set_vm_config`, `krun_set_gpu_options` and `krun_start_enter`, which libkrun `main` removes. No spec section states the pin yet |
+| `libkrun` **1.x** pinned — not `main` | crun's handler resolves the 1.x API; libkrun `main` is a 2.0 rewrite that drops it | LIBKRUN.md §10 (RDD7 S3/B.5) |
 | `libkrunfw`, and `/dev/kvm` readable by the krun user | the guest kernel and the VM device | CONTAINERD.md §2 |
 | `bwrap` at **`/usr/bin/bwrap`** and `virgl_render_server` at **`/usr/libexec/virgl_render_server`** | crun hardcodes both paths; Arch installs the server at `/usr/lib/…`, so the image provides the path | CONTAINERD.md §14.3 |
 | mesa Vulkan on the host for the render server; on Arch, `vulkan-virtio` **and** `vulkan-swrast` as separate packages | `mesa` no longer ships Vulkan ICDs; without them every krun GPU run fails `Found no drivers` | CONTAINERD.md §14.3 |
@@ -112,20 +119,51 @@ with a tmpfs): `authorized_keys`, `lease.env`, `bootstrap.sh`. Files are written
 a krun guest's virtiofs serves an in-place rewrite torn for up to 5 s, and host-side writes
 raise no inotify in the guest. Secrets go there `0600`, never on argv.
 
+Every lease image is **CachyOS-based**. The base image is `pod-crabbox` — the CachyOS
+`cachyos` box plus the lease contract — and every variant is `pod-crabbox-<variant>`,
+importing the base at a pinned tag. Each image lives in **its own repo**,
+`opencharly/pod-crabbox-<variant>`, and is built by **its own GitHub Action** at the tag that
+names the image (`pod-crabbox-<variant>:<tag>`), so the image tag and the git tag are the
+same build.
+
+The measured recipes for the `nested`, `k3s`, `k3s-krun` and `k3s-gpu` rows were exercised on
+fedora:43 guests. Rebasing them on CachyOS is a change of substrate: each image's bed
+re-proves its row rather than inheriting the measurement.
+
 | Image | Contents and requirements |
 |---|---|
-| `crabbox-lease` | the base contract; **direct** mode ends in `exec sshd -D`, **systemd** mode enables `sshd.service` + `crabbox-bootstrap.service` and reads its inputs from `/crabbox` |
-| `crabbox-lease-systemd` | systemd as PID 1 — crun/runc `--systemd=always`, krun `KRUN_INIT_PID1=1` plus `--ulimit nofile=524288:524288`; **`/usr/lib/systemd/system-shutdown/krun-poweroff`** (runs `systemctl reboot -ff` on poweroff/halt — the only clean krun stop); `/etc/sysctl.d/50-pid-max.conf` `kernel.pid_max=32768`; **`serial-getty@hvc0` masked** (else the boot hangs on `dev-hvc0.device` under krun); Actions-runner prerequisites |
-| `crabbox-lease-desktop` | xfce (`tigervnc`, `xfce4-*`, `dbus-x11`) and wayland (`labwc`, `wayvnc`), `novnc` + `websockify`, `/usr/local/bin/crabbox-start-desktop`; started over SSH, never `exec` |
-| `crabbox-lease-browser` | chrome/chromium/firefox + `/usr/local/bin/crabbox-browser`; on crun/runc the lease runs with `--security-opt seccomp=/etc/containerd/seccomp/crabbox-userns.json` so the sandbox works **without** `--no-sandbox` and **never** `unconfined`; krun needs nothing (the guest kernel is the boundary) |
-| `crabbox-lease-code` | code-server at a pinned version, started on `127.0.0.1:8080` over SSH |
-| `crabbox-lease-tailscale` | `tailscale` **and `tailscaled`** — a lease without the daemon fails `exec /usr/bin/tailscaled: no such file or directory` before any login; a `tailscaled.service` drop-in setting `TS_DEBUG_DISABLE_UDP_GSO=1` for TSI leases only (the libkrunfw TSI socket deadlock) |
-| `crabbox-lease-nested` | fedora:43 + `systemd iptables-nft iproute crun` + nerdctl-full in `/usr/local` (`containerd` enabled) + `openssh-server libkrun libkrunfw crun-krun`, **`virglrenderer`, `bzip2-libs` and a `libbz2.so.1.0` symlink**, and `libkrun.so.1` on the loader path (**not** under a `lib64/` subdirectory); `/etc/nerdctl/nerdctl.toml` `bridge_ip = "10.99.0.1/24"`; **an empty `/etc/machine-id`** and `/etc/systemd/network/99-default.link` (`MACAddressPolicy=none`) — without them every lease gets the same MAC; **`systemd-udevd` masked** (udev in a privileged lease acts on host devices) and no `rtkit`; `sys-kernel-{config,debug,tracing}.mount` masked for a rootless outer; `/var` = the state volume; a docker-compatible socket for the Actions runner |
-| `crabbox-lease-k3s` | `crabbox-lease-nested` + `sqlite procps-ng kmod iputils` + k3s at `/usr/local/bin/k3s`; `write-kubeconfig-mode: "0644"`, `tls-san` including the stable node address; a `config.yaml.d/` drop-in with `node-ip: 172.31.255.1` (plus the `KubeletInUserNamespace` gates rootless); `k3s-dummy.service` creating `k3s0`; `k3s.service` with `KillMode=process`, `Delegate=yes`, `Restart=always`, **no** `ExecStartPre=modprobe`; run with `--device /dev/kmsg` |
-| `crabbox-lease-k3s-krun` | the k3s image for a **krun** guest: `/krun/vmlinux` = `libkrunfw-crabbox` + `/.krun_vm.json` (`kernel_path`, `kernel_format: 1`), label `crabbox.krun.network=passt`; run with `krunKernel: image`, `krunNetwork: passt` |
-| `crabbox-lease-k3s-gpu` | `crabbox-lease-k3s` + `nvidia-container-toolkit` (k3s auto-detects the runtime and creates the `nvidia` RuntimeClass), and **the toolkit's own refresh unit enabled inside the lease so `/var/run/cdi/nvidia.yaml` is regenerated** — not a one-shot `--output=/etc/cdi/nvidia.yaml`, which is the stale form §1.5 rejects; the NVIDIA device plugin with `DEVICE_LIST_STRATEGY=cdi-cri`, `NVIDIA_DRIVER_ROOT=/`, `NVIDIA_CDI_HOOK_PATH=/usr/bin/nvidia-cdi-hook`, so a plain pod with `limits: nvidia.com/gpu: 1` gets the GPU without a `runtimeClassName` |
-| `crabbox-lease-gpu` | **krun:** mesa with the venus ICD (`vulkan-virtio`), and for DRM native context a mesa that carries amdgpu-virtio, plus `vulkan-tools`; **no** NVIDIA userspace (the host's runs in the render server). **crun/runc:** no driver in the image — the NVIDIA userspace arrives by CDI injection |
-| `crabbox-lease-criu` | `criu` in the image, for a lease that checkpoints its own processes |
+| `pod-crabbox` | the base contract; **direct** mode ends in `exec sshd -D`, **systemd** mode enables `sshd.service` + `crabbox-bootstrap.service` and reads its inputs from `/crabbox` |
+| `pod-crabbox-systemd` | systemd as PID 1 — crun/runc `--systemd=always`, krun `KRUN_INIT_PID1=1` plus `--ulimit nofile=524288:524288`; **`/usr/lib/systemd/system-shutdown/krun-poweroff`** (runs `systemctl reboot -ff` on poweroff/halt — the only clean krun stop); `/etc/sysctl.d/50-pid-max.conf` `kernel.pid_max=32768`; **`serial-getty@hvc0` masked** (else the boot hangs on `dev-hvc0.device` under krun); Actions-runner prerequisites |
+| `pod-crabbox-desktop` | xfce (`tigervnc`, `xfce4-*`, `dbus-x11`) and wayland (`labwc`, `wayvnc`), `novnc` + `websockify`, `/usr/local/bin/crabbox-start-desktop`; started over SSH, never `exec` |
+| `pod-crabbox-browser` | chrome/chromium/firefox + `/usr/local/bin/crabbox-browser`; on crun/runc the lease runs with `--security-opt seccomp=/etc/containerd/seccomp/crabbox-userns.json` so the sandbox works **without** `--no-sandbox` and **never** `unconfined`; krun needs nothing (the guest kernel is the boundary) |
+| `pod-crabbox-code` | code-server at a pinned version, started on `127.0.0.1:8080` over SSH |
+| `pod-crabbox-tailscale` | `tailscale` **and `tailscaled`** — a lease without the daemon fails `exec /usr/bin/tailscaled: no such file or directory` before any login; a `tailscaled.service` drop-in setting `TS_DEBUG_DISABLE_UDP_GSO=1` for TSI leases only (the libkrunfw TSI socket deadlock) |
+| `pod-crabbox-nested` | `pod-crabbox-systemd` + `iptables-nft iproute crun` + nerdctl-full in `/usr/local` (`containerd` enabled) + `openssh-server libkrun libkrunfw crun-krun`, **`virglrenderer`, `bzip2-libs` and a `libbz2.so.1.0` symlink**, and `libkrun.so.1` on the loader path (**not** under a `lib64/` subdirectory); `/etc/nerdctl/nerdctl.toml` `bridge_ip = "10.99.0.1/24"`; **an empty `/etc/machine-id`** and `/etc/systemd/network/99-default.link` (`MACAddressPolicy=none`) — without them every lease gets the same MAC; **`systemd-udevd` masked** (udev in a privileged lease acts on host devices) and no `rtkit`; `sys-kernel-{config,debug,tracing}.mount` masked for a rootless outer; `/var` = the state volume; a docker-compatible socket for the Actions runner |
+| `pod-crabbox-k3s` | `pod-crabbox-nested` + `sqlite procps-ng kmod iputils` + k3s at `/usr/local/bin/k3s`; `write-kubeconfig-mode: "0644"`, `tls-san` including the stable node address; a `config.yaml.d/` drop-in with `node-ip: 172.31.255.1` (plus the `KubeletInUserNamespace` gates rootless); `k3s-dummy.service` creating `k3s0`; `k3s.service` with `KillMode=process`, `Delegate=yes`, `Restart=always`, **no** `ExecStartPre=modprobe`; run with `--device /dev/kmsg` |
+| `pod-crabbox-k3s-krun` | the k3s image for a **krun** guest: `/krun/vmlinux` = `libkrunfw-crabbox` + `/.krun_vm.json` (`kernel_path`, `kernel_format: 1`), label `crabbox.krun.network=passt`; run with `krunKernel: image`, `krunNetwork: passt` |
+| `pod-crabbox-k3s-gpu` | `pod-crabbox-k3s` + `nvidia-container-toolkit` (k3s auto-detects the runtime and creates the `nvidia` RuntimeClass), and **the toolkit's own refresh unit enabled inside the lease so `/var/run/cdi/nvidia.yaml` is regenerated** — not a one-shot `--output=/etc/cdi/nvidia.yaml`, which is the stale form §1.5 rejects; the NVIDIA device plugin with `DEVICE_LIST_STRATEGY=cdi-cri`, `NVIDIA_DRIVER_ROOT=/`, `NVIDIA_CDI_HOOK_PATH=/usr/bin/nvidia-cdi-hook`, so a plain pod with `limits: nvidia.com/gpu: 1` gets the GPU without a `runtimeClassName` |
+| `pod-crabbox-gpu` | **krun:** mesa with the venus ICD (`vulkan-virtio`), and for DRM native context a mesa that carries amdgpu-virtio, plus `vulkan-tools`; **no** NVIDIA userspace (the host's runs in the render server). **crun/runc:** no driver in the image — the NVIDIA userspace arrives by CDI injection |
+| `pod-crabbox-criu` | `criu` in the image, for a lease that checkpoints its own processes |
+
+### 2.1 The readiness hook — `/usr/local/libexec/crabbox/ready`
+
+SSH readiness is not lease readiness. An image **MAY** ship an executable at
+`/usr/local/libexec/crabbox/ready`; after the SSH port answers, the consumer runs that file
+over SSH and polls it until it exits 0 or the readiness timeout expires, and it **reports the
+elapsed time** rather than a pass/fail alone. The file is optional for an image with nothing
+to wait for, and it never replaces SSH readiness — it runs after it.
+
+The **k3s images MUST ship it** (`pod-crabbox-k3s`, `pod-crabbox-k3s-krun`,
+`pod-crabbox-k3s-gpu`). Their hook checks **both**:
+
+1. the node is `Ready`, and
+2. a workload **execs** through apiserver → kubelet (create a pod, `kubectl exec` it, remove
+   it).
+
+Checking only (1) is wrong: a clone carries `/var` but not `/run`, so a fork reports `Ready`
+about **8 s** before it is workload-usable — the kubelet rebuilds every CRI sandbox and
+`host-local` issues fresh IPs while the apiserver still names the source's IPs. The hook
+makes that window a reported duration, not a failure (§3 of this file, rule 2; RDD8 T6, N13).
 
 **Sources for §2**, matching the rows above in order: the base contract and the two init
 modes — `CONTAINERD.md` §8 (`--systemd`, `KRUN_INIT_PID1`, the `/crabbox` input path, the
@@ -133,7 +171,8 @@ modes — `CONTAINERD.md` §8 (`--systemd`, `KRUN_INIT_PID1`, the `/crabbox` inp
 §8 plus the narrow seccomp profile in §1.1 of this file; `tailscale` — `LIBKRUN.md` §7 (the TSI
 `TS_DEBUG_DISABLE_UDP_GSO` measurement); `nested`, `k3s`, `k3s-krun` — `CONTAINERD.md` §9 and
 `K3S.md` §2–§8 and `LIBKRUN.md` §6–§7; `k3s-gpu`, `gpu` — `CONTAINERD.md` §14.2–§14.3;
-`criu` — `CONTAINERD.md` §10 and `LIBKRUN.md` §7.
+`criu` — `CONTAINERD.md` §10 and `LIBKRUN.md` §7. The readiness hook in §2.1 is RDD8
+T6/N13, with the fork window stated as cross-cutting rule 2 in §3 of this file.
 
 ## 3. Cross-cutting rules
 
@@ -156,7 +195,7 @@ These apply to every image above and are the ones that cost a debugging round wh
    `MACAddressPolicy=none` is set, or every lease cloned from one image shares a MAC and
    traffic reaches the wrong lease (K3S.md §6–§7; RDD7 N6).
 6. **Nothing in these images is set to `seccomp=unconfined` or run with `--no-sandbox`.** The
-   narrow profile exists so neither is needed (measured, RDD7 C10; §1.1 of this file).
+   narrow profile exists so neither is needed (RDD7 C10; CONTAINERD.md §3.1.1).
 
 ## 4. Non-goals
 
@@ -178,8 +217,8 @@ exercised under **crun and krun**, **rootful and rootless**, on a `disposable: t
 | `krun-host` | a guest boots, `uname -r` shows the libkrunfw kernel, and the GPU flags produce a venus device |
 | `criu-host` | the `seccomp_suspend` pre-flight in the daemon's own namespace |
 | `nvidia-cdi-host` | the device lists and injects, rootful **and** rootless |
-| `crabbox-lease-nested` | an inner containerd, an inner krun, and k3s, in one lease |
-| `crabbox-lease-k3s` | node Ready, a workload, a PVC round-trip, and a full snapshot → mutate → revert |
+| `pod-crabbox-nested` | an inner containerd, an inner krun, and k3s, in one lease |
+| `pod-crabbox-k3s` | node Ready, a workload, a PVC round-trip, and a full snapshot → mutate → revert |
 
 A bed that cannot run on a given host skips **visibly** with its reason. It never passes
 silently.
