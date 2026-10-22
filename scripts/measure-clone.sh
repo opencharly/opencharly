@@ -77,6 +77,12 @@ trap cleanup EXIT
 
 echo "HEAD=$SHA"
 echo "TREE=$(git -C "$ROOT" rev-parse "${SHA}^{tree}")"
+# The DAY the readings were taken. A band is dated: the README's table states the span
+# of days its readings were taken on, and the comparison half checks that the samples
+# it is handed fall INSIDE that span. A band that is older than the readings it governs
+# is a fence about a head that has moved on, so the stamp is what makes the check
+# possible — without it the samples' day is unstated, and an unstated day is unchecked.
+echo "MEASURED=$(date +%F)"
 echo "WORK=$WORK"
 
 # --- a fresh clone of the tree under test, with the superproject's objects local

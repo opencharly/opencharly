@@ -294,6 +294,9 @@ function runChecks({ readme, script, manifest, samples }) {
     storeBand = { lo: +store[1], hi: +store[2], unit: store[3] };
   }
 
+  // --- DATES. the bands are dated, and the samples' day is inside the span ----
+  let bandDates = null;
+
   // --- D. one date, one baseline ---------------------------------------------
   const dateSites = [];
   const push = (re, site, label) => {
@@ -306,7 +309,7 @@ function runChecks({ readme, script, manifest, samples }) {
   };
   push(/not a ([0-9.]+) GB checkout \(measured (\d{4}-\d{2}-\d{2})\)/,
     "README.md", "headline");
-  const tableDate = /Every figure in the table was measured on this machine on (\d{4}-\d{2}-\d{2})\./
+  const tableDate = /Every figure in the table was measured on this machine on (\d{4}-\d{2}-\d{2}); the bands carry the readings taken on (\d{4}-\d{2}-\d{2}) as well\./
     .exec(flat.text);
   if (!tableDate) {
     add("README.md", "the clone-shape table carries no date of its own");
@@ -317,6 +320,12 @@ function runChecks({ readme, script, manifest, samples }) {
       figure: rows.baseline?.size ? rows.baseline.size.lo : null,
       date: tableDate[1],
     });
+    // The span of days the table's readings were taken on. The FIRST day is the
+    // baseline's own — it was measured once — and the D-check below holds every other
+    // site to it. The band dates are the days the REPEATED readings were taken on, and
+    // the samples' own day must fall inside them: a band that is older than the
+    // readings it governs is a fence about a head that has moved on.
+    bandDates = [tableDate[1], tableDate[2]];
   }
   push(/against the ([0-9.]+) G a full checkout occupied on (\d{4}-\d{2}-\d{2})/,
     "README.md", "sizes paragraph");
@@ -360,6 +369,18 @@ function runChecks({ readme, script, manifest, samples }) {
   };
   if (samples) {
     const s = parseSamples(samples);
+    // The DAY the readings were taken. The table states the span of days its readings
+    // were taken on, and the samples must fall inside it: a band that predates the
+    // readings it governs describes a head that has moved on.
+    if (!s.date) {
+      add("samples",
+        "the samples carry no date — the day they were taken is unstated, so the bands " +
+        "are unchecked against it");
+    } else if (bandDates && !bandDates.includes(s.date)) {
+      add("samples",
+        `the samples were taken on ${s.date}, which is outside the table's stated span ` +
+        `(${bandDates.join(", ")}) — the bands are older than the readings they govern`);
+    }
     const inBand = (name, sample, band, unit) => {
       if (!band) return;
       const value = typeof sample === "number" ? sample : sample.v;
@@ -408,7 +429,9 @@ function runChecks({ readme, script, manifest, samples }) {
 
 /** The end-to-end log's samples, by shape. */
 function parseSamples(text) {
-  const out = { lightSize: [], lightTime: [], bootSize: [], allSize: [], allTime: [], storeSize: [] };
+  const out = { lightSize: [], lightTime: [], bootSize: [], allSize: [], allTime: [], storeSize: [], date: null };
+  const dated = /^MEASURED=(\d{4}-\d{2}-\d{2})$/m.exec(text);
+  if (dated) out.date = dated[1];
   const section = (name) => {
     const i = text.indexOf(name);
     if (i === -1) return "";
@@ -485,11 +508,11 @@ function runSelfTest(readme, script, manifest, samples) {
   const withReadme = (newReadme) => ({ readme: newReadme, script, manifest, samples });
 
   expect("the table's band is widened",
-    () => withReadme(mutate(readme, /\| 73–76 M \|/, "| 73–75 M |", "the table's light row")),
-    "the prose still says 76 M, so the two copies of the band disagree");
+    () => withReadme(mutate(readme, /\| 73–77 M \|/, "| 73–75 M |", "the table's light row")),
+    "the prose still says 77 M, so the two copies of the band disagree");
   expect("the prose's band is widened",
-    () => withReadme(mutate(readme, /73 M and 76 M/, "73 M and 75 M", "the prose's light band")),
-    "the table still says 76 M");
+    () => withReadme(mutate(readme, /73 M and 77 M/, "73 M and 75 M", "the prose's light band")),
+    "the table still says 77 M");
   expect("the table's date sentence is changed",
     () => withReadme(mutate(readme, /measured on this machine on 2026-10-22/,
       "measured on this machine on 2026-10-23", "the table's date sentence")),
@@ -503,7 +526,7 @@ function runSelfTest(readme, script, manifest, samples) {
       "the manifest's init header"), samples }),
     "the manifest's init header does not carry the baseline's date");
   expect("the bootstrapped band is below the clone's",
-    () => withReadme(mutate(readme, /measures 125–127 M/, "measures 73–80 M",
+    () => withReadme(mutate(readme, /measures 125–128 M/, "measures 73–80 M",
       "the bootstrapped tree's band")),
     "the bootstrap ADDS the binary and its build cache, so its band cannot start below the clone's");
   expect("the store's band is not a band",
@@ -512,9 +535,13 @@ function runSelfTest(readme, script, manifest, samples) {
     "the runs repeated that measurement, so it carries a band");
   if (samples) {
     expect("a sample falls outside its band",
-      () => ({ readme, script, manifest, samples: mutate(samples, /^76M\t/m, "500M\t",
+      () => ({ readme, script, manifest, samples: mutate(samples, /^([0-9.]+)M\t/m, "9999M\t",
         "a light clone's size sample") }),
       "a band that a sample has outgrown is a defect in the band");
+    expect("the samples' day leaves the table's span",
+      () => withReadme(mutate(readme, /the bands carry the readings taken on \d{4}-\d{2}-\d{2}/,
+        "the bands carry the readings taken on 1999-01-01", "the table's span")),
+      "a band that does not cover the day the readings were taken is unchecked");
   }
   return { ok, report };
 }

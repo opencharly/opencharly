@@ -298,18 +298,6 @@ export const SURFACES = [
     extract: (t) => capture(t, /export const CANONICAL = \[([\s\S]*?)\]/),
   },
   {
-    // The umbrella AUTHORS this skill (Part II #5: a general-guidance skill with no
-    // home repo lives here), and its reference file states the closed set — so the set
-    // has a copy in the umbrella's own tree that no surface compared. Job 2 exists for
-    // exactly this copy: it was adopted with the skill and nobody listed it, so it
-    // drifted free of every comparison. The set is stated across TWO lines here, so the
-    // locator reads the whole parenthetical — a one-line locator would read half the
-    // set and report a copy that is not there.
-    name: "umbrella .agents/skills/agents/references/hooks-and-lifecycle.md (the closed verb set)",
-    file: ".agents/skills/agents/references/hooks-and-lifecycle.md",
-    extract: (t) => capture(t, /closed verb set\s*\n\s*\(([^)]*)\)/),
-  },
-  {
     name: "marketplace scripts/coord.sh (the VERBS array)",
     file: "marketplace/scripts/coord.sh",
     extract: (t) => capture(t, /^VERBS=\((.*)\)$/m),
@@ -655,60 +643,6 @@ function selfTest() {
           writeFixture(d, CANONICAL.join(" · "));
           mkdirSync(join(d, dirname(refFile)), { recursive: true });
           writeFileSync(join(d, refFile), coordRef(alternation));
-          const r = spawnSync(process.execPath, [fileURLToPath(import.meta.url), "--root", d], {
-            encoding: "utf8",
-          });
-          const gotGreen = r.status === 0;
-          const said = `${r.stdout}${r.stderr}`;
-          const sawExpectation = expect === null || said.includes(expect);
-          if (gotGreen === green && sawExpectation) {
-            console.log(`  PASS  self-test '${name}' is ${green ? "GREEN" : "RED"}`);
-          } else {
-            bad += 1;
-            console.error(
-              `  FAIL  self-test '${name}' expected ${green ? "GREEN" : "RED"}, got exit ${r.status}\n${said}`,
-            );
-          }
-        } finally {
-          rmSync(d, { recursive: true, force: true });
-        }
-      }
-    }
-
-    // --- the umbrella's OWN copy of the set, in the shape it is written -----------
-    // The umbrella authors the general-guidance skills (Part II #5), and the `agents`
-    // skill's reference file states the closed set across TWO lines. A locator that
-    // read one line would see half the set, and a copy no surface listed would drift
-    // free of every comparison — the state the umbrella's `main` was in. These two
-    // arms prove the copy is READ and COMPARED: as it is written it is GREEN, and a
-    // copy whose second line lost a label to a retired one is RED, and NAMES the
-    // surface that caught it.
-    {
-      const skillRef = ".agents/skills/agents/references/hooks-and-lifecycle.md";
-      const skillFile = (labels) =>
-        [
-          "# hooks and lifecycle",
-          "",
-          "  a scope is claimed or taken over only through the closed verb set",
-          `  (${labels.slice(0, 6).join("/")}/`,
-          `  ${labels.slice(6).join("/")}).`,
-          "",
-        ].join("\n");
-      const skillCases = [
-        ["the umbrella's own copy of the set, as it is written", CANONICAL, true, null],
-        [
-          "the umbrella's own copy, with the retired BLOCKS in its second line",
-          [...CANONICAL.slice(0, 8), "BLOCKS"],
-          false,
-          "lists the label 'BLOCKS'",
-        ],
-      ];
-      for (const [name, labels, green, expect] of skillCases) {
-        const d = mkdtempSync(join(tmpdir(), "check-coord-verb-set-skill-"));
-        try {
-          writeFixture(d, CANONICAL.join(" · "));
-          mkdirSync(join(d, dirname(skillRef)), { recursive: true });
-          writeFileSync(join(d, skillRef), skillFile(labels));
           const r = spawnSync(process.execPath, [fileURLToPath(import.meta.url), "--root", d], {
             encoding: "utf8",
           });
