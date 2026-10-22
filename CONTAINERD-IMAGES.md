@@ -11,10 +11,12 @@ Two boundaries, both deliberate:
   work; every requirement below is written so it can be an image layer, a `plan:` step or a
   `check:` assertion. Where an existing candy already promises part of a row, the row names
   it, and the gap is filed in that candy's repo rather than fixed here.
-- **Every requirement cites where it was measured**, as `CONTAINERD.md` §N, `K3S.md` §N,
-  `LIBKRUN.md` §N or an `RDD` item. A requirement with no citation does not belong here.
+- **Every requirement that constrains a host or a lease cites where it was measured** — a
+  `CONTAINERD.md` §N, `K3S.md` §N, `LIBKRUN.md` §N or an `RDD` item — in its own row, or in
+  the source index that closes each section. This file is not a second repository of
+  evidence; it is a contract over evidence stated elsewhere.
 
-An image is only "conforming" if its own `plan:` proves it (see §6). An image that merely
+An image is only "conforming" if its own `plan:` proves it (see §5). An image that merely
 contains the packages is not conforming.
 
 ## 1. Host images — one per supported distro base
@@ -83,9 +85,19 @@ that checkpoints perfectly (CONTAINERD.md §10).
 | a `check:` that the **device lists** (`nvidia-ctk cdi list`), not that a file exists | `cdi list` exits **0** on an invalid spec, and two same-priority specs leave the device **dropped** | CONTAINERD.md §14.2 |
 
 This row **replaces** the one-shot generate step in `distro-cachyos/candy/nvidia-driver`;
-that file's own issue is to be filed, not fixed by copying it here.
+that gap is filed as **opencharly/distro-cachyos#151**, and is not fixed by copying the
+candy's approach here.
 
-### 1.6 `k3s-shared-containerd` (extends `layer-k3s`)
+### 1.6 `layer-nerdctl` — existing candy, two gaps (opencharly/layer-nerdctl#10)
+
+The candy's `description:` promises the rootless containerd/buildkit units that no `plan:`
+step writes, and its `nerdctl-full` install runs `sha256sum -c … || true`, which makes the
+checksum advisory. Both are requirements here rather than preferences: §1.2's rootless
+checklist is written as `check:` assertions, which a candy that does not write the units
+cannot satisfy, and an unverified tarball is not an install step. Tracked in
+**opencharly/layer-nerdctl#10**.
+
+### 1.7 `k3s-shared-containerd` (extends `layer-k3s`)
 
 k3s pointed at the shared containerd (`container-runtime-endpoint`), the `krun` and `nvidia`
 RuntimeClasses, and the restart-after-config rule: k3s reads the runtime set at start, so a
@@ -111,9 +123,17 @@ raise no inotify in the guest. Secrets go there `0600`, never on argv.
 | `crabbox-lease-nested` | fedora:43 + `systemd iptables-nft iproute crun` + nerdctl-full in `/usr/local` (`containerd` enabled) + `openssh-server libkrun libkrunfw crun-krun`, **`virglrenderer`, `bzip2-libs` and a `libbz2.so.1.0` symlink**, and `libkrun.so.1` on the loader path (**not** under a `lib64/` subdirectory); `/etc/nerdctl/nerdctl.toml` `bridge_ip = "10.99.0.1/24"`; **an empty `/etc/machine-id`** and `/etc/systemd/network/99-default.link` (`MACAddressPolicy=none`) — without them every lease gets the same MAC; **`systemd-udevd` masked** (udev in a privileged lease acts on host devices) and no `rtkit`; `sys-kernel-{config,debug,tracing}.mount` masked for a rootless outer; `/var` = the state volume; a docker-compatible socket for the Actions runner |
 | `crabbox-lease-k3s` | `crabbox-lease-nested` + `sqlite procps-ng kmod iputils` + k3s at `/usr/local/bin/k3s`; `write-kubeconfig-mode: "0644"`, `tls-san` including the stable node address; a `config.yaml.d/` drop-in with `node-ip: 172.31.255.1` (plus the `KubeletInUserNamespace` gates rootless); `k3s-dummy.service` creating `k3s0`; `k3s.service` with `KillMode=process`, `Delegate=yes`, `Restart=always`, **no** `ExecStartPre=modprobe`; run with `--device /dev/kmsg` |
 | `crabbox-lease-k3s-krun` | the k3s image for a **krun** guest: `/krun/vmlinux` = `libkrunfw-crabbox` + `/.krun_vm.json` (`kernel_path`, `kernel_format: 1`), label `crabbox.krun.network=passt`; run with `krunKernel: image`, `krunNetwork: passt` |
-| `crabbox-lease-k3s-gpu` | `crabbox-lease-k3s` + `nvidia-container-toolkit` (k3s auto-detects the runtime and creates the `nvidia` RuntimeClass), a boot unit running `nvidia-ctk cdi generate --output=/etc/cdi/nvidia.yaml` **inside** the lease, and the NVIDIA device plugin with `DEVICE_LIST_STRATEGY=cdi-cri`, `NVIDIA_DRIVER_ROOT=/`, `NVIDIA_CDI_HOOK_PATH=/usr/bin/nvidia-cdi-hook`, so a plain pod with `limits: nvidia.com/gpu: 1` gets the GPU without a `runtimeClassName` |
+| `crabbox-lease-k3s-gpu` | `crabbox-lease-k3s` + `nvidia-container-toolkit` (k3s auto-detects the runtime and creates the `nvidia` RuntimeClass), and **the toolkit's own refresh unit enabled inside the lease so `/var/run/cdi/nvidia.yaml` is regenerated** — not a one-shot `--output=/etc/cdi/nvidia.yaml`, which is the stale form §1.5 rejects; the NVIDIA device plugin with `DEVICE_LIST_STRATEGY=cdi-cri`, `NVIDIA_DRIVER_ROOT=/`, `NVIDIA_CDI_HOOK_PATH=/usr/bin/nvidia-cdi-hook`, so a plain pod with `limits: nvidia.com/gpu: 1` gets the GPU without a `runtimeClassName` |
 | `crabbox-lease-gpu` | **krun:** mesa with the venus ICD (`vulkan-virtio`), and for DRM native context a mesa that carries amdgpu-virtio, plus `vulkan-tools`; **no** NVIDIA userspace (the host's runs in the render server). **crun/runc:** no driver in the image — the NVIDIA userspace arrives by CDI injection |
 | `crabbox-lease-criu` | `criu` in the image, for a lease that checkpoints its own processes |
+
+**Sources for §2**, matching the rows above in order: the base contract and the two init
+modes — `CONTAINERD.md` §8 (`--systemd`, `KRUN_INIT_PID1`, the `/crabbox` input path, the
+`pid_max` and `serial-getty@hvc0` findings); `desktop`, `browser`, `code` — `CONTAINERD.md`
+§8 plus the narrow seccomp profile in §3.1 of this file; `tailscale` — `LIBKRUN.md` §7 (the TSI
+`TS_DEBUG_DISABLE_UDP_GSO` measurement); `nested`, `k3s`, `k3s-krun` — `CONTAINERD.md` §9 and
+`K3S.md` §2–§8 and `LIBKRUN.md` §6–§7; `k3s-gpu`, `gpu` — `CONTAINERD.md` §14.2–§14.3;
+`criu` — `CONTAINERD.md` §10 and `LIBKRUN.md` §7.
 
 ## 3. Cross-cutting rules
 

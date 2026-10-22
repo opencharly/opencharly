@@ -1103,17 +1103,22 @@ the rootful **data** root `/var/lib/containerd`). Never relax a mode to "make it
 that would expose the process memory.
 
 **The rootless limitation above is containerd's own checkpoint path, not rootless CRIU.**
-Two configurations do checkpoint without a rootful daemon, and neither is a workaround:
+Two further configurations do checkpoint without a rootful daemon. They are not equivalent,
+and the difference is the point:
 
-- **A rootless krun container** can run CRIU **inside the guest**. The guest kernel's root
-  performs the dump, so the host's init-userns barrier never applies; the host sees only the
-  unprivileged VMM process. Measured: `criu check` → `Looks good`, a dump at tick 4, and a
-  restore into a **fresh** VM continuing at 5 with no privilege on the host.
+- **A rootless krun container** can run CRIU **inside the guest**, and this one costs nothing
+  in privilege: the guest kernel's root performs the dump, the host's init-userns barrier never
+  applies, and the host sees only the unprivileged VMM process. Measured: `criu check` →
+  `Looks good`, a dump at tick 4, and a restore into a **fresh** VM continuing at 5 with no
+  privilege on the host. This is the recommended rootless path.
 - **A rootless crun container** can run CRIU in-container with
   `--security-opt seccomp=unconfined` plus `SYS_ADMIN`/`SYS_PTRACE`/`CHECKPOINT_RESTORE` and
   `criu --unprivileged`. The init-userns barrier applies only to **seccomp-filtered** tasks
   (`compel/src/lib/infect.c:310-311` calls the suspend only when the target has a filter),
-  which is why removing the filter is what lets it through — at a clearly weaker isolation.
+  which is precisely why removing or weakening the filter lets it through. **That is a
+  documented security tradeoff, not a free path**: an explicitly opted-in lease runs without
+  seccomp and with `CAP_SYS_ADMIN` inside its user namespace. State the cost wherever the
+  configuration is offered; do not present it as equivalent to the krun path.
 
 So the honest statement is that *containerd's own* rootless `checkpoint create` is blocked,
 not that rootless cannot checkpoint.
