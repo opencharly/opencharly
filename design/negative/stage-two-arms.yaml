@@ -1,0 +1,11 @@
+# rule: D-FLOW-1
+# expect: stage.verify
+x:
+  pipeline:
+    description: A pipeline whose stage does two things.
+    stage:
+      verify:
+        step:
+          - check: the tree is clean
+            command: git diff --quiet
+        pipeline: release

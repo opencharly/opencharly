@@ -1,0 +1,10 @@
+# rule: D-DRV-1
+# expect: field not allowed
+x:
+  description: A candy that names a command-line tool as an engine.
+  package: [nerdctl]
+  need:
+    engine_api: {nerdctl: {}}
+  step:
+    - check: the engine answers
+      command: nerdctl info
