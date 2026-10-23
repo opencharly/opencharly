@@ -1,9 +1,9 @@
 # rule: D-VERB-5
-# expect: the harness-check step carries no verb
+# expect: the harness_check step carries no verb
 x:
   description: A candy.
   step:
     - check: it runs
       command: "true"
-    - harness-check: the harness agrees
+    - harness_check: the harness agrees
       command: "true"

@@ -1,0 +1,8 @@
+# rule: D-NEST-4
+# expect: envelope.my_candy: field not allowed
+my_candy:
+  description: A candy whose name uses a schema word separator.
+  package: {jq: {}}
+  step:
+    - check: jq runs
+      command: jq --version

@@ -1,5 +1,5 @@
 # rule: D-NEST-4
-# expect: doc."web--app": field not allowed
+# expect: envelope."web--app": field not allowed
 web--app:
   description: A candy.
   package: {jq: {}}

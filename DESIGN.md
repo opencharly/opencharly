@@ -50,12 +50,12 @@ system, and it is what keeps the target small while losing no capability.
 |---|---|---|---|---|
 | M1 | Content → IR | a candy's content compiles to the IR's seven actions; managers, builders, operating systems and inits are data nodes | `#Content`, `#ActionAlt` | §9.4, §11 |
 | M2 | Artifact | `build(start, IR, form)` produces an image or a disk, by one builder | `#ArtifactRef`, the `build` method | §9.2, §9.3 |
-| M3 | Deployment = kind × driver | six deployment kinds; what drives a kind (engine, hypervisor, cluster tool) is a row of the driver table chosen by the user configuration; a deployment is run from an artifact, created, or connected | the kind table, `_driverWord`, `#ConnectAlt` | §12.1, §12.6 |
-| M4 | Need → grant | one table of capability types; every need entry is `optional` or not and `exclusive` or not, whatever its type; a deployment gets nothing it does not need, and its kind decides how — and at which lease — a need is granted | `#NeedType`, `#ProvideType`, `#NeedEntry` | §15, §16 |
-| M5 | Lifecycle and state | realize, start, stop, destroy, capture with a scope, restore; leases on every held resource | `#MethodIO`, `#GrantItem` | §9.3, §12.3, §16.2 |
-| M6 | Venue | every interaction with a deployment is one operation of its venue | `#VenueOutputAlt` | §12.7 |
-| M7 | Observation | a step observes one fact or speaks one protocol, and matchers judge the result; a screen is one `display` protocol whatever transports it | `#FactVerb`, `#ProtocolVerb` | §20 |
-| M8 | Store | one content-addressed store; every fetched or built thing is an entry, every consumer reads a view | the store host methods | §17 |
+| M3 | Deployment = kind × driver | six deployment kinds, each a row of the deployment-kind table; what drives a kind — and every other pluggable subsystem (an engine, a hypervisor, a cluster tool, an agent runtime, a secret backend) — is a row of the driver table chosen by the user configuration; a deployment is created where it is written or connected through a venue | `_deploymentKind`, `_driver` | §12.1, §12.6 |
+| M4 | Need → grant | one table of capability types, each row stating what a need and a provide of it carry and whether it is a leasable host resource; capacity (cpu, memory, storage) is a need like any other; a deployment gets nothing it does not need, and its kind decides how — and at which lease — a need is granted | `_capability` | §15, §16 |
+| M5 | Lifecycle and state | realize, one `transition` to a target state (running, stopped, absent), capture with a scope, restore; leases on every held resource | `_method`, `#GrantItem` | §9.3, §12.3, §16.2 |
+| M6 | Venue | one table of venues; `connect:` writes one, a kind's `venue` method returns it resolved, and every interaction is one access it serves | `#VenueAlt`, `_access` | §12.7 |
+| M7 | Observation | a step observes one fact or speaks one protocol, and matchers judge the result; a screen is one `display` protocol whatever transports it | `#FactVerbAlt`, `#ProtocolVerbAlt` | §20 |
+| M8 | Store | one content-addressed store; every fetched or built thing is an entry, every consumer reads a view; a plugin reaches it, its own state and its secrets through one `get` and one `put` | `_hostMethod` | §17 |
 
 Two things sit on top and add no mechanism: **workflows** (`pipeline`, §10.1), which sequence
 steps — a gate over beds and an agent loop over a run among them — and **authoring** (projects,
@@ -66,6 +66,9 @@ a name to an entry (S5), even when the entry is empty, so it can gain an attribu
 form; a collection of what it **refers to** is a list. An attribute that applies to more than one
 instance — `optional`, `exclusive`, a phase, a capture scope — belongs to the generic shape, never
 to one type.
+
+Every vocabulary is a table keyed by word, and its word list is derived from it; every table, union
+and derived shape is spelled one way, so the generator maps each to exactly one Go shape (§6).
 
 | ID | Law |
 |---|---|
@@ -98,8 +101,9 @@ forms included). A registered term has one meaning; a second meaning gets its ow
 | **deployment** | a node of a deployment kind: `pod`, `vm`, `kubernetes`, `local`, `android`, `agent` | fleet, member |
 | **host** | a machine charly applies to or runs on, reached by a `connect:` (the shell of the one charly runs on, ssh, or an IP-KVM) | — |
 | **guest** | the system inside a `pod` (container) or `vm` | — |
-| **venue** | where a deployment is reached: container exec, ssh, host shell, IP-KVM, adb, or the cluster API; every interaction is one of its operations (§12.7) | substrate |
-| **driver** | the engine, hypervisor or cluster tool that drives a deployment kind: a data row chosen by the user configuration (§12.6) | — |
+| **venue** | where a deployment is reached: a container, ssh, the host shell, an IP-KVM, adb, or the cluster API; every interaction is one **access** it serves (§12.7) | substrate |
+| **access** | one kind of interaction a venue serves: `exec`, `copy`, `log`, `console`, `display`, `forward`, `power` (§12.7) | — |
+| **driver** | a row of the driver table: the engine, hypervisor, cluster tool, agent runtime or secret backend that drives one pluggable subsystem, chosen by the user configuration (§12.6) | — |
 | **isolation** | the boundary a deployment runs behind, beyond the kind's own: `microvm`, a guest kernel of its own (§16.1) | — |
 | **restore** | returning a deployment to a capture it took (§12.3) | revert, rollback |
 | **workload** | a `pod`, `vm` or `agent` inside a `kubernetes` node | — |
@@ -107,18 +111,18 @@ forms included). A registered term has one meaning; a second meaning gets its ow
 | **alongside node** | a node written beside a `pod` or `vm` kind key | peer |
 | **bed** | a deployment with `disposable: true`, proven by `charly check run` | — |
 | **step** | one entry of a `step:` list: one intent, its verb, modifiers | plan, feature |
-| **intent** | a step's kind of work: `run`, `check`, `harness-run`, `harness-check` | — |
+| **intent** | a step's kind of work: `run`, `check`, `harness_run`, `harness_check` | — |
 | **pipeline** | a `pipeline` node: the one workflow kind, a named set of stages run in the host venue (§10.1) | task |
 | **stage** | one entry of a pipeline: steps, another pipeline, beds, or a question to the operator | — |
 | **phase** | when a step runs: `build` (against the artifact), `ready` (gating a realization: the readiness condition of D-LAW-5), `runtime` (against a running deployment), or `any` | — |
 | **verb** | the operation a step performs or observes: a **fact verb** (`command`, `file`, …) or a **protocol verb** (`http`, `display`, …) (§20) | probe |
 | **operation** | one of a multi-operation verb's choices (`kube: {node: …}`) | — |
-| **modifier** | a step field shared by every verb (`id`, `timeout`, `eventually`, …) | — |
+| **modifier** | a step field shared by every verb (`id`, `timeout`, `retry`, …) | — |
 | **matcher** | a comparison applied to a result (`{contains: …}`) | — |
 | **IR** | the ordered install actions a stack compiles to (§9.4) | emit plan |
 | **action** | one IR entry | step kind |
 | **capability** | a typed thing a node provides (`provide:`) or needs (`need:`) | — |
-| **need** | a `need:` entry of one capability type, `optional` or not and `exclusive` or not; a host need asks the host for hardware or access (§16) | — |
+| **need** | a `need:` entry of one capability type, `optional` or not; a need of a leasable type is also `exclusive` or not; a host need asks the host for hardware, capacity or access (§16) | — |
 | **endpoint** | a provided port with its transport, and the protocol, path and host name it is reached by | — |
 | **grant** | what a deployment kind gives a deployment to satisfy a **need** — a **host** need (§16.1's matrix) or an **authority** need (§16.1's second instance). One verb for both, because authority **is** the grant of a need (D-AUDIT-2) | — |
 | **lease** | a `shared` or `exclusive` hold on a host resource by a live deployment; its mode is the stricter of the need's request and the grant's mechanism (D-HW-8) | reservation |
@@ -129,11 +133,13 @@ forms included). A registered term has one meaning; a second meaning gets its ow
 | **host service** | the closed service core gives each plugin (§8.6) | host build seam |
 | **registry** | the words of a load and the plugin that owns each | — |
 | **tag table** | the definition that holds the alternatives of a key-tagged union, keyed by tag (S4) | — |
+| **vocabulary table** | a table keyed by word whose rows carry each word's data; its word list is derived from it (S3) | — |
 | **image registry** | an OCI distribution endpoint images are pulled from and pushed to | — |
 | **manifest** | a plugin candy's `provide:` of role words | — |
 | **repository reference** | an `import:` or `plugin:` entry: `{repo, release, digest}` or `{path}` | — |
-| **namespace** | a named scope: the name an `import:` binds a repository reference to, a venue's own scope, a deployment's scope. It is the FIRST SEGMENT of every namespaced reference (D-REF-1) | `import alias`, `import namespace` (the bare word also names a command and an ssh configuration entry, and neither of those is a scope) |
-| **input** | a candy's declared **choice**: a bounded set of values a reference may supply with `with:` (§11.1). It is a choice, never a substitution | — |
+| **namespace** | a named scope: the name an `import:` binds a repository reference to, a deployment's scope. It is the FIRST SEGMENT of every namespaced reference (D-REF-1) | `import alias`, `import namespace` (the bare word also names a command and an ssh configuration entry, and neither of those is a scope) |
+| **parameter** | a value a candy or a pipeline declares and a reference supplies with `with:` (§11.1); a candy's parameter is a bounded **choice**, never a substitution | — |
+| **transition** | moving a deployment to a target state — `running`, `stopped` or `absent` — the one lifecycle method beside `realize` (§8.2) | — |
 | **audit record** | an append-only record of a mutation or an authority decision and its outcome (D-AUDIT) | — (a log is a legitimate method word, so it is not banned; the record's own synonyms are not yet in use) |
 | **release** | a repository's CalVer tag `vYYYY.DDD.HHMM` | — |
 | **requirement** | a normative rule of this document, identified `D-<AREA>-<n>` | — |
@@ -143,10 +149,10 @@ forms included). A registered term has one meaning; a second meaning gets its ow
 
 | ID | Requirement |
 |---|---|
-| D-NAME-1 | Every authored key is singular: kind words, verb words, operation names, directives, field names, capability types, namespaces, protocol words. A list-valued field is still singular (`package:`, `step:`). Keys ending in `s` that are singular nouns, names or predicates: `os`, `kubernetes`, `dbus`, `dns`, `bus`, `status`, `exit_status`, `process`, `progress`, `run_as`, `address`, `exists`, `contains`, `not_contains`, `matches`, `not_matches`, `equals`, `creates`, `unless`, `harness`. |
-| D-NAME-2 | Keys are lowercase, except environment variable names. Kind words, verb words and node names use hyphens; field names, operation names and capability types use underscores. |
-| D-NAME-3 | A name says what the thing is in the user's terms; a tool name appears only as a value (`create: kind`). |
-| D-NAME-4 | One term per concept everywhere: CLI, schema, Go identifiers, labels, documentation (§2). |
+| D-NAME-1 | Every authored key is singular: kind words, verb words, operation names, directives, field names, capability types, namespaces, protocol words. A list-valued field is still singular (`package:`, `step:`). Keys ending in `s` that are singular nouns, names or predicates: `os`, `kubernetes`, `dbus`, `dns`, `bus`, `status`, `exit_status`, `process`, `progress`, `run_as`, `address`, `access`, `contains`, `matches`, `equals`, `creates`, `unless`, `harness`. |
+| D-NAME-2 | **Who chose a name decides its case.** A word charly or a plugin defines — a field, a kind, verb, intent, operation, capability-type, enum or driver word — is snake_case (`#Word`: `kernel_param`, `harness_check`, `on_failure`). A name the user chooses — a node, a namespace, an endpoint, a secret, a volume, a parameter — is kebab-case (`#Name`). Neither admits the other's separator, so a schema word never collides with a node name. Environment variable names keep their own case. |
+| D-NAME-3 | A name says what the thing is in the user's terms. A tool name or an external system's own identifier appears only as a row value — a driver's `tool`, a word's `native` (`vhost_net: {native: "/dev/vhost-net"}`) — never as a word. |
+| D-NAME-4 | One term per concept everywhere: CLI, schema, Go identifiers, labels, documentation (§2). A definition's name says its shape (§6), by a closed set of suffixes: a value (`#Os`), a tag table (`#SourceAlt`), a fragment (`#StepFields`), a row schema (`#DriverRow`), a unique list (`#RefSet`), a verb input (`#FileCheck`), a protocol message (`#BuildInput`, `#BuildOutput`); a vocabulary table (`_phase`) and its derived words (`_phaseWord`); a derived definition internal to the schema (`_#Body`). |
 
 ---
 
@@ -163,21 +169,24 @@ is never bent.
 
 | # | Pattern | CUE form | Used for |
 |---|---|---|---|
-| S1 | **Closed definition** | `#Endpoint: {port!: #Port, path?: #AbsPath}` | every struct. A definition is closed by CUE, recursively, including the struct literals of its unions; `close()` is never written. A field it does not declare is a `field not allowed` error. |
-| S2 | **Named scalar** | `#Name: =~"^[a-z][a-z0-9-]*$"`, `#Port`, `#Size` | every constrained scalar; never an inline constraint at the use site |
-| S3 | **Literal enum** | `*"system" \| "user"` inline, or `or(_methodWord)` from a word list | closed sets of values (`*` marks the declared default). A set that tools or documents list is a word list, and the enum is derived from it. |
-| S4 | **Key-tagged union** | `#SourceAlt: {oci: {oci!: …, F}, disk: {disk!: …, F}}`, `#Source: or([for _, a in #SourceAlt {a}])` | every "exactly one of". The alternatives live in one tag table whose keys are the tags — the keys the author writes — and the union is derived from it. One entry may be the default: selected when no tag is written, it admits none of the tags (the candy in `#NodeAlt`). The loader dispatches on the tags (D-LOAD-5). |
+| S1 | **Closed definition** | `#Endpoint: {port!: #Port, path?: #AbsPath}` | every struct with named fields. A definition is closed by CUE, recursively; `close()` is never written. A field it does not declare is a `field not allowed` error. An inline struct declares at most one named field, its S4 tag; everything else is a named definition (§6, C1). |
+| S2 | **Named scalar** | `#Name`, `#Word`, `#Port`, `#Size`, `#Base64` | every constrained scalar; never an inline constraint at the use site |
+| S3 | **Vocabulary table** | `_phase: {any: {}, build: {}} @vocab(core)`, `_phaseWord: [for w, _ in _phase {w}]`, used as `or(_phaseWord)` | every closed set of words. The table is keyed by word and its rows carry the word's data (`#NativeRow`, `#ManagerRow`, …); the word list is derived and the enum is `or()` of it. `@vocab` names the owner (§7.1): `core` or a plugin owner for a set compiled into that owner, `registry` for a set composed from the loaded plugins. The only inline enum is a two-value default such as `*false \| bool`. |
+| S4 | **Key-tagged union** | `#SourceAlt: {oci: {oci!: #ImageRef, #SourceFields...}, …}`, `#Source: or([for _, a in #SourceAlt {a}])` | every "exactly one of". The alternatives live in one tag table whose keys are the tags — the keys the author writes — and the union is derived from it. One entry may be the default, selected when no tag is written; it admits none of the tags. |
 | S5 | **Named collection** | `service?: {[#Name]: #Service}` | everything a node defines, keyed by its name, even when its entry is empty (`package: {ripgrep: {}}`); a list holds only references (`#RefSet`), plain values, or ordered data |
-| S6 | **Shared fragment** | `#StepFields: {id?: #Name, …}` embedded in S1/S4 | fields shared by several definitions, and only fields every embedder allows; never a validator |
+| S6 | **Shared fragment** | `#StepFields: {id?: #Name, …}`, composed as `{#StepFields..., timeout: …}` | fields shared by several definitions. Under language v0.18.0 an embedding is strict: a struct embedding a closed definition admits only that definition's fields, so a fragment composed with further fields is spread (`#StepFields...`) and the enclosing definition closes the result. A pure embedding stays `{X}`. Never a validator. |
 | S7 | **Conditional field** | `if from != _\|_ {#BoxFields}` | fields declared only when another field is present; closedness rejects them otherwise. It adds fields to one concept (a box is a candy, §2); it never defines a second one. |
-| S8 | **Reserved-name pattern** | `[#InnerNodeName]: #InnerOfMachine` where `#InnerNodeName` is an S2 scalar excluding field names and kind words | bodies that hold named inner or alongside nodes; the admitted nodes are a tag table keyed by kind word |
-| S9 | **Reference field** | `from?: #Ref @ref(box, source)` | every field that names a node; the attribute lists the kinds it may name (`box` = a candy with `from:`). A field derived from a type table (`#NeedType`) takes its kinds from its row's `ref` list instead, because a derived field carries no attribute. Core reads both to link the project (§4.1 stage 4). |
-| S10 | **Foreign-owned payload** | `input?: #Opaque` (a manager package's input) — `#Opaque` is the ONE open struct (§8) | a shape whose **fields** the owning system defines: a manager's input, a plugin's own records. A foreign system's word lives *inside* one and never becomes an authored key of charly's own (D-IR-5) — the boundary law's positive half |
+| S8 | **Reserved-name pattern** | `[#InnerNodeName]: …` where `#InnerNodeName` excludes field names and kind words | bodies that hold named inner or beside nodes; what a body admits is its kind's row in `_deploymentKind` (`admit`, `beside`), never a hand-written table |
+| S9 | **Reference field** | `from?: #Ref @ref(box, source)` | every field that names a node; the attribute lists the kinds it may name (`box` = a candy with `from:`). A field derived from a typed row table (`_capability`) takes its kinds from its row's `ref` list instead, because a derived field carries no attribute. Core reads both to link the project (§4.1 stage 4). |
+| S10 | **Foreign-owned payload** | `config?: #Opaque` (a manager package's config) — `#Opaque` is the ONE open struct (§8) | a shape whose **fields** the owning system defines: a manager's config, an installer's answer file, a plugin's own records; an authored one is always named `config`. A foreign system's word lives *inside* one and never becomes an authored key of charly's own (D-IR-5) — the boundary between charly's words and another system's. |
+| S11 | **Typed row table** | `#DriverRow: {…}`, `_driver: [#Word]: #DriverRow`, `_driver: {podman: {…}, …}` | a table whose rows carry several attributes: drivers, capability types, deployment kinds, methods. Every shape it determines — `#Driver`, `#Need`, `#Provide`, a kind's bodies, `#Request` — is a comprehension over it, so a new row is the whole change. A row references named definitions, never writes a struct of its own (§6, C8). |
 
 | Never | Why |
 |---|---|
 | an open struct anywhere except the one `#Opaque` definition, which marks a field another plugin's schema owns | typos pass silently |
-| `close()`, or a forbidden field written as `f?: _\|_` | closedness already rejects an undeclared field, with a message that names it; `_\|_` reports no field name, and `close()` around an embedded definition loses closedness inside comprehensions in CUE v0.17.1 |
+| `close()`, or a forbidden field written as `f?: _\|_` | closedness already rejects an undeclared field, with a message that names it; `_\|_` reports no field name, and a definition closes its own literals recursively |
+| a struct with named fields written inline, other than an S4 arm's tag | the generator cannot name it (§6, C1); name it |
+| a word list, union or fragment composition spelled any other way than S3, S4 and S6 spell it | the generator maps each spelling to one Go shape (§6) |
 | a union written out alternative by alternative, or one whose alternatives differ only by the absence of a field | the tags cannot be read by tools, and a missing required field is incomplete, not false, so such a union never resolves |
 | looking up a field that may be absent where a pattern constraint matches it | the lookup is incomplete, not bottom; iterate the fields that are present instead |
 | a list of differently shaped items | every item becomes a union; use S5 |
@@ -186,7 +195,7 @@ is never bent.
 
 | ID | Requirement |
 |---|---|
-| D-PAT-1 | Every schema uses only S1–S10 and nothing from the "never" table. |
+| D-PAT-1 | Every schema uses only S1–S11 and nothing from the "never" table. |
 | D-PAT-2 | Each kind, verb, origin and capability type is one S1 definition in its owning plugin's CUE module; core composes the document schema from the registry with the same patterns (§3.3). |
 | D-PAT-3 | The authoring language follows the patterns: a choice is a key the author writes (S4) — the candy is the default node, selected when no kind key is written — a collection with identities is a map (S5), and no two concepts are told apart by a missing field. |
 | D-PAT-4 | Every rule about an authored document or a protocol message is either enforced by the schema — tagged with its ID at its enforcing line, with at least one negative case that fails with its expected error — or indexed in §5.4 with where it is proven. Rules about schemas themselves are proven by gates, not by negative cases: D-PAT-1 on `DESIGN.cue` by the design check (Appendix A.4 check 6), and D-PAT-1..3 on every plugin CUE module by the §22 schema-pattern gate. |
@@ -260,7 +269,7 @@ Stages 1–5 execute no command and expand no variable; the only plugin code the
 4. **Body.** Each key of a body is a field its schema declares, or the name of an inner node whose
    value is a node (rule 3) the body's nesting table admits (§12.2). Anything else is an error
    naming the nearest declared field.
-5. **Step.** Dispatched by its intent and verb keys (D-VERB-5).
+5. **Step.** Dispatched by its intent key, and a check by its verb key (D-VERB-5).
 6. **Output.** An immutable node tree; every body is handed on with its inner and alongside nodes
    removed, so each kind's body schema sees only its own fields, and the kind's nesting
    definition (§12.2) sees only the inner and alongside nodes.
@@ -308,7 +317,7 @@ owner's tests.
 | ID | Rule | Owner | Design check |
 |---|---|---|---|
 | D-VAL-1 | A candy with content of its own — any field besides `description`, `from`, `require` and the box build settings — carries at least one `check:` step. A box that only composes other nodes, and a capture, are proven by the steps of their stack. | build plugin | `rules.cue` |
-| D-VAL-2 | Every reference names a node of a kind its `@ref` attribute admits: `from:` of a candy names a source, box, `pod` or `vm` (a capture); `from:` of a `pod` or `vm` a box or source; `require:` candies; a source's `os:` an `os` node; an `os` node's inits `init` nodes; a bootstrap `builder` a `builder` node; a builder's `box` boxes; `build_with` `builder` nodes; `harness` references `harness` nodes; a stage's `bed` names `pod`, `vm`, `local`, `android` or `kubernetes` nodes and its `pipeline` a `pipeline` node. A namespaced reference resolves through its import. | core | `rules.cue` **Its proof is split:** this row is the **local** half, proven by `rules.cue` and fired only for a reference that is not namespaced; the **namespaced** half is D-VAL-9, proven by core's tests because the examples carry no second repository. |
+| D-VAL-2 | Every reference names a node of a kind its `@ref` attribute admits: `from:` of a candy names a source, box, `pod` or `vm` (a capture); `from:` of a `pod` or `vm` a box or source; `require:` candies; a source's `os:` an `os` node; an `os` node's inits `init` nodes; a bootstrap `builder` a `builder` node; a builder's `box` boxes; `build_with` `builder` nodes; `harness` references `harness` nodes; a stage's `bed` and a check's `on: {node}` name `pod`, `vm`, `local`, `android` or `kubernetes` nodes, and a stage's `pipeline` a `pipeline` node. A namespaced reference resolves through its import. | core | `rules.cue` **Its proof is split:** this row is the **local** half, proven by `rules.cue` and fired only for a reference that is not namespaced; the **namespaced** half is D-VAL-9, proven by core's tests because the examples carry no second repository. |
 | D-VAL-3 | References form no cycle. | core | — |
 | D-VAL-4 | Namespaces and top-level node names are disjoint. | core | `rules.cue` |
 | D-VAL-5 | One release per repository across a load, imports of imports included. | core | — |
@@ -317,10 +326,9 @@ owner's tests.
 | D-VAL-8 | A candy has substance: content of its own, `from:`, `require:` or an inner node. A mapping that holds only a `description` is never a node, so a misspelled field cannot pass as an inner candy. | build plugin | `rules.cue` |
 | D-VAL-9 | A namespaced reference resolves through the namespace its `import:` binds — the import's own repository reference, at its pinned release — and its resolution is **core-proven**, because the examples do not carry a second repository. | core | — |
 | D-VAL-10 | An unnamespaced word that no first-party plugin owns is an error naming the plugin that does (D-PLUG-7). | core | — |
-| D-VAL-11 | A `capture_scope: process` capture names a deployment whose driver row declares process capture (D-CAPTURE-4). | container plugin, machine plugin | — |
-| D-VAL-12 | A step's verb needs only operations the venue of its deployment serves (D-VENUE-2): a `check` that runs in the guest needs `exec`. | core | — |
+| D-VAL-11 | A `capture: process` capture names a deployment whose driver row declares process capture (D-CAPTURE-4). | container plugin, machine plugin | — |
+| D-VAL-12 | A step's verb needs only accesses the venue of its deployment serves (D-VENUE-2): a `check` that runs in the guest needs `exec`. | core | — |
 | D-VAL-13 | Every `publish` key names a provided `endpoint` of the deployment's stack; the guest side is that endpoint's own port. | container plugin, machine plugin | — |
-| D-VAL-14 | `exclusive: true` names a need whose grant holds a host resource (D-HW-8). | core | — |
 
 The other requirements that need the whole load are stated where their concept lives and checked
 by core: a name defined twice (§4.2 rule 2), an undeclared or unused plugin word (D-PLUG-4,
@@ -333,7 +341,7 @@ namespace (D-KIND-1). None of them can be shown by a single example document.
 | D-LOAD-2 | Field-versus-node classification uses only the schema. |
 | D-LOAD-3 | Validation is the composed CUE pass plus §5.4; every load validates every step. |
 | D-LOAD-4 | A load result is a store entry keyed by the digests of all documents, imports and schemas. |
-| D-LOAD-5 | Every key-tagged union (S4) is resolved by dispatch on the tag keys the author wrote — a node by its kind key, an inner node by its kind key within its parent's nesting table, a step by its intent and verb, a file by its effect — and unified only with the alternative they select. No tag (where the table has no default), or two tags, is reported as "exactly one of: <tags>" at its `file:line`; the loader never reports the failures of alternatives the author did not choose. |
+| D-LOAD-5 | Every key-tagged union (S4) is resolved by dispatch on the tag keys the author wrote — a node by its kind key, an inner node by its kind key within what its parent's kind row admits, a step by its intent and a check by its verb, a file by its effect — and unified only with the alternative they select. No tag (where the table has no default), or two tags, is reported as "exactly one of: <tags>" at its `file:line`; the loader never reports the failures of alternatives the author did not choose. |
 | D-LOAD-6 | A **namespace** is a key of the root document's `import:` map, and the scope a reference resolves in is the document it is written in — so a namespaced reference's first segment names an import of the root, never a node (§4.1's Read establishes the namespace table first). |
 
 ## 6. Code generation
@@ -347,6 +355,20 @@ namespace (D-KIND-1). None of them can be shown by a single example document.
 | CLI grammar, MCP tool models | each command's argument definition |
 | reference documentation | definition doc comments |
 
+Every shape of §3.1 has exactly one Go mapping, so the generator needs no per-type annotation and
+the schema carries no `@go(…)` attribute. Names derive mechanically: a snake_case word becomes
+CamelCase (`kernel_param` → `KernelParam`), and a definition drops its `#` (`#Os` → `Os`).
+
+| # | Shape (§3.1) | Go |
+|---|---|---|
+| C1 | a named definition (S1, S6) | a named struct; every struct with named fields is a definition, so none is anonymous |
+| C2 | a named scalar (S2) | a named type over its base type; `#Duration` → `time.Duration`, `#Base64` → `[]byte` (JSON's own base64), `#Opaque` → `json.RawMessage` |
+| C3 | a vocabulary table (S3) | a typed word with `Valid()`; a `core` or plugin-owned table adds its constants, a `registry` table is read from the registry at runtime (D-GEN-5) |
+| C4 | a key-tagged union (S4) | a one-of struct with one pointer per tag and a generated exactly-one decoder; shared fragments become its fields when every arm embeds the same ones, otherwise each arm is a generated struct `X<Tag>` |
+| C5 | the method tables (S11: `_method`, `_hostMethod`, `_pluginMethod`) | one Go interface per role, typed clients and servers, the request and reply one-ofs, and a stream for a `stream` row |
+| C6 | a default (`*v \| T`) | nothing: Go decodes a value only after CUE has unified it, so defaults live in CUE alone |
+| C7 | a typed row table (S11) | a row struct and the table's rows; each derived shape (`#Need`, `#Driver`, a kind's body) is generated from the rows, never read back from the evaluated comprehension |
+
 | ID | Requirement |
 |---|---|
 | D-GEN-1 | One generator produces every output above, run by the same command in every module; it is a pinned tool dependency, never an import. |
@@ -355,6 +377,8 @@ namespace (D-KIND-1). None of them can be shown by a single example document.
 | D-GEN-4 | Generated code is never post-processed by text substitution. |
 | D-GEN-5 | Anything the runtime can read from the composed schema is read from it, never generated into Go lists. |
 | D-GEN-6 | A wire payload is a generated Go type, encoded as JSON and validated against its definition on receipt. |
+| D-GEN-7 | The generator is charly's own, built on the CUE Go API at the pinned CUE version, and it maps the shapes of §3.1 by the table above; no third-party struct generator and no per-type annotation stands in for it. |
+| D-GEN-8 | Each shape has one spelling — a word list `[for w, _ in T {w}]`, a union `or([for _, a in T {a}])`, a fragment composition `{#XFields..., …}` — and the design check rejects any other, so each spelling maps to exactly one Go shape. |
 
 ---
 
@@ -374,7 +398,7 @@ spec  ←  sdk  ←  charly (core)
 | D-SPEC-1 | `spec` contains the §3.2 packages and the code generated from them; no mechanism, no hand-written logic beyond behaviour methods on generated types. |
 | D-SDK-1 | `sdk` contains `Serve` (the one plugin entrypoint, D-PROTO-1), the role interfaces, the typed host client, the protocol conformance harness (§8.7), and the shared mechanisms: executors (shell, ssh, container, adb), the store and its roots (§17), locks, readiness waits, matchers, repository fetching, CalVer, check sessions and recording. |
 | D-SDK-2 | `sdk` contains no domain logic or domain type; each package owns one mechanism, has no package-level mutable state, and has tests that fail without it. |
-| D-CORE-1 | Core consists of: the CLI shell and its commands (§7.1), the loader and linker (§4–§5), the registry, one gRPC transport, schema composition and validation, the capability solver (§15), the stage driver (§9.3), the venue operations (§12.7), leases, the store instance (built on the sdk store, §17) and its registry view, the protocol and host service (§8.3–§8.6), and the MCP server. |
+| D-CORE-1 | Core consists of: the CLI shell and its commands (§7.1), the loader and linker (§4–§5), the registry, one gRPC transport, schema composition and validation, the capability solver (§15), the stage driver (§9.3), the venue accesses (§12.7), leases, the store instance (built on the sdk store, §17) and its registry view, the protocol and host service (§8.3–§8.6), and the MCP server. |
 | D-CORE-2 | Core contains no domain data and no kind, verb or capability-type word. Its words are the directives, the four intents, the phases, the modifiers and step-level matchers, the five role words, and the command words §7.1 assigns to it. |
 | D-CORE-3 | Core uses no package-level singletons, no `os.Setenv`, no re-execution of its own binary and no fallback branch. |
 | D-CORE-4 | Which plugins a release binary embeds is packaging data (`release.yml`), an optimization only: an embedded plugin runs only when a project declares that exact module, release and digest. |
@@ -389,7 +413,7 @@ restate it.
 
 | Concept or word | Owner |
 |---|---|
-| directives, intents, phases, modifiers and step-level matchers, node tree, linking, the namespace table and name resolution (D-LOAD-6), registry, solver, leases, the store instance and its read-only image-registry view (D-STORE-10), the venue operations (§12.7), the protocol (§8.3–§8.6), the host service, deployment locks, the five role words, the MCP server | core |
+| directives, intents, phases, modifiers and step-level matchers, node tree, linking, the namespace table and name resolution (D-LOAD-6), registry, solver, leases, the store instance and its read-only image-registry view (D-STORE-10), the venue accesses (§12.7), the protocol (§8.3–§8.6), the host service, deployment locks, the five role words, the MCP server | core |
 | the `box` and deployment commands of §19, `migrate`, `registry`, `version`, `help`, `mcp serve` (which of them write authored files is D-CLI-2) | core |
 | the candy body, boxes, sources, the IR and its actions, artifact builds through the one builder (§9.3), the `os`, `init` and `builder` kinds | build plugin |
 | `pod` (and its grants, its venue, its captures, the container-engine driver rows `podman`, `docker`, `containerd`) | container plugin |
@@ -398,10 +422,10 @@ restate it.
 | `android` (devices, the `android:` manager, the `appium` protocol verb) | android plugin |
 | the fact verbs and the `http` protocol verb (§20), beds and their cycle, `instrument`, the `check` command | check plugin |
 | the `display`, `cdp`, `dbus` and `mcp` protocol verbs | desktop plugin |
-| the `harness` kind, the `pipeline` kind (the one workflow kind, §10.1), the `agent`, `tui`, `pipeline` and `review` commands, the `harness` capability type and the binding of `mcp` endpoints | agent plugin |
-| `packaging`, the `secret`, `config`, `cache`, `clean`, `doctor`, `preempt`, `alias`, `release-package`, `local-install` and `audit` commands, the `env` and `secret` capability types | operations plugin |
+| the `harness` kind, the `pipeline` kind (the one workflow kind, §10.1), the `agent`, `tui`, `pipeline` and `review` commands, the `harness` capability type, the binding of `mcp` endpoints, and the agent-runtime driver rows `pi`, `tmux` | agent plugin |
+| `packaging`, the `secret`, `config`, `cache`, `clean`, `doctor`, `preempt`, `alias`, `release-package`, `local-install` and `audit` commands, the `env` and `secret` capability types, and the secret-backend driver rows `secret_service`, `gpg`, `file` | operations plugin |
 | the `skill`, `hook`, `marketplace` and `doc` kinds, the `doc generate` and `marketplace generate` commands | documentation plugin |
-| the capability-type tables (`#NeedType`, `#ProvideType`), the host-need types `gpu`, `device`, `nesting`, `isolation`, `privilege`, `engine_api`, `memory`, `mount`, and the `endpoint` type | `spec` (envelope), granted by each deployment kind's `grant` |
+| the capability table (`_capability`): the host-need types `gpu`, `device`, `cpu`, `memory`, `storage`, `mount`, `nesting`, `isolation`, `privilege`, `driver_api`, and the `endpoint` and `network` types | `spec` (envelope), granted by each deployment kind's `grant` |
 | every other word: an application's commands and checks, a site's own kinds | its non-first-party plugin, under its namespace (D-PLUG-7) |
 | which init runs services | the `os` node (container init for `pod`, system init for `vm`) |
 | a `<manager>:` package prefix | build-time managers (`npm`, `cargo`, `pip`, `aur`, `flatpak`): a `builder` node, run in its own `box`, which `build_with:` selects when several builders serve the manager; apply-time managers (`helm`, `android`): the deployment kind |
@@ -426,7 +450,7 @@ plugin-check:
     description: Beds, the check command, and the fact verbs.
     module: github.com/opencharly/plugin-check
     provide:
-        command: {check: {}}
+        subcommand: {check: {}}
         verb: {command: {}, file: {}, package: {}, service: {}, process: {}, port: {}, http: {}}
     step:
         - check: the check command answers
@@ -444,20 +468,20 @@ per-OS `os_override:` (D-CANDY-6, §11.1).
 
 ### 8.2 Roles and methods
 
-Every method, the role that serves it, and its input and output are one table, `#MethodIO`.
+Every method, the role that serves it, its input and output, and whether it streams are one typed row table, `_method` (S11).
 
 <!-- schema: _roleWord col=1 -->
 <!-- schema: _methodWord col=3 -->
 | Role | Serves | Methods |
 |---|---|---|
-| `kind` | a kind word; `kind:candy` is reserved for the candy (the node with no kind key) | `validate`, `resolve`, `migrate`; the candy adds `build` (an artifact from a start artifact and an IR); deployment kinds add `realize`, `start`, `stop`, `status`, `log`, `venue`, `capture`, `restore`, `grant`, `destroy`, `admit`, `activate` |
+| `kind` | a kind word; `kind:candy` is reserved for the candy (the node with no kind key) | `validate`, `resolve`, `migrate`; the candy adds `build` (an artifact from a start artifact and an IR); deployment kinds add `realize`, `transition` (to the state running, stopped or absent), `status`, `log`, `venue`, `capture`, `restore`, `grant`, `admit`, `activate` |
 | `verb` | a verb word | `check` |
-| `command` | a CLI word | `run` (a bidirectional terminal stream) |
+| `subcommand` | a CLI word | `run` (a bidirectional terminal stream) |
 | `type` | a capability type | `bind`, `unbind` |
 | `api` | an api name | `call` (the api's messages are a tag table in the owning module, tagged by the api's own method keys) |
 
 Registry keys are `<role>:<word>[:<parent>]`; `<parent>` appears only for a command nested under
-another plugin's command. A schema is never a method: it is read from the CUE module.
+another plugin's subcommand. A schema is never a method: it is read from the CUE module.
 
 | ID | Requirement |
 |---|---|
@@ -475,12 +499,12 @@ another plugin's command. A schema is never a method: it is read from the CUE mo
 | D-PROTO-1 | One transport: gRPC with two generated services, **`Plugin`** (served by the plugin: one RPC per method of the method table, plus `describe` and `shutdown`) and **`Host`** (served by core, §8.6). Messages are the generated types of `spec/protocol`; word payloads travel as JSON. |
 | D-PROTO-2 | An out-of-process plugin is started by core as `<binary> serve` with an **empty environment** plus two variables: `CHARLY_PLUGIN_SOCKET` (where it serves `Plugin`) and `CHARLY_HOST_SOCKET` (where core serves `Host` for this plugin only). Both are Unix sockets in the runtime root, mode `0600`. Nothing else is inherited: not the working directory, not credentials, not the terminal. |
 | D-PROTO-3 | A plugin compiled into the binary runs the same generated server over an in-memory listener; the call path, validation and permissions are identical (D-CORE-4). |
-| D-PROTO-4 | A plugin process is started on the first call to one of its keys within an invocation, serves concurrent calls, and is stopped with `shutdown` when the invocation ends. It keeps no state of its own between calls: persistent records go through `state_put`, content through `store_put`. If it exits during a call, that call fails with `unavailable` naming the plugin; core does not restart it within the invocation. |
+| D-PROTO-4 | A plugin process is started on the first call to one of its keys within an invocation, serves concurrent calls, and is stopped with `shutdown` when the invocation ends. It keeps no state of its own between calls: persistent records and content go through `put`. If it exits during a call, that call fails with `unavailable` naming the plugin; core does not restart it within the invocation. |
 
 ### 8.4 Handshake
 
 1. Core starts the plugin and calls `describe`.
-2. The reply (`#DescribeReply`) names the module, the release (absent for a `path:` plugin), the
+2. The reply (`#DescribeOutput`) names the module, the release (absent for a `path:` plugin), the
    source, schema and manifest digests, and the methods implemented per key.
 3. Core verifies: the module equals the `module:` of the plugin candy in the declared repository;
    for a `{repo, release, digest}` declaration the release equals it and the source digest equals
@@ -505,7 +529,7 @@ method's output under its method key, or an `#Error`.
 | ID | Requirement |
 |---|---|
 | D-PROTO-6 | Both sides validate every message on receipt against its definition: the protocol part for the envelope, the owning module for word payloads. A message that does not validate is answered with `invalid`, naming the definition and field; it is never coerced. |
-| D-PROTO-7 | Errors are `#Error` values with one code from `#ErrorCode`, a message, and the identity and `file:line` they concern. The gRPC status carries the same code. Core reports errors as received and never repeats a call that failed; `unavailable` and `deadline` fail the operation. Re-running a `check` while `eventually` is in effect is observation, not a retry (D-VERB-3). |
+| D-PROTO-7 | Errors are `#Error` values with one code of `_errorCode`, a message, and the identity and `file:line` they concern. The gRPC status carries the same code. Core reports errors as received and never repeats a call that failed; `unavailable` and `deadline` fail the operation. Re-running a `check` under its `retry` modifier is observation, not a repeated call (D-VERB-3). |
 | D-PROTO-8 | Every call carries a deadline: the step's `timeout` (declared default `60s`), or the deadline the command's argument definition declares. On deadline or cancellation (Ctrl-C, a failed sibling), core cancels the call; the plugin stops its work, releases what it holds, and answers `cancelled` or `deadline`. |
 | D-PROTO-9 | Plugin methods are safe to call concurrently for different identities. Locking is core's alone (D-DEP-4). |
 | D-PROTO-10 | Long-running methods (`realize`, `capture`, `restore`, `log`, `run`, and `venue_exec` on the host side) stream `#Stream` messages on the call: output chunks, terminal resizes, and the exit status. Progress goes through `Host.report` as `#Event`s. A plugin's stdout and stderr are not part of the protocol: core writes them to the invocation log. |
@@ -519,16 +543,13 @@ drives. It is closed: adding a method amends this document.
 <!-- schema: _hostMethodWord -->
 | Method | Gives | Permitted when |
 |---|---|---|
-| `venue_exec` | runs a command in a deployment's venue, through the sdk executor for its `#VenueOutput` (following `via` for a nested venue); streams I/O and returns the exit status | the call being served operates on that deployment or a node inside it, or the step is `on_host` (the host venue) |
-| `store_get`, `store_put` | content-addressed store entries (D-STORE-3) | always; entries are immutable |
-| `state_get`, `state_put` | the state records of a deployment (D-DEP-5), in the shape the calling kind's module defines | the caller's plugin owns that deployment's kind, under the lock core holds (D-DEP-4) |
+| `venue_exec` | runs a command in a deployment's venue, through the sdk executor for its `#VenueOutput` (following `via` for a nested venue); streams I/O and returns the exit status | the call being served operates on that deployment or a node inside it, or the step runs `on: {host: {}}` (the host venue) |
+| `get` | one entry by its key (`#StoreKey`): `content` by digest from the content-addressed store (D-STORE-3); `state`, a record of a deployment (D-DEP-5) in the shape the calling kind's module defines; `secret`, a secret's value; `config`, the caller's section of the user configuration (D-STORE-2) | `content`: always. `state`: the caller's plugin owns that deployment's kind, under the lock core holds (D-DEP-4). `secret`: the secret is bound to the deployment the call operates on (D-CAP-4), or the caller created it. `config`: always |
+| `put` | writes data and returns its digest: without a key, a content-addressed entry (immutable); with a `state` key, a deployment's record; with a `secret` key, a secret the caller generates for a deployment it owns (an ssh key for its venue), in the configured backend | without a key: always. `state` and `secret`: the caller's plugin owns that deployment's kind |
 | `project` | the resolved value of a node (§5.3) | the node is in the call's project |
-| `config_get` | the calling plugin's section of the user configuration (D-STORE-2), e.g. which driver of each kind to use | always |
 | `call` | an `api` method of another plugin | the caller's plugin candy lists that api in `need:` (D-CAP-5) |
-| `secret_get` | the value of a secret | the secret is bound to the deployment the call operates on (D-CAP-4), or the caller created it |
-| `secret_put` | stores a secret the caller generates for a deployment it owns (an ssh key for its venue) in the configured backend | the caller's plugin owns that deployment's kind |
 | `report` | events, progress, diagnostics | always |
-| `state_commit` | commits a deployment's state atomically — the transaction `state_put` cannot be | the caller's plugin owns that deployment's kind |
+| `state_commit` | commits a deployment's state atomically — the transaction a `put` cannot be | the caller's plugin owns that deployment's kind |
 | `audit_append` | appends one audit record (D-AUDIT) | always |
 
 | ID | Requirement |
@@ -563,7 +584,7 @@ plugin repository runs it in CI (§22).
 
 `from:` names the starting point of a stack, by one node name.
 
-<!-- schema: _deploymentKind -->
+<!-- schema: _deploymentKindWord -->
 | Node | `from:` names | Meaning |
 |---|---|---|
 | box | a source, a box, or a `pod` or `vm` | start the stack there; from a deployment it is a capture |
@@ -624,7 +645,7 @@ deployment lock (D-DEP-4); no command has a private path.
 <!-- schema: keys(#ActionAlt) -->
 | Action | Produced by | Scope |
 |---|---|---|
-| `package` | `package:` (OS manager, or a `<manager>:` prefix, §7.1), with a manager package's own `input` (`#Opaque`, D-IR-6) | system |
+| `package` | `package:` (OS manager, or a `<manager>:` prefix, §7.1), with a manager package's own `config` (`#Opaque`, D-IR-6) | system |
 | `package_repo` | `package_repo:` | system |
 | `file` | `file:` (a map keyed by literal absolute path, one effect per entry) | system |
 | `service` | `service:` (a map keyed by service name) | system or user |
@@ -638,8 +659,8 @@ deployment lock (D-DEP-4); no command has a private path.
 | D-IR-2 | Every action is idempotent and declares its reverse (or that it has none); a `run:` step declares its idempotence with a `guard` (`creates` or `unless`). Teardown in apply mode replays recorded reverses. |
 | D-IR-3 | Every action has golden tests: IR in; rendered build fragment and applied effect out. |
 | D-IR-4 | A `file:` entry has exactly one effect — `content`, `copy`, `dir`, `link`, `download` or `extract` — and a `download` or `extract` is pinned by `sha256`. |
-| D-IR-5 | A foreign system enters the IR in one of three roles — a **manager word** (`_managerWord`), a **venue kind** (`#VenueOutputAlt`) or a **deployment kind** — and its own command line never becomes charly vocabulary: no foreign subcommand, flag or chart-CLI string is an authored field, a verb word or an intent (§2). |
-| D-IR-6 | An action for a manager that declares an input carries it as its `input` (`#Opaque`, S10), validated against the owning plugin's schema at **authoring** time, never at execution. |
+| D-IR-5 | A foreign system enters the IR in one of three roles — a **manager word** (`_managerWord`), a **venue** (`#VenueAlt`) or a **deployment kind** — and its own command line never becomes charly vocabulary: no foreign subcommand, flag or chart-CLI string is an authored field, a verb word or an intent (§2). |
+| D-IR-6 | An action for a manager that declares a config carries it as its `config` (`#Opaque`, S10), validated against the owning plugin's schema at **authoring** time, never at execution. |
 | D-IR-7 | A manager word's **work is owned by its phase**: a build-phase manager's package is built by a `builder` node, so a `build_with` key must be a build-time manager (`#BuildManager`); an apply-phase manager's package is applied by the deployment kind. A body may **declare** a package of either phase — `#PackageMap` is unscoped — because the phase decides who does the work, never what may be written. |
 
 ## 10. Kinds and directives
@@ -657,7 +678,7 @@ deployment lock (D-DEP-4); no command has a private path.
 | `android` | candies applied to an Android device | android plugin |
 | `init` | an init system's service rendering | build plugin |
 | `builder` | a builder: bootstraps a root filesystem or builds a language manager's packages | build plugin |
-| `harness` | an AI CLI invocation used by `harness-run`/`harness-check` | agent plugin |
+| `harness` | an AI CLI invocation used by `harness_run`/`harness_check` | agent plugin |
 | `pipeline` | the one workflow kind: a named set of stages run in the host venue (§10.1) | agent plugin |
 | `skill`, `hook`, `marketplace`, `doc` | harness and documentation inputs | documentation plugin |
 
@@ -684,7 +705,7 @@ deploy-skill:
 guard-push:
     hook:
         description: Refuses a force-push before it reaches the remote.
-        event: PreToolUse
+        event: pre_tool_use
         matcher: Bash
 
 site:
@@ -719,7 +740,7 @@ nightly:
 reviewer:
     harness:
         description: The review harness, a coding agent's command line.
-        command: [claude, --print]
+        argv: [claude, --print]
         need:
             env: {ANTHROPIC_API_KEY: {}}
 
@@ -735,15 +756,15 @@ verify:
 release:
     pipeline:
         description: Verify, run every bed two at a time, review, then ask before publishing.
-        argument:
-            TAG: {description: "The release to publish."}
-            BED: {description: "The beds to run, one per line."}
+        parameter:
+            tag: {description: "The release to publish."}
+            bed: {description: "The beds to run, one per line."}
         stage:
             verify:
                 pipeline: verify
             bed:
                 after: [verify]
-                lane: {over: BED}
+                lane: {over: bed}
                 concurrency: 2
                 step:
                     - check: the bed passes
@@ -751,7 +772,7 @@ release:
             review:
                 after: [bed]
                 step:
-                    - harness-check: the change is ready to publish
+                    - harness_check: the change is ready to publish
                       harness: reviewer
             publish:
                 after: [review]
@@ -775,10 +796,10 @@ release:
 | `step` | the candy's steps |
 | `require` | candies this one is built from, by reference |
 | `need` | capabilities it needs (§15) |
-| `input` | the choices this candy declares: a bounded set, never a substitution |
+| `parameter` | the choices this candy declares: each a bounded set, never a substitution (D-SCH-7) |
 | `with` | supplies the choices of the candy this one is `from:` |
 | `provide` | capabilities it provides (§15) |
-| `package` | packages by name — an OS name, or a `<manager>:<locator>` that may carry its manager's `input` (D-IR-6); on a plugin candy, the OS packages the plugin needs in order to run (D-CANDY-6) |
+| `package` | packages by name — an OS name, or a `<manager>:<locator>` that may carry its manager's `config` (D-IR-6); on a plugin candy, the OS packages the plugin needs in order to run (D-CANDY-6) |
 | `os_override` | the same content fields (`#Content`) per `os` family or `os` node name; the most specific key wins |
 | `file` | files by literal absolute path, one effect each |
 | `package_repo` | package repositories by name |
@@ -794,7 +815,7 @@ release:
 | `build_with` | boxes only: the `builder` node that builds each build-time manager's packages, when the project has more than one for that manager |
 | `entrypoint` | boxes only: the image entrypoint |
 | `tag` | boxes only: the image tag |
-| `capture_scope` | boxes only, on a capture: `filesystem` or `process` (D-CAPTURE-4) |
+| `capture` | boxes only, on a capture: `filesystem` or `process` (D-CAPTURE-4) |
 
 | ID | Requirement |
 |---|---|
@@ -816,7 +837,7 @@ labtools-charts:
     description: The charts the lab cluster installs, declared where content is declared.
     package:
         "helm:labtools-charts/monitoring":
-            input:
+            config:
                 release: web-pushgateway
                 namespace: web
                 version: 2.5.0
@@ -833,7 +854,7 @@ labtools-charts:
 runtime-sizes:
     description: A runtime whose size is one of three declared choices.
     from: fedora.fedora-43-image
-    input:
+    parameter:
         size:
             choice: [small, medium, large]
     package: {ripgrep: {}}
@@ -868,7 +889,7 @@ review-agent:
             agent:
                 description: The review agent itself.
                 from: runtime-sizes
-                spec:
+                config:
                     mode: {structured: {}}
                     model: {name: claude-sonnet-4-6, fallback: none}
                     tools: {policy: read_only}
@@ -912,7 +933,7 @@ redis:
           phase: runtime
           command: redis-cli -p 6379 ping
           stdout: {equals: PONG}
-          eventually: 30s
+          retry: {until: 30s}
 
 motd-shell:
     description: A Fedora shell with a login banner.
@@ -923,7 +944,7 @@ motd-shell:
             /etc/motd: {content: "motd-shell: a Fedora shell"}
         step:
             - check: the banner is installed
-              file: {path: /etc/motd, contains: motd-shell}
+              file: {path: /etc/motd, content: {contains: motd-shell}}
 ```
 
 ### 11.3 Sources
@@ -953,8 +974,7 @@ arch:
         description: Arch Linux, rolling.
         family: arch
         package_manager: pacman
-        container_init: supervisord
-        system_init: systemd
+        init: {container: supervisord, system: systemd}
 
 pacstrap:
     builder:
@@ -987,23 +1007,27 @@ systemd:
 | `family` | the family name `os_override:` keys match after the node's own name |
 | `version` | the OS version, e.g. `"43"` |
 | `package_manager` | the OS package manager |
-| `container_init` | the `init` node that runs services in a `pod` |
-| `system_init` | the `init` node that runs services in a `vm` or on a host |
+| `init` | the `init` node of each role (`_initRole`): `container` runs services in a `pod`, `system` in a `vm` or on a host |
 | `boot` | the disk form's boot: its `firmware` (default `uefi`), and the kernel, initrd and command line a microVM hypervisor boots beside a root drive (§9.2) |
 
 ## 12. Deployments
 
 ### 12.1 Deployment kinds
 
-<!-- schema: _deploymentKind -->
+<!-- schema: _deploymentKindWord -->
 | Kind | Takes | Realization | Venue |
 |---|---|---|---|
-| `pod` | `from:` a box or source | the image form, run by the configured container engine | container exec |
-| `vm` | `from:` a box or source | the form its hypervisor boots, copy-on-write | ssh |
-| `kubernetes` | `create:` (made where it is written, by the configured cluster driver) or `connect:` an existing cluster (top level only) | a cluster; workloads are inner nodes | the cluster API |
-| `local` | `require:` candies; top level `connect:`s to its host | the IR applied to that host | host shell, ssh or IP-KVM |
-| `android` | `require:` candies; `create:` an emulator or `connect:` a device | `android:` packages applied to the device | adb |
-| `agent` | `from:` a box or a source | a workload, deployed and observed like any other | the machine it runs on |
+| `pod` | `from:` a box or source, `publish:` | the image form, run by the configured container engine | `container` |
+| `vm` | `from:` a box or source, `publish:` | the form its hypervisor boots, copy-on-write | `ssh` |
+| `kubernetes` | `node:` to create a cluster where it is written, by the configured cluster driver, or `connect: {kube}` to an existing one | a cluster; workloads are inner nodes | `kube` |
+| `local` | `require:` candies; at top level, `connect:` to its host through `shell`, `ssh` or `kvm` | the IR applied to that host | `shell`, `ssh` or `kvm` |
+| `android` | `require:` candies; `device:` and `api_level:` to create an emulator, or `connect: {adb}` to a device | `android:` packages applied to the device | `adb` |
+| `agent` | `from:` a box or a source, the runtime's own `config` | a workload, deployed and observed like any other | the machine it runs on |
+
+Each kind is one row of `_deploymentKind` (S11): `create` is what creating it takes, `connect` the
+venues it may be reached through instead, `top` how a top-level or beside node of it is placed,
+`admit` what its body holds, `beside` what may stand beside it, and `content` whether it takes
+`require:`. Every body and placement is derived from the rows; a new kind is a row.
 
 Every deployment kind takes these fields:
 
@@ -1015,28 +1039,25 @@ Every deployment kind takes these fields:
 | `disposable` | `true` authorizes unattended destroy and rebuild (default `false`) |
 | `preemptible` | `true` lets a non-preemptible lease stop it (default `false`) |
 | `update_gate` | how a fresh rebuild is re-verified (default `full`) |
-| `parallel` | realize alongside nodes concurrently (default `false`) |
+| `concurrency` | how many beside nodes realize at once (default `1`) |
 | `instrument` | recordings attached to the run, by name: `display`, `console`, `log` or `audio` |
 | `ephemeral` | a time to live |
 | `need` | capabilities, including host needs (§16) |
-| `with` | supplies the `input:` choices of the candy this deployment names |
+| `with` | supplies the `parameter:` choices of the candy this deployment names |
 
-`pod` and `vm` add these (D-DEP-7):
+`pod` and `vm` are created with these (D-DEP-1, D-DEP-7):
 
-<!-- schema: #MachineOnly -->
+<!-- schema: #MachineFields -->
 | Field | Meaning |
 |---|---|
+| `from` | the box or source it runs |
 | `publish` | the host port of each provided `endpoint` it publishes, by the endpoint's name (D-VAL-13) |
-| `cpu` | CPU count |
-| `ram` | memory size |
-| `disk_size` | disk size |
-| `network` | the network to join |
 
-Kind-specific fields: `pod` and `vm` take `from`; `local` and `android` take `require`. A deployment
-charly does not run from an artifact is created or connected (D-DEP-6): `kubernetes` takes
-`create: {node}` or `connect: {kube}`, `android` `create: {device, api_level}` or `connect: {adb}`,
-and a top-level `local` `connect: {shell}`, `{ssh}` or `{kvm}` — the connection alternatives of
-`#ConnectAlt`, named as the venues they reach.
+Sizing is a need (§15): `cpu: {core: {count: 2}}`, `memory: {ram: {size: 2Gi}}`,
+`storage: {root: {size: 20Gi}}`, leased like any other host resource (§16.2); a network is a
+capability one deployment provides and another needs. A deployment is created where it is written,
+with its kind's `create` fields, or connected through one venue of `#VenueAlt` its row admits
+(`connect:`) — never both (D-DEP-6).
 
 | ID | Requirement |
 |---|---|
@@ -1044,9 +1065,9 @@ and a top-level `local` `connect: {shell}`, `{ssh}` or `{kvm}` — the connectio
 | D-DEP-2 | A `pod`, `vm` or `kubernetes` deployment takes no `require:`; content comes from the box, or from an inner `local` node applied to the running venue. |
 | D-DEP-3 | `disposable: true` is the only authorization for unattended destroy, rebuild, or apply-and-reverse; inner nodes inherit it and cannot widen it. |
 | D-DEP-4 | Core holds a deployment's lock for the whole of every command that mutates it (its argument definition declares `mutates: true`); every method the command calls runs under that one lock, and a second mutator fails immediately naming the holder. |
-| D-DEP-5 | Realized state (resolved ports and images, bindings, leases, reverse records, the kind's own records) lives in the state root (§17), written through `state_put`. |
-| D-DEP-6 | A deployment that is not run from an artifact is either created where it is written (`create:`) or connected (`connect:`) — exactly one, with the same tag keys for every kind; a `local` only connects. |
-| D-DEP-7 | Publishing, sizing and network belong to `pod` and `vm` only. |
+| D-DEP-5 | Realized state (resolved ports and images, bindings, leases, reverse records, the kind's own records) lives in the state root (§17), written through `put` with a `state` key. |
+| D-DEP-6 | A deployment is either created where it is written — the default, with its kind's `create` fields — or connected (`connect:`), never both; which a kind admits at top level is its row's `top`, and an inner node is always created. |
+| D-DEP-7 | Publishing belongs to `pod` and `vm` only; sizing and networks are needs of any deployment (§15). |
 | D-DEP-8 | A deployment's steps run in its runtime phase. |
 
 ### 12.2 Nesting: where a node is written is what it means
@@ -1056,44 +1077,41 @@ and a top-level `local` `connect: {shell}`, `{ssh}` or `{kvm}` — the connectio
 - **Beside** a `pod` or `vm` kind key, a named node is an alongside node: its own root, sharing
   the parent's lifecycle and network.
 
-Each body's admitted nodes are a tag table keyed by kind word (`#InnerOfMachineAlt`,
-`#InnerOfLocalAlt`, `#InnerOfAndroidAlt`, `#InnerOfKubernetesAlt`, `#AlongsideAlt`). Only
-`#InnerOfLocalAlt` and `#InnerOfAndroidAlt` carry a `candy` entry — the default, selected for an
-inner node with no kind key; a `pod`, `vm` or `kubernetes` body, and the place beside a `pod` or
-`vm` kind key, admit no keyless node.
+What a body admits and what may stand beside a node are its kind's row in `_deploymentKind`
+(`admit`, `beside`); the loader reads them from there. A row that admits `candy` takes a keyless
+inner node as a candy; every other body, and the place beside a node, admits no keyless node.
 
-<!-- schema: _deploymentKind -->
+<!-- schema: _deploymentKindWord -->
 | Written inside a… | Admits | Meaning |
 |---|---|---|
 | candy or box | candies | content composed into it |
 | `pod` or `vm` | `pod`, `vm` | a container on the guest's engine, a VM on the guest's hypervisor |
 | `pod` or `vm` | `local` (without `connect`) | candies applied live inside the running guest |
-| `pod` or `vm` | `kubernetes` with `create` | a cluster on the guest |
+| `pod` or `vm` | `kubernetes`, created | a cluster on the guest |
 | a machine (`pod`, `vm`, `agent`), or a `kubernetes` body | `agent` | an agent workload, deployed onto that machine |
 | `pod` or `vm` | `android` | a device or emulator reached from the guest |
-| `local` | candies, `kubernetes` with `create`, `android` | content applied to the host; a cluster on it; a device reached from it |
+| `local` | candies, `kubernetes`, `android`, created | content applied to the host; a cluster on it; a device reached from it |
 | `android` | candies | apps applied to the device |
-| `kubernetes` | `pod`, `vm` | a workload, or a KubeVirt VM, in the cluster |
+| `kubernetes` | `pod`, `vm`, `agent` | a workload, a KubeVirt VM, or an agent, in the cluster |
 | beside a `pod` or `vm` | `pod`, `vm`, `local` (with `connect`) | an alongside root |
 
-A top-level node's place is the host: a top-level `kubernetes` with `create:` runs on the host
-through its configured cluster driver; a top-level `local` connects to its host explicitly.
+A top-level node's place is the host: a top-level `kubernetes` that creates its cluster runs it on
+the host through the configured cluster driver; a top-level `local` connects to its host explicitly.
 
 | ID | Requirement |
 |---|---|
 | D-NEST-1 | Tree position is the only expression of nesting; one loader function derives it and one walk reads it. |
-| D-NEST-2 | Each kind's nesting tables declare what its body admits and what may stand beside it; anything else is an error naming both. Core holds no nesting table. |
+| D-NEST-2 | Each kind's row declares what its body admits and what may stand beside it; anything else is an error naming both. Core holds no nesting table. |
 | D-NEST-3 | `from:` and `require:` name what a node is built from; they never place a node. |
 | D-NEST-4 | A node's identity is its dotted path; every foreign name (container, domain, unit, ssh alias, kube context) is the identity with each dot replaced by `--`. A node name never contains `--`, so foreign names never collide. |
-| D-NEST-5 | Inner nodes are realized after their parent and destroyed before it; alongside nodes follow the parent's lifecycle as their own roots, concurrently when `parallel: true`. A nested deployment is realized through its parent's venue. |
-| D-NEST-6 | A `local` connects to its host exactly when it is top level or alongside; an inner `local` applies to its parent and has no `connect`. |
-| D-NEST-7 | A `kubernetes` node inside another node creates its cluster there; `connect:` exists only at top level. |
+| D-NEST-5 | Inner nodes are realized after their parent and destroyed before it; alongside nodes follow the parent's lifecycle as their own roots, `concurrency:` at a time. A nested deployment is realized through its parent's venue. |
+| D-NEST-6 | A node inside another node is created there — an inner `local` applies to its parent, an inner `kubernetes` creates its cluster on it — and never connects; a top-level or beside node is placed as its kind's row's `top` admits (a `local` always connects). |
 
 ### 12.3 Beds and captures
 
 A bed is a deployment with `disposable: true`; `charly check run <bed>` runs its cycle:
 
-<!-- schema: _deploymentKind -->
+<!-- schema: _deploymentKindWord -->
 | Kind | Cycle |
 |---|---|
 | `pod`, `vm` | build the artifact → build-phase checks in a disposable realization of that artifact by the same kind → realize → runtime checks → destroy → rebuild fresh → realize → runtime checks → destroy |
@@ -1110,7 +1128,7 @@ run are pipelines (§10.1). Steps receive `CHARLY_BIN`, the path of the running 
 | D-CAPTURE-1 | A capture is taken after its deployment's runtime checks first pass, before any teardown of the cycle; the captured artifact is immutable and outlives the deployment. |
 | D-CAPTURE-2 | Realizing a node that starts from a capture realizes the captured deployment first if the artifact does not exist. |
 | D-CAPTURE-3 | A capture is deleted only when nothing in state references it. |
-| D-CAPTURE-4 | A capture takes the filesystem, or with `capture_scope: process` also the running processes, where the kind's driver row declares process capture (D-VAL-11) — a rootful container engine whose runtime restores checkpoints, or a microVM checkpointing inside its own guest. |
+| D-CAPTURE-4 | A capture takes the filesystem, or with `capture: process` also the running processes, where the kind's driver row declares process capture (D-VAL-11) — a rootful container engine whose runtime restores checkpoints, or a microVM checkpointing inside its own guest. |
 | D-CAPTURE-5 | `restore` returns a deployment to a capture it took, in place and under its lock: its filesystem, and its processes when the capture holds them. It is the one way back to a known state; a kind, a driver or a bed has no second one. A `kubernetes` deployment captures and restores its cluster state. |
 
 ### 12.4 Examples
@@ -1143,20 +1161,19 @@ web-shell-pod:
         step:
             - check: sshd listens
               phase: runtime
-              port: {port: 22, listening: true}
+              port: {port: 22}
 
 web-shell-vm:
     vm:
         description: The same shell as a VM.
         from: web-shell
         publish: {ssh: 2223}
-        cpu: 2
-        ram: 2Gi
+        need: {cpu: {core: {count: 2}}, memory: {ram: {size: 2Gi}}}
         disposable: true
         step:
             - check: sshd listens
               phase: runtime
-              port: {port: 22, listening: true}
+              port: {port: 22}
 ```
 
 The omarchy-eval pattern — install once, check, capture, start every lane from the capture:
@@ -1178,7 +1195,7 @@ omarchy-base:
               phase: runtime
               command: cat /etc/os-release
               stdout: {contains: ID=omarchy}
-              eventually: 300s
+              retry: {until: 300s}
 
 omarchy-checked:
     description: The checked omarchy install; every evaluation lane starts here.
@@ -1259,12 +1276,12 @@ warm-worker:
             - check: the worker answers
               phase: runtime
               http: {url: "http://127.0.0.1:8080/health", status: 200}
-              eventually: 60s
+              retry: {until: 60s}
 
 warm-worker-ready:
     description: Capture of the warmed worker, its processes included.
     from: warm-worker
-    capture_scope: process
+    capture: process
 ```
 
 ```bash
@@ -1295,21 +1312,20 @@ check-pod-overlay:
             - check: charly reports the pod as running
               phase: runtime
               command: ${CHARLY_BIN} status --format json
-              on_host: true
+              on: {host: {}}
               stdout: {contains: '"kind": "pod"'}
               timeout: 300s
 ```
 
-**vm** — a VM whose guest runs a k3s cluster:
+**vm** — a VM whose guest runs a cluster:
 
 <!-- example: bed-vm uses-context -->
 ```yaml
 check-k3s-vm:
     vm:
-        description: Checks a k3s cluster created inside a disposable VM.
+        description: Checks a cluster created inside a disposable VM.
         from: arch.arch-cloud
-        cpu: 2
-        ram: 2Gi
+        need: {cpu: {core: {count: 2}}, memory: {ram: {size: 2Gi}}}
         disposable: true
         step:
             - check: the guest is Arch
@@ -1318,15 +1334,14 @@ check-k3s-vm:
               stdout: {contains: ID=arch}
         cluster:
             kubernetes:
-                description: A single-node k3s cluster in the guest.
-                create: {}
+                description: A single-node cluster in the guest.
                 step:
                     - check: one node becomes ready
                       kube: {node: {count: 1}}
-                      eventually: 300s
+                      retry: {until: 300s}
                     - check: coredns is ready
                       kube: {resource: {kind: deployment, namespace: kube-system, name: coredns}}
-                      eventually: 180s
+                      retry: {until: 180s}
 ```
 
 The `kube` steps run against the cluster of the node they are written in; its kube context is
@@ -1353,9 +1368,8 @@ check-host-tools:
 ```yaml
 check-kind-workload:
     kubernetes:
-        description: Checks a box deploys as a workload into a disposable kind cluster.
-        create:
-            node: {control: {control_plane: true}}
+        description: Checks a box deploys as a workload into a disposable cluster.
+        node: {control: {control_plane: true}}
         disposable: true
         app:
             pod:
@@ -1364,7 +1378,7 @@ check-kind-workload:
         step:
             - check: the cluster has a ready node
               kube: {node: {count: 1}}
-              eventually: 180s
+              retry: {until: 180s}
             - check: the workload is scheduled
               kube: {pod: {namespace: default}}
               stdout: {contains: check-kind-workload-app}
@@ -1395,10 +1409,30 @@ check-android-device:
 
 ### 12.6 Drivers
 
-A driver is the engine, hypervisor or cluster tool that drives a deployment kind. It is chosen by the user
-configuration (`#UserConfig`, §17), so the same box runs unchanged on every machine, and it is a data
-row of its kind's plugin. The driver table (`_driverWord`) has one row per driven kind: the container
-engines of `pod`, the hypervisors of `vm`, and the cluster tools (`kind`, `k3s`) of `kubernetes`.
+A driver is what drives one pluggable subsystem: the container engine of `pod`, the hypervisor of
+`vm`, the cluster tool of `kubernetes`, the runtime of `agent`, the backend that holds secrets. It is
+chosen by the user configuration (`#UserConfig`, §17), so the same box runs unchanged on every
+machine. Every driver is one row of the driver table (`_driver`, S11): its subsystem, whether it is
+that subsystem's default, the forms it consumes, the accesses its venue serves, the captures it
+takes, the lease mode each grant it makes imposes, and its tool.
+
+<!-- schema: _driverWord -->
+| Driver | Subsystem | Default |
+|---|---|---|
+| `podman` | `pod` | yes |
+| `docker` | `pod` | |
+| `containerd` | `pod` | |
+| `libvirt` | `vm` | yes |
+| `qemu` | `vm` | |
+| `krun` | `vm` | |
+| `firecracker` | `vm` | |
+| `kind` | `kubernetes` | yes |
+| `k3s` | `kubernetes` | |
+| `pi` | `agent` | yes |
+| `tmux` | `agent` | |
+| `secret_service` | `secret` | yes |
+| `gpg` | `secret` | |
+| `file` | `secret` | |
 
 <!-- example: user-config user-config -->
 ```yaml
@@ -1406,16 +1440,18 @@ driver:
     pod: containerd
     vm: firecracker
     kubernetes: k3s
+    secret: gpg
 resource:
     rtx: {gpu: nvidia}
+    host-ram: {memory: ram, size: 64Gi}
 local_install: false
 ```
 
 | ID | Requirement |
 |---|---|
-| D-DRV-1 | A driven deployment kind takes its driver from the user configuration (`#Driver`), one word of its row of the driver table (`_driverWord`): `pod` from the container engines, `vm` from the hypervisors, `kubernetes` from the cluster tools. A driver is a row of its kind's plugin, never a plugin, kind, field or command of its own. |
+| D-DRV-1 | Every subsystem (`_subsystem`) takes its driver from the user configuration (`#Driver`): one word among that subsystem's rows of the driver table, defaulting to the one row marked `default` — exactly one per subsystem. A driver is a row, never a plugin, kind, field or command of its own. |
 | D-DRV-2 | No authored document names a driver. A box runs unchanged under every driver of its kind; a need its driver cannot grant is an unmet need (D-HW-3). |
-| D-DRV-3 | A driver row declares what it gives: the form it consumes (§9.2), the operations its venue serves (§12.7), the capture scopes it supports (D-CAPTURE-4), the isolation and privilege it can grant (§16.1), and the lease mode each grant imposes (D-HW-8). The kind's methods read the row; a difference between two drivers is a row value, never a code branch outside the row. |
+| D-DRV-3 | A driver row declares what it gives: the form it consumes (§9.2), the accesses its venue serves (§12.7), the capture scopes it supports (D-CAPTURE-4), the isolation and privilege it can grant (§16.1), and the lease mode each grant imposes (D-HW-8). The kind's methods read the row; a difference between two drivers is a row value, never a code branch outside the row. |
 
 ### 12.7 Venues
 
@@ -1431,7 +1467,7 @@ desk-session:
         - check: the compositor's display answers
           phase: ready
           display: {screenshot: {}}
-          eventually: 60s
+          retry: {until: 60s}
         - check: the terminal window is open
           phase: runtime
           display: {window: {app_id: foot}}
@@ -1441,20 +1477,22 @@ lab-workstation:
         description: The lab workstation, observed and powered through its IP-KVM.
         connect: {kvm: {address: 10.0.0.42:443, secret: lab-kvm}}
         step:
-            - check: the login screen is shown
+            - harness_check: a login screen is shown
               phase: runtime
-              display: {ask: {prompt: "Is a login screen shown?"}}
+              evidence: [display]
 ```
 
-Every interaction with a deployment is one operation of its venue: `exec` (a shell, a command, a
-step), `copy`, `log`, `console`, `display` (a screen over VNC or SPICE, its keys and its pointer) and
-`forward` (a port) and `power`. The deployment commands of §19 are these operations, for every kind
-and every driver alike.
+Every venue is one alternative of `#VenueAlt`: `container`, `ssh`, `shell`, `kvm`, `adb` and `kube`.
+`connect:` writes one; a kind's `venue` method returns it resolved, with `via` (the venue it is reached
+through) and `access` — what it serves, read from its driver row. Every interaction with a deployment
+is one access: `exec` (a shell, a command, a step), `copy`, `log`, `console`, `display` (a screen over
+VNC or SPICE, its keys and its pointer), `forward` (a port) and `power`. The deployment commands of
+§19 are these accesses, for every kind and every driver alike.
 
 | ID | Requirement |
 |---|---|
-| D-VENUE-1 | An interaction with a deployment is one venue operation, reached through the one deployment command set (§19) and `venue_exec`; no kind, driver or application has an interaction path of its own. |
-| D-VENUE-2 | A venue declares the operations it serves (`#VenueFields`). An operation it lacks — a microVM venue serves no `exec` — is refused naming the venue, never emulated, and a step that needs it is a load error (D-VAL-12). |
+| D-VENUE-1 | An interaction with a deployment is one access of its venue, reached through the one deployment command set (§19) and `venue_exec`; no kind, driver or application has an interaction path of its own. |
+| D-VENUE-2 | A venue declares the accesses it serves (`#VenueFields`). An access it lacks — a microVM venue serves no `exec` — is refused naming the venue, never emulated, and a step that needs it is a load error (D-VAL-12). |
 
 ## 13. Names, references and fetching
 
@@ -1583,8 +1621,7 @@ fedora-43:
         family: fedora
         version: "43"
         package_manager: dnf
-        container_init: supervisord
-        system_init: systemd
+        init: {container: supervisord, system: systemd}
 
 supervisord:
     init:
@@ -1616,7 +1653,7 @@ hello-web:
         - check: the page is served
           phase: runtime
           http: {url: "http://127.0.0.1:8080/", body: {contains: hello from charly}}
-          eventually: 30s
+          retry: {until: 30s}
 
 hello-box:
     description: Fedora 43 with the hello web server; runs as a pod and as a VM.
@@ -1633,7 +1670,7 @@ hello-pod:
             - check: the page answers on the published port
               phase: runtime
               command: curl -fsS http://127.0.0.1:18080/
-              on_host: true
+              on: {host: {}}
               stdout: {contains: hello from charly}
 
 hello-pod-checked:
@@ -1652,8 +1689,7 @@ hello-vm:
         description: The same hello box as a VM.
         from: hello-box
         publish: {http: 18082}
-        cpu: 2
-        ram: 2Gi
+        need: {cpu: {core: {count: 2}}, memory: {ram: {size: 2Gi}}}
         disposable: true
         step:
             - check: the service runs in the guest
@@ -1692,10 +1728,12 @@ charly deploy add hello-vm-next     # realizes and captures hello-vm first if ne
 
 ## 15. Provides and needs
 
-`provide:` and `need:` map a capability type to named entries (S5). Both are rows of one table of
-types (`#ProvideType`, `#NeedType`): a type says what its entries are keyed by and which attributes
-they add, and every need entry, whatever its type, is `optional` or not and `exclusive` or not
-(`#NeedEntry`). `require:` is composition (D-CANDY-2), not a capability.
+`provide:` and `need:` map a capability type to named entries (S5). Every type is one row of the
+capability table (`_capability`, S11): what its entries are keyed by, what a need entry and a provide
+entry of it carry, whether it is a leasable host resource, and — for a type whose keys name nodes —
+the kinds they may name. `#Need` and `#Provide` are derived from the rows. Every need entry is
+`optional` or not (`#NeedFields`); an entry of a leasable type is also `exclusive` or not
+(`#LeaseFields`, D-HW-8). `require:` is composition (D-CANDY-2), not a capability.
 
 <!-- example: provide-need uses-context -->
 ```yaml
@@ -1713,7 +1751,7 @@ search-agent:
     step:
         - check: the search endpoint listens
           phase: runtime
-          port: {port: 8811, listening: true}
+          port: {port: 8811}
 ```
 
 <!-- schema: #Need -->
@@ -1722,18 +1760,21 @@ search-agent:
 | `env` | environment variable names | env injection |
 | `secret` | secret names | secret file and env injection |
 | `endpoint` | endpoint names, each `{protocol}` | endpoint wiring (MCP registration for `mcp`) |
+| `network` | network names | network wiring |
 | `harness` | `harness` nodes | harness launch |
-| `gpu` | `nvidia`, `amd`, `intel`, `any` | grant and lease (§16) |
-| `device` | `kvm`, `render`, `fuse`, `tun`, `vhost-net`, `vsock`, `hwrng`, `kfd` | grant (§16) |
+| `gpu` | `nvidia`, `amd`, `intel`, `any`; leasable | grant and lease (§16) |
+| `device` | `kvm`, `render`, `fuse`, `tun`, `vhost_net`, `vsock`, `hwrng`, `kfd`; leasable | grant and lease (§16) |
+| `cpu` | `core`, each `{count}`; leasable | grant and lease (§16) |
+| `memory` | `ram`, `shm`, each `{size}`; leasable | grant and lease (§16) |
+| `storage` | `root`, each `{size}`; leasable | grant and lease (§16) |
+| `mount` | mount names, each `{host, path, writable}`; leasable | grant and lease (§16) |
 | `nesting` | `container`, `vm`, `userns` | grant (§16) |
 | `isolation` | `microvm` | grant (§16) |
 | `privilege` | `rootful` | grant (§16) |
-| `engine_api` | driver words (`_driverWord`) | grant (§16) |
-| `memory` | `shm`, each `{size}` | grant (§16) |
-| `mount` | mount names, each `{host, path, writable}` | grant (§16) |
+| `driver_api` | driver words (`_driverWord`) | grant (§16) |
 | `kind` | kind words | plugin wiring |
 | `verb` | verb words | plugin wiring |
-| `command` | command words | plugin wiring |
+| `subcommand` | subcommand words | plugin wiring |
 | `type` | capability types | plugin wiring |
 | `api` | api names | plugin wiring |
 
@@ -1742,16 +1783,17 @@ search-agent:
 |---|---|
 | `env` | environment variables, each `{value}` |
 | `endpoint` | served endpoints, each `{port, transport, protocol, path, host}` |
+| `network` | networks it provides |
 | `kind` | kind words (a plugin manifest) |
 | `verb` | verb words (a plugin manifest) |
-| `command` | command words (a plugin manifest) |
+| `subcommand` | subcommand words (a plugin manifest) |
 | `type` | capability types (a plugin manifest) |
 | `api` | api names (a plugin manifest) |
 
 | ID | Requirement |
 |---|---|
 | D-CAP-1 | A need is required unless it says `optional: true`. |
-| D-CAP-2 | Each capability type is one row of the type tables and has exactly one owner (§7.1): a plugin's types are bound through its `type` role; the host-need types and `endpoint` are defined in `spec` and satisfied by the deployment kind's `grant` and publishing; the role words are satisfied by core's registry. |
+| D-CAP-2 | Each capability type is one row of the capability table and has exactly one owner (§7.1): a plugin's types are bound through its `type` role; the host-need types, `endpoint` and `network` are defined in `spec` and satisfied by the deployment kind's `grant` and publishing; the role words are satisfied by core's registry. |
 | D-CAP-3 | One solver binds every need: plugin wiring, deployment wiring, host needs. An unmet need is an error naming the candidates; two candidates for one need is an error; an unmet optional need is recorded as skipped. |
 | D-CAP-4 | Bindings are state, delivered by the type's `bind`; they never appear in an authored file. |
 | D-CAP-5 | A plugin calls another plugin's api through `Host.call` only when its candy lists that api in `need:`. |
@@ -1843,24 +1885,26 @@ second concept per instance.
 | `device: X` | that device node | the guest's virtio equivalent or passthrough | verified present | — (not grantable) | device-plugin request |
 | `gpu` | the GPU through CDI, a `shared` lease | the GPU through VFIO passthrough, an `exclusive` lease; under `isolation: microvm`, see D-HW-7 | verified, a `shared` lease | — | a resource request |
 | `nesting: container` | `/dev/fuse`, `/dev/net/tun`, user-namespace capabilities, unmasked `/proc` | nothing: the guest has its own kernel | verified user namespaces | — | pod security context |
-| `nesting: vm` | `/dev/kvm`, `/dev/vhost-net` | nested virtualization CPU mode | verified `/dev/kvm` | — | KubeVirt nested virtualization |
-| `engine_api: E` | the socket of E mounted | the socket forwarded through ssh | verified reachable | — | — |
+| `nesting: vm` | `/dev/kvm`, `/dev/vhost-net` (the `kvm` and `vhost_net` devices) | nested virtualization CPU mode | verified `/dev/kvm` | — | KubeVirt nested virtualization |
+| `driver_api: D` | the API socket of driver D mounted | the socket forwarded through ssh | verified reachable | — | — |
 | `nesting: userns` | a seccomp profile that admits user-namespace sandboxes, nothing wider (never unconfined) | nothing: the guest has its own kernel | verified unprivileged user namespaces | — | the same profile in the pod security context |
 | `isolation: microvm` | the microVM runtime of the engine: the container gets a guest kernel of its own, and its venue serves no `exec` | nothing: the guest already has its own kernel | — | — | the microVM RuntimeClass |
 | `privilege: rootful` | the engine's rootful mode, preflighted against the driver row | — | verified root access | — | a privileged security context |
 | `mount` | bind mount | virtiofs share | verified present | — | hostPath on a single-node cluster |
 | `memory: shm` | `/dev/shm` of that size | a guest tmpfs of that size | verified free | — | a memory-backed `emptyDir` |
+| `memory: ram`, `cpu: core` | the engine's memory and CPU limits, leased from the host's capacity | the guest's memory and vCPUs, leased from the host's capacity | verified free | — | resource requests and limits |
+| `storage: root` | the container's writable storage quota | the root disk of that size | verified free | — | an ephemeral-storage request |
 
 | ID | Requirement |
 |---|---|
 | D-HW-1 | Nothing is granted without a need; detection only answers whether the host can satisfy one. |
 | D-HW-2 | The grant of a deployment is the union of the needs of the deployment, its box and all their candies; `charly box inspect` and `charly status` show each granted item and the node that needed it. |
 | D-HW-3 | An unmet need fails before anything is realized (D-CAP-3); `charly doctor <node>` reports needs against the host. |
-| D-HW-4 | A lease names the concrete host resource the solver chose — one listed in the user configuration's `resource:` — and only it is granted; a `preemptible` holder yields to a non-preemptible request. |
+| D-HW-4 | A lease names the concrete host resource the solver chose — one listed in the user configuration's `resource:`, written as the need it satisfies with that need's attributes as its capacity (`{memory: ram, size: 64Gi}`) — and only it is granted; a `preemptible` holder yields to a non-preemptible request. |
 | D-HW-5 | No candy, box or deployment carries raw runtime settings (capability lists, security options, device paths, libvirt XML); a grant with no need type is added as a new type by its plugin. |
-| D-HW-6 | A venue declares the capabilities **and the version** it grants, and every versioned host need is asserted as a **preflight**: the kind's own version (a kernel for `nesting`, an engine for `engine_api`) or the server's (a cluster's API version). **One rule, three instances** — the version rule is not Kubernetes-specific, which is why it is stated on the need and not on a kind. |
-| D-HW-7 | `isolation`, `privilege` and `nesting: userns` are needs like any other: a kind grants each through its driver row (a runtime, a RuntimeClass, a seccomp profile) and preflights it (D-HW-6). Under `isolation: microvm` a leased GPU is not grantable — `device: render` is granted as a paravirtual GPU — and the venue's operations are D-VENUE-2's. |
-| D-HW-8 | Every need entry, of every type, is `exclusive: true` or shares by default. A grant that holds a host resource returns the lease mode its mechanism imposes, declared by the driver row (D-DRV-3) — `exclusive` where it takes the resource from the host (VFIO passthrough, a passed-through device, a published host port), `shared` where the resource stays the host's (CDI, a paravirtual GPU, a device node) — and core leases the resource at the stricter of the two. On one resource, `shared` leases coexist and an `exclusive` lease coexists with none; a conflicting request fails before realization naming the holder, unless the holder is `preemptible` (D-HW-4). `exclusive` on a need whose grant holds no resource is an error (D-VAL-14). |
+| D-HW-6 | A venue declares the capabilities **and the version** it grants, and every versioned host need is asserted as a **preflight**: the kind's own version (a kernel for `nesting`, a driver's API for `driver_api`) or the server's (a cluster's API version). **One rule, three instances** — the version rule is not Kubernetes-specific, which is why it is stated on the need and not on a kind. |
+| D-HW-7 | `isolation`, `privilege` and `nesting: userns` are needs like any other: a kind grants each through its driver row (a runtime, a RuntimeClass, a seccomp profile) and preflights it (D-HW-6). Under `isolation: microvm` a leased GPU is not grantable — `device: render` is granted as a paravirtual GPU — and the venue's accesses are D-VENUE-2's. |
+| D-HW-8 | Every need entry of a leasable type (a `_capability` row with `lease: true`: `gpu`, `device`, `cpu`, `memory`, `storage`, `mount`) is `exclusive: true` or shares by default; no other type has the field. A grant that holds a host resource returns the lease mode its mechanism imposes, declared by the driver row (D-DRV-3) — `exclusive` where it takes the resource from the host (VFIO passthrough, a passed-through device, a published host port), `shared` where the resource stays the host's (CDI, a paravirtual GPU, a device node) — and core leases the resource at the stricter of the two. On one resource, `shared` leases coexist and an `exclusive` lease coexists with none; a conflicting request fails before realization naming the holder, unless the holder is `preemptible` (D-HW-4). |
 
 ### 16.2 Leases
 
@@ -1870,8 +1914,8 @@ even where sharing is possible; the grant's mechanism says whether sharing is po
 CUDA candy needs an NVIDIA GPU and says nothing more: as a `pod` the GPU is granted through CDI and
 stays the host's, so any number of such pods share it; as a `vm` it is passed through with VFIO,
 which takes it from the host, so that VM holds it alone. The same rule decides a passed-through USB
-device, a published host port or a writable mount, and the same box gets the right lease on every
-kind and driver.
+device, a published host port, a writable mount or a share of the host's memory and CPUs, and the
+same box gets the right lease on every kind and driver.
 
 <!-- example: leases uses-context -->
 ```yaml
@@ -1903,7 +1947,7 @@ gpu-vm:
 | ID | Requirement |
 |---|---|
 | D-STORE-1 | Four roots, resolved by one sdk package: configuration `$XDG_CONFIG_HOME/charly`, cache `$XDG_CACHE_HOME/charly` (single override `CHARLY_CACHE_DIR`), state `$XDG_STATE_HOME/charly`, runtime `$XDG_RUNTIME_DIR/charly`. |
-| D-STORE-2 | The user configuration (`#UserConfig`) holds only what the user sets — the drivers (container engine and hypervisor, D-DRV-1), secret backend, leasable GPUs, image registry, the project-less `plugin:` list, whether the OS packages a plugin needs may be installed on the host (D-STORE-9), and each plugin's own section — under its own schema. |
+| D-STORE-2 | The user configuration (`#UserConfig`) holds only what the user sets — one driver per subsystem (D-DRV-1), the leasable host resources (D-HW-4), image registry, the project-less `plugin:` list, whether the OS packages a plugin needs may be installed on the host (D-STORE-9), and each plugin's own section — under its own schema. |
 | D-STORE-3 | One content-addressed store holds every cached item: fetched repositories, CUE modules, plugin binaries, load results and artifacts. Its on-disk form IS an OCI Image Layout, and no other on-disk cache format exists: a store tree is that layout and nothing else — no `.lock`, no `locks/`, and no sidecar file of any kind. A view is a derived, hardlinked reconstruction of an entry for a consumer that needs real files; it is not a second store and holds no content of its own. The payload/validity split that keeps a resolution record out of the payload's digest is D-STORE-6. Entries are immutable, keyed by input digest, published by atomic rename; reads take no lock. |
 | D-STORE-4 | A plugin binary's key covers its module source, `go.sum`, the toolchain and the platform. |
 | D-STORE-5 | A mutable name (a branch) resolves to a commit before it reaches the store; it re-resolves only on `--refresh`. |
@@ -1924,8 +1968,8 @@ no read path for one. Records live in the state root (D-DEP-5), so they inherit 
 | D-AUDIT-1 | Every mutation and every authority decision appends **exactly one** record. A decision that leaves no record is unverifiable, which is why this is a requirement and not an option. |
 | D-AUDIT-2 | A record names **who** acted, in `identity:`, and a mutation and an authority decision use the **same** field — authority is the grant of a need (§15), not a separate concept. |
 | D-AUDIT-3 | A record never holds a secret value. A value that must be referenced is `#Redacted`, because an audit that holds a secret is a leak with a timestamp. |
-| D-AUDIT-4 | A record is **append-only**: `audit_append` writes one, and no method in `#HostMethodIO` mutates or deletes one. |
-| D-AUDIT-5 | A record's `operation:` is a charly verb or mutation word, never a foreign system's own verb (D-IR-5). |
+| D-AUDIT-4 | A record is **append-only**: `audit_append` writes one, and no method of `_hostMethod` mutates or deletes one. |
+| D-AUDIT-5 | A record's `action:` is a charly verb or mutation word, never a foreign system's own verb (D-IR-5). |
 
 ## 18. Secrets, trust, concurrency
 
@@ -1947,7 +1991,9 @@ no read path for one. Records live in the state root (D-DEP-5), so they inherit 
 
 A capture needs no command: building a capture box realizes and checks the captured deployment if
 needed, then captures it. The interaction commands — `shell`, `cmd`, `cp`, `log`, `console`,
-`display`, `forward`, `power` — are the venue operations of §12.7; `restore` is the method of D-CAPTURE-5.
+`display`, `forward`, `power` — are the venue accesses of §12.7; `start`, `stop`, `restart` and
+`deploy del` are the one `transition` method, to `running`, `stopped`, both in turn, and `absent`;
+`restore` is the method of D-CAPTURE-5.
 
 | ID | Requirement |
 |---|---|
@@ -1963,16 +2009,18 @@ A verb is one of two things, and each has its own table in `DESIGN.cue`. A **fac
 the state of the system its venue reaches; a **protocol verb** speaks one generic protocol to an
 endpoint. Nothing else is a first-party verb.
 
-<!-- schema: keys(#FactVerb) col=2 -->
-<!-- schema: keys(#ProtocolVerb) col=3 -->
+<!-- schema: keys(#FactVerbAlt) col=2 -->
+<!-- schema: keys(#ProtocolVerbAlt) col=3 -->
 | Owner (§7.1) | Fact verbs | Protocol verbs |
 |---|---|---|
-| check plugin | `command`, `file`, `package`, `service`, `process`, `port`, `user`, `group`, `mount`, `kernel-param`, `dns`, `interface` | `http` |
+| check plugin | `command`, `file`, `package`, `service`, `process`, `port`, `user`, `group`, `mount`, `kernel_param`, `dns`, `interface` | `http` |
 | kubernetes plugin | — | `kube` |
 | android plugin | — | `appium` |
 | desktop plugin | — | `display`, `cdp`, `dbus`, `mcp` |
 
-Fact verbs observe what the content declared and what the system has:
+Fact verbs observe what the content declared and what the system has. Every fact verb's input
+names the thing it identifies, whether it is `present` (default `true`: it exists and is active —
+installed, running, mounted, resolvable, up, listening), and a matcher for each attribute it observes:
 
 <!-- example: fact-verbs -->
 ```yaml
@@ -1991,7 +2039,7 @@ sshd-account:
         - check: localhost resolves
           dns: {name: localhost}
         - check: the guest does not forward packets
-          kernel-param: {name: net.ipv4.ip_forward, value: "0"}
+          kernel_param: {name: net.ipv4.ip_forward, value: {equals: "0"}}
         - check: the root filesystem is mounted
           mount: {path: /}
 ```
@@ -2000,10 +2048,10 @@ sshd-account:
 |---|---|
 | D-VERB-1 | A verb observes and never changes state: a state change is a field (§9.4), and the one step that changes state is a `run:` step (D-VERB-5). Which verbs exist is D-VERB-6. |
 | D-VERB-2 | A verb shares its name with the field whose state it checks (`package`, `service`, `file`). |
-| D-VERB-3 | Step modifiers are defined once in `spec`: every step takes `id`, `run_as`, `phase` (default `any`) and `timeout` (default `60s`); checks add `eventually` (re-run the check while its result does not match, until the deadline), `retry_interval` (default `2s`), `on_host` (observe from the host venue), `exit_status` (default `0`), `stdout` and `stderr`. A matcher is exactly one comparison. |
-| D-VERB-4 | A verb with several operations takes one operation key (`kube: {resource: …}`), never a `method:` string; operation inputs use plain field names, and a wait is the `eventually` modifier, never an operation. |
-| D-VERB-5 | A step has exactly one intent. A `run` step carries only the `command` verb and its `guard` (D-VERB-1, D-IR-2); a `check` step carries exactly one verb; `harness-run` and `harness-check` carry none. |
-| D-VERB-6 | A verb is a fact verb or a protocol verb (`#FactVerb`, `#ProtocolVerb`), never both. An application's own checks are `http` with JSON-path matchers, `command`, or a namespaced verb of its non-first-party plugin (D-PLUG-7); a plugin's internal operation is an `api` method (D-ROLE-3), never a verb. |
+| D-VERB-3 | Step modifiers are defined once in `spec`: every step takes `id`, `run_as`, `phase` (default `any`) and `timeout` (default `60s`); checks add `retry` (`#Retry`: re-run the check while its result does not match, until a deadline or for a bounded number of attempts, `interval` apart, default `2s` — the same repetition a stage takes, D-FLOW-2), `on` (where the check runs: by default its deployment's venue, `{host: {}}` the host's, or `{node: …}` another deployment's), `exit_status` (default `0`), `stdout` and `stderr`. A matcher is exactly one comparison; `not` negates one and `json` applies one at a JSON path. |
+| D-VERB-4 | A verb with several operations takes one operation key (`kube: {resource: …}`), never a `method:` string; operation inputs use plain field names, and a wait is the `retry` modifier, never an operation. |
+| D-VERB-5 | A step has exactly one intent, and the step table (`#StepAlt`) has one alternative per intent. A `run` step carries its `command` and its `guard` and no verb (D-VERB-1, D-IR-2); a `check` step carries exactly one verb (`#Verb`); `harness_run` and `harness_check` carry none, and a `harness_check` names the venue accesses it may read as `evidence`. |
+| D-VERB-6 | A verb is a fact verb or a protocol verb (`#FactVerbAlt`, `#ProtocolVerbAlt`), never both. An application's own checks are `http` with JSON-path matchers, `command`, or a namespaced verb of its non-first-party plugin (D-PLUG-7); a plugin's internal operation is an `api` method (D-ROLE-3), never a verb. |
 
 ## 21. Repositories
 
@@ -2040,7 +2088,7 @@ This document and `DESIGN.cue` state the same design twice: once in prose and ta
 once as schema for machines. Two statements of one thing drift unless something compares them.
 The design check is that comparison. It runs locally and on demand — there is no CI gate — and a
 change to `DESIGN.md`, `DESIGN.cue`, `TODO.md` or the check itself lands only with its output on
-the final committed tree pasted into the PR body. It relies on CUE v0.17.1 alone; no Go, Python or
+the final committed tree pasted into the PR body. It relies on CUE v0.18.0-rc.1 alone; no Go, Python or
 other toolchain is needed.
 
 `DESIGN.cue`, beside this document, is the single copy of the schema, in two parts: the authoring
@@ -2054,7 +2102,7 @@ validated with `cue vet -d '#Document' DESIGN.cue charly.yml`, and a user config
 | `DESIGN.md` | the design, normative |
 | `DESIGN.cue` | the schema, the single copy |
 | `scripts/design-check.sh` | runs every control below, in order; the one command to run |
-| `scripts/design-cue.sh` | provides the pinned CUE v0.17.1 |
+| `scripts/design-cue.sh` | provides the pinned CUE v0.18.0-rc.1 |
 | `scripts/design-consistency.sh` | compares DESIGN.md with DESIGN.cue |
 | `scripts/design-examples.sh` | validates every example and every negative case |
 | `scripts/design-selftest.sh` | proves that the two checks catch what they claim to |
@@ -2076,16 +2124,21 @@ control lives in exactly one script.
 
 ### A.3 `scripts/design-cue.sh` — the toolchain
 
-Prints the path of a CUE v0.17.1 binary; every other script obtains `cue` through it. It uses `cue`
-from `PATH` only if `cue version` reports exactly `v0.17.1`. Otherwise it downloads the release
-archive for the host platform into `$XDG_CACHE_HOME/charly/tool/cue/v0.17.1/`, verifies its sha256
+Prints the path of a CUE v0.18.0-rc.1 binary; every other script obtains `cue` through it. It uses `cue`
+from `PATH` only if `cue version` reports exactly `v0.18.0-rc.1`. Otherwise it downloads the release
+archive for the host platform into `$XDG_CACHE_HOME/charly/tool/cue/v0.18.0-rc.1/`, verifies its sha256
 against a table pinned in the script (the digests GitHub publishes for the release assets), checks
-that the unpacked binary reports `v0.17.1`, and publishes it into the cache with an atomic rename.
+that the unpacked binary reports `v0.18.0-rc.1`, and publishes it into the cache with an atomic rename.
 A digest or version mismatch fails; there is no fallback to another version.
+
+v0.18.0-rc.1 is pinned because the schema uses language v0.18.0: strict embedding with the `...`
+spread (S6), and errors reported through hidden fields, which let a package-level vet check the
+schema's own tables. When v0.18.0 is released, the pin moves to it with its digests; nothing else
+changes.
 
 ### A.4 `scripts/design-consistency.sh` — DESIGN.md ↔ DESIGN.cue
 
-Seven checks. Each failure names the file, the line, and the two disagreeing sides.
+Eight checks. Each failure names the file, the line, and the two disagreeing sides.
 
 1. **Tables.** A table whose content mirrors the schema is preceded by a marker:
 
@@ -2106,7 +2159,7 @@ Seven checks. Each failure names the file, the line, and the two disagreeing sid
    names words of many sources, such as the ownership table of §7.1, mirrors none of them.
 2. **Word lists and references.** The word lists in `DESIGN.cue` that mirror definitions —
    `_candyField`, `_deployField`, `_directiveWord` — equal the fields of those definitions; the
-   two verb tables `#FactVerb` and `#ProtocolVerb` share no word (D-VERB-6); and
+   two verb tables `#FactVerbAlt` and `#ProtocolVerbAlt` share no word (D-VERB-6); and
    every kind list of an `@ref` attribute or a type-table `ref` list (S9) in `DESIGN.cue` equals a `want:` list of
    `design/example/rules.cue`, in both directions, so the executable reference rule cannot drift
    from the schema.
@@ -2137,6 +2190,13 @@ Seven checks. Each failure names the file, the line, and the two disagreeing sid
 7. **Table shape.** Every row of every table in this document and in TODO.md carries its
    header's cell count and ends with `|`, so a stray cell cannot silently misalign a normative
    table.
+8. **Grammar (§3.1, §6).** `cue vet DESIGN.cue` passes as a package, so the schema's own table
+   invariants hold (one default driver per subsystem, D-DRV-1). Every word list is derived from its
+   table, and every union of a tag table is spelled `or([for _, a in #XAlt {a}])` (D-GEN-8); no
+   inline enum has three or more words (S3); no `@go(` attribute appears (§6); no definition ends
+   in a retired suffix (D-NAME-4); every vocabulary table names an `@vocab` owner that is `core`,
+   `registry`, `spec` or a §7.1 plugin; every field name, tag-table key and word is snake_case
+   (D-NAME-2); and no inline struct declares a named field besides its S4 tag (S1, C1).
 
 ### A.5 `scripts/design-examples.sh` — examples and negative cases
 
@@ -2159,16 +2219,23 @@ so a name defined twice across examples is caught as in a real project. Every do
 pass three stages:
 
 1. **The loader's view** (`design/example/load.cue`), as §4.1 stage 3 and D-LOAD-5 specify: the
-   directives are checked against the envelope; each top-level node is unified with the one
-   entry of `#NodeAlt` its kind key selects (the candy when it has none); each inner or
-   alongside node of a kind body with the one entry of that body's nesting table its kind key
-   selects; each step of a top-level node or of its kind body with the one `#StepAlt` entry its
-   intent and verb keys select. Two kind keys, a node a body does not admit, and a step with no
+   directives are checked against the envelope, beside the data (a value selected out of a
+   definition keeps its closedness under language v0.18.0); each top-level node is unified with
+   the one entry of `#NodeAlt` its kind key selects (the candy when it has none); each inner or
+   beside node with the one entry its kind key selects in what its parent's row admits (`admit`,
+   `beside` of `_deploymentKind`); each step of a top-level node or of its kind body with the one
+   `#StepAlt` entry its intent selects — a check with its fields and the one verb arm it names,
+   never the whole verb union, so the diagnostic names the wrong field. Two kind keys, a node a body does not admit, and a step with no
    intent, two intents or the wrong number of verbs are reported as "exactly one of …".
    Diagnostics therefore name the field that is wrong in the alternative the author chose.
    Deeper nodes and their steps are unified through their parent's definition: CUE cannot
    recurse over arbitrary data, so the dispatch stops at that depth, and the negative cases below
-   it assert the field CUE reports. The loader in core dispatches at every depth.
+   it assert the field CUE reports. The loader in core dispatches at every depth. The loader runs
+   with CUE's structure sharing off (`CUE_DEBUG=sharing=false`, set on its calls alone in
+   `design-examples.sh`): measured on v0.18.0-alpha.3 and v0.18.0-rc.1, with sharing on a closed
+   arm of a union stays viable when the same data is referenced from several loader fields, so a
+   valid nested step is reported as ambiguous. The setting goes when a CUE release without the
+   defect is pinned.
 2. **The root union.** `cue vet -d '#Document'` must give the same verdict. This proves that the
    one-line command of A.1 and the loader's view agree, and it covers nested nodes completely.
 3. **Whole-document rules** (`design/example/rules.cue`): the §5.4 rules whose "Design check"

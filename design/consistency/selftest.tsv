@@ -1,9 +1,9 @@
 # name<TAB>file<TAB>sed expression planting one defect<TAB>text the check must report
 table-missing-row	DESIGN.md	/^| `mount` | mount names/d	table column 1 lacks what #Need defines: mount
 table-new-field	DESIGN.cue	s~^\tboot?:            #Boot$~\tboot?: #Boot\n\tkernel?: #Text~	lacks what #Os defines: kernel
-table-word-list	DESIGN.md	s~^| `harness` | an AI CLI invocation used by `harness-run`/`harness-check` |~| `kvm` | an AI CLI invocation used by `harness-run`/`harness-check` |~	names what _kindWord does not define: kvm
-list-mirror	DESIGN.cue	s~"entrypoint", "tag", "input"~"entrypoint", "input"~	_candyField lacks fields of #Candy #BoxFields: tag
-tag-without-negative	DESIGN.cue	s~^#KubernetesAlt: { // D-DEP-6$~#KubernetesAlt: { // D-DEP-6, D-DEP-4~	D-DEP-4 is enforced here but no design/negative case tests it
+table-word-list	DESIGN.md	s~^| `harness` | an AI CLI invocation used by `harness_run`/`harness_check` |~| `kvm` | an AI CLI invocation used by `harness_run`/`harness_check` |~	names what _kindWord does not define: kvm
+list-mirror	DESIGN.cue	s~"entrypoint", "tag", "parameter"~"entrypoint", "parameter"~	_candyField lacks fields of #Candy #BoxFields: tag
+tag-without-negative	DESIGN.cue	s~ // D-DEP-2$~ // D-DEP-2, D-DEP-4~	D-DEP-4 is enforced here but no design/negative case tests it
 negative-unknown-rule	design/negative/pod-require.yaml	s~^# rule: D-DEP-2~# rule: D-CODE-1~	is neither a DESIGN.cue tag nor a §5.4 rule
 val-owner	DESIGN.md	s~^\(| D-VAL-3 | References form no cycle. |\) core |~\1 kernel |~	names owner 'kernel', which is not an owner in §7.1
 id-order	DESIGN.md	s~^| D-SRC-2 |~| D-SRC-3 |~	D-SRC-3 out of order (expected D-SRC-2)
@@ -12,28 +12,38 @@ section-dangling	DESIGN.md	s~(§7.1)~(§75)~	§75 names no section of DESIGN.md
 banned-term	DESIGN.md	s~^| D-CODE-4 | Comments~| D-CODE-4 | In the workspace, comments~	'workspace' is a §2 "Not" term
 words-multiword-ban	DESIGN.md	s~^## 3\. Schema~## 3. Schema\nimport namespace~	'import namespace' is a §2 "Not" term
 table-shape	DESIGN.md	s~^| D-VAL-2 |~| D-VAL-2 | |~	a table row has 5 cells where its table has 4
-plural-key	DESIGN.cue	s~^\ttag?:           #ImageTag$~\ttag?: #ImageTag\n\tlabels?: #Text~	key 'labels' ends in s and is not listed as singular in D-NAME-1
+plural-key	DESIGN.cue	s~^\ttag?:        #ImageTag$~\ttag?: #ImageTag\n\tlabels?: #Text~	key 'labels' ends in s and is not listed as singular in D-NAME-1
 disjoint	DESIGN.cue	s~"description", "from", "step", "require"~"description", "from", "step", "pod", "require"~	kind words and _candyField overlap: pod
 method-spelling	DESIGN.md	s~each kind's `resolve` returns~each kind's `Resolve` returns~	`Resolve` — the method is spelled `resolve`
 banned-plural	DESIGN.md	s~^| D-CODE-4 | Comments~| D-CODE-4 | Never workspaces. Comments~	'workspace' is a §2 "Not" term
-cue-section-ref	DESIGN.cue	s~^// In charly the tag tables~// See §99.4. In charly the tag tables~	§99.4 names no section of DESIGN.md
+cue-section-ref	DESIGN.cue	s~^// A `// D-…` comment marks~// See §99.4. A `// D-…` comment marks~	§99.4 names no section of DESIGN.md
 orphan-marker	DESIGN.md	s~^Every deployment kind takes these fields:$~<!-- schema: #Need -->\nEvery deployment kind takes these fields:~	a schema marker with no table under it
 duplicate-id	DESIGN.md	s~^\(| D-CODE-5 | .*\)$~\1\n\1~	D-CODE-5 is defined twice
 val-without-negative	design/negative/misspelled-field.yaml	s~^# rule: D-VAL-8~# rule: D-VAL-1~	§5.4 rule D-VAL-8 is checked by rules.cue but has no design/negative case
 ref-drift	design/example/rules.cue	s~want: \["os"\]~want: ["os", "init"]~	want: lists that match no @ref attribute of DESIGN.cue
-rules-emit-drift	design/example/rules.cue	s~rule: "D-VAL-8"~rule: "D-VAL-14"~	emits rules §5.4 does not mark rules.cue: D-VAL-14
-pattern-range	TODO.md	s~the schema patterns are S1–S10 of §3.1~the schema patterns are S1–S8 of §3.1~	S1–S8 — the pattern range ends at S10
+rules-emit-drift	design/example/rules.cue	s~rule: "D-VAL-8"~rule: "D-VAL-13"~	emits rules §5.4 does not mark rules.cue: D-VAL-13
+pattern-range	TODO.md	s~the schema patterns are S1–S11 of §3.1~the schema patterns are S1–S8 of §3.1~	S1–S8 — the pattern range ends at S11
 pattern-unknown	DESIGN.md	s~derived from them, and the S8 name scalars.~derived from them, and the S12 name scalars.~	S12 is not a schema pattern of §3.1
 unmarked-mirror	DESIGN.md	/^<!-- schema: keys(#ActionAlt) -->$/d	but has no <!-- schema: … --> marker
 pattern-close	DESIGN.cue	$a\\n#Bad: close({a: int})	a construct §3.1 rules out
 pattern-open	DESIGN.cue	$a\\n#Loose: {...}	2 open structs {...}; exactly one (#Opaque) is allowed
-unmarked-superset	DESIGN.md	/^<!-- schema: _deploymentKind -->$/{N;s/^[^\n]*\n\(| Kind | Cycle |\)$/\1/};s/^| `kubernetes` that creates its cluster |/| `kubernetes` with `create` |/	this table lists every name of
+unmarked-superset	DESIGN.md	/^<!-- schema: _deploymentKindWord -->$/{N;s/^[^\n]*\n\(| Kind | Cycle |\)$/\1/}	this table lists every name of
 opaque-unmarked	DESIGN.cue	$a\\n#Leak: {x: #Opaque}	an #Opaque use outside S10
-verb-both-tables	DESIGN.cue	s~^\tinterface:      #InterfaceCheck$~\tinterface:      #InterfaceCheck\n\thttp: #HttpCheck~	words in both verb tables (#FactVerb, #ProtocolVerb): http
+verb-both-tables	DESIGN.cue	s~^\tinterface:    {interface!: #InterfaceCheck}$~\tinterface:    {interface!: #InterfaceCheck}\n\thttp: {http!: #HttpCheck}~	words in both verb tables (#FactVerbAlt, #ProtocolVerbAlt): http
 parity-dangling-id	design/parity.tsv	s~D-FLOW-1 §10.1~D-FLOW-9 §10.1~	D-FLOW-9 is not a requirement of DESIGN.md
 parity-mechanism-column	design/parity.tsv	s~^loader:loader\tloader\tplugin-loader\tmerged\tauthoring~loader:loader\tloader\tplugin-loader\tmerged\tcore~	mechanism core is not M1–M8, workflow or authoring
 parity-dangling-section	design/parity.tsv	s~§12.2 D-NEST-2~§99.2 D-NEST-2~	§99.2 names no section of DESIGN.md
 table-no-trailing-pipe	DESIGN.md	s~^\(| D-CODE-5 | .*\) |$~\1~	a table row does not end with a
 table-ref-drift	DESIGN.cue	s~ref: \["harness"\]~ref: ["harness", "pod"]~	no reference rule checks the @ref kinds: harness,pod
-prose-stale-definition	DESIGN.md	s~carries it as its `input` (`#Opaque`, S10)~carries it as `#ManagerInput`~	`#ManagerInput` names no definition of DESIGN.cue
+prose-stale-definition	DESIGN.md	s~carries it as its `config` (`#Opaque`, S10)~carries it as `#ManagerInput`~	`#ManagerInput` names no definition of DESIGN.cue
 open-struct-not-opaque	DESIGN.cue	s~^#Opaque: {\.\.\.}~#Opaque: _\n#Payload: {...}~	the one open struct is not the #Opaque definition
+grammar-word-list	DESIGN.cue	s~^_phaseWord: \[for w, _ in _phase {w}\]$~_phaseWord: ["any", "build", "ready", "runtime"]~	a hand-written word list
+grammar-union-spelling	DESIGN.cue	s~^#Guard: or(\[for _, a in #GuardAlt {a}\])$~#Guard: or([for _, a in #GuardAlt if true {a}])~	a union is or([for _, a in #XAlt {a}])
+grammar-inline-enum	DESIGN.cue	s~restart:      \*"always" | or(_restartWord)~restart:      *"always" | "on_failure" | "never"~	an inline enum of three or more words
+grammar-go-attribute	DESIGN.cue	s~^#Port:        int & >0 & <65536$~#Port:        int \& >0 \& <65536 @go(Port)~	an @go attribute
+grammar-retired-suffix	DESIGN.cue	s~^#Lease: \(.*\)$~#Lease: \1\n#LeaseEntry: {x?: int}~	#LeaseEntry ends in a retired suffix
+grammar-vocab-missing	DESIGN.cue	s~^_scope: {system: {}, user: {}} @vocab(core)$~_scope: {system: {}, user: {}}~	the table _scope names no @vocab owner
+grammar-vocab-owner	DESIGN.cue	s~@vocab(desktop)~@vocab(gui)~	@vocab(gui) of _bus is not
+grammar-word-case	DESIGN.cue	s~_restart: {always: {}, on_failure: {}, never: {}}~_restart: {always: {}, "on-failure": {}, never: {}}~	'on-failure' is not a snake_case schema word
+grammar-inline-struct	DESIGN.cue	s~export?:       {\[#Name\]: #Export}~export?:       {[#Name]: {path!: #AbsPath, mode?: #FileMode}}~	an inline struct with 2 named fields
+grammar-two-defaults	DESIGN.cue	s~docker:         {subsystem: "pod", tool~docker:         {subsystem: "pod", default: true, tool~	_defaultDriver.pod

@@ -20,7 +20,7 @@ command:alias	command	plugin-alias	kept	M6	§19 D-CLI-3	`alias`: host wrappers o
 command:bpf	command	plugin-bpf	non-first-party	M6	D-PLUG-7 D-CLI-3	`bpf.<command>` or `charly cmd <deployment> bpf`	candy manifest providers
 command:build:box	command	plugin-box	kept	M2	§19	`box build`	candy manifest providers
 command:cache	command	plugin-cache	kept	M8	§19	`cache`	candy manifest providers
-command:candy	command	plugin-candy	merged	authoring	§19 §11.1	`box set`, and `input:`/`with:` for parameters	candy manifest providers
+command:candy	command	plugin-candy	merged	authoring	§19 §11.1	`box set`, and `parameter:`/`with:` for parameters	candy manifest providers
 command:cardwire	command	plugin-cardwire	non-first-party	M6	D-PLUG-7 D-CLI-3	`cardwire.<command>` or `charly cmd <deployment> cardwire`	candy manifest providers
 command:cat:box	command	plugin-authoring	kept	authoring	§19 D-CLI-2	`box cat`	candy manifest providers
 command:check	command	plugin-check	kept	M7	§19	`check …`	candy manifest providers
@@ -72,12 +72,12 @@ command:set:box	command	plugin-authoring	kept	authoring	§19 D-CLI-2	`box set`	c
 command:settings	command	plugin-settings	renamed	M3	§19 D-STORE-2 D-DRV-1	`config`	candy manifest providers
 command:shell	command	plugin-pod	kept	M6	D-VENUE-1	`shell`	candy manifest providers
 command:ssh	command	plugin-ssh	merged	M6	D-VENUE-1	`shell`, `display`, `forward`	candy manifest providers
-command:start	command	plugin-pod	kept	M5	§19 D-CLI-1	`start`	candy manifest providers
+command:start	command	plugin-pod	kept	M5	§19 D-CLI-1	`start` (`transition` to running)	candy manifest providers
 command:status	command	plugin-status	kept	M5	§19 D-HW-2	`status`	candy manifest providers
-command:stop	command	plugin-pod	kept	M5	§19 D-CLI-1	`stop`	candy manifest providers
+command:stop	command	plugin-pod	kept	M5	§19 D-CLI-1	`stop` (`transition` to stopped)	candy manifest providers
 command:strata	command	plugin-strata	non-first-party	M6	D-PLUG-7 D-CLI-3	`strata.<command>` or `charly cmd <deployment> strata`	candy manifest providers
 command:task	command	plugin-task	merged	workflow	D-FLOW-1	`pipeline run`	candy manifest providers
-command:tmux	command	plugin-agent	merged	M6	D-VENUE-1	`agent terminal` (the `console` operation)	candy manifest providers
+command:tmux	command	plugin-agent	merged	M6	D-VENUE-1	`agent terminal` (the `console` access); the agent runtime is a driver row	candy manifest providers
 command:tui	command	plugin-agent	kept	workflow	§19	`tui`	candy manifest providers
 command:udev	command	plugin-udev	merged	M4	§16.1	the `device` grant	candy manifest providers
 command:update	command	plugin-pod	kept	M5	§19 D-CLI-1	`update`	candy manifest providers
@@ -107,8 +107,8 @@ kind:firecracker	kind	plugin-substrate	merged	M3	D-DRV-1 §9.2	`vm` under the `f
 kind:group	kind	plugin-group	merged	M3	D-NEST-1	tree position (nesting)	candy manifest providers
 kind:hook	kind	plugin-harness-kind	kept	authoring	§10	`hook:` node	candy manifest providers
 kind:init	kind	plugin-init	kept	M1	§10 D-KIND-2	`init:` node	candy manifest providers
-kind:jetkvm	kind	plugin-jetkvm	merged	M6	§12.7 D-NEST-6	`local: {connect: {kvm: …}}` — display, console and power operations	candy manifest providers
-kind:kindcluster	kind	plugin-substrate	merged	M3	D-DEP-6 D-DRV-1	`kubernetes: {create: {}}` under the `kind` cluster driver	candy manifest providers
+kind:jetkvm	kind	plugin-jetkvm	merged	M6	§12.7 D-NEST-6	`local: {connect: {kvm: …}}` — display, console and power accesses	candy manifest providers
+kind:kindcluster	kind	plugin-substrate	merged	M3	D-DEP-6 D-DRV-1	a created `kubernetes` (`node:`) under the `kind` cluster driver	candy manifest providers
 kind:kubernetes	kind	plugin-substrate	kept	M3	§12.1 D-DEP-6	`kubernetes:` node	candy manifest providers
 kind:kubevirt	kind	plugin-kubevirt,plugin-substrate	merged	M3	§12.2 D-NEST-2	a `vm` inside a `kubernetes` body	candy manifest providers
 kind:local	kind	plugin-substrate	kept	M3	§12.1 D-NEST-6	`local:` node	candy manifest providers
@@ -127,7 +127,7 @@ refs:refs	refs	plugin-refs	merged	M8	D-SDK-1 D-STORE-3	repository fetching into 
 step:apk-install	step	plugin-installstep	merged	M1	§9.4	IR `package` action	candy manifest providers
 step:builder	step	plugin-installstep	merged	M1	D-IR-7	a `builder` node builds the manager's packages	candy manifest providers
 step:file	step	plugin-installstep	merged	M1	§9.4	IR `file` action	candy manifest providers
-step:helm-release	step	plugin-helm	merged	M1	D-IR-6	`package: {"helm:…": {input: …}}`	candy manifest providers
+step:helm-release	step	plugin-helm	merged	M1	D-IR-6	`package: {"helm:…": {config: …}}`	candy manifest providers
 step:local-pkg-install	step	plugin-installstep	merged	M1	D-IR-7	IR `package` action of a builder's output	candy manifest providers
 step:op	step	plugin-installstep	merged	M1	§9.4	IR `command` action	candy manifest providers
 step:plugin-tree	step	plugin-deploy-firecracker	merged	M8	D-PROTO-2 D-STORE-3	plugin binaries are store entries core delivers	candy manifest providers
@@ -138,11 +138,11 @@ step:service-packaged	step	plugin-installstep	merged	M1	§9.4	IR `service` actio
 step:shell-hook	step	plugin-installstep	merged	M1	§9.4 D-IR-2	IR `command` action with its guard	candy manifest providers
 step:shell-snippet	step	plugin-installstep	merged	M1	§9.4	IR `env` or `command` action	candy manifest providers
 step:system-packages	step	plugin-installstep	merged	M1	§9.4	IR `package` action	candy manifest providers
-terminal:tmux	terminal	plugin-tmux	merged	M6	D-VENUE-1	the `console` venue operation (`agent terminal`)	candy manifest providers
+terminal:tmux	terminal	plugin-tmux	merged	M6	D-VENUE-1	the `console` venue access (`agent terminal`)	candy manifest providers
 verb:adb	verb	plugin-adb	merged	M7	§20 D-VENUE-1	`command` over the adb venue, and `package` for an app	candy manifest providers
 verb:addr	verb	plugin-addr	merged	M7	§20 D-VERB-6	`port: {host, port, reachable: true}`	candy manifest providers
-verb:ade	verb	plugin-pipeline	merged	workflow	D-VERB-5	a `harness-check` step	candy manifest providers
-verb:agent	verb	plugin-pipeline	merged	workflow	D-VERB-5	a `harness-run` step	candy manifest providers
+verb:ade	verb	plugin-pipeline	merged	workflow	D-VERB-5	a `harness_check` step	candy manifest providers
+verb:agent	verb	plugin-pipeline	merged	workflow	D-VERB-5	a `harness_run` step	candy manifest providers
 verb:agentteams	verb	plugin-agentteams	non-first-party	M7	D-PLUG-7 D-VERB-6	`agentteams.<verb>` or `http`/`command`	candy manifest providers
 verb:appium	verb	plugin-appium	kept	M7	§20 D-VERB-6	protocol verb `appium`	candy manifest providers
 verb:arbiter	verb	plugin-preempt	merged	M5	D-HW-4	core leases	candy manifest providers
@@ -163,7 +163,7 @@ verb:enc	verb	plugin-enc	merged	M4	§11.1 §12.1	`volume: {encrypted: true}`, gr
 verb:file	verb	plugin-file	kept	M7	§20 D-VERB-6	fact verb `file`	candy manifest providers
 verb:file-parity	verb	plugin-task	retired	M7	D-LAW-2	zero corpus uses	candy manifest providers
 verb:firecracker	verb	plugin-firecracker	merged	M3	D-DRV-3	the `firecracker` driver row; its state through `status`	candy manifest providers
-verb:gate	verb	plugin-pipeline	merged	workflow	D-VERB-5	a `harness-check` step	candy manifest providers
+verb:gate	verb	plugin-pipeline	merged	workflow	D-VERB-5	a `harness_check` step	candy manifest providers
 verb:generate	verb	plugin-pipeline	merged	workflow	§19	a `command` step running `box build --emit` or `doc generate`	candy manifest providers
 verb:gh	verb	plugin-gh	merged	M8	D-SDK-1	sdk repository fetching	candy manifest providers
 verb:git-submodules	verb	plugin-task	non-first-party	M7	D-PLUG-7	a namespaced verb of the repository-maintenance plugin	candy manifest providers
@@ -174,13 +174,13 @@ verb:http	verb	plugin-http	kept	M7	§20 D-VERB-6	protocol verb `http`	candy mani
 verb:interface	verb	plugin-interface	kept	M7	§20 D-VERB-6	fact verb `interface`	candy manifest providers
 verb:jetkvm	verb	plugin-jetkvm	merged	M7	§20 D-VERB-6	protocol verb `display`	candy manifest providers
 verb:k8sgen	verb	plugin-k8sgen	merged	M3	D-ROLE-3	the kubernetes plugin's own lowering	candy manifest providers
-verb:kernel-param	verb	plugin-kernel-param	kept	M7	§20 D-VERB-6	fact verb `kernel-param`	candy manifest providers
+verb:kernel-param	verb	plugin-kernel-param	renamed	M7	§20 D-VERB-6	fact verb `kernel_param`	candy manifest providers
 verb:kube	verb	plugin-kube	kept	M7	§20 D-VERB-6	protocol verb `kube`	candy manifest providers
 verb:kubevirt	verb	plugin-kubevirt	merged	M7	§20	protocol verb `kube`	candy manifest providers
 verb:libvirt	verb	plugin-vm	merged	M3	D-DRV-3	the `libvirt` driver row; its state through `status`	candy manifest providers
 verb:matching	verb	plugin-matching	merged	M7	D-VERB-3	step matchers	candy manifest providers
 verb:mcp	verb	plugin-mcp	kept	M7	§20 D-VERB-6	protocol verb `mcp`	candy manifest providers
-verb:media	verb	plugin-pipeline	merged	M7	§20	protocol verb `display` (`record`)	candy manifest providers
+verb:media	verb	plugin-pipeline	merged	M7	§20	an `instrument` recording	candy manifest providers
 verb:mise	verb	plugin-mise	merged	M1	D-PLUG-2	a `builder:` data node	candy manifest providers
 verb:module-pins	verb	plugin-task	retired	M7	D-LAW-2	zero corpus uses	candy manifest providers
 verb:mount	verb	plugin-mount	kept	M7	§20 D-VERB-6	fact verb `mount`	candy manifest providers
@@ -190,20 +190,20 @@ verb:openclaw	verb	plugin-openclaw	non-first-party	M7	D-PLUG-7 D-VERB-6	`opencla
 verb:package	verb	plugin-package	kept	M7	§20 D-VERB-6	fact verb `package`	candy manifest providers
 verb:pipeline	verb	plugin-pipeline	merged	workflow	D-FLOW-1	a `pipeline:` stage arm	candy manifest providers
 verb:port	verb	plugin-port	kept	M7	§20 D-VERB-6	fact verb `port`	candy manifest providers
-verb:probe	verb	plugin-pipeline	merged	workflow	D-VERB-5	a `harness-check` step	candy manifest providers
+verb:probe	verb	plugin-pipeline	merged	workflow	D-VERB-5	a `harness_check` step	candy manifest providers
 verb:process	verb	plugin-process	kept	M7	§20 D-VERB-6	fact verb `process`	candy manifest providers
 verb:prune	verb	plugin-task	non-first-party	M7	D-PLUG-7	a namespaced verb of the repository-maintenance plugin	candy manifest providers
 verb:punktfunk	verb	plugin-punktfunk	non-first-party	M7	D-PLUG-7 D-VERB-6	`punktfunk.<verb>` or `http`/`command`	candy manifest providers
 verb:qdrant	verb	plugin-qdrant	non-first-party	M7	D-PLUG-7 D-VERB-6	`qdrant.<verb>` or `http`/`command`	candy manifest providers
 verb:quickshell	verb	plugin-quickshell	non-first-party	M7	D-PLUG-7 D-VERB-6	`quickshell.<verb>` or `http`/`command`	candy manifest providers
-verb:record	verb	plugin-record	merged	M7	§20 D-VERB-6	protocol verb `display`	candy manifest providers
+verb:record	verb	plugin-record	merged	M7	§20 D-VERB-6	an `instrument` recording (`record: display`)	candy manifest providers
 verb:retention	verb	plugin-clean	merged	M8	D-STORE-7	`clean`	candy manifest providers
 verb:service	verb	plugin-service	kept	M7	§20 D-VERB-6	fact verb `service`	candy manifest providers
 verb:spice	verb	plugin-spice	merged	M7	§20 D-VERB-6	protocol verb `display`	candy manifest providers
 verb:splice-region	verb	plugin-task	retired	M7	D-LAW-2	zero corpus uses	candy manifest providers
 verb:task	verb	plugin-task	merged	workflow	D-FLOW-1	a `pipeline:` stage arm	candy manifest providers
-verb:transcode	verb	plugin-media	merged	M7	§20	`display: {record: …}`; a recording's encoding is the recorder's	candy manifest providers
-verb:tunnel	verb	plugin-tunnel	merged	M6	D-VENUE-1	the `forward` venue operation	candy manifest providers
+verb:transcode	verb	plugin-media	merged	M7	§20	an `instrument` recording; its encoding is the recorder's	candy manifest providers
+verb:tunnel	verb	plugin-tunnel	merged	M6	D-VENUE-1	the `forward` venue access	candy manifest providers
 verb:unit	verb	plugin-unit	merged	M7	§20	fact verb `service`	candy manifest providers
 verb:unix_group	verb	plugin-unix-group	renamed	M7	§20	fact verb `group`	candy manifest providers
 verb:user	verb	plugin-user	kept	M7	§20 D-VERB-6	fact verb `user`	candy manifest providers
@@ -211,7 +211,7 @@ verb:vision	verb	plugin-vision	merged	M7	§20 D-VERB-6	protocol verb `display`	c
 verb:vnc	verb	plugin-vnc	merged	M7	§20 D-VERB-6	protocol verb `display`	candy manifest providers
 verb:wl	verb	plugin-wl	merged	M7	§20 D-VERB-6	protocol verb `display`	candy manifest providers
 workflow:lobster	workflow	plugin-lobster	merged	workflow	D-FLOW-1	the engine of the `pipeline` kind	candy manifest providers
-vm snapshot create|create-consistent|capture-declared	subcommand	—	merged	M5	D-CAPTURE-4	a capture (`capture_scope`)	Kong command tree
+vm snapshot create|create-consistent|capture-declared	subcommand	—	merged	M5	D-CAPTURE-4	a capture (`capture`)	Kong command tree
 vm snapshot revert|revert-and-start|promote|list|delete	subcommand	—	merged	M5	D-CAPTURE-5 D-CAPTURE-3	`restore`, `box list`, `clean`	Kong command tree
 vm console|ssh|scp	subcommand	—	merged	M6	D-VENUE-1	`console`, `shell`, `cp`	Kong command tree
 vm screenshot|sendkey|type	subcommand	—	merged	M6	D-VENUE-1	`display`	Kong command tree
@@ -226,7 +226,7 @@ check list-agent	subcommand	—	merged	M7	§19	`check list-harness`	Kong command
 check feature	subcommand	—	merged	M7	§19	`check harness`	Kong command tree
 check run --anchor	subcommand	—	merged	M5	D-CAPTURE-5	`restore` between runs	Kong command tree
 check-roster (a set of beds as one gate)	subcommand	—	merged	workflow	D-FLOW-1	a `pipeline` stage `bed: […]` with `concurrency:`	Kong command tree
-iterate (an agent loop over a bed)	subcommand	—	merged	workflow	D-FLOW-1	a `pipeline` of `harness-run` stages	Kong command tree
+iterate (an agent loop over a bed)	subcommand	—	merged	workflow	D-FLOW-1	a `pipeline` of `harness_run` stages	Kong command tree
 deploy path|show|status	subcommand	—	merged	M5	§19	`status --format json`	Kong command tree
 deploy reset	subcommand	—	merged	M5	§19	`deploy del` then `deploy add`	Kong command tree
 deploy from-box|export|import	subcommand	—	merged	M5	§19 D-CANDY-7	`deploy from-box`, `deploy export`, `deploy import`	Kong command tree
@@ -242,19 +242,19 @@ agent runtime|session|run|followup|steer|dispatch|delegate|team|federation|termi
 tmux attach|capture|cmd|kill|list|run|send|shell	subcommand	—	merged	M6	D-VENUE-1	`agent terminal`	Kong command tree
 alias add|install|list|remove|uninstall	subcommand	—	merged	M6	§19	`alias …`	Kong command tree
 udev generate|install|remove|status	subcommand	—	merged	M4	§16.1	the `device` grant and `doctor`	Kong command tree
-candy set|params	subcommand	—	merged	authoring	§11.1	`box set`, `input:`/`with:`	Kong command tree
+candy set|params	subcommand	—	merged	authoring	§11.1	`box set`, `parameter:`/`with:`	Kong command tree
 feature list|pending|validate	subcommand	—	merged	M7	§19	`check harness`, `check list-harness`	Kong command tree
 preempt status|restore	subcommand	—	merged	M5	D-HW-4	`preempt`	Kong command tree
 settings get|set|list|path|reset	subcommand	—	merged	M3	D-STORE-2	`config …`	Kong command tree
 runtime handler crun/krun (one switch to a microVM)	capability	—	kept	M4	D-HW-7 §16.1	`need: {isolation: {microvm: {}}}`	CONTAINERD.md §1, §5; K3S.md §3
-krun annotations ram_mib/cpus	capability	—	kept	M3	§12.1	`cpu:`/`ram:` of the deployment	CONTAINERD.md §5.2; LIBKRUN.md §6
+krun annotations ram_mib/cpus	capability	—	kept	M3	§15 §16.1	`need: {cpu: {core: …}, memory: {ram: …}}`, leased host capacity	CONTAINERD.md §5.2; LIBKRUN.md §6
 krun VM backend (OCI image boot)	capability	—	kept	M3	D-DRV-1 D-FORM-3	the `krun` hypervisor driver row	spec#266
 Firecracker rootfs + kernel	capability	—	kept	M2	§9.2 D-FORM-3	the disk form beside the `os` `boot` kernel	spec#227, spec#229
 rootful vs rootless daemon	capability	—	kept	M4	D-HW-7	`need: {privilege: {rootful: {}}}`	CONTAINERD.md §1.1
 containerd namespace per deployment	capability	—	kept	M6	§12.7	the container venue's `namespace`	CONTAINERD-IMAGES.md §1
 narrow seccomp profile for userns sandboxes	capability	—	kept	M4	D-HW-7 §16.1	`need: {nesting: {userns: {}}}`	CONTAINERD.md §3.1.1
 snapshot and revert of a container's layer, the store, a microVM	capability	—	kept	M5	D-CAPTURE-4 D-CAPTURE-5	capture and `restore`	CONTAINERD.md §3.3.4, §12, §13
-CRIU process checkpoint (rootful runc; krun in-guest)	capability	—	kept	M5	D-CAPTURE-4 D-VAL-11	`capture_scope: process`	CONTAINERD.md §10; LIBKRUN.md §7
+CRIU process checkpoint (rootful runc; krun in-guest)	capability	—	kept	M5	D-CAPTURE-4 D-VAL-11	`capture: process`	CONTAINERD.md §10; LIBKRUN.md §7
 k3s datadir snapshot, backup and restore	capability	—	kept	M5	D-CAPTURE-5	a `kubernetes` capture and `restore`	K3S.md §6, §10
 k3s on the shared containerd store	capability	—	kept	M8	D-STORE-10	delivery into the engine store the cluster reads	K3S.md §1, §5
 NVIDIA CDI rootful and rootless	capability	—	kept	M4	§16.1	the `gpu` need's `pod` grant	CONTAINERD.md §14.2

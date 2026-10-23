@@ -1,0 +1,10 @@
+# rule: D-HW-8
+# expect: node.x.need.env.TOKEN.exclusive: field not allowed
+x:
+  description: A candy whose env need asks for sole use.
+  package: {jq: {}}
+  need:
+    env: {TOKEN: {exclusive: true}}
+  step:
+    - check: jq runs
+      command: jq --version

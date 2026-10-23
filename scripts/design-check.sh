@@ -2,7 +2,7 @@
 # design-check.sh — the full DESIGN.md ↔ DESIGN.cue validation (DESIGN.md Appendix A).
 # Runs each control in order and stops at the first failure; it has no logic of its own.
 #
-#   1 design-cue.sh           the CUE v0.17.1 toolchain (pinned, digest-verified)
+#   1 design-cue.sh           the CUE v0.18.0-rc.1 toolchain (pinned, digest-verified)
 #   2 design-consistency.sh   DESIGN.md and DESIGN.cue say the same thing
 #   3 design-examples.sh      every example validates; every negative fails for its reason
 #   4 design-selftest.sh      checks 2 and 3 each catch every defect planted in their tables

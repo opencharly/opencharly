@@ -1,0 +1,7 @@
+# rule: D-ROLE-2
+# expect: to: conflicting values "running" and "failed"
+# def: #TransitionInput
+identity: x
+body: {}
+reference: {}
+to: failed
