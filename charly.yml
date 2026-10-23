@@ -215,20 +215,22 @@ pin-check:
 # -----------------------------------------------------------------------------
 # self-test — exercise the two committed CI-body builder scripts (their --self-test
 # runs on every commit; the scripts stay because they are umbrella-specific PR-body
-# generators, not maintenance sweeps the generic verbs cover).
+# generators, not maintenance sweeps the generic verbs cover) and the measurement
+# script's clone path — the part of it that does NOT run in the ordinary measurement.
 # -----------------------------------------------------------------------------
 self-test:
   task:
-    description: Self-test the committed CI body/pin-evidence builders + the dispatcher splice + the submodule initializer
+    description: Self-test the committed CI body/pin-evidence builders + the dispatcher splice + the submodule initializer + the measurement's clone path
     dir: .
     plan:
-      - run: self-test sync-pin-evidence + sync-pr-body + sync-dispatcher + init-submodules
+      - run: self-test sync-pin-evidence + sync-pr-body + sync-dispatcher + init-submodules + measure-clone
         command: |
           set -eu
           bash scripts/sync-pin-evidence.sh --self-test
           bash scripts/sync-pr-body.sh --self-test
           bash scripts/sync-dispatcher.sh --self-test
           bash scripts/init-submodules.sh --self-test
+          bash scripts/measure-clone.sh --self-test
         context: [runtime]
 
 # -----------------------------------------------------------------------------
