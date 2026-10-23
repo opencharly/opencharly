@@ -72,8 +72,21 @@ shapes above from fresh clones of the tree under test and prints every reading;
 `scripts/check-readme-measurements.mjs` reads the bands this table commits, asserts
 that the prose agrees with the table, and — handed that script's log — asserts that
 every reading falls inside its band. The second is a step of `charly task verify` and
-of the pre-commit hook, so a band a reading has outgrown, or a figure the prose and the
-table disagree about, is a **failed gate** rather than a sentence nobody notices.
+of the pre-commit hook, so a figure the prose and the table disagree about is a
+**failed gate** rather than a sentence nobody notices.
+
+The **samples** half needs the run's own log, so it is a manual step after a
+measurement: the two automatic steps above run the comparison *without* `--samples`,
+and a reading nobody measured is a reading no gate can see.
+
+```sh
+bash scripts/measure-clone.sh > /tmp/measure.log
+node scripts/check-readme-measurements.mjs --samples /tmp/measure.log
+```
+
+So a band a reading has outgrown is a **failed check** against the run that produced
+the reading — the run stamps the day it was taken (`MEASURED=`), and the comparison
+holds that day to the span this table states.
 
 The last of those four sources is what keeps the light tree honest. Two of the
 umbrella's gate scripts compare a surface that lives in a submodule — the committed
