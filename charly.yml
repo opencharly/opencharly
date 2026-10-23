@@ -185,6 +185,13 @@ pins:
         default: verify
     plan:
       - run: run git-submodules in the selected mode
+        # The runner's per-attempt never-hang floor is 90s, and this verb's cost
+        # scales with the ORG: MODE=currency asks all 430 remotes what they serve
+        # (measured: 3m40s) and MODE=bump rolls the 424 leaf submodules to their
+        # remote HEAD and re-pins the 6 edge ones (distro-*) to their source's twin.
+        # A step the floor cuts short is KILLED mid-run, so the ceiling is declared
+        # here — the mechanism's own parameter, not a sleep and not a retry.
+        timeout: 30m
         git-submodules:
           mode: "${MODE}"
           pinned_from: charly
@@ -332,6 +339,11 @@ sync:
     dir: .
     plan:
       - run: bump the pins (charly rolls first, then distro-* from its new gitlinks)
+        # The bump rolls the 424 leaf submodules to their remote HEAD and re-pins the
+        # 6 edge ones (distro-*) to their source's twin, so the hop's own attempt
+        # carries a declared ceiling above the runner's 90s floor — a hop the floor
+        # cuts short leaves the wave HALF done and still reporting success.
+        timeout: 30m
         task:
           task: pins
           param: [MODE=bump]
@@ -368,14 +380,42 @@ verify:
       # depending on which composition was read. One verb, one composition: the wrapper's
       # failure still fails the task (that is the gate), and the counts are computed once.
       #
-      # The wrapper's Message is discarded by verb:task (it returns a one-line summary), so
-      # this task no longer reprints the verb's `N policy pin(s) … K checkout(s) clean` line.
-      # That loss is filed at opencharly/plugin-task#33 rather than paid for by re-composing
-      # the verb here, which is what produced the contradictory counts.
+      # The wrapper's Message now CARRIES the wrapped run's own report: the `task:` hop
+      # composes the nested steps' messages instead of discarding them (opencharly/plugin-task#36,
+      # adopted by this repo's `charly` pin), so the verb's own policy-pin and checkout
+      # counts reach this task's verdict. The loss that was filed at opencharly/plugin-task#33
+      # is fixed AT ITS OWNER, and this task still re-composes nothing — one verb, one
+      # composition, which is what produced the contradictory counts.
       - check: the pin contract holds — every distro-* gitlink equals charly's own box/* gitlink (the EDGE), and every submodule is clean and checked out at its recorded gitlink (the CHECKOUT AUDIT), composed ONCE through `pins`
+        # The composed run walks all 430 checkouts, so the hop's own attempt carries a
+        # declared ceiling above the runner's 90s floor: a hop the floor cuts short
+        # would leave THIS gate — the one that says the tree agrees with itself —
+        # reporting success over a half-finished audit.
+        timeout: 10m
         task:
           task: pins
           param: [MODE=verify]
+        context: [runtime]
+      # The CURRENCY question, which the consistency half above does not answer: `verify`
+      # asserts that each checkout equals the gitlink the INDEX records; currency asks
+      # whether each pin is at the ref its INTENT names. A tree can be perfectly consistent
+      # while every pin is behind what its repo serves (opencharly/opencharly#621), and
+      # nothing in the gate said so.
+      #
+      # The verb answers it in the shape a control wants: StatusPass with a message that
+      # NAMES every pin that is not current and the producer-first legs that would make it
+      # current. So this step REPORTS the currency without reddening the gate — a behind pin
+      # is an advance available NOW, in that producer's own repo, not a broken edge, and a
+      # gate that failed on it would be permanently red on a healthy tree. A STRUCTURAL
+      # failure — a pin the workflow cannot judge, or two sides that disagree — is still a
+      # FAIL, and that is the point of the step.
+      - check: each pin's CURRENCY — the pin is at the ref its intent names (the question the consistency half above does not answer)
+        # CURRENCY asks all 430 remotes what they serve: measured at 3m40s, so the
+        # hop's attempt carries a declared ceiling above the runner's 90s floor.
+        timeout: 15m
+        task:
+          task: pins
+          param: [MODE=currency]
         context: [runtime]
       - check: every submodule's branch equals its remote default — KEPT INLINE, deliberately, because no verb owns this clause, and it is the expensive half (one git ls-remote per submodule, hence the timeout below)
         timeout: 20m
