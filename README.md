@@ -808,15 +808,25 @@ that disagree, fails it.
 **The sanctioned catch-up** is one sequence, and it is the only one that moves a pin:
 
 ```sh
-CHARLY_INIT_MODE=all charly task init   # the bump fails loud on a path with no checkout
-charly task sync                        # the pin-contract bump — a preview; it commits nothing
+charly task sync                        # the pin-contract bump — it advances the pins IN THE INDEX; it commits nothing
+charly task init                        # materialize the paths the wave advanced, AT their new pins
+charly task verify                      # judge the tree against the pins it records
 # …then land the pin wave as a PR through the org's validation chain
 ```
 
-`CHARLY_INIT_MODE=all` is in that sequence for a reason: the bump **fails loud** on an
-uninitialized path — a sync over a tree it could not fully advance must never report
-success. The daily tree stays light; a pin wave is the maintenance act that needs the
-full set. A repo you merely want to *work on* is one
+On a tree that was **never materialized**, the materialization comes first — the project
+cannot load before its `import:` paths exist, so the wave's own first verb would not run.
+`bash scripts/init-submodules.sh` is that step (see *Start developing*); the sequence above
+follows it unchanged.
+
+A wave needs **no full set**: the bump advances a path with no checkout **in the index**
+— a leaf to the tip its remote serves for its `branch=`, an edge to the twin the source's
+tree records — and a path *with* a checkout is still rolled in that checkout, so the two
+keep agreeing. It still **fails loud** for every path it *cannot* advance: a sync over a
+tree it could not fully advance must never report success. That is why the order is
+**sync → init → verify** — the sync writes the pins, the init materializes the checkouts
+*at* those pins, and the verify judges them. The daily tree stays light, and so does a
+wave. A repo you merely want to *work on* is one
 `CHARLY_INIT_PATHS=<repo> charly task init` away.
 
 **Never catch up by hand.** A pin is advanced by `charly task sync` and lands as a PR.

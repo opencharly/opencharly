@@ -62,8 +62,8 @@
 # MODES:
 #   (default)     materialize the derived working set
 #   --list        print the set that would be materialized; change nothing
-#   --all         materialize EVERY declared submodule path (a pin wave needs the
-#                 full set: `charly task sync` fails loud on an uninitialized path)
+#   --all         materialize EVERY declared submodule path (a pin wave needs NO
+#                 full set: the bump advances an unmaterialized pin in the index)
 #   --paths a,b   materialize the named paths, given as ONE comma-separated string
 #   <path>...     materialize the named paths, as separate arguments
 #   --self-test   exercise the whole thing on a temp fixture

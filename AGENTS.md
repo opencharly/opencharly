@@ -610,11 +610,18 @@ Before declaring completion, answer every applicable item YES. There is one line
    a branch checkout — and ask **`currency`**, not consistency, when the question is whether
    this repo is CURRENT. **A pin is the INDEX entry; the checkout follows it.** An
    unmaterialized path is not a broken pin: its pin is still audited from the index and
-   reported as *uninitialized (pin audited, no checkout)* — a notice, not a failure. A
-   **pin wave**, though, needs the full set (`CHARLY_INIT_MODE=all charly task init` first),
-   because the bump fails loud on a path it could not advance — a sync over a tree it
-   could not fully advance must never report success. **And a wave holds this worktree's
-   index for the minutes it rolls the submodules**: the wave stages each advanced path with a
+   reported as *uninitialized (pin audited, no checkout)* — a notice, not a failure.
+   **A pin wave needs no full set**: the bump advances a path with no checkout IN THE
+   INDEX — a leaf to the tip its remote serves for its `branch=`, an edge to the twin the
+   source's tree records — and a path WITH a checkout is still rolled in that checkout, so
+   the two keep agreeing. It still fails loud, BY NAME, for every path it cannot advance:
+   a sync over a tree it could not fully advance must never report success. A wave's order
+   is **sync → init → verify**: the sync writes the pins, the init materializes the
+   checkouts at those pins, and the verify judges them — and on a tree that was never
+   materialized the materialization comes FIRST (Part II #2), because the project cannot
+   load before its `import:` paths exist, so the wave's own first verb would not run.
+   **And a wave holds this worktree's index for the minutes it rolls the
+   submodules**: the wave stages each advanced path with a
    `git add` in the superproject, and that `git add` takes this worktree's index lock — a
    concurrent `git status` in the SAME worktree takes the same lock for an instant, so the
    wave's own `git add` can lose the race. The wave names every path it could not STAGE, and
