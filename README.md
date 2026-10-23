@@ -471,7 +471,7 @@ six vendored OpenClaw upstream forks.
 | `layer-maplibre-versatiles-styler/` | [opencharly/layer-maplibre-versatiles-styler](https://github.com/opencharly/layer-maplibre-versatiles-styler) | image layer / candy |
 | `layer-mcporter/` | [opencharly/layer-mcporter](https://github.com/opencharly/layer-mcporter) | image layer / candy |
 | `layer-nano-pdf/` | [opencharly/layer-nano-pdf](https://github.com/opencharly/layer-nano-pdf) | image layer / candy |
-| `layer-nerdctl/` | [opencharly/layer-nerdctl](https://github.com/opencharly/layer-nerdctl) | image layer / candy: the nerdctl engine stack |
+| `layer-nerdctl/` | [opencharly/layer-nerdctl](https://github.com/opencharly/layer-nerdctl) | image layer / candy: the containerd engine stack (nerdctl CLI + buildkit + CNI) |
 | `layer-nodejs/` | [opencharly/layer-nodejs](https://github.com/opencharly/layer-nodejs) | charly candy: layer-nodejs (standalone repo of the candy de-submodule cutover) |
 | `layer-notebook-finetuning/` | [opencharly/layer-notebook-finetuning](https://github.com/opencharly/layer-notebook-finetuning) | image layer / candy |
 | `layer-notebook-graph/` | [opencharly/layer-notebook-graph](https://github.com/opencharly/layer-notebook-graph) | image layer / candy |
@@ -634,7 +634,7 @@ agent runtimes and terminals charly speaks.
 | `plugin-migrate/` | [opencharly/plugin-migrate](https://github.com/opencharly/plugin-migrate) | charly plugin |
 | `plugin-mise/` | [opencharly/plugin-mise](https://github.com/opencharly/plugin-mise) | charly plugin: builder:mise + verb:mise — full mise (jdx/mise) support |
 | `plugin-mount/` | [opencharly/plugin-mount](https://github.com/opencharly/plugin-mount) | charly plugin |
-| `plugin-nerdctl/` | [opencharly/plugin-nerdctl](https://github.com/opencharly/plugin-nerdctl) | charly plugin: engine:nerdctl — the nerdctl container engine provider |
+| `plugin-nerdctl/` | [opencharly/plugin-nerdctl](https://github.com/opencharly/plugin-nerdctl) | charly plugin: engine:containerd — the containerd engine provider (the nerdctl CLI drives it) |
 | `plugin-oci/` | [opencharly/plugin-oci](https://github.com/opencharly/plugin-oci) | charly plugin |
 | `plugin-ollama/` | [opencharly/plugin-ollama](https://github.com/opencharly/plugin-ollama) | charly plugin |
 | `plugin-omarchy/` | [opencharly/plugin-omarchy](https://github.com/opencharly/plugin-omarchy) | charly plugin: the omarchy CLI surface as a check verb |
