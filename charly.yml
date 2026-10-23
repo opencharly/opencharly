@@ -271,9 +271,16 @@ hooks:
 #   CHARLY_INIT_MODE=list   charly task init                  print it, change nothing
 #   CHARLY_INIT_PATHS=a,b   charly task init                  the named paths
 #
-# MODE=all is what a PIN WAVE needs: the pin verb fails loud on an uninitialized
-# path, by design (a sync over a tree it could not fully advance must never
-# report success). The daily tree is light; the maintenance acts are not.
+# MODE=all is for a FULL tree, not for a wave: the bump advances an unmaterialized
+# pin IN THE INDEX (so a wave needs no full set), and it still fails loud, by
+# design, for every path it CANNOT advance (a sync over a tree it could not fully
+# advance must never report success). The daily tree is light, and so is a wave.
+#
+# THIS TASK IS NOT THE FIRST STEP on a fresh clone: the project cannot load
+# before its import: paths exist, so the binary that runs this task does not
+# exist yet either. `bash scripts/init-submodules.sh` is the pre-bootstrap path
+# (it materializes `charly` itself), and this task is the SAME operation through
+# the binary.
 # -----------------------------------------------------------------------------
 init:
   task:
@@ -329,10 +336,14 @@ init:
 # default-branch HEAD FIRST, and distro-* are then pinned from charly's NEW
 # gitlinks (the verb's phase order).
 #
-# A WAVE NEEDS THE FULL SET: the pin verb fails loud on an uninitialized path
-# (a sync over a tree it could not fully advance must never report success), so
-# run `CHARLY_INIT_MODE=all charly task init` before a wave. The daily tree
-# stays light; the maintenance acts do not.
+# A WAVE NEEDS NO FULL SET: the bump advances a path with no checkout IN THE
+# INDEX (a leaf to the tip its remote serves for its `branch=`, an edge to the
+# twin the source's tree records), and a path WITH a checkout is still rolled in
+# that checkout, so the two keep agreeing. It still fails loud for every path it
+# CANNOT advance (a sync over a tree it could not fully advance must never
+# report success). A wave's order is SYNC → INIT → VERIFY: the sync writes the
+# pins, the init materializes the checkouts AT those pins, and the verify
+# judges them. The daily tree stays light, and so does a wave.
 # -----------------------------------------------------------------------------
 sync:
   task:
