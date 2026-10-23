@@ -212,25 +212,60 @@ const SHAPE_COUNT_FLOOR = 10;
 // The nouns are the collections the org's shape is made of. "repos" is NOT among
 // them: the org census in the README is DERIVED by `charly task org-map`, which
 // reads `.gitmodules` and compares — that number has a control that keeps it
-// true, so it needs none of its own.
+// true, so it needs none of its own. "unmaterialized" IS among them: it names
+// the same collection the submodule set is, in the words the tree uses for it.
 const RE_SHAPE_COUNT =
-  /(?<![\w-])(~?)(\d{1,4})\s*(?:of\s+(\d{1,4})\s*)?[- ]?(submodules?|pins?|paths?|modules?|remotes?|worktrees?|calls?)\b/gi;
+  /(?<![\w-])(~?)(\d{1,4})\s*(?:of\s+(\d{1,4})\s*)?[- ]?(submodules?|pins?|paths?|modules?|remotes?|worktrees?|calls?|unmateriali[sz]ed|materiali[sz]ed)\b/gi;
 const RE_SHAPE_REMAINING = /\bthe remaining (\d{1,4})\b/gi;
 
-// A count that is a CAP ("at most N path rows") is a policy number, not a
-// measurement, and it does not drift with the org.
+// A count that is a CAP ("at most N path rows") or a FLOOR ("at least N
+// submodule entries") is a policy number, not a measurement: it states a bound
+// the collection must meet, and a collection that only GROWS satisfies a floor
+// more and a cap less — neither drifts with the org. A bound that also states
+// a TOTAL is not a bound but a measurement of that total, so the total is still
+// judged.
 const RE_SHAPE_CAP =
-  /\b(at most|up to|a cap of|a maximum of|maximum of|max of|limit of|≤)\s*$/i;
+  /(\bat most\b|\bup to\b|\ba cap of\b|\ba maximum of\b|\bmaximum of\b|\bmax of\b|\blimit of\b|\bat least\b|\bat minimum\b|\ba minimum of\b|\bno fewer than\b|[≥≤])\s*$/i;
 
 const RE_ISO_DATE = /\b20\d{2}-\d{2}-\d{2}\b/;
+
+// Markdown EMPHASIS and CODE SPANS hide a count from a plain match: a `*`
+// stands between the number and the noun, so the noun is never reached and the
+// count is invisible — and such an instance was live in the tree for a whole
+// round. The markers are stripped before the match: the number is the same
+// number either way. (The example is NOT written out here, with its numbers:
+// this file is one of the surfaces the family reads, so a count written here
+// is a finding about the gate that forbids counts.)
+const RE_EMPHASIS = /(\*\*|__|\*|`)/g;
+
+/** A line's text with Markdown emphasis and code spans stripped. */
+function normaliseEmphasis(text) {
+  return text.replace(RE_EMPHASIS, " ");
+}
 
 // The surfaces: the umbrella's OWN prose and scripts, DERIVED from the tracked
 // file set. A gitlink is another repo's tree; a symlink is a projection of
 // another repo's content (the corpus farm); CHANGELOG/ is history, and history
 // may name the legacy form.
-const SHAPE_SURFACE_EXTENSIONS = new Set([
-  "md", "yml", "yaml", "sh", "mjs", "js", "ts", "py", "toml",
-]);
+//
+// EVERY tracked TEXT file is a surface. An extension allowlist would be a
+// second, hand-kept copy of "which files carry prose", and it is wrong the
+// moment a file lands: `hooks/pre-commit` carries prose and has no extension
+// at all, and the allowlist skipped it in silence. The set is the FILE SET, and
+// the file set is derived, never written down.
+
+/** A tracked file's text, or null when the file is not text. A NUL byte is
+ *  git's own signal for binary, and a binary file carries no prose. */
+function readTextSurface(path) {
+  let buf;
+  try {
+    buf = readFileSync(path);
+  } catch {
+    return null;
+  }
+  if (buf.includes(0)) return null;
+  return buf.toString("utf8");
+}
 
 /** The umbrella's own prose and script surfaces, read from the tracked file set. */
 function listShapeSurfaces(rootDir) {
@@ -248,8 +283,6 @@ function listShapeSurfaces(rootDir) {
     const file = entry.slice(tab + 1);
     if (entry.slice(0, tab).slice(0, 6) === "160000") continue;   // a gitlink
     if (file.startsWith("CHANGELOG/")) continue;                    // history
-    const ext = file.includes(".") ? file.split(".").pop() : "";
-    if (!SHAPE_SURFACE_EXTENSIONS.has(ext)) continue;
     const path = join(rootDir, file);
     let st;
     try {
@@ -258,53 +291,108 @@ function listShapeSurfaces(rootDir) {
       continue;
     }
     if (st.isSymbolicLink()) continue;                             // a projection
-    surfaces.push({ file, text: readFileSync(path, "utf8") });
+    const text = readTextSurface(path);
+    if (text === null) continue;                                   // not text
+    surfaces.push({ file, text });
   }
   return { surfaces, error: null };
 }
 
-/** A BLOCK is the unit the family judges, because a figure dated in one place and
- *  undated in another is one figure with two half-lives: the date must be in the
- *  block that STATES the count. Prose: a paragraph. Scripts: a run of comment
- *  lines. YAML: a run of comment lines, and every mapping entry with its value. */
-function shapeBlocks(file, lines) {
-  const blocks = [];
+/** How a file's prose is read.
+ *
+ *  - a DOCUMENT (Markdown) is prose in every line it has, and its block is a
+ *    PARAGRAPH: a run of lines with no blank line between them.
+ *  - a CODE file carries prose in its COMMENTS, in the STRINGS it prints, and
+ *    in any line that STATES A COUNT. Its block is a run of such lines: a code
+ *    line between two of them ends the run, because a date in one function
+ *    does not date a count in another.
+ *  - a YAML file is prose in every line it has, and its block is scoped by
+ *    INDENTATION: a count belongs to the innermost scope that holds it, so a
+ *    date in a SIBLING entry does not date it. The whole subtree of a
+ *    top-level key is NOT one block — that put a date anywhere in `verify:`
+ *    over every count in it.
+ *
+ *  A code file with no prose line at all is a DOCUMENT: it is read whole.
+ */
+const RE_COMMENT_LINE = /^\s*(\/\/|\*|#|<!--)/;
+
+/** A line holds a STRING when it quotes one. A count the tree states in a
+ *  string is as much a claim as one it states in a comment: the string is what
+ *  a reader sees. */
+function holdsString(line) {
+  return /["'`]/.test(line);
+}
+
+/** The lines a code file calls prose: its comments, the lines that quote a
+ *  string, and the lines that state a count. */
+function isCodeProse(line) {
+  if (RE_COMMENT_LINE.test(line)) return true;
+  if (holdsString(line)) return true;
+  const normalised = normaliseEmphasis(line);
+  return RE_SHAPE_COUNT.test(normalised) || RE_SHAPE_REMAINING.test(normalised);
+}
+
+/** The file's prose, line by line, and the BLOCK each line's prose falls in.
+ *  Every item carries the block it belongs to, because the date that makes a
+ *  count dated is the date in THAT block. */
+function prosePlan(file, lines) {
+  const items = [];
+  const push = (block) => {
+    if (!block.length) return;
+    const copy = block.slice();
+    for (const i of copy) items.push({ index: i, block: copy });
+  };
   const ext = file.includes(".") ? file.split(".").pop() : "";
-  if (ext === "md") {
-    let buf = [];
-    for (let i = 0; i < lines.length; i++) {
-      if (lines[i].trim() === "") {
-        if (buf.length) { blocks.push(buf); buf = []; }
-      } else buf.push(i);
-    }
-    if (buf.length) blocks.push(buf);
-    return blocks;
-  }
-  const isComment = (ext === "mjs" || ext === "js" || ext === "ts")
-    ? (line) => /^\s*(\/\/|\*)/.test(line)
-    : (line) => /^\s*#/.test(line);
-  let buf = [];
-  for (let i = 0; i < lines.length; i++) {
-    if (isComment(lines[i])) buf.push(i);
-    else { if (buf.length) { blocks.push(buf); buf = []; } }
-  }
-  if (buf.length) blocks.push(buf);
   if (ext === "yml" || ext === "yaml") {
+    // The block of a line is the run of non-blank lines around it that are at
+    // least as deeply indented as it is: the innermost scope that holds it.
+    const indent = lines.map((l) => (l.trim() === "" ? -1 : l.length - l.trimStart().length));
+    const scopes = new Map();
     for (let i = 0; i < lines.length; i++) {
-      const m = /^(\s*)[A-Za-z0-9_."'-]+:(\s|$)/.exec(lines[i]);
-      if (!m) continue;
-      const indent = m[1].length;
-      const block = [i];
-      for (let j = i + 1; j < lines.length; j++) {
-        if (lines[j].trim() === "") { block.push(j); continue; }
-        const ind = lines[j].length - lines[j].trimStart().length;
-        if (ind > indent) { block.push(j); continue; }
-        break;
-      }
-      blocks.push(block);
+      if (indent[i] < 0) continue;
+      const level = indent[i];
+      if (scopes.has(`${i}:${level}`)) continue;
+      let a = i;
+      let b = i;
+      while (a - 1 >= 0 && indent[a - 1] >= 0 && indent[a - 1] >= level) a--;
+      while (b + 1 < lines.length && indent[b + 1] >= 0 && indent[b + 1] >= level) b++;
+      const scope = [];
+      for (let j = a; j <= b; j++) scope.push(j);
+      scopes.set(`${i}:${level}`, scope);
     }
+    for (let i = 0; i < lines.length; i++) {
+      if (indent[i] < 0) continue;
+      const scope = scopes.get(`${i}:${indent[i]}`);
+      items.push({ index: i, block: scope });
+    }
+    return items;
   }
-  return blocks;
+  if (ext === "md") {
+    let block = [];
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i].trim() === "") { push(block); block = []; } else block.push(i);
+    }
+    push(block);
+    return items;
+  }
+  // A code file. Its blocks are runs of prose lines; a file that carries no
+  // prose at all is a document, and is read whole.
+  const prose = lines.map((line) => (line.trim() === "" ? false : isCodeProse(line)));
+  if (!prose.some(Boolean)) {
+    let block = [];
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i].trim() === "") { push(block); block = []; } else block.push(i);
+    }
+    push(block);
+    return items;
+  }
+  let block = [];
+  for (let i = 0; i < lines.length; i++) {
+    if (prose[i]) block.push(i);
+    else { push(block); block = []; }
+  }
+  push(block);
+  return items;
 }
 
 /** The counts that are neither derived nor dated. */
@@ -313,32 +401,40 @@ function shapeFindings(surfaces) {
   const seen = new Set();
   for (const { file, text } of surfaces) {
     const lines = text.split("\n");
-    for (const block of shapeBlocks(file, lines)) {
-      const dated = RE_ISO_DATE.test(block.map((i) => lines[i]).join("\n"));
-      for (const i of block) {
-        const line = lines[i];
-        for (const re of [RE_SHAPE_COUNT, RE_SHAPE_REMAINING]) {
-          re.lastIndex = 0;
-          let m;
-          while ((m = re.exec(line)) !== null) {
-            const isCount = re === RE_SHAPE_COUNT;
-            const rounded = m[0].trim().startsWith("~");
-            const n = isCount ? +m[2] : +m[1];
-            const total = isCount && m[3] !== undefined ? +m[3] : null;
-            const big = total !== null ? total >= SHAPE_COUNT_FLOOR : n >= SHAPE_COUNT_FLOOR;
-            if (!big || rounded) continue;
-            if (dated) continue;
-            if (RE_SHAPE_CAP.test(line.slice(0, m.index))) continue;
-            const key = `${file}:${i + 1}:${m.index}`;
-            if (seen.has(key)) continue;
-            seen.add(key);
-            findings.push({
-              site: `${file}:${i + 1}`,
-              message: `the count "${m[0].trim()}" states the size of a collection that grows, ` +
-                `and the block that states it carries no date — derive it from the collection, ` +
-                `or state the day it was measured`,
-            });
-          }
+    const datedOf = new Map();
+    for (const item of prosePlan(file, lines)) {
+      const i = item.index;
+      if (!datedOf.has(i)) {
+        datedOf.set(i, RE_ISO_DATE.test(item.block.map((j) => lines[j]).join("\n")));
+      }
+      const dated = datedOf.get(i);
+      // The emphasis and the code spans are stripped before the match: a count
+      // wrapped in them is the same count, and the wrapper is what hid it.
+      const line = normaliseEmphasis(lines[i]);
+      for (const re of [RE_SHAPE_COUNT, RE_SHAPE_REMAINING]) {
+        re.lastIndex = 0;
+        let m;
+        while ((m = re.exec(line)) !== null) {
+          const isCount = re === RE_SHAPE_COUNT;
+          const rounded = m[0].trim().startsWith("~");
+          const n = isCount ? +m[2] : +m[1];
+          const total = isCount && m[3] !== undefined ? +m[3] : null;
+          const big = total !== null ? total >= SHAPE_COUNT_FLOOR : n >= SHAPE_COUNT_FLOOR;
+          if (!big || rounded) continue;
+          if (dated) continue;
+          // A bound ("at most N", "at least N") is a policy number, not a
+          // measurement — but a bound that ALSO states a total states a
+          // measurement of that total, so the total is still judged.
+          if (total === null && RE_SHAPE_CAP.test(line.slice(0, m.index))) continue;
+          const key = `${file}:${i + 1}:${m.index}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          findings.push({
+            site: `${file}:${i + 1}`,
+            message: `the count "${m[0].replace(/\s+/g, " ").trim()}" states the size of a collection that grows, ` +
+              `and the block that states it carries no date — derive it from the collection, ` +
+              `or state the day it was measured`,
+          });
         }
       }
     }
@@ -886,6 +982,16 @@ function runSelfTest(readme, script, manifest, samples, measure, shapes) {
         surfaces: shapes.surfaces.map((s) => (s.file === shapeTarget.file ? { ...s, text } : s)),
       },
     });
+    const withSurface = (file, text) => ({
+      ...inputs,
+      shapes: {
+        ...shapes,
+        surfaces: [
+          ...shapes.surfaces.map((s) => (s.file === file ? { ...s, text } : s)),
+          ...(shapes.surfaces.some((s) => s.file === file) ? [] : [{ file, text }]),
+        ],
+      },
+    });
     const count = SHAPE_COUNT_FLOOR + 1;
     expect("an undated shape count is reported",
       () => withShape(`${shapeTarget.text}\n\n${shapeFixture(count)}\n`),
@@ -895,6 +1001,41 @@ function runSelfTest(readme, script, manifest, samples, measure, shapes) {
       () => withShape(`${shapeTarget.text}\n\n${shapeFixture(count)} (measured 2026-10-22)\n`),
       "a dated point figure is a measurement of a known tree, not a claim about a " +
       "moving one");
+
+    // The three ways a count used to HIDE from this family, each asserted
+    // against the surface that carries it. Every one of them was a live
+    // instance in the tree while the family reported the tree as clean.
+    expect("a shape count in a STRING is reported",
+      () => {
+        const target = shapes.surfaces.find((s) => /\.(ts|mjs|js)$/.test(s.file));
+        if (!target) throw new Error("no code surface to exercise");
+        return withSurface(target.file, `const note = "${shapeFixture(count)}";\n`);
+      },
+      "a count the tree states in a string is a claim a reader sees, and the " +
+      "string is what the family used to skip");
+    expect("a shape count in a file with NO extension is reported",
+      () => {
+        const target = shapes.surfaces.find(
+          (s) => !s.file.split("/").pop().includes(".") && s.file !== FILES.readme);
+        if (!target) throw new Error("no extensionless surface to exercise");
+        return withSurface(target.file, `# ${shapeFixture(count)}\n`);
+      },
+      "the surface set is the FILE SET, so a file that lands carrying prose is " +
+      "covered the moment it lands");
+    expect("an EMPHASIS-WRAPPED shape count is reported",
+      () => withShape(`${shapeTarget.text}\n\nThe fleet holds **${count}** submodules.\n`),
+      "emphasis hides a count from a plain match, and the wrapper is no reason " +
+      "for the number to be free");
+    expect("a shape count in a YAML SIBLING entry is reported",
+      () => withSurface("synthetic-sibling.yaml", [
+        "verify:",
+        "  - note: measured on 2026-10-22",
+        "  - |",
+        `    the fleet holds ${count} submodules`,
+        "",
+      ].join("\n")),
+      "a date in a SIBLING entry does not date this one: the whole subtree of a " +
+      "top-level key is not one block");
   }
   return { ok, report };
 }
