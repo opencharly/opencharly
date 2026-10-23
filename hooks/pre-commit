@@ -27,15 +27,26 @@
 #   9. task contexts      — every step of every task in charly.yml declares a context the plan
 #                          runner activates, so no step is a no-op in every mode
 #                          (`node scripts/check-task-contexts.mjs`; opencharly/opencharly#413)
-#  10. pr-body gate       — the committed PRE-PUSH body gate (`hooks/pre-push`) is executable,
+#  10. command text       — no `command:` step's text carries a braced reference: the plan
+#                          runner CLAIMS one, and an unresolvable one SKIPS the step instead of
+#                          failing it, so the gate reads green over a check that never ran
+#                          (`node scripts/check-task-command-vars.mjs`)
+#  11. pr-body gate       — the committed PRE-PUSH body gate (`hooks/pre-push`) is executable,
 #                          defaults its body path to the git dir, skips visibly rather than
 #                          fail-closed, and actually BLOCKS a defective body — asserted by
 #                          FIRING it (`node scripts/check-pr-body-gate.mjs`;
 #                          opencharly/marketplace#404)
-#  11. validator rule map — the validator's check ids equal the AGENTS.md "What the validator
+#  12. validator rule map — the validator's check ids equal the AGENTS.md "What the validator
 #                          checks" table (`node scripts/check-validator-rule-map.mjs --no-live`;
 #                          the committed-vs-live rulebook leg reads remote state, so it runs in
 #                          `charly task verify`; opencharly/opencharly#446)
+#  13. README measurements — the umbrella's MEASURED figures agree with each other: the
+#                          clone-shape table, the prose that quotes it, and the date every
+#                          dated figure carries (`node scripts/check-readme-measurements.mjs`).
+#                          The SAMPLES half — a reading against its band — is NOT here: it
+#                          needs the run's own log, so it is the MANUAL `--samples <log>`
+#                          step after a measurement (the README says which), because a
+#                          reading nobody measured is a reading no gate can see.
 #
 # Deliberately NOT here (see `charly task verify`): the per-submodule
 # `git ls-remote` default-branch audit — it reads remote state no commit can change
@@ -134,8 +145,10 @@ node "$ROOT/scripts/check-pi-watch.mjs"
 node "$ROOT/scripts/check-pi-pr-status.mjs"
 node "$ROOT/scripts/check-pi-question.mjs"
 node "$ROOT/scripts/check-task-contexts.mjs"
+node "$ROOT/scripts/check-task-command-vars.mjs"
 node "$ROOT/scripts/check-pr-body-gate.mjs"
 node "$ROOT/scripts/check-validator-rule-map.mjs" --no-live
+node "$ROOT/scripts/check-readme-measurements.mjs"
 bash "$ROOT/scripts/check-bed-watch.sh" --self-test
 
 echo "pre-commit: OK"

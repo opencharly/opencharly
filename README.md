@@ -19,23 +19,155 @@ Product docs: [charly's README](charly/README.md) · [opencharly.ai](https://ope
 ## Start developing
 
 ```sh
-git clone --recurse-submodules https://github.com/opencharly/opencharly.git
+git clone https://github.com/opencharly/opencharly.git
 cd opencharly
+bash scripts/init-submodules.sh        # materialize the working set (needs only git + python3)
 ./charly/scripts/bootstrap-charly.sh   # builds charly/bin/charly — once per clone
 export PATH="$PWD/charly/bin:$PATH"    # from here on this page reads `charly …`
 charly task hooks                      # installs this clone's pre-commit gate
 ```
 
-The bootstrap script is the umbrella's one non-`charly` entrypoint, and it has to be:
-the build that produces the `charly` binary cannot itself be a `charly` task. Every
-command after it is the installed-binary form — `charly task …`, exactly as on a host
-that installed a package. Without the `export`, the same commands run as
+The umbrella has **two** non-`charly` entrypoints, and both have to be: the build that
+produces the `charly` binary cannot itself be a `charly` task, and neither can the
+materialization — the working set includes `charly` itself, so the binary does not exist
+yet when the first clone happens. `scripts/init-submodules.sh` materializes the working
+set, and `charly/scripts/bootstrap-charly.sh` builds the binary from the `charly`
+checkout it materialized; the initializer needs `git` and `python3`, and it checks both
+and names a missing one. Every command after the bootstrap is the installed-binary form
+— `charly task …`, exactly as on a host that installed a package. `charly task init` is
+that binary form of the same materialization: it runs the same script, so it carries the
+same two requirements. Without the `export`, the same commands run as
 `./charly/bin/charly task …`; both forms are the same binary.
 
-Add `--depth 1` to keep the clone light (~50 MB of working trees). All submodule URLs
-are plain HTTPS, so **forks work without extra configuration**: every gitlink resolves
-to its `opencharly/<repo>` upstream over HTTPS, no credentials needed for a read-only
-checkout.
+**The umbrella is a view over the org, not a 9.5 GB checkout (measured 2026-10-22).**
+It pins every OpenCharly repo as gitlinks, and the pins live in the umbrella's **index** —
+every pin is audited from the index, so a checkout is only needed for the repos you
+actually build against or edit.
+`scripts/init-submodules.sh` materializes a **working set** — the repos the project
+loads from, the pin contract's own repos, the harness corpus root, and the repos the
+umbrella's own gate scripts read — and leaves the rest as index entries:
+
+| clone shape | on disk | wall clock |
+|---|---|---|
+| `git clone --recurse-submodules` (every checkout, full history) | 9.5 G | minutes |
+| `git clone` + `scripts/init-submodules.sh` (the working set, blobless) | 71–71 M | 14–18 s |
+| `git clone` + `scripts/init-submodules.sh --all` (every path, blobless) | 1.9–2.2 G | 5 m 55 s – 6 m 43 s |
+
+Every figure in the table was measured on this machine on 2026-10-22; the bands carry the readings taken on 2026-10-23 as well.
+
+Those sizes are the **clone**; the bootstrap builds the binary and leaves its build cache
+in the tree, so a bootstrapped light tree measures 123–123 M, against the 9.5 G a full
+checkout occupied on 2026-10-22. Sizes are `du -sh` at whole-unit granularity, and the
+packs move with the upstream repos, so the two shapes the runs repeated carry a **band** —
+the range the runs produced — rather than a number that stays put: the light clone
+measured between 71 M and 71 M, and the `--all` shape between 1.9 G and 2.2 G. The
+`--recurse-submodules` row is the **baseline** this replaces: one measurement, of a full
+checkout; it tracks the upstream mirrors, so it moves as they do. The `--all` shape's band
+is the `openclaw` mirror's module store — 480–520 M in a from-scratch clone, and more
+in a tree whose store was reused across runs, which holds more of that mirror's history
+and grows as the mirror does.
+
+**The bands are re-derived, not remembered.** `scripts/measure-clone.sh` measures the
+shapes above from fresh clones of the tree under test and prints every reading;
+`scripts/check-readme-measurements.mjs` reads the bands this table commits, asserts
+that the prose agrees with the table, and — handed that script's log — asserts that
+every reading falls inside its band. The second is a step of `charly task verify` and
+of the pre-commit hook, so a figure the prose and the table disagree about is a
+**failed gate** rather than a sentence nobody notices.
+
+**A reading is a property of the TREE, not of the machine.** The measurement clones the
+superproject over the transport, on the one branch that holds the tree under test: a
+**local** clone copies the source's entire object store — every commit on every branch,
+including other sessions' pushed branches — so a reading made that way drifts with the
+org's push traffic while the tree stands still. The gate fails on a measurement that
+clones the tree locally, and its self-test mutates the measurement's own clone
+invocation to prove the assertion can fail.
+
+The **samples** half needs the run's own log, so it is a manual step after a
+measurement: the two automatic steps above run the comparison *without* `--samples`,
+and a reading nobody measured is a reading no gate can see.
+
+```sh
+bash scripts/measure-clone.sh > /tmp/measure.log
+node scripts/check-readme-measurements.mjs --samples /tmp/measure.log
+```
+
+So a band a reading has outgrown is a **failed check** against the run that produced
+the reading — the run stamps the day it was taken (`MEASURED=`), and the comparison
+holds that day to the span this table states.
+
+The last of those four sources is what keeps the light tree honest. Two of the
+umbrella's gate scripts compare a surface that lives in a submodule — the committed
+rulebook in `action-review/` and the authored coordination grammar in
+`layer-charly-internals/` — and a gate **skips** a comparison whose surface is not
+checked out, so it still exits 0. Measured on a light clone, 2026-10-22: `charly task
+verify` reported 26/26 steps passed while six cross-repo comparisons never ran. The
+working set therefore includes the repos the gates read, so a light tree's gate
+covers what the full tree's covers — and the light tree now reports **every step
+passed, none skipped**, the same as the full tree.
+
+**The wall clocks are samples** of repeated runs of the same step, measured from a fresh
+clone, so the two shapes the runs repeated carry the band the runs actually produced
+across this branch — rather than a single number: the light row's fresh clones measured
+between 14 s and 18 s — the whole of it is the network fetch of the working set's
+blobless clones — and the `--all` row's from-scratch materializations measured between
+5 m 55 s and 6 m 43 s.
+The `--recurse-submodules` row is stated coarsely, as *minutes*: that shape was measured
+once, and its time is the mirrors' fetch. The `--all` row is the maintenance shape: it
+clones every declared path in parallel and then checks them out one at a time, and its
+time is dominated by the vendored upstream mirrors — `openclaw` alone, whose history
+measured 7.6 GB on 2026-10-22, is the largest of them, and a blobless fetch still brings
+down every commit and tree it holds.
+
+`scripts/init-submodules.sh` clones **blobless** (`--filter=blob:none`): every commit and
+every tree are present, so *"is this pin an ancestor of the remote's tip?"* stays
+answerable, while the blobs of history are never fetched. `--depth 1` is deliberately
+**not** used — a shallow clone cannot answer that question, so a healthy pin reads as
+divergent. The filter has to be an explicit flag: a `filter =` key in `.gitmodules` is
+not honoured by `git submodule update`.
+
+`charly task init` is the same operation through the binary. The mode is chosen by
+the **environment**, not by a task parameter:
+
+```sh
+charly task init                                 # the working set
+CHARLY_INIT_MODE=all charly task init            # every declared path
+CHARLY_INIT_MODE=list charly task init --output  # print the set, change nothing
+CHARLY_INIT_PATHS=a,b charly task init           # the named repos
+```
+
+`--output` is what makes the task's own output visible: the task runner prints its
+report on stderr and the step's output on stdout only in that mode.
+
+The environment is the only channel that carries an operator's value as **data**: an
+upper-case task parameter's value is substituted into the command's **text**, and the
+shell then *parses* that text, so a parameter carrying a shell metacharacter would
+execute (measured: a parameter of `$(touch /tmp/marker)` created the marker). A
+lower-case parameter is not substituted at all — the expander's grammar is
+upper-case-initial — so it reaches the shell, finds no such variable, and its empty
+word vanishes. An environment
+value reaches the shell as a parameter-expansion result, which is never re-parsed —
+and an unknown mode is reported as a value, not run:
+
+```
+$ CHARLY_INIT_MODE='all; touch /tmp/pwned' charly task init
+  [fail] run — materialize the umbrella's submodules
+      exit=2, want 0 (stderr: FAIL: CHARLY_INIT_MODE must be working-set, all or list (got 'all; touch /tmp/pwned'))
+```
+
+The same law governs the manifest's **own** command steps: a braced reference in a
+`command:` step's text is claimed by the plan runner and expanded against the task's
+merged environment, and one it cannot resolve does not fail the step — it **skips** it,
+so the gate reads green over a check that never ran. A command step's text therefore
+carries no value at all: read the environment at run time, so the runner never sees
+it — with a bare `$NAME`, or, under `set -eu`, through `$(printenv NAME 2>/dev/null
+|| true)` so an unset variable cannot abort the step before it runs.
+`node scripts/check-task-command-vars.mjs` holds that line, in the pre-commit gate and
+in `charly task verify`.
+
+All submodule URLs are plain HTTPS, so **forks work without extra configuration**: every
+gitlink resolves to its `opencharly/<repo>` upstream over HTTPS, no credentials needed
+for a read-only checkout.
 
 Then the one rule that keeps the checkout honest: **never edit a submodule in place.**
 Every repo you change gets its own worktree at `.worktrees/<slug>/<repo>/`, branched off
@@ -67,6 +199,7 @@ installed-binary form — `charly task …`, the same shape a packaged `charly` 
 
 | command | purpose |
 |---|---|
+| `charly task init` | materialize the umbrella's submodules on demand (the working set; `CHARLY_INIT_MODE=all\|list` and `CHARLY_INIT_PATHS` select the others) |
 | `charly task map` | list every submodule with its pin and sync state |
 | `charly task sync` | bump pins per the pin contract (preview; does not commit) |
 | `charly task verify` | the full pinning gate, on demand (every pin, incl. the remote branch audit) |
@@ -75,11 +208,11 @@ installed-binary form — `charly task …`, the same shape a packaged `charly` 
 | `charly task skills` | splice the generated R0 dispatcher from the pinned marketplace into AGENTS.md |
 | `charly task pin-check` | assert the pin contract's cheap half — every `distro-*` gitlink equals charly's own `box/*` gitlink |
 | `charly task pins` | the pin-contract pin operation over the `distro-*` set (mode via param) |
-| `charly task self-test` | self-test the committed CI body/pin-evidence builders + the dispatcher splice |
+| `charly task self-test` | self-test the committed CI body/pin-evidence builders + the dispatcher splice + the submodule initializer |
 | `charly task prune` | reap merged-upstream session worktrees + branches (MODE=report is a dry run) |
 
-`charly task list` enumerates them — ten today. Without the `PATH` export, the same
-commands run as `./charly/bin/charly task …`.
+`charly task list` enumerates them. Without the `PATH` export, the same commands run as
+`./charly/bin/charly task …`.
 
 ## The org map
 
@@ -670,6 +803,41 @@ There is no scheduled workflow; `charly task sync` is the one path that moves a 
 
 A pin is a gitlink — the recorded commit, checked out detached and clean — and
 `charly task verify` asserts exactly that. A dangling pin is a failure.
+
+## Catching up with upstream
+
+The pins move only through the pin contract, and three different questions have three
+different answers. Ask the right one:
+
+| question | command | what it answers |
+|---|---|---|
+| *where is each repo pinned?* | `charly task map` | the **state** — every submodule with its pin and sync state |
+| *does this tree agree with itself?* | `charly task verify` | the **consistency** — every checkout sits at the gitlink the index records, and every pin's branch is its remote's default branch |
+| *is the org current with its upstreams?* | `charly task pins --param MODE=currency` | the **currency** — every pin against the ref its intent names, judged from the index and the remote, never from a checkout |
+
+`verify` being green does **not** mean the org is current: a tree can be perfectly
+consistent while every pin is behind what its repo serves. `currency` asks the other
+question, and when a pin waits on its source it names the producer leg instead of
+leaving you to discover it an hour later.
+
+**The sanctioned catch-up** is one sequence, and it is the only one that moves a pin:
+
+```sh
+CHARLY_INIT_MODE=all charly task init   # the bump fails loud on a path with no checkout
+charly task sync                        # the pin-contract bump — a preview; it commits nothing
+# …then land the pin wave as a PR through the org's validation chain
+```
+
+`CHARLY_INIT_MODE=all` is in that sequence for a reason: the bump **fails loud** on an
+uninitialized path — a sync over a tree it could not fully advance must never report
+success. The daily tree stays light; a pin wave is the maintenance act that needs the
+full set. A repo you merely want to *work on* is one
+`CHARLY_INIT_PATHS=<repo> charly task init` away.
+
+**Never catch up by hand.** A pin is advanced by `charly task sync` and lands as a PR.
+It is never hand-edited in the index, never re-pointed at a branch tip, and never
+"fixed" by checking out a newer commit inside the submodule: the pin *is* the index
+entry, and the checkout follows it.
 
 ## License
 
