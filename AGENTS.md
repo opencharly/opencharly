@@ -613,7 +613,17 @@ Before declaring completion, answer every applicable item YES. There is one line
    reported as *uninitialized (pin audited, no checkout)* — a notice, not a failure. A
    **pin wave**, though, needs the full set (`CHARLY_INIT_MODE=all charly task init` first),
    because the bump fails loud on a path it could not advance — a sync over a tree it
-   could not fully advance must never report success. *Detail:*
+   could not fully advance must never report success. **And a wave holds this worktree's
+   index for the minutes it rolls the submodules**: the wave stages each advanced path with a
+   `git add` in the superproject, and that `git add` takes this worktree's index lock — a
+   concurrent `git status` in the SAME worktree takes the same lock for an instant, so the
+   wave's own `git add` can lose the race. The wave names every path it could not STAGE, and
+   whether that cost a PIN VALUE is a second question: the path may have been at the ref it
+   already serves. So while a wave runs, run no other git command in this worktree; and after
+   it, ask the currency question — `charly task verify` carries it (`charly task pins --param
+   MODE=currency`) — which names every pin that is not at the ref its intent names. Measured on
+   2026-10-23, during an umbrella wave, a wave's staging lost the index lock to a concurrent
+   `git status` in its own worktree. *Detail:*
    `/charly-internals:git-workflow` (pinning).
 
 4. **Read the subrepo's own rulebook first.** *(R0)* Its `AGENTS.md` adds repo-specific
