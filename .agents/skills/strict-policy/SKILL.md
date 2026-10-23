@@ -1,0 +1,324 @@
+---
+name: strict-policy
+description: |-
+  Operationalization of AGENTS.md R1-R5 plus the RDD and ADE pillars — the engineering-discipline rules that come BEFORE runtime verification. Use when a failure/warning/anomaly surfaces, a plan rests on a high-risk unproven assumption, a pattern is about to land in a second surface, a sleep/retry/magic-number is tempting, or a cutover commit is about to ship.
+---
+
+# strict-policy — operationalizing R1–R5
+
+## Overview
+
+R1–R5 in the project rulebook (`AGENTS.md`) are the **engineering-discipline gate**. They sit ABOVE the runtime-verification rules R6–R9 and ABOVE the final acceptance gate R10. The order is deliberate: discipline failures are what produce the runtime failures that R6–R9 catch — so the rules that prevent discipline failures must come first.
+
+This skill is the operational reference for R1–R5. Each section below restates the rule, lists what it forbids precisely, lists what it permits, explains why it matters, and notes how it interacts with the other rules. The rules exist because these specific failure modes actually happened — see `CHANGELOG/` for the commit-referenced incidents that motivated each one.
+
+A violation of any R1–R5 rule (or any of R6–R10, or the "Prioritize Clean Architecture Above All Else" section in the project rulebook) FORBIDS the push. Local commits before the first push are free (the project rulebook "Commit, push, land"), but nothing with a known violation is ever pushed, at any tier. There is no "downgrade tier and ship anyway" path. The agent fixes the violation in the same working tree and re-runs all verification, OR escalates to the operator and STOPS. See the project rulebook "AI Attribution" section.
+
+## Gate before push + no re-run against a root-caused defect (R1; the project rulebook "Commit, push, land")
+
+**Every push to a PR must pass the local gates FIRST** — `gofmt -l` empty, `go build`, `go vet`, and the touched packages' `go test` — verified from the committed tree, not from a dirty state. Pushing a head that was never gated locally and letting CI fail is an R1 violation (measured: four consecutive ci failures — two on a stale local worktree `replace` in go.mod that CI cannot resolve, two on `gofmt -l` flagging an unformatted file). The validator is not a debugging loop: push the head you have already proven green locally.
+
+**Never re-run a bed/command against a defect you have already root-caused** — re-running cannot change a root-caused defect (measured: 11 full android bed runs against an unimplemented candy-dirs wire gap, all red, before the fix was actually implemented). If the RCA names a fix, IMPLEMENT the fix (in-repo PR, unit-tested, gated) and then run once. Re-running the same command expecting a different result, or parking a root-caused blocker in a filed issue while re-running, is the forbidden circle.
+
+**A required gate (R10 bed proof) is never deferred** — not to a filed issue, not to a "follow-up commit", not "to be proven later". R1's *file it* path is for a separable NON-blocking finding; the change's own gate is always blocking. The bed composes the UNRELEASED plugin from the local build (`go.mod replace` / `CHARLY_PLUGIN_DIR` + charly rebuilt at the branch — the proven recipe); if that is mechanically impossible, STOP and escalate. Validator rejection of a deferred gate ("deferring a required gate is not R1's file-it path") is a STOP, not a reword prompt.
+
+## R1. RCA on every failure — no transient-flake classification
+
+**The rule (AGENTS.md R1).** Any failure, error, anomaly, or warning from any tool triggers `/charly-internals:root-cause-analyzer` immediately, before remediation — from the first occurrence, no second-occurrence threshold.
+
+**A warning is a failure for R1 purposes.** It triggers the analyzer like any failure; the zero-warnings landing gate — a surviving warning is an R10 failure, never an accepted end state — is operationalized in `/charly-internals:git-workflow` ("Zero warnings").
+
+**Documentation divergence is a failure for R1 purposes.** Any divergence between a doc, skill, or code comment and observed reality — discovered by ANY means (a bed run, a code reading, an agent, a human report), not only via an RDD bed-contradiction or an R5 deleted-identifier — triggers the analyzer like any failure; "it's just a doc, I'll note it" / "the code is what matters" are confessions, not defences. Its remediation is a TRANSITIVE sweep: fix not just the file where it surfaced but EVERY other doc/skill/comment carrying the same false/outdated/misleading claim (claim-keyed — the generalization of R5's identifier-keyed grep self-test). The sweep binds to the cutover's OWN new prose too: a CHANGELOG entry, PR description, or commit message drafted in THIS SAME cutover can just as easily reintroduce a false claim, and being newly authored — never pre-existing — is not an exemption. The fix for the changed surface and its sibling-set is BLOCKING — it lands in the current cutover (a tree carrying a false claim is not "correct" by R2's own test); a genuinely-unrelated divergence is RCA'd immediately too, and FILED (R1 *fix it or file it*: an existing issue gets the evidence, otherwise ONE new issue in the owning repo, listed under the PR body's `## Filed issues`). The two narrower cases — RDD's "when the bed contradicts the doc, the DOC IS STALE" and R5's deleted-identifier sweep — are special cases of this rule. When the remediation is itself documentation-only (`*.md`, comment-only edits, or a submodule pointer bump to an all-documentation submodule commit), it is gated by the non-runtime standards rather than a bed and ships at the `documentation reviewed` tier — the Documentation-only change class (the project rulebook R10 + "AI Attribution").
+
+**Forbidden first responses.** "probably a flake" / "rerun and see" / "transient" / "intermittent" / "works on retry" / "environmental" / "let me try once more" / "maybe the network was slow" / "let me clear the cache and re-run". These are confessions, not defences. Each is a way of avoiding the analysis the rule mandates.
+
+**What is permitted.** The `/charly-internals:root-cause-analyzer` agent's 8-step process. After running it, if the analyzer concludes the root cause is genuinely external (network partition, upstream registry outage, kernel bug with a tracked upstream report), the conclusion is documented in the conversation **with evidence** — never assumed. Only after that documented conclusion is "retry" an authorized response.
+
+**Two disciplines the 8-step process carries.** (1) **Enumerate EVERY distinct failure signature FIRST** — bucket the raw log (`grep -o 'cause="[^"]*"' <log> | sort | uniq -c | sort -rn`, adapted to the log's key) BEFORE naming any cause; one symptom usually has multiple INDEPENDENT signatures, and naming a single cause while the others stay live is repeatedly wrong. (2) **Never verify a fix from a single sample** — measure over a window in which the system is PROVABLY UP; a zero reading during downtime is not evidence (a system that could not attempt the operation cannot fail), and "the symptom stopped because it was FIXED" must be distinguished from "it stopped because the system was DOWN." Fix each issue and re-measure EACH independently. Full procedure + the three-independent-issues worked example: `/charly-internals:root-cause-analyzer` "Failure-signature enumeration and measurement discipline".
+
+**Why it matters.** Failures that look transient often aren't. A test that fails 1-in-N times because of a race condition will fail 1-in-(N/scale) times under load — pretending the failure is "flaky" hides the race instead of fixing it. R1 forces the investigation early, when the symptoms are simple, before the bug accumulates obscuring complications.
+
+**Interaction with other rules.** R1 is the first response to ANY failure surfaced by any other rule's verification step. R7 (mandatory end-to-end gate) produces failures that R1 must investigate. R7's emitted-artifact validation produces failures that R1 must investigate. R10 (disposable + fresh-rebuild) produces failures that R1 must investigate. R1 is also the first response to a self-detected anomaly mid-session — including during planning, exploration, or normal coding.
+
+## RDD. Risk Driven Development — prove the highest-risk unknowns EARLY (the proactive twin of R1)
+
+**The rule.** ALWAYS validate ANY HIGH-RISK assumption empirically on a live `disposable: true` bed (`/charly-internals:disposable`) in the planning / early-coding phase, BEFORE the edits that depend on it. R1 runs RCA on every failure AFTER it happens; RDD runs the validation FORWARD so wrong assumptions, unnecessary cautions, and erroneous root-cause theories never survive into the final plan or code. **Never accept the skills, the project rulebook, or the current code as automatically correct** — docs drift and code has bugs; for a high-risk call, reality is the only ground truth. RDD is the COMPLEMENT of skills-first (R0), not a substitute for a lookup: you still load the skill first, you just don't treat its high-risk claims as proven until a bed confirms them. *Never trust, verify.*
+
+**Risk — not documentation status — is the trigger.** Low-risk orientation ("roughly what does this layer do") is a zero-risk skill lookup (R0) — do NOT burn a bed on it. High-risk (being wrong invalidates the plan, is costly / hard-to-reverse, or would mislead RCA) is proven on a bed REGARDLESS of what any doc or code asserts. The archetypal high-risk unknown: whether a SPECIFIC layer composition, at the LATEST available versions the resolver picks, builds / deploys / runs TOGETHER — no skill can certify a never-composed combination.
+
+| Assumption | Risk if wrong | How RDD settles it |
+|---|---|---|
+| "Roughly what does candy X do?" (orientation) | Low, recoverable | Skill lookup (R0) — no bed |
+| "Candy X behaves EXACTLY as documented, and my plan depends on it" | High | Validate on a live bed — the skill may be stale |
+| "The code does X, so my change is safe" | High | Run it — code has bugs; the emitted artifact / live run is the arbiter (R7/R9) |
+| "These candies, at their latest versions, compose & run together" | High (no skill can certify) | Build + deploy + `charly check` EARLY |
+
+**RDD prevents three failure modes:** (1) a wrong high-risk assumption baked into the design — every task built on it inherits the defect when reality differs from the stale doc or buggy code; (2) unnecessary caution / over-engineering — guards, fallbacks, or pinned-back versions added against a danger a real check would have disproven; (3) erroneous root-cause analysis — diagnosing from speculation or a stale doc / code reading instead of a real bed run.
+
+**Forbidden internal-voice triggers.** "the layers probably compose, I'll find out at R10" / "the newest version is surely drop-in" / "each layer works alone, so the stack is fine" / "the skill says so, it's true" / "the code does X, so it's safe" / "I'll add a guard to be safe" (without proving the danger is real) / "let me bed-test what the skill already says" (for a LOW-risk item). Each either defers proving the riskiest unknown to the most expensive moment, or wastes a bed on a settled one.
+
+**What is permitted / required.** Building the real composition, running the bed, inspecting the running deployment, reading the emitted artifact, or a focused `charly check box` / `charly check live` probe — riskiest-assumption first — to PROVE a high-risk claim before editing on it. When the bed contradicts a skill or the project rulebook, the DOC IS STALE — fix it in the same change (skills are living documents).
+
+**The spike — RDD's named instrument.** A spike is a TIME-BOXED, THROWAWAY investigation (the industry term: [Spike (software development)](https://en.wikipedia.org/wiki/Spike_(software_development))) scoped to ONE named high-risk unknown, run empirically — on a live `disposable: true` bed, or against the real generator / emitted artifact when the unknown lives there (the same permitted instruments listed above). Its single purpose is to discover **HOW** to build what the plan requires; its deliverable is the **discovered mechanism — the HOW** — plus any doc/skill/memory fix the result forces (R1); NEVER shipped code. Spike code, config, and beds are discarded once the question is answered; only the knowledge lands in the plan. **A spike is a support tool for the implementation, NEVER an excuse to not do something.** It decides neither *whether the work is done* (R10 does) nor *whether the work happens at all* (the plan — an immutable CONTRACT — does): a spike that "refutes" the current approach means *find a different HOW*, never *skip / shrink / defer / keep-as-is / retreat*. Complexity a spike surfaces is a reason to find the right HOW, never grounds to reduce scope; if a HOW-finding genuinely changes the contract's scope, the only response is STOP-and-ask the operator (the **forbidden-excuse catalog** in the project rulebook "Hard Cutover by Default" binds here). The spike/R10 boundary: a spike proves an ASSUMPTION during planning, R10 proves the FINAL code — a spike pass never authorizes a commit. The SDD variant is the SCHEMA SPIKE: prove a high-risk schema shape — the def compiles, the generated type round-trips, the gate accepts/rejects as intended — BEFORE code is written against it (the project rulebook "Schema Driven Design (SDD)"; the worked example is the def-level `@go(CharlyName)` breakage in `/charly-internals:go`). A RELOCATION/FOLD variant is the TRACE SPIKE: for moving or folding existing code, report the MEASURED file-by-file trace (real call-graph, real LOC, real collectibility — never an assumed shape) BEFORE any mass edit; this repeatedly corrected a stale brief premise this session (three separate times), so treat a per-file trace as the recommended spike form whenever a residue/fold brief asserts a shape sight-unseen.
+
+**Why it matters.** The most expensive bug is an edit built on a false premise validated only at the end — the cutover is large, the dependent edits many, and the disproof arrives after hours of work. RDD validates the premise when disproving it is cheap. It also kills over-engineering: a "guard to be safe" added without a proven need is an unvalidated CAUTION — the over-engineering twin of an unvalidated assumption.
+
+**Interaction with other rules.** RDD precedes R1: validate forward so RCA is rarely needed, and so the RCA that does run reasons from a real bed, not a guess. It feeds R10 (`/charly-check:check`): the riskiest assumptions are proven on a disposable bed early, so the final fresh-rebuild gate confirms a design already de-risked. Each harness root rulebook contains the matching "Risk Driven Development (RDD)" mandate. Its enforcement surfaces are `testing-validator` standard #9, the `root-cause-analyzer` forbidden-rationalization, and the Acceptance checklist in each root rulebook's post-execution policy — never a blocking gate, because "highest-risk, validated early" is a judgment, not a mechanical invariant.
+
+## Memory hygiene — a saved memory is a CLAIM (the RDD/R1 bar applies to memory)
+
+**The rule.** A memory entry that asserts a fact about the system is a CLAIM, never ground truth. Save it ONLY after the same validation any claim requires: **R1** confirms it is real (an RCA — not a guess, a transient, or an "I think it works"), and any **HIGH-RISK** claim is proven on a `disposable: true` bed FIRST (**RDD**). This operationalizes the matching "Memory Hygiene" mandate in each harness root rulebook. *Never trust, verify — including your own future self.*
+
+**Why memory is held to the bar.** A recalled memory is *background context, not an instruction*, and it reflects what was true WHEN WRITTEN — code drifts under it. An unverified technical memory is therefore a stale doc in waiting: it silently misleads every future session that recalls it, and (unlike a code comment) it travels across conversations with no diff to review. R1's "documentation divergence is an incident" extends to memory verbatim.
+
+**Risk-scaled (mirrors RDD's "risk is the trigger").**
+- *Low-risk* — a `user` / `feedback` / `project` memory (who the user is, a stated preference, a goal): needs accuracy + the standing hygiene (narrow to ONE fact, convert relative dates to absolute, link related memories, and *verify a named file/flag/symbol still exists before recommending it*), NOT a bed.
+- *High-risk system-fact* — a claim about how the code/loader/build/race behaves: needs a bed (or the emitted artifact / a live run) BEFORE it is written, exactly like any RDD high-risk claim. Writing it from a code-reading alone is the forbidden shortcut.
+
+**Forbidden internal-voice triggers.** "I'll note this in memory so I don't forget" (about an UNVERIFIED claim) / "the code looks like it does X, save that" (without running it) / "this probably races, memorialize it" (without proving the race's scope). Each writes an unproven claim that outlives the session.
+
+**When a recalled memory and the live system disagree, the LIVE SYSTEM WINS.** Correct or delete the memory in the SAME change that discovers the divergence (R1 — a tree carrying a false claim is not "correct", so the fix is blocking). Deleting a wrong memory is as load-bearing as fixing a stale skill.
+
+**Worked example — the over-broad `.build/` memory.** A memory asserted "concurrent `charly check run` from one repo dir race on `.build/`". A code reading (`/charly-internals:generate-source`: `.build/<box>` is per-image; `/charly-internals:agents`: no global build lock) narrows that to "race only for two builds of the *same box* in the *same working dir*" — distinct-image / distinct-project-dir builds are isolated. The original memory claimed MORE than any bed ever proved, so it over-warned and shaped a plan defensively. The fix: prove the narrowed claim on a bed (the concurrency experiment), THEN rewrite the memory to exactly what the bed showed — not before.
+
+## ADE. Agent Driven Evaluation — the spec is the test; agents author and grade it
+
+**The rule.** Capture an entity's intended behaviour as an executable `plan:` on the CANDY that provides it (a `description:` string + a flat ordered `plan:` of steps), authored by you OR an agent (hand-edit the `plan:` or `charly candy set`). Each step declares its verifier BY KEYWORD: a `check:` step (inline verb) → a DETERMINISTIC check the runner executes; an `agent-check:` step (prose) → an AGENT grades it (`charly check feature run <deployment>` spawns the configured `kind: agent` CLI, which probes the live deployment and returns a pass/fail verdict with evidence). The plan bakes into `ai.opencharly.description` and is runnable as acceptance tests (`charly box feature run <image>` / `charly check feature run <deployment>`), drivable to green by hand OR by the `charly check run` AI loop (an `iterate:` bed). The spec IS the test.
+
+**Risk — and the keyword choice — are author decisions, not afterthoughts.** A behaviour that can be checked mechanically (a file exists, a port answers, an MCP tool is listed) MUST be a `check:` step — deterministic, reproducible, free. Reserve the `agent-check:` step for genuinely free-form behaviour a verb can't express ("the chart looks populated", "the page recovered gracefully"). Authoring an `agent-check:` step where a deterministic `check:` would do is the over-engineering twin of an unvalidated assumption — it trades a free, reliable check for a slow, costly, non-deterministic agent call.
+
+**Forbidden internal-voice triggers.** "the check passed, no need to look at the evidence" / "the grader is non-deterministic so I'll just rerun until it's green" (that's R1/R3 — investigate, don't reroll) / "I'll mark every step `agent-check:` and let the agent figure it out" (over-uses the grader; use a `check:` verb) / "an unparseable grader output is probably a pass" (NEVER — unparseable / timed-out / launch-failed is a FAIL) / "I'll bake a failing step as a TODO" (a baked step must PASS — a known-failing one poisons every `charly check run`).
+
+**What is permitted / required.** Using `check:` steps for the measurable; the `agent-check:` grader for the genuinely free-form, with its evidence inspected; `charly feature pending` to find the agent-graded steps; `--no-agent` for a deterministic-only CI run (`agent-check:` steps report `unbound`, visibly, never silently green). A plan authored on a candy covers every box that composes it — author ONCE on the behaviour's provider, never per-box (R2).
+
+**Why it matters.** "Done" without an executable definition of correct behaviour is the ambiguity ADE removes; a prose step that documents intent but verifies nothing is prose that never runs — binding it to a `check:` verb or the agent grader (an `agent-check:` step) makes it executable. And a plan on the CANDY, not the box, keeps one behaviour's acceptance in one place.
+
+**Interaction with other rules.** ADE is the acceptance/intent layer of the same *never trust, verify* family: RDD proves the risky ASSUMPTIONS before the edit, ADE specifies WHAT correct behaviour is, R10 proves it on a fresh rebuild. It is a co-equal pillar and a MANDATORY gate for candies: every candy MUST author a non-empty `description:` string AND a `plan:` with ≥1 `check:` step — `charly box validate` hard-errors otherwise — and the baked plan runs and must pass. (Authoring is required; running the live AGENT GRADER via `charly check feature run` stays opt-in.) The grader runs inside the secured, disposable box (candyboxing). Each harness root rulebook contains the matching "Agent Driven Evaluation (ADE)" mandate; the how-to + the worked example live in `/charly-check:check`.
+
+## R1, applied. Fix it or file it — no silent "pre-existing" / "out of scope" deferral
+
+**The rule (AGENTS.md R1).** After the RCA, every finding is classified, and the class decides the ONE legal path. A **blocking** finding is fixed in this change, whoever caused it. A **non-blocking** finding is **filed**. Nothing is silently dropped, parked, or labelled away. The classes are never "pre-existing", "unrelated", "out of scope", "follow-up PR", "tracked separately", or "later". Those words, without an issue number, ARE the violation.
+
+**The discriminator.** *Would shipping this change WITHOUT the fix leave the tree correct and the change's claim true?*
+- If **no**, it is **blocking**. That includes a finding this change introduces, any warning in this change's gate, and any false claim on the changed surface or its sibling set.
+- If **yes**, and the finding is genuinely separable, it is **non-blocking**.
+- If **unsure**, it is **blocking**.
+
+**Objective test for "separable":** this change's OWN R10 (check-coverage + fresh-rebuild) passes and proves its claim WITHOUT the fix. A fix that would alter this change's R10 result or coverage gate is blocking. Mislabeling a blocking finding "non-blocking" to ship faster is the forbidden split, and so is carving the change's own scope into two cutovers.
+
+**An absence claim must name the positive its predicate catches.** An empty result from an uncalibrated predicate is not evidence; from a calibrated one it is. Paste both halves: the predicate matching a known positive, and the predicate matching nothing in the tree under test. Measured: a sweep reported "no quantified claims here" while a too-narrow pattern missed `23 Omarchy-built packages` — one word between the digits and the noun — and the claim was in the file all along.
+
+**Forbidden phrasings.** "this was already failing before my change" / "unrelated to this PR" / "out of scope for this cutover" / "I'll file a follow-up" (with no issue number) / "this is tracked separately" (with no issue number) / "we can address that later" / "noted but not required for this commit" / "intentionally deferred to keep the diff focused".
+
+**Forbidden-excuse catalog — the difficulty-, size-, and priority-based sibling set.** Distinct from the deferral phrasings above, these use difficulty, size, or self-assigned "priority" to justify not doing the work, or to cut its scope. They are equally forbidden. None of them ever justifies skipping, shrinking, deferring, keeping-as-is, re-scoping, or reverting already-working code. They are inputs to finding the HOW: RDD, or a spike, which is a support tool and never an excuse. A genuine scope change means STOP and ask, never a unilateral cut. The full catalog lives in `/charly-internals:cutover-policy` "No exception clause": every forbidden phrasing, the decompose-vs-batch discriminator, and the honesty-dressing variants. This skill defers to it rather than keeping a second copy. The same rule governs architecture placement: the kernel/plugin boundary law places by kind-agnostic mechanism, never by difficulty (`/charly-internals:plugin` "The kernel/plugin boundary law").
+
+**The paths.**
+
+1. **Blocking → fix in the same working tree** (the default). It goes in the same change, and is proved under this change's R10. You do not ask permission to fix what the work found.
+2. **Blocking, and itself a genuine crossroad → escalate to the operator.** This applies only to a decision you cannot resolve from the request, the code, the skills, or sensible defaults. That means one of:
+   - a design choice with material trade-offs;
+   - a hard-to-reverse or outward-facing action without standing authorization;
+   - a contradiction between the plan and the project rulebook or a loaded skill;
+   - genuinely ambiguous requirements.
+
+   The ask is explicit. "I encountered $X during this cutover. It is blocking, and it is a decision I cannot make alone. Should I (a) fix it now in this same change, (b) abort the active cutover and address $X first, or (c) explicitly re-scope?" The operator's response authorizes the path; silence does not.
+3. **Non-blocking → file it.**
+   - Search the org first (`gh search issues <terms> --owner opencharly`). If an issue exists, add your evidence to it as a comment.
+   - Otherwise file ONE issue in the OWNING repo. Give it a specific title, the RCA (mechanism, missed control, blast radius, root fix), and the evidence.
+   - List every filed or updated issue under the PR body's `## Filed issues` section, as `<repo>#<n> — <one line>`.
+
+   Related filed issues may later land together, in ONE PR that shares one R10 story; that is the Cutover Sizing Law (`/charly-internals:cutover-policy`). A filed issue is the ONLY legal deferral. An unfiled "follow-up" stays forbidden.
+
+**A finding raised ON your PR is never filed away.** A validator finding or a reviewer comment on the PR is fixed in the next round, or rebutted on the thread with evidence. R1's *file it* path is for findings YOU surface that are separable from the change. It is not a way to dismiss a review (the project rulebook "Before every update push: read everything, fix everything").
+
+**Worked example — documentation divergence.** A doc, skill, or comment found to diverge from reality runs through the SAME discriminator (it is R1's "Documentation divergence is a failure for R1 purposes").
+- A divergence on the surface this change touches, plus every sibling carrying the same claim, is **blocking**. Shipping a known-false doc on the changed surface leaves the tree NOT correct, so the fix goes in this change.
+- A divergence you stumble on that is genuinely unrelated to this change's subject is **non-blocking**. This change's claim stays true and its R10 is unaffected. It is RCA'd immediately and filed immediately, never parked as "someday".
+
+**Why the escape hatch is closed.** Deferring a surfaced failure as "pre-existing, unrelated" with nothing filed leaves brokenness on `main` with no owner and no record. The issue IS the record: it carries the RCA, it is searchable, and the next session claims it instead of rediscovering it. Every unfiled deferral compounds. The next cutover finds two silent issues, the third finds three, and codebase entropy grows monotonically.
+
+**Interaction with other rules.** This covers both approved-plan phasing AND issues surfaced incidentally mid-session. There is no unfiled deferral, planned or incidental. "Finish the whole cutover" (the project rulebook "Hard Cutover by Default") applies the same rule to the change's own scope: every in-scope occurrence and every sibling with the same mechanism lands, and only a genuinely separable finding is filed.
+
+## R2. No code duplication; generic, reusable solutions over ad-hoc patches
+
+**The rule (AGENTS.md R2).** On the first surface where the same pattern, predicate, filter, transform, or guard appears in two places, refactor to one shared abstraction in the same working tree — applied to every surface it logically covers, not just the one that prompted the report.
+
+**Forbidden patterns.** Sibling-layer naming (`<name>-host`, `<name>-pod`, `<name>-bootc` when they share content); parallel filter functions in adjacent files; per-call-site re-implementations of the same predicate; copy-pasted YAML stanzas across multiple charly.yml files; copy-pasted Go function bodies with one-token differences; "let me just patch this one consumer for now and unify later"; "the abstraction is unclear, so I'll duplicate for now and refactor when the pattern firms up".
+
+**What is permitted.** ONE shared abstraction, in the obvious shared location. If the abstraction is unclear, the answer is to think harder, ask the operator, or escalate — not duplicate. If the cost of the refactor is high enough to warrant a discussion, escalate; do not silently duplicate.
+
+**Why it bites.** Sibling-candy duplication (a `<name>-host` spawned for every host-vs-container difference instead of extending the one candy with init-system-aware logic) crystallizes into divergent surfaces that drift in their package lists, check probes, and service definitions — and the eventual unification deletes far more than the original duplicate. The canonical fix is ONE compile-time filter, not a per-call-site band-aid: when the same predicate appears on N targets, it collapses to one shared filter, applied to all N in the same commit. (See `CHANGELOG/` for the worked examples that motivated this.)
+
+**Why it matters.** Duplication has compounding cost. Two divergent copies become three, then four, then eight; each copy hides bugs the others fixed. The cost of the unification grows superlinearly with the number of copies. R2 enforces unification at copy-count = 2 — the cheapest possible moment.
+
+**Interaction with other rules.** R2 is paired with the architectural-philosophy framing in the project rulebook "Prioritize Clean Architecture Above All Else" — no duplication on first surface, generic over ad-hoc, no workarounds, stated there as one binding mandate that mirrors R2 + R3 from the architectural angle. Both framings are binding.
+
+## R3. No ad-hoc workarounds — sleep loops, retry-on-flake, magic-number tuning, "works on my machine" fixes are FORBIDDEN
+
+**The rule (AGENTS.md R3).** Sleep loops, retry-on-flake, magic-number tuning, and environment-specific shims are forbidden; every fix applies cleanly across every supported environment.
+
+**Forbidden patterns.** `sleep 5; retry` (race-condition cover-up); `for i in 1..3 do try; done` (retry loops disguising flake); hardcoded ports chosen because "8080 was busy" (port-allocation bug disguised as a config); environment-specific paths like `/Users/$USER/...` in shipped code; default-fallbacks that hide a missing config (silent fallback to a wrong value); "this is what worked when I tried it locally" (single-environment validation).
+
+**What is permitted instead.**
+
+| Forbidden pattern | Authorized replacement |
+|---|---|
+| `sleep N; check` | Synchronization primitive: file lock, readiness probe, condition variable, deterministic ordering |
+| Retry on flake | Identify the race; fix the race; remove the retry |
+| Magic number | Named constant, sourced from config, validated on load |
+| Hardcoded port | Port allocation from a registry, or service-discovery lookup |
+| Environment-specific path | Standard XDG/FHS path resolved at startup |
+| "Works on my machine" fix | Cross-environment validation before the fix ships |
+
+**The `charly` CLI is the ONLY operational interface (the project rulebook "Charly CLI discipline").** Ad-hoc container/VM commands against charly-managed resources are R3 workarounds; every one has a `charly` verb:
+
+| Ad-hoc command (FORBIDDEN on charly-managed resources) | The `charly` verb |
+|---|---|
+| `podman ps` / `docker ps` | `charly status` (`--all`, `--json`) |
+| `podman inspect` (ports / mounts / state / image ref) | `charly status <box>` / `charly status --json` (structured ports, volumes, tools, `image_ref`) |
+| `podman exec <ctr> <cmd>` | `charly cmd <box> "<cmd>"` (running) / `charly shell <box> -c "<cmd>"` (image) |
+| `podman logs` / `journalctl --user -u charly-*` | `charly logs <box>` |
+| `podman rm` / hand-editing quadlets | `charly remove <box>` (`--purge` for volumes) |
+| `podman inspect` OCI labels | `charly box labels <ref>` (`--format <key>` for one value; non-zero exit when absent) |
+| `podman exec`/`logs` into a SIDECAR container | `charly cmd <box> --sidecar <name> "<cmd>"` / `charly logs <box> --sidecar <name>` |
+| `podman volume ls/inspect` | `charly volume list <box>` (names + mountpoints) |
+| `podman volume rm <one-volume>` | `charly volume reset <box> <name>` (in-use refused; next start recreates) |
+| `podman cp` | `charly cp <box> <src> <dst>` (`:` prefix marks the container side; `--sidecar` supported) |
+| `podman image ls` | `charly box list tags [<box>]` (newest first; rollback via `charly update --tag`) |
+| `podman rmi '<glob>'` | `charly clean --invalidate '<glob>'` (charly-labeled tags only; in-use skipped) |
+| `podman image prune` / `podman rmi $(podman images -f dangling=true -q)` | `charly clean --deep` (`--dry-run` reports the would-remove count + an upper-bound reclaimable-bytes figure — shared layers can make actual reclaim much smaller, pair with `--invalidate` for the fullest reclaim; store-wide untagged-image purge, in-use/live-build skipped) |
+| `podman secret ls` | `charly status <box>` (the `Secrets:` detail line / JSON `secrets`) |
+| `podman secret rm` + re-setup | `charly config <box> --refresh-secret <name\|all>` |
+| `systemctl --user status/restart charly-<x>` | `charly status <x>` / `charly restart <x>` |
+| ad-hoc `supervisorctl …` | `charly service status <box>` / `charly service start/stop/restart <box> <svc>` |
+| `virsh list/dumpxml/domstate/…` | `charly vm *` (lifecycle) / `charly check libvirt list/info/domain-xml/…` (introspection) |
+| stray-resource cleanup by hand | `charly reap-orphans` / `charly preempt restore` |
+
+A probe NO `charly` verb expresses is a charly GAP — fix it in this change when it blocks; otherwise FILE it (R1 *fix it or file it*) — never work around it with an ad-hoc command. The mandate governs what you RUN against charly-managed resources: DESCRIPTIVE mentions of the underlying machinery (how a collector or executor works internally) are not commands and stay, and host-level operations on non-charly-managed resources (the host package manager, enabling the host libvirt daemon) are out of scope.
+
+**The rule is preventive.** R3 exists to forbid the patterns BEFORE they crystallize. Each forbidden pattern is the kind of "quick fix" that, once accepted, becomes tribal knowledge ("oh, that test always needs a sleep; that's just how it is"). R3 closes the door before the tribe forms.
+
+**Why it matters.** "Temporary" fixes never get removed. Every sleep loop in the codebase was added with a "this is just for now" justification that was never revisited. R3 forbids the pattern at addition time, before the temporary becomes permanent.
+
+**Interaction with other rules.** R3 is paired with R2 in the project rulebook "Prioritize Clean Architecture Above All Else" (the no-workarounds norm). R3 violations also typically violate R1 — the workaround is an attempt to dodge the failure rather than RCA it.
+
+## R4. Fix the product first — documentation never routes around a defect
+
+**The rule (AGENTS.md R4).** When a doc and the code disagree, first establish which side holds the intent. Then fix the PRODUCT before the prose. Editing docs to match a bug is forbidden, and so is editing them to avoid one. Every command a reader is told to run must work with nothing but the `charly` binary installed. Needing a checkout, `./bin/charly`, `task`, or a repo-relative path outside an INSTALL section is a product defect, and the fix belongs in `charly`. The full operationalization, including the binary-only command audit, is `/charly-build:docs`.
+
+## R5. Hard cutover: deprecated path AND every stale reference deleted in the same change
+
+**The rule (AGENTS.md R5).** When a cutover introduces a replacement, the same commit deletes the deprecated code path, every marker referencing it, and every reference naming a deleted identifier; after commit, `git grep '<deleted-id>'` returns only historical mentions in `CHANGELOG/` or migration help-text.
+
+**The acceptance test.** A cutover is not "clean" until you can run `git grep '<deleted-id>'` and have ZERO live (non-historical) hits. Historical hits in `CHANGELOG/` and migration command help-text that names the legacy form for the user's benefit are permitted — these intentionally preserve the old name to help users migrate. Everything else is a violation. The deprecated / transitional / dual-mode path is deleted BEFORE the R10 acceptance run that gates the commit, never after a green R10 — an R10 that runs with such a path still present verified a state that will not ship, and the later deletion then rides untested into the commit (the silent-skip regression below); mid-flight smoke / RDD runs WITH transitional code present stay fine, only the final-code R10 acceptance run authorizes the commit (see `/charly-internals:cutover-policy` step 2).
+
+**Identifier-keyed vs claim-keyed sweep.** The `git grep '<deleted-id>'` self-test is *identifier-keyed* — it catches stale references to a DELETED name. But a doc can diverge from reality with NO identifier deleted: it can describe behaviour the code never had, or drift after a change that renamed nothing. That broader case is the *claim-keyed* sweep — fix EVERY doc/skill/comment repeating the same false/outdated/misleading claim, not just the one spotted. R1 ("Documentation divergence is a failure for R1 purposes") makes such a divergence an incident; the grep self-test is one instrument of the claim sweep, not its whole. The claim-keyed sweep is not limited to PRE-EXISTING surfaces either — it equally covers the cutover's OWN new narrative (the CHANGELOG entry, PR description, commit message) written to describe THIS fix, since that prose can reintroduce the very claim the fix corrects.
+
+**Sweep for the claim, not the phrase.** R5 is about outdated claims, and a string is not a claim: a sweep keyed to retired wording returns `rc=1` while a different sentence asserting the same proposition survives three lines away. Proof that a sweep is a control is that it **matches the claim where the claim exists** — not that it matches nothing.
+
+**The regression classes R5 prevents.** Two motivate the rule. First, a *silent-skip regression*: deleting the old artifact (e.g. `charly.yml`) while the replacement path quietly drops a stage it used to wire produces an artifact that builds but misbehaves at runtime — which is why the acceptance test is "rebuild from the new config, run the resulting image, observe the service reach steady-state", not just "it compiles". Second, *stale references*: a rename that doesn't sweep every mention in the same commit leaves a code search returning matches that imply the retired thing is still live. (See `CHANGELOG/` for the incidents that motivated this.)
+
+**What is permitted in historical contexts.** `CHANGELOG/` entries and migration-command help-text that names the legacy form for the user's benefit ("rename `qc` to `charly-cachyos`"). The grep self-test distinguishes these via context.
+
+**Why it matters.** Stale references confuse you. A code search for `qc` that returns matches in `charly.yml` suggests the deployment is still live; a search that returns matches only in `CHANGELOG/` suggests it was retired. R5's grep self-test enforces this distinction.
+
+**Interaction with other rules.** R5 covers stale references everywhere, not just the deleted artifact itself. R5 is the cleanup discipline that R2 enables — once you've refactored to the unified abstraction, R5 ensures every old reference points to the new one.
+
+## A GREEN verdict is not a LANDING — the mechanisms, and the re-trigger table
+
+*This is R10's boundary, and it is where a correct change still fails to ship.*
+
+**A passing review verdict is one step's output. Four different mechanisms can stop it becoming a merge, and a body that
+claims a landing must name which it ruled out.**
+
+1. **The repo setting arms nothing.** *Auto-merge is a repo setting; a PASS that "arms" it on a repo where it is not
+   enabled merges nothing.*
+2. **The repo's own required check refuses.** *A ruleset-required status check (`validate / validate`) that is red or was
+   never reported blocks the merge outright — whatever the verdict says, and even if every sibling is green.*
+3. **The branch is `BEHIND`.** *The head no longer contains the merge base.*
+4. **Any sibling check is red, so the validator's own head-check step fails and "Enable auto-merge" is skipped.** *The
+   verdict comment may still say PASS; the RUN is what decides.*
+5. **The arming step runs and reports SUCCESS, and arms nothing.** *The inverse of 4: the head-check step passes, the arming step executes and returns success, and the PR still reads no auto-merge — so the check list shows a green required check either way, and only the PR state reveals it.* Measured on `opencharly/lobster#4`, head `885a8472a` - one `validate / validate` on that head, `completed/success`, started 2026-10-15T21:02:31Z: the repo allows auto-merge, `mergeable` was `clean`, step 17 `Enable auto-merge` reported `success`, and the PR was unmerged with nothing armed. *Leading cause, untested: that step was reached by a REST RE-RUN, and a re-run may not carry the context its mutation needs.*
+**The one action for it is a NEW HEAD — an empty round commit; a re-run does not arm it (measured).**
+
+**Read the CHECK RUN, not the verdict comment.** *The verdict comment is emitted before the workflow finishes, so
+`PASS` in a comment and a red check-run are perfectly normal together.* **And look at the SIBLINGS: a red sibling makes the
+validator's own check red for a reason that has nothing to do with your diff.**
+
+**THE RE-TRIGGER TABLE — one action per condition, and no others:**
+
+| condition | the ONE action |
+|---|---|
+| branch is `BEHIND` | `gh pr update-branch` — **never a rebase, never a force-push** |
+| an unresolvable / stale `workflow_id`, or a run that produced **no verdict** | a NEW run: **an empty round commit** |
+| `update-branch` on an already-current branch | **nothing — it is a no-op and re-fires nothing** |
+| a body-only change | a push still needs a commit to re-fire the gate (a body edit never does) |
+
+**And never interrupt or clean an active long-running bed because it is quiet — wait for its exit and its
+`summary.yml`.** *A VM bed can legitimately run for a long time; killing it loses the evidence you were waiting for.*
+
+**A note on the attribution tier, filed as `charly/946`:** *no row in the AI-attribution tier table fits "the class's gate
+passed, but the change's own central runtime action is not live-proven" — which is the normal shape of a producer-first
+library whose consumer supplies the venue.* **Until a row exists, say which clause of the closest tier diverges and why,
+rather than inflating the tier or forbidding the push in the other clause.**
+## How R1–R5 interact with R6–R10
+
+R1–R5 are **authoring discipline** — what you do during the work.
+
+R6–R9 are **artifact discipline** — what the produced artifact must be.
+
+R10 is **live-system discipline** — what the deployed-and-running system must do.
+
+The layers compose. A cutover that violates R2 (duplication) but passes R7 (end-to-end gate) is still a violation — the duplication is a future bug. A cutover that passes R2 but fails R10 (fresh-rebuild verification) is still a violation — the artifact failed live. The layers are AND-gated; **all** must pass. R5 is moreover a PRECONDITION of R10's acceptance run: every deprecated / transitional / dual-mode path is deleted BEFORE that run, so R10 exercises the transitional-free FINAL code — an acceptance run over a still-transitional tree proves nothing about what ships.
+
+Per the project rulebook "AI Attribution" section: a violation at any layer FORBIDS the push. The five-tier table describes the proof level a pushed commit has earned. A known violation means nothing is pushed, regardless of tier. The agent fixes the violation or escalates to the operator — never both downgrade and ship.
+
+## The INSTRUMENT CHECKLIST — apply BEFORE any count or absence claim (Lead ruling, 2026-10-14)
+Three defects of one family in a single wave — a bed trigger that was never the trigger, an unanchored
+call-site count that manufactured a stale-count finding, and an absence claim made with a piped `head` —
+are **not** fixed by resolving to be more careful. **The durable control is mechanical, and it applies to
+every grep a claim rests on:**
+| # | The claim | The instrument | Why |
+|---|---|---|---|
+| 1 | **A count of CALL SITES** | anchored: `grep -cE '^[[:space:]]+name\('` | a PROSE mention of a symbol is not a call |
+| 2 | **An ABSENCE claim** | `grep -rl --include=… .` with **NO `head`, NO `-v`**, and the **SCOPE STATED** | a window is not an inventory; `per_page` and `head` are windows |
+| 3 | **A prose IDENTIFIER** | **case-insensitive (`-i`)** | prose capitalizes — a capitalised identifier costs a whole round |
+| 4 | **Any claim-bearing grep** | **never pipe into `head`**; a `Broken pipe` in the output is a **defect in the run**, not a clean result | the pager's exit code is not the command's |
+| 5 | **An assertion about behaviour** | a **mutation** that breaks the behaviour must FAIL it | a test that cannot fail proves nothing |
+| 6 | **An assertion about a RULE** | mutate the rule's **FORM** (allowlist it to one case), not only its behaviour | the rule's reach is the claim |
+| 7 | **A claim about generality** | assert every **AXIS** separately — for a path: content, structure, and NAME | one axis passing is not the claim |
+| 8 | **A claim about a DIFF's scope** ("this PR contains my change") | `git log --oneline origin/main..HEAD` before the claim | the branch may carry less than you think |
+| 9 | **A mutation RESULT** ("this mutation was killed") | the harness must **prove the mutation APPLIED** | an unapplied mutation "dies" for free |
+| 10 | **A result carried across a tree change** | **re-run on the new tree** | identical is an assertion, not a measurement |
+| 13 | **A result's REVISION** | **name the revision a result was measured on** | a figure without its revision is a claim about an unknown tree |
+**A field that is null for "unknown" and null for "no" cannot be counted with** — *the pull-list `merged`
+boolean is `null` for PRs that HAVE merged, so filter on `merged_at`, never on `merged`.*
+**And a count must name its SCOPE**: a whole-file figure and an entity-scoped figure are different
+numbers for the same word, and quoting one while enumerating the other is a contradiction, not a typo.
+**⚑ THE ROOT OF ALL OF THEM, IN ONE SENTENCE (Lead, 2026-10-14):**
+> **A result reported without verifying that the instrument ran is not a result — in either direction.**
+This is the complement of *"A GREEN verdict is not a LANDING"* above: that section is about a RESULT reported
+without the mechanism having run; this one is about the INSTRUMENT behind any result at all. **Items 11 and 12
+of the original ruling were never recorded in the wave's ledger and are deliberately not invented here.**
+## Cross-references
+
+- `/charly-internals:cutover-policy` — the operationalization of R5 for schema/API/rename changes specifically. Cutover-policy is one of strict-policy's children — R5 governs all hard-cutover behavior, and cutover-policy operationalizes it for the most common case.
+- `/charly-internals:root-cause-analyzer` agent — the R1 mandatory-invocation target. The agent's 8-step process is the only authorized first response to a failure.
+- `/charly-internals:disposable` — R10's verification target. Strict-policy R5 (cutover) cooperates with R10 (verification) to ensure the post-rename state is both clean and live.
+- `/charly-internals:skills` — the meta-skill for skill maintenance. R5's stale-reference sweep includes skill paragraphs; the skills meta-skill has a "When to Update Skills" row dedicated to R5 self-test failures.
+- The project rulebook's "The ground-truth rules R1–R10" section (umbrella `AGENTS.md`) defines R1–R10. Strict-policy operationalizes R1–R5 specifically.
+- the project rulebook "Prioritize Clean Architecture Above All Else" — the architectural-philosophy framing of R2 + R3. Both framings (procedural rules R2+R3 AND architectural-philosophy section) are binding.
+- the project rulebook "AI Attribution" and "Commit, push, land" — the no-push-on-violation clause that gives R1–R5 their teeth. Any violation FORBIDS the push. No tier downgrade. No "ship at lower tier". Fix or escalate.
+
+## When to Use This Skill
+
+**MUST be invoked** when:
+
+- A failure / error / anomaly / warning surfaces from any tool, at any time during a session. R1's RCA mandate fires immediately.
+- You are about to edit on a HIGH-RISK assumption — a layer composition, a newest-wins version bump, or anything a skill / the project rulebook / code merely *asserts* that the plan depends on. RDD's prove-it-on-a-bed-first mandate fires (never trust a doc or code reading for a high-risk call).
+- A pattern, predicate, or filter is about to land in a second place. R2's first-surface refactor mandate fires.
+- A sleep, retry, magic number, or environment-specific shim is tempting. R3's forbidden-patterns list fires.
+- A cutover commit is about to ship. R5's grep self-test mandate fires.
+- An issue surfaces mid-session that "might be pre-existing" or "unrelated to my change". R1's fix-it-or-file-it mandate fires.
+
+The skill is also a useful read **before** starting a non-trivial cutover — both as a refresher and as a way to internalize the forbidden-internal-voice triggers in each rule's "Forbidden patterns" / "Forbidden phrasings" lists.
