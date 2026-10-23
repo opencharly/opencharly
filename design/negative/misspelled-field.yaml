@@ -2,7 +2,7 @@
 # expect: has no substance: no content
 x:
   description: A candy.
-  package: [jq]
+  package: {jq: {}}
   servce: {description: meant to be service}
   step:
     - check: it runs

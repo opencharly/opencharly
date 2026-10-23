@@ -1,8 +1,8 @@
 # rule: D-IR-5
-# expect: package.0: conflicting values
+# expect: package."helm:prometheus-pushgateway".chart: field not allowed
 helm-as-a-map:
     description: A candy that spelled a manager's attributes as core fields.
     package:
-        - helm:
+        "helm:prometheus-pushgateway":
             chart: prometheus-pushgateway
             release: web-pushgateway

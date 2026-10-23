@@ -1,0 +1,11 @@
+# rule: D-FLOW-2
+# expect: stage.build.attempt: invalid value 0
+p:
+  pipeline:
+    description: A pipeline whose stage repeats zero times.
+    stage:
+      build:
+        attempt: 0
+        step:
+          - check: the tree is clean
+            command: git diff --quiet

@@ -1,5 +1,5 @@
 # rule: D-NEST-6
-# expect: inner."x.warm".local.host: field not allowed
+# expect: inner."x.warm".local.connect
 x:
   vm:
     description: A VM.
@@ -7,4 +7,4 @@ x:
     warm:
       local:
         description: Warm-up.
-        host: local
+        connect: {shell: {}}

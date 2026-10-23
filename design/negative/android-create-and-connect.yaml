@@ -1,0 +1,7 @@
+# rule: D-DEP-6
+# expect: node.x.android
+x:
+  android:
+    description: A device that is both created and connected.
+    create: {device: pixel_7, api_level: 34}
+    connect: {adb: {address: 192.0.2.10:5555}}
