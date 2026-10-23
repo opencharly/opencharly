@@ -30,10 +30,20 @@
 //      commit means the evidence was taken on another tree than the body claims. A body
 //      that wants to name another tree's head says `git -C <path> rev-parse HEAD` or
 //      writes the SHA plainly.
+//   N. Every COUNT the body's prose states about the diff's NEW files equals the diff's.
+//      The prose and the diff state the same fact twice, and a hand-written count is a
+//      second source of truth that rots silently when the diff grows — which is exactly
+//      what the `charly/pr-validator` BLOCKed on (2026-10-23, this branch's own PR: the
+//      body said "three new executable scripts" and the diff adds six). The count is
+//      derived MECHANICALLY — the number, the word "new"/"added" and a noun that names
+//      files or scripts — so a claim about anything else ("the four new gates", "a new
+//      task") is not read as a claim about the diff's file set. The scope the prose names
+//      ("under `scripts/`") narrows the comparison to that directory.
 //
 // NOT asserted, and why: whether the body's prose about a file is TRUE. A row that says
 // the README carries a change the README does not carry is a judgement, and judgement is
-// the validator's job — this gate removes only the class that needs none.
+// the validator's job — this gate removes only the class that needs none. A COUNT is not
+// that class: it is the diff's own arithmetic, so the diff can decide it.
 //
 // Usage: node scripts/check-pr-body-diff.mjs [--body <path>] [--repo <dir>] [--base <ref>] [--self-test]
 // exit 0 clean · 1 finding · 2 usage
@@ -114,6 +124,91 @@ function pastedHeads(body) {
   return out;
 }
 
+/** The number words a count claim may spell. */
+const COUNT_WORDS = {
+  one: 1, two: 2, three: 3, four: 4, five: 5, six: 6,
+  seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12,
+};
+
+/** A path that is a script by where it lives or by what it ends in. */
+const isScriptPath = (p) => p.startsWith("scripts/") || /\.(sh|mjs|cjs|js|py|ts|rb|pl)$/.test(p);
+
+/**
+ * The body's PROSE, with the fenced code blocks and the file table's rows blanked
+ * out: a pasted gate output and a table row are not the author's claim about the
+ * diff. The blanks keep every OFFSET, so a claim keeps its line number.
+ */
+function claimText(body, table) {
+  const noFences = body.replace(/```[\s\S]*?(?:```|$)/g, (m) => m.replace(/[^\n]/g, " "));
+  const set = new Set(table ?? []);
+  if (set.size === 0) return noFences;
+  return noFences
+    .split("\n")
+    .map((line) => {
+      if (!/^\s*\|/.test(line)) return line;
+      const paths = [...line.matchAll(/`([^`]+)`/g)].map((m) => m[1]);
+      return paths.some((p) => set.has(p)) ? line.replace(/[^\n]/g, " ") : line;
+    })
+    .join("\n");
+}
+
+/**
+ * The counts the prose states about the diff's NEW files: a number, "new" (or
+ * "added"), and a noun that names files or scripts. A claim about anything else
+ * ("the four new gates", "a new task and new gate steps") is not a claim about the
+ * diff's file set, so it is not read as one.
+ */
+function countClaims(body, table) {
+  const text = claimText(body, table);
+  const re =
+    /\b(\d{1,3}|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\s+(?:new|added)\s+(?:[a-z-]+\s+)?(files?|scripts?)\b/gi;
+  const claims = [];
+  for (const m of text.matchAll(re)) {
+    const word = m[1].toLowerCase();
+    const n = /^\d+$/.test(word) ? Number(word) : COUNT_WORDS[word];
+    if (!n) continue;
+    const noun = m[2].toLowerCase();
+    const sentence = text.slice(m.index, m.index + 240).split(/(?:\.\s|\n|;)/)[0];
+    const scope = sentence.match(/\b(?:under|in|inside|within)\s+`([^`]+)`/);
+    claims.push({
+      n,
+      noun,
+      scope: scope ? scope[1] : null,
+      text: m[0],
+      line: text.slice(0, m.index).split("\n").length,
+    });
+  }
+  return claims;
+}
+
+/**
+ * N. Every count the body states about the diff's NEW files equals the diff's.
+ * The prose and the diff state the same fact twice; a hand-written count is a second
+ * source of truth, and it rots silently when the diff grows.
+ */
+function checkCounts(body, table, statuses) {
+  const added = statuses.filter(([s]) => s === "A").map(([, p]) => p);
+  const claims = countClaims(body, table);
+  if (claims.length === 0) {
+    notice("the body states no count of the diff's new files — the count rule is inapplicable");
+    return;
+  }
+  let bad = 0;
+  for (const c of claims) {
+    let set = added;
+    if (c.noun.startsWith("script")) set = set.filter(isScriptPath);
+    if (c.scope) set = set.filter((p) => p.startsWith(c.scope));
+    if (c.n === set.length) continue;
+    bad += 1;
+    fail(
+      `the body states "${c.text}" (line ${c.line}), and the diff adds ${set.length} new file(s)` +
+        `${c.scope ? ` under \`${c.scope}\`` : ""} — the count in the prose is stale`,
+    );
+  }
+  if (bad === 0)
+    ok(`every count the body states about the diff's new files matches the diff (${claims.length} claim(s))`);
+}
+
 function check() {
   if (!existsSync(bodyPath)) {
     notice(`no body at ${bodyPath} — nothing to reconcile`);
@@ -143,17 +238,30 @@ function check() {
     if (bad === 0) ok(`every pasted \`git rev-parse HEAD\` names the head being pushed (${head.slice(0, 7)})`);
   }
 
-  // ── T. the file table ─────────────────────────────────────────────────────────────
+  // ── T + N. the diff the body is published with ────────────────────────────────────
   const table = fileTable(body);
-  if (table === null) {
-    notice("the body carries no file table — the table rule is inapplicable");
-    return;
-  }
   if (!git("rev-parse", "--verify", `${baseRef}^{commit}`)) {
     notice(`the base ref ${baseRef} is not available here — the diff cannot be read, so the table is not reconciled`);
     return;
   }
   const changed = (git("diff", "--name-only", `${baseRef}...HEAD`) ?? "").split("\n").filter(Boolean);
+  const statuses = (git("diff", "--name-status", `${baseRef}...HEAD`) ?? "")
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => {
+      const parts = line.split("\t");
+      return [parts[0], parts.slice(1).join("\t")];
+    });
+
+  // N. the count the prose states about the diff's new files. It does not need the
+  // file table, so it runs whether or not the body carries one.
+  checkCounts(body, table, statuses);
+
+  // T. the file table.
+  if (table === null) {
+    notice("the body carries no file table — the table rule is inapplicable");
+    return;
+  }
   const listed = new Set(table);
   const missing = changed.filter((f) => !listed.has(f));
   const phantom = [...listed].filter((f) => !changed.includes(f));
@@ -178,17 +286,20 @@ if (argv.includes("--self-test")) {
     g("config", "user.name", "gate");
     writeFileSync(join(repo, "a.txt"), "a\n");
     writeFileSync(join(repo, "b.txt"), "b\n");
+    mkdirSync(join(repo, "scripts"), { recursive: true });
+    writeFileSync(join(repo, "scripts/one.sh"), "#!/bin/sh\n");
     g("add", "-A");
     writeFileSync(join(scratch, "msg.txt"), "base\n");
     g("commit", "-q", "-F", join(scratch, "msg.txt"));
     g("checkout", "-q", "-b", "feat");
     writeFileSync(join(repo, "a.txt"), "a2\n");
     writeFileSync(join(repo, "c.txt"), "c\n");
+    writeFileSync(join(repo, "scripts/two.sh"), "#!/bin/sh\n");
     g("add", "-A");
     g("commit", "-q", "-F", join(scratch, "msg.txt"));
     const head = g("rev-parse", "HEAD").stdout.trim();
 
-    const body = (tableRows, pastedSha) => `## Summary
+    const body = (tableRows, pastedSha, claim = "") => `## Summary
 
 A fixture body.
 
@@ -217,7 +328,7 @@ ${pastedSha}
 - **R10 — fresh disposable proof:** fixture.
 
 ## Change classification
-Test fixture, not a real change.
+${claim || "Test fixture, not a real change."}
 
 *Assisted-by: DeepSeek Harness ollama-cloud/deepseek-v4.1-flash (documentation reviewed)*
 `;
@@ -242,8 +353,17 @@ Test fixture, not a real change.
       ],
       [
         "the pasted head is not the head being pushed",
-        body("| `a.txt` | a change |\n| `c.txt` | a change |", "0".repeat(40)),
+        body("| `a.txt` | a change |\n| `c.txt` | a change |\n| `scripts/two.sh` | a change |", "0".repeat(40)),
         "another tree than the body claims",
+      ],
+      [
+        "the prose states a stale count of the diff's new files",
+        body(
+          "| `a.txt` | a change |\n| `c.txt` | a change |\n| `scripts/two.sh` | a change |",
+          head,
+          "This change adds two new scripts.",
+        ),
+        "the count in the prose is stale",
       ],
     ];
     for (const [name, text, expect] of arms) {
@@ -260,9 +380,18 @@ Test fixture, not a real change.
         console.log(`  PASS  mutation '${name}' is caught (gate red)`);
       }
     }
-    // The unmutated body is GREEN.
+    // The unmutated body is GREEN — and it states a count, so the green run also
+    // proves the count rule does not fire on a count that MATCHES the diff.
     stLive += 1;
-    writeFileSync(bodyFile, body("| `a.txt` | a change |\n| `c.txt` | a change |", head), "utf8");
+    writeFileSync(
+      bodyFile,
+      body(
+        "| `a.txt` | a change |\n| `c.txt` | a change |\n| `scripts/two.sh` | a change |",
+        head,
+        "This change adds one new script.",
+      ),
+      "utf8",
+    );
     const clean = runGate();
     if (clean.code !== 0) {
       stFails += 1;
