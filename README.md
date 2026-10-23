@@ -3,7 +3,7 @@
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/opencharly/opencharly)
 
 **One clone of the whole org — and the place all charly development happens.**
-`opencharly/opencharly` is an org-level umbrella repo: every OpenCharly repo (430 today)
+`opencharly/opencharly` is an org-level umbrella repo: every OpenCharly repo (429 today)
 is pinned here as a git submodule ("gitlink", in the org's vocabulary), flat at the
 root — submodule path == repo name for all but one alias (`.github`, pinned at the
 `dotgithub/` path).
@@ -328,11 +328,10 @@ six vendored OpenClaw upstream forks.
 
 ### Charly candy layers
 
-20 repos — the charly meta/skill candy layers.
+19 repos — the charly meta/skill candy layers.
 
 | path | repo | role |
 |---|---|---|
-| `layer-charly-build/` | [opencharly/layer-charly-build](https://github.com/opencharly/layer-charly-build) | The charly-build candy — 15 build skills (extracted from charly/candy) |
 | `layer-charly-check/` | [opencharly/layer-charly-check](https://github.com/opencharly/layer-charly-check) | The charly-check candy — 14 check skills (extracted from charly/candy) |
 | `layer-charly-coder/` | [opencharly/layer-charly-coder](https://github.com/opencharly/layer-charly-coder) | image layer / candy |
 | `layer-charly-comfyui/` | [opencharly/layer-charly-comfyui](https://github.com/opencharly/layer-charly-comfyui) | image layer / candy |
@@ -812,13 +811,16 @@ different answers. Ask the right one:
 | question | command | what it answers |
 |---|---|---|
 | *where is each repo pinned?* | `charly task map` | the **state** — every submodule with its pin and sync state |
-| *does this tree agree with itself?* | `charly task verify` | the **consistency** — every checkout sits at the gitlink the index records, and every pin's branch is its remote's default branch |
+| *does this tree agree with itself?* | `charly task verify` | the **consistency** — every checkout sits at the gitlink the index records, and every pin's branch is its remote's default branch — plus a **report** of the currency below, which never fails the gate |
 | *is the org current with its upstreams?* | `charly task pins --param MODE=currency` | the **currency** — every pin against the ref its intent names, judged from the index and the remote, never from a checkout |
 
 `verify` being green does **not** mean the org is current: a tree can be perfectly
-consistent while every pin is behind what its repo serves. `currency` asks the other
-question, and when a pin waits on its source it names the producer leg instead of
-leaving you to discover it an hour later.
+consistent while every pin is behind what its repo serves. So the gate **names** the
+pins that are not current — `currency` asks that other question, and when a pin waits
+on its source it names the producer leg instead of leaving you to discover it an hour
+later. A pin that is behind is an advance available NOW, in its producer's own repo, so
+the gate reports it and stays green; only a pin the workflow cannot judge, or two sides
+that disagree, fails it.
 
 **The sanctioned catch-up** is one sequence, and it is the only one that moves a pin:
 
