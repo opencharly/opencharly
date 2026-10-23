@@ -27,7 +27,7 @@ startup warnings (`pi --approve`).
 A session worktree exists so that several sessions can work from the same umbrella at once. It
 carries the MUTABLE half of a session — working tree, index, branch, and its own
 `charly/bin/charly` — so no session can disturb another's checkout. It must never carry a
-private COPY of the immutable half. MEASURED on this clone (425 submodules, `main`):
+private COPY of the immutable half. MEASURED on this clone (2026-10-06, umbrella tree `9501fb0`):
 
 | Step | Cost |
 |---|---|
@@ -40,10 +40,11 @@ So `charly_worktree_create` materializes **only `charly` and `marketplace`** —
 harness's own tools and gates read — and any other module is named explicitly through the tool's
 `modules` argument, which **adds** to that set. `charly` can never be dropped from it: the build
 step runs `charly/scripts/bootstrap-charly.sh`. This is not a weakening: the repo's
-own pin gate (`scripts/check-verify-submodules.mjs`) documents a session worktree as
-materializing **1 of 424** paths and treats the rest as legitimately unmaterialized, and every
-commit-time gate here passes with **423 of 425** unmaterialized — `hooks/pre-commit`,
-`charly task pin-check`, `charly task self-test`, and every `scripts/check-*.mjs` gate.
+own pin gate (`scripts/check-verify-submodules.mjs`) treats an uninitialized module as a NOTICE
+and keeps its drift teeth — a nested submodule left uninitialized is reported, not failed — and
+every commit-time gate here passes with the rest of the graph left unmaterialized —
+`hooks/pre-commit`, `charly task pin-check`, `charly task self-test`, and every
+`scripts/check-*.mjs` gate.
 
 Materialize one later (no need to recreate the worktree):
 

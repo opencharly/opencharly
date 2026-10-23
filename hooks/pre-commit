@@ -43,6 +43,10 @@
 #  13. README measurements — the umbrella's MEASURED figures agree with each other: the
 #                          clone-shape table, the prose that quotes it, and the date every
 #                          dated figure carries (`node scripts/check-readme-measurements.mjs`).
+#                          The SHAPE half rides with it: a count of a collection that GROWS
+#                          (the submodules, the pins, the paths, the remotes) is a claim
+#                          about a moving target, so it must be derived from the collection
+#                          or carry the day it was measured.
 #                          The SAMPLES half — a reading against its band — is NOT here: it
 #                          needs the run's own log, so it is the MANUAL `--samples <log>`
 #                          step after a measurement (the README says which), because a
