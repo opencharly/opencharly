@@ -203,8 +203,8 @@ installed-binary form — `charly task …`, the same shape a packaged `charly` 
 | `charly task self-test` | self-test the committed CI body/pin-evidence builders + the dispatcher splice + the submodule initializer |
 | `charly task prune` | reap merged-upstream session worktrees + branches (MODE=report is a dry run) |
 
-`charly task list` enumerates them — eleven today. Without the `PATH` export, the same
-commands run as `./charly/bin/charly task …`.
+`charly task list` enumerates them. Without the `PATH` export, the same commands run as
+`./charly/bin/charly task …`.
 
 ## The org map
 

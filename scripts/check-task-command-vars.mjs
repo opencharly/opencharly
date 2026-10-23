@@ -1,6 +1,13 @@
 #!/usr/bin/env node
-// check-task-command-vars.mjs — no `command:` step of any `charly task` in THIS repo's
+// check-task-command-vars.mjs — no `command:` step of any entity in THIS repo's
 // charly.yml may carry a `${…}` reference in its text.
+//
+// "ENTITY", not "task": this repo's charly.yml declares entities of more than one kind —
+// the tasks the `charly task` verb enumerates, and the check roster — and the gate counts
+// every entity that carries a command step. Calling that count "task(s)" named a number
+// that is not the task count, which is what made the README's own task count look
+// contradicted; the noun now says what is counted, and the README carries no count that
+// could contradict it.
 //
 // THE DEFECT THIS CLOSES (observed 2026-10-22, and introduced by this branch's own
 // commit): the branch-audit step read its parallelism as
@@ -229,7 +236,7 @@ function findings(text) {
       kind: "V",
       line,
       msg:
-        `task \`${s.entity}\` — step \`${s.key}\` has a \`${REF}\` reference in its command text: ` +
+        `entity \`${s.entity}\` — step \`${s.key}\` has a \`${REF}\` reference in its command text: ` +
         `\`${snippet}\`. The plan runner CLAIMS it (kit.ExpandOpVars) and expands it against the ` +
         `task's merged env, so an unresolvable one does not fail the step — it SKIPS it, and the ` +
         `gate reads green while the check never ran; a resolvable one is substituted into the ` +
@@ -240,8 +247,8 @@ function findings(text) {
 
   for (const u of uncovered) {
     const where = u.step
-      ? `task \`${u.step.entity}\` — step \`${u.step.key}\``
-      : `${u.entity ? `task \`${u.entity}\`` : "the file"}`;
+      ? `entity \`${u.step.entity}\` — step \`${u.step.key}\``
+      : `${u.entity ? `entity \`${u.entity}\`` : "the file"}`;
     const detail = u.step
       ? `carries a \`command:\` key at indent ${u.indent}, which is NOT the step's own command (a step's keys sit two columns in, at ${u.step.indent + 2})`
       : `carries a \`command:\` key at indent ${u.indent}, OUTSIDE any plan step`;
@@ -277,7 +284,7 @@ if (argv.includes("--self-test")) {
     console.error(`check-task-command-vars --self-test: FAIL (the UNMUTATED ${yamlRel} is not green — fix the file first)`);
     process.exit(1);
   }
-  console.log(`  PASS  the unmutated ${yamlRel} is GREEN — ${withCmd.length} command step(s) over ${new Set(steps.map((s) => s.entity)).size} task(s), none carries a \`${REF}\` reference`);
+  console.log(`  PASS  the unmutated ${yamlRel} is GREEN — ${withCmd.length} command step(s) over ${new Set(steps.map((s) => s.entity)).size} entit(y|ies), none carries a \`${REF}\` reference`);
 
   // Each mutation reintroduces ONE defect class and names the assertion that must catch it.
   const mutations = [
