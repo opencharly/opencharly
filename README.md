@@ -3,7 +3,7 @@
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/opencharly/opencharly)
 
 **One clone of the whole org — and the place all charly development happens.**
-`opencharly/opencharly` is an org-level umbrella repo: every OpenCharly repo (430 today)
+`opencharly/opencharly` is an org-level umbrella repo: every OpenCharly repo (429 today)
 is pinned here as a git submodule ("gitlink", in the org's vocabulary), flat at the
 root — submodule path == repo name for all but one alias (`.github`, pinned at the
 `dotgithub/` path).
@@ -328,11 +328,10 @@ six vendored OpenClaw upstream forks.
 
 ### Charly candy layers
 
-20 repos — the charly meta/skill candy layers.
+19 repos — the charly meta/skill candy layers.
 
 | path | repo | role |
 |---|---|---|
-| `layer-charly-build/` | [opencharly/layer-charly-build](https://github.com/opencharly/layer-charly-build) | The charly-build candy — 15 build skills (extracted from charly/candy) |
 | `layer-charly-check/` | [opencharly/layer-charly-check](https://github.com/opencharly/layer-charly-check) | The charly-check candy — 14 check skills (extracted from charly/candy) |
 | `layer-charly-coder/` | [opencharly/layer-charly-coder](https://github.com/opencharly/layer-charly-coder) | image layer / candy |
 | `layer-charly-comfyui/` | [opencharly/layer-charly-comfyui](https://github.com/opencharly/layer-charly-comfyui) | image layer / candy |
