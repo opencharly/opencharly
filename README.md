@@ -3,7 +3,7 @@
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/opencharly/opencharly)
 
 **One clone of the whole org — and the place all charly development happens.**
-`opencharly/opencharly` is an org-level umbrella repo: every OpenCharly repo (429 today)
+`opencharly/opencharly` is an org-level umbrella repo: every OpenCharly repo (412 today)
 is pinned here as a git submodule ("gitlink", in the org's vocabulary), flat at the
 root — submodule path == repo name for all but one alias (`.github`, pinned at the
 `dotgithub/` path).
@@ -328,28 +328,13 @@ six vendored OpenClaw upstream forks.
 
 ### Charly candy layers
 
-19 repos — the charly meta/skill candy layers.
+4 repos — the charly meta/skill candy layers.
 
 | path | repo | role |
 |---|---|---|
 | `layer-charly-check/` | [opencharly/layer-charly-check](https://github.com/opencharly/layer-charly-check) | The charly-check candy — 14 check skills (extracted from charly/candy) |
-| `layer-charly-coder/` | [opencharly/layer-charly-coder](https://github.com/opencharly/layer-charly-coder) | image layer / candy |
-| `layer-charly-comfyui/` | [opencharly/layer-charly-comfyui](https://github.com/opencharly/layer-charly-comfyui) | image layer / candy |
-| `layer-charly-distros/` | [opencharly/layer-charly-distros](https://github.com/opencharly/layer-charly-distros) | image layer / candy |
-| `layer-charly-filebrowser/` | [opencharly/layer-charly-filebrowser](https://github.com/opencharly/layer-charly-filebrowser) | image layer / candy |
-| `layer-charly-hermes/` | [opencharly/layer-charly-hermes](https://github.com/opencharly/layer-charly-hermes) | image layer / candy |
-| `layer-charly-image/` | [opencharly/layer-charly-image](https://github.com/opencharly/layer-charly-image) | The charly-image candy — 2 image skills (extracted from charly/candy) |
-| `layer-charly-immich/` | [opencharly/layer-charly-immich](https://github.com/opencharly/layer-charly-immich) | The charly-immich candy — 2 immich skills (extracted from charly/candy) |
-| `layer-charly-infrastructure/` | [opencharly/layer-charly-infrastructure](https://github.com/opencharly/layer-charly-infrastructure) | image layer / candy |
 | `layer-charly-internals/` | [opencharly/layer-charly-internals](https://github.com/opencharly/layer-charly-internals) | The charly-internals concept candy — contributor skills (go, plugin, agents, install-plan, cutover-policy, …)… |
 | `layer-charly-internals-extra/` | [opencharly/layer-charly-internals-extra](https://github.com/opencharly/layer-charly-internals-extra) | The charly-internals-extra candy — 2 internals skills (extracted from charly/candy) |
-| `layer-charly-jupyter/` | [opencharly/layer-charly-jupyter](https://github.com/opencharly/layer-charly-jupyter) | image layer / candy |
-| `layer-charly-kubernetes/` | [opencharly/layer-charly-kubernetes](https://github.com/opencharly/layer-charly-kubernetes) | The charly-kubernetes candy — 3 kubernetes skills (extracted from charly/candy) |
-| `layer-charly-languages/` | [opencharly/layer-charly-languages](https://github.com/opencharly/layer-charly-languages) | image layer / candy |
-| `layer-charly-local/` | [opencharly/layer-charly-local](https://github.com/opencharly/layer-charly-local) | image layer / candy |
-| `layer-charly-openwebui/` | [opencharly/layer-charly-openwebui](https://github.com/opencharly/layer-charly-openwebui) | image layer / candy |
-| `layer-charly-pod/` | [opencharly/layer-charly-pod](https://github.com/opencharly/layer-charly-pod) | image layer / candy |
-| `layer-charly-selkies/` | [opencharly/layer-charly-selkies](https://github.com/opencharly/layer-charly-selkies) | image layer / candy |
 | `layer-charly-tools/` | [opencharly/layer-charly-tools](https://github.com/opencharly/layer-charly-tools) | image layer / candy |
 
 
@@ -691,7 +676,7 @@ agent runtimes and terminals charly speaks.
 
 ### Pods
 
-74 repos — pod/deployment bundles.
+73 repos — pod/deployment bundles.
 
 | path | repo | role |
 |---|---|---|
@@ -706,7 +691,6 @@ agent runtimes and terminals charly speaks.
 | `pod-android-emulator-layer/` | [opencharly/pod-android-emulator-layer](https://github.com/opencharly/pod-android-emulator-layer) | pod / deployment bundle |
 | `pod-appium-server/` | [opencharly/pod-appium-server](https://github.com/opencharly/pod-appium-server) | pod / deployment bundle |
 | `pod-charly-automation/` | [opencharly/pod-charly-automation](https://github.com/opencharly/pod-charly-automation) | pod / deployment bundle |
-| `pod-charly-core/` | [opencharly/pod-charly-core](https://github.com/opencharly/pod-charly-core) | pod / deployment bundle |
 | `pod-charly-hooks/` | [opencharly/pod-charly-hooks](https://github.com/opencharly/pod-charly-hooks) | pod / deployment bundle |
 | `pod-charly-mcp/` | [opencharly/pod-charly-mcp](https://github.com/opencharly/pod-charly-mcp) | The charly-mcp candy — the charly MCP gateway pod (extracted from charly/candy) |
 | `pod-charly-versa/` | [opencharly/pod-charly-versa](https://github.com/opencharly/pod-charly-versa) | pod / deployment bundle |
@@ -773,11 +757,10 @@ agent runtimes and terminals charly speaks.
 
 ### VMs
 
-3 repos.
+2 repos.
 
 | path | repo | role |
 |---|---|---|
-| `vm-charly-vm/` | [opencharly/vm-charly-vm](https://github.com/opencharly/vm-charly-vm) | VM image definition |
 | `vm-k3s-agent/` | [opencharly/vm-k3s-agent](https://github.com/opencharly/vm-k3s-agent) | VM image definition |
 | `vm-k3s-server/` | [opencharly/vm-k3s-server](https://github.com/opencharly/vm-k3s-server) | VM image definition |
 
