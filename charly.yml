@@ -340,8 +340,8 @@ sync:
     plan:
       - run: bump the pins (charly rolls first, then distro-* from its new gitlinks)
         # The bump rolls the 424 leaf submodules to their remote HEAD and re-pins the
-        # 6 edge ones (distro-*) to their source's twin, so the hop's own attempt needs
-        # the same declared ceiling the step it composes declares — a hop the floor
+        # 6 edge ones (distro-*) to their source's twin, so the hop's own attempt
+        # carries a declared ceiling above the runner's 90s floor — a hop the floor
         # cuts short leaves the wave HALF done and still reporting success.
         timeout: 30m
         task:
@@ -387,10 +387,10 @@ verify:
       # is fixed AT ITS OWNER, and this task still re-composes nothing — one verb, one
       # composition, which is what produced the contradictory counts.
       - check: the pin contract holds — every distro-* gitlink equals charly's own box/* gitlink (the EDGE), and every submodule is clean and checked out at its recorded gitlink (the CHECKOUT AUDIT), composed ONCE through `pins`
-        # The composed run walks all 430 checkouts, so the hop's own attempt carries
-        # the same declared ceiling the step it composes declares: a hop the 90s floor
-        # cuts short would leave THIS gate — the one that says the tree agrees with
-        # itself — reporting success over a half-finished audit.
+        # The composed run walks all 430 checkouts, so the hop's own attempt carries a
+        # declared ceiling above the runner's 90s floor: a hop the floor cuts short
+        # would leave THIS gate — the one that says the tree agrees with itself —
+        # reporting success over a half-finished audit.
         timeout: 10m
         task:
           task: pins
