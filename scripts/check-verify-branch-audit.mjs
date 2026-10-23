@@ -175,9 +175,9 @@ function judge(cases) {
 
   // The parallel audit cannot stop at the first mismatch without losing the rest,
   // so EVERY mismatching path is named. This is the COMPLETENESS property, and
-  // it is its own id: a mutation that makes the audit look at fewer paths must
-  // be caught HERE and not by the step's own "suspiciously few submodules" guard
-  // (which lives in the step, and which the judge cannot see).
+  // it is its own id: a mutation that keeps the step FAILING while it stops
+  // NAMING a mismatching path must be caught HERE — the step's own status
+  // assertion is satisfied by ANY failure, so it cannot carry that claim.
   need("C:status", cases.C.status !== 0, "several wrong branch= values must FAIL");
   for (const p of WRONG) {
     need("C:names-all", new RegExp(p).test(cases.C.stderr), `every mismatching path must be named; ${p} is missing: ${tail(cases.C)}`);
@@ -218,10 +218,15 @@ if (argv.includes("--self-test")) {
   // Each mutation reintroduces ONE defect class and names the EXACT assertion that
   // must catch it. The id is the point: a mutation caught by a COARSE assertion
   // (the step failed, so "must FAIL" holds) proves nothing about the sharp one
-  // (every mismatching path is named). The "first submodule only" mutation is
-  // the sharp case — the step's own "suspiciously few submodules" guard also
-  // fires, and the judge cannot see that guard, so the completeness assertion
-  // is the only thing that can catch it here.
+  // (every mismatching path is named).
+  //
+  // The "first submodule only" mutation is where the two halves of the contract
+  // meet: the step's own "suspiciously few submodules" guard counts the paths in
+  // .gitmodules, not the paths the audit LOOKED AT, so it does NOT fire — the
+  // truncated audit goes GREEN, and the assertion that catches it is the status
+  // one (the step must FAIL). The SHARP completeness claim is proven by the other
+  // mutation below, which keeps the step failing while it stops naming a
+  // mismatching path: only C:names-all can catch that one.
   const mutations = [
     [
       "the comparison never fails",
@@ -229,7 +234,7 @@ if (argv.includes("--self-test")) {
       "B:status",
     ],
     [
-      "the audit only inspects the FIRST submodule (the rest are never compared) — the step's own count guard still passes, so the COMPLETENESS of the comparison is what must catch this",
+      "the audit only inspects the FIRST submodule (the rest are never compared) — the step's own count guard still passes (it counts .gitmodules' paths, not the audited ones), so the truncated audit goes GREEN",
       (s) => s.replace("printf '%s\\0%s\\0%s\\0' \"$path\" \"$url\" \"$branch\" >> \"$tmp\"", "printf '%s\\0%s\\0%s\\0' \"$path\" \"$url\" \"$branch\" >> \"$tmp\"; break"),
       "C:status",
     ],

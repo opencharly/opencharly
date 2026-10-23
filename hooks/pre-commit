@@ -43,8 +43,10 @@
 #  13. README measurements — the umbrella's MEASURED figures agree with each other: the
 #                          clone-shape table, the prose that quotes it, and the date every
 #                          dated figure carries (`node scripts/check-readme-measurements.mjs`).
-#                          A band that a sample has outgrown is a defect in the BAND, and
-#                          only a gate that reads the numbers can say so.
+#                          The SAMPLES half — a reading against its band — is NOT here: it
+#                          needs the run's own log, so it is the MANUAL `--samples <log>`
+#                          step after a measurement (the README says which), because a
+#                          reading nobody measured is a reading no gate can see.
 #
 # Deliberately NOT here (see `charly task verify`): the per-submodule
 # `git ls-remote` default-branch audit — it reads remote state no commit can change
