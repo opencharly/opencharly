@@ -1,0 +1,6 @@
+# rule: D-NEST-6
+# expect: node.x.agent: field not allowed
+x:
+  agent:
+    description: An agent written at the top level, outside any machine.
+    from: b

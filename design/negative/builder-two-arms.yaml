@@ -5,4 +5,4 @@ b:
     description: A builder row that tries to do two things.
     bootstrap:
       command: pacstrap -c /rootfs base
-    manager: npm
+    manager: {name: npm, box: node-box}

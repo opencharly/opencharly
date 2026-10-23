@@ -1,0 +1,11 @@
+# rule: D-SCH-7
+# expect: node.x.parameter.size.choice: field is required but not present
+x:
+  description: A candy whose parameter is a free substitution.
+  from: b
+  parameter:
+    size: {default: medium}
+  package: {jq: {}}
+  step:
+    - check: jq runs
+      command: jq --version

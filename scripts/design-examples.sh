@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # design-examples.sh — validate every example of DESIGN.md and every negative case against
-# DESIGN.cue with CUE v0.17.1 (DESIGN.md Appendix A, D-PAT-4).
+# DESIGN.cue with CUE v0.18.0-rc.1 (DESIGN.md Appendix A, D-PAT-4).
 #
 # Examples. Every ```yaml block in DESIGN.md is preceded by a marker line:
 #   <!-- example: <id> -->               a complete document
@@ -31,6 +31,12 @@ set -euo pipefail
 
 root="$(cd "${1:-$(dirname "$0")/..}" && pwd)"
 cue="$(bash "$root/scripts/design-cue.sh")"
+# The loader (design/example/load.cue) runs with CUE's structure sharing off. Measured on
+# v0.18.0-alpha.3 and v0.18.0-rc.1: with sharing on, a closed arm of a key-tagged union stays viable
+# when the same data is referenced from several loader fields, so a valid nested step is reported as
+# ambiguous; with sharing off every verdict is correct. The setting lives here and covers only the
+# loader calls; it goes when a CUE release without the defect is pinned (DESIGN.md Appendix A).
+loader_cue() { CUE_DEBUG=sharing=false "$cue" "$@"; }
 schema="$root/DESIGN.cue"
 load="$root/design/example/load.cue"
 rules="$root/design/example/rules.cue"
@@ -43,9 +49,9 @@ bad() { echo "FAIL $*"; fail=1; }
 # dispatched by their intent and verb keys (D-LOAD-5). Prints the diagnostics; fails on any.
 shape() {
 	local out disp rc=0
-	out="$("$cue" vet -c "$schema" "$load" -l '"doc"' "$1" 2>&1)" || rc=1
+	out="$(loader_cue vet -c "$schema" "$load" -l '"doc"' "$1" 2>&1)" || rc=1
 	[[ -z "$out" ]] || echo "$out"
-	if ! disp="$("$cue" export "$schema" "$load" -l '"doc"' "$1" -e dispatch 2>&1)"; then
+	if ! disp="$(loader_cue export "$schema" "$load" -l '"doc"' "$1" -e dispatch 2>&1)"; then
 		echo "$disp"
 		return 1
 	fi
@@ -118,7 +124,7 @@ for y in "$work"/*.yaml; do
 		count=$((count + 1))
 		if ! out="$("$cue" vet -c -d '#UserConfig' "$schema" "$doc" 2>&1)"; then
 			bad "DESIGN.md:$line: example '$id' does not validate:"
-			echo "$out" | sed 's/^/    /' | head -20
+			echo "$out" | sed -n '1,20s/^/    /p'
 		fi
 		continue
 		;;
@@ -127,17 +133,17 @@ for y in "$work"/*.yaml; do
 	count=$((count + 1))
 	if ! out="$(shape "$doc")"; then
 		bad "DESIGN.md:$line: example '$id' does not validate:"
-		echo "$out" | sed 's/^/    /' | head -20
+		echo "$out" | sed -n '1,20s/^/    /p'
 		continue
 	fi
 	if ! out="$("$cue" vet -d '#Document' "$schema" "$doc" 2>&1)"; then
 		bad "DESIGN.md:$line: example '$id' passes the loader dispatch but not #Document:"
-		echo "$out" | sed 's/^/    /' | head -20
+		echo "$out" | sed -n '1,20s/^/    /p'
 		continue
 	fi
-	if ! v="$("$cue" export "$schema" "$load" "$rules" -l '"doc"' "$doc" -e violation 2>&1)"; then
+	if ! v="$(loader_cue export "$schema" "$load" "$rules" -l '"doc"' "$doc" -e violation 2>&1)"; then
 		bad "DESIGN.md:$line: example '$id': rules.cue failed:"
-		echo "$v" | sed 's/^/    /' | head -20
+		echo "$v" | sed -n '1,20s/^/    /p'
 	elif [[ "$v" != "[]" ]]; then
 		bad "DESIGN.md:$line: example '$id' breaks a whole-document rule:"
 		echo "$v" | sed 's/^/    /'
@@ -149,9 +155,9 @@ echo "examples: $count validated"
 ncount=0
 for n in "$root"/design/negative/*.yaml; do
 	name="$(basename "$n")"
-	rule="$(sed -n 's/^# rule: //p' "$n" | head -1)"
-	expect="$(sed -n 's/^# expect: //p' "$n" | head -1)"
-	def="$(sed -n 's/^# def: //p' "$n" | head -1)"
+	rule="$(sed -n '/^# rule: /{s///p;q;}' "$n")"
+	expect="$(sed -n '/^# expect: /{s///p;q;}' "$n")"
+	def="$(sed -n '/^# def: /{s///p;q;}' "$n")"
 	def="${def:-#Document}"
 	ncount=$((ncount + 1))
 	if [[ -z "$rule" || -z "$expect" ]]; then
@@ -162,12 +168,12 @@ for n in "$root"/design/negative/*.yaml; do
 		# a §5.4 case breaks its whole-document rule and nothing else: the schema must accept it
 		if ! out="$("$cue" vet -c -d '#Document' "$schema" "$n" 2>&1)"; then
 			bad "design/negative/$name ($rule): also fails the schema, so it does not isolate its rule:"
-			echo "$out" | sed 's/^/    /' | head -10
+			echo "$out" | sed -n '1,10s/^/    /p'
 			continue
 		fi
-		if ! out="$("$cue" export "$schema" "$load" "$rules" -l '"doc"' "$n" -e violation 2>&1)"; then
+		if ! out="$(loader_cue export "$schema" "$load" "$rules" -l '"doc"' "$n" -e violation 2>&1)"; then
 			bad "design/negative/$name ($rule): rejected by the schema instead of by rules.cue:"
-			echo "$out" | sed 's/^/    /' | head -10
+			echo "$out" | sed -n '1,10s/^/    /p'
 			continue
 		fi
 		if ! grep -q "\"rule\": \"$rule\"" <<<"$out"; then
@@ -191,7 +197,7 @@ for n in "$root"/design/negative/*.yaml; do
 	fi
 	if ! grep -qF -- "$expect" <<<"$out"; then
 		bad "design/negative/$name ($rule): rejected, but not with '$expect':"
-		echo "$out" | sed 's/^/    /' | head -12
+		echo "$out" | sed -n '1,12s/^/    /p'
 	fi
 done
 echo "negatives: $ncount checked"

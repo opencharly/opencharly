@@ -1,0 +1,6 @@
+# rule: D-DEP-6
+# expect: node.x.local.connect.adb: field not allowed
+x:
+  local:
+    description: A local reached through a venue its kind does not admit.
+    connect: {adb: {address: "192.0.2.1:5555"}}

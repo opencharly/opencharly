@@ -1,0 +1,9 @@
+# rule: D-SCH-5
+# expect: step.x.0.on_host: field not allowed
+x:
+  description: A candy with a removed check field.
+  package: {jq: {}}
+  step:
+    - check: jq runs
+      command: jq --version
+      on_host: true

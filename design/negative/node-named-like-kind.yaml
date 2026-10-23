@@ -1,5 +1,5 @@
 # rule: D-SCH-6
-# expect: doc.pod: field not allowed
+# expect: envelope.pod: field not allowed
 pod:
   description: A candy named like a kind.
   step:
