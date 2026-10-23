@@ -811,13 +811,16 @@ different answers. Ask the right one:
 | question | command | what it answers |
 |---|---|---|
 | *where is each repo pinned?* | `charly task map` | the **state** — every submodule with its pin and sync state |
-| *does this tree agree with itself?* | `charly task verify` | the **consistency** — every checkout sits at the gitlink the index records, and every pin's branch is its remote's default branch |
+| *does this tree agree with itself?* | `charly task verify` | the **consistency** — every checkout sits at the gitlink the index records, and every pin's branch is its remote's default branch — plus a **report** of the currency below, which never fails the gate |
 | *is the org current with its upstreams?* | `charly task pins --param MODE=currency` | the **currency** — every pin against the ref its intent names, judged from the index and the remote, never from a checkout |
 
 `verify` being green does **not** mean the org is current: a tree can be perfectly
-consistent while every pin is behind what its repo serves. `currency` asks the other
-question, and when a pin waits on its source it names the producer leg instead of
-leaving you to discover it an hour later.
+consistent while every pin is behind what its repo serves. So the gate **names** the
+pins that are not current — `currency` asks that other question, and when a pin waits
+on its source it names the producer leg instead of leaving you to discover it an hour
+later. A pin that is behind is an advance available NOW, in its producer's own repo, so
+the gate reports it and stays green; only a pin the workflow cannot judge, or two sides
+that disagree, fails it.
 
 **The sanctioned catch-up** is one sequence, and it is the only one that moves a pin:
 
