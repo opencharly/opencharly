@@ -823,7 +823,7 @@ _deploymentKindWord: [for w, _ in _deploymentKind {w}]
 _#Body: {for k, r in _deploymentKind {(k): {
 	#DeploymentFields...
 	if r.content {#ContentFields...}
-	[#InnerNodeName]: or([for a in r.admit {_#InnerNode[a]}]) // D-NEST-2
+	if len(r.admit) > 0 {[#InnerNodeName]: or([for a in r.admit {_#InnerNode[a]}])} // D-NEST-2
 }}}
 _#Placed: {for k, r in _deploymentKind {(k): {
 	create: {_#Body[k]..., r.create...}
@@ -835,9 +835,9 @@ _#InnerNode: {
 	candy: #InnerCandy
 	for k, _ in _deploymentKind {(k): {(k)!: _#Placed[k].create}}
 }
-_#TopBody: {for k, r in _deploymentKind {(k): or([for p in r.top {_#Placed[k][p]}])}} // D-NEST-6
-_#BesideNode: {for k, _ in _deploymentKind {(k): {(k)!: _#TopBody[k]}}}
-_#TopNode: {for k, r in _deploymentKind {(k): {
+_#TopBody: {for k, r in _deploymentKind if len(r.top) > 0 {(k): or([for p in r.top {_#Placed[k][p]}])}} // D-NEST-6
+_#BesideNode: {for k, _ in _#TopBody {(k): {(k)!: _#TopBody[k]}}}
+_#TopNode: {for k, r in _deploymentKind if len(r.top) > 0 {(k): {
 	(k)!: _#TopBody[k]
 	if len(r.beside) > 0 {[#InnerNodeName]: or([for b in r.beside {_#BesideNode[b]}])}
 }}}
@@ -969,15 +969,15 @@ _method: {
 	resolve:    {role: "kind", input: #NodeInput, output: #ResolveOutput}
 	migrate:    {role: "kind", input: #MigrateInput, output: #MigrateOutput}
 	build:      {role: "kind", input: #BuildInput, output: #BuildOutput}
-	realize:    {role: "kind", input: #RealizeInput, output: #RealizeOutput}
+	realize:    {role: "kind", input: #RealizeInput, output: #RealizeOutput, stream: true}
 	transition: {role: "kind", input: #TransitionInput, output: #Done}
 	status:     {role: "kind", input: #NodeInput, output: #StatusOutput}
 	admit:      {role: "kind", input: #AdmitInput, output: #AdmitOutput}
 	activate:   {role: "kind", input: #ActivateInput, output: #Done}
 	log:        {role: "kind", input: #LogInput, output: #Done, stream: true}
 	venue:      {role: "kind", input: #NodeInput, output: #VenueOutput}
-	capture:    {role: "kind", input: #CaptureInput, output: #CaptureOutput}
-	restore:    {role: "kind", input: #RestoreInput, output: #Done}
+	capture:    {role: "kind", input: #CaptureInput, output: #CaptureOutput, stream: true}
+	restore:    {role: "kind", input: #RestoreInput, output: #Done, stream: true}
 	grant:      {role: "kind", input: #GrantInput, output: #GrantOutput}
 	check:      {role: "verb", input: #CheckInput, output: #CheckOutput}
 	run:        {role: "subcommand", input: #RunInput, output: #Done, stream: true}
@@ -987,6 +987,7 @@ _method: {
 } @vocab(core)
 _methodWord: [for w, _ in _method {w}]
 _roleMethod: {for k, _ in _role {(k): [for w, r in _method if r.role == k {w}]}}
+_streamMethodWord: [for w, r in _method if r.stream {w}] // D-PROTO-10
 #Method: or(_methodWord)
 
 #ValidateOutput: {diagnostic: [...#Diagnostic]}
@@ -1093,8 +1094,8 @@ _errorCodeWord: [for w, _ in _errorCode {w}]
 	rule?:     #RuleId
 }
 
-// D-PROTO-10: the stream of a `stream` method (terminal I/O for `run`, output for `log` and
-// `venue_exec`), tagged by kind.
+// D-PROTO-10: the stream of a `stream` method (terminal I/O for `run`, output for every other
+// `stream` row), tagged by kind.
 _stream: {stdin: {}, stdout: {}, stderr: {}} @vocab(core)
 _streamWord: [for w, _ in _stream {w}]
 #StreamAlt: {
@@ -1141,6 +1142,7 @@ _hostMethod: {
 	audit_append: {input: #AuditAppendInput, output: #Done}
 } @vocab(core)
 _hostMethodWord: [for w, _ in _hostMethod {w}]
+_streamHostMethodWord: [for w, r in _hostMethod if r.stream {w}] // D-PROTO-10
 #HostMethod: or(_hostMethodWord)
 #VenueExecInput:  {identity!: #Ref, command!: [...#Text], run_as?: #Name}
 #VenueExecOutput: {exit_status!: int}
@@ -1148,7 +1150,7 @@ _hostMethodWord: [for w, _ in _hostMethod {w}]
 #ProjectInput:     {identity!: #Ref}
 #HostCallInput:    {key!: #ApiKey, request!: #Opaque} // S10
 #StateCommitInput: {identity!: #Ref, revision!: #Digest, record!: [...#StateRecord]}
-#StateRecord:      {name!: #Name, data!: #Base64}
+#StateRecord:      {name!: #Name, value!: _store.state.value} // the value a `put` to the state store writes
 #AuditAppendInput: {event!: #AuditEvent}
 
 // D-PROTO-12: every host request names the core call it serves.

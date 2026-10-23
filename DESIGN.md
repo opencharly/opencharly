@@ -532,8 +532,20 @@ method's output under its method key, or an `#Error`.
 | D-PROTO-7 | Errors are `#Error` values with one code of `_errorCode`, a message, and the identity and `file:line` they concern. The gRPC status carries the same code. Core reports errors as received and never repeats a call that failed; `unavailable` and `deadline` fail the operation. Re-running a `check` under its `retry` modifier is observation, not a repeated call (D-VERB-3). |
 | D-PROTO-8 | Every call carries a deadline: the step's `timeout` (declared default `60s`), or the deadline the command's argument definition declares. On deadline or cancellation (Ctrl-C, a failed sibling), core cancels the call; the plugin stops its work, releases what it holds, and answers `cancelled` or `deadline`. |
 | D-PROTO-9 | Plugin methods are safe to call concurrently for different identities. Locking is core's alone (D-DEP-4). |
-| D-PROTO-10 | Long-running methods (`realize`, `capture`, `restore`, `log`, `run`, and `venue_exec` on the host side) stream `#Stream` messages on the call: output chunks, terminal resizes, and the exit status. Progress goes through `Host.report` as `#Event`s. A plugin's stdout and stderr are not part of the protocol: core writes them to the invocation log. |
+| D-PROTO-10 | A long-running method is one whose row carries `stream: true` (the table below). It streams `#Stream` messages on the call: output chunks, terminal resizes, and the exit status. Progress goes through `Host.report` as `#Event`s. A plugin's stdout and stderr are not part of the protocol: core writes them to the invocation log. |
 | D-PROTO-11 | Core calls the methods in the stage order of §4.1 and §9.3; a plugin never calls another plugin directly (D-ROLE-3). |
+
+The streaming methods are the rows `stream: true` marks, in `_method` and `_hostMethod`:
+
+<!-- schema: _streamMethodWord _streamHostMethodWord -->
+| Method | Side | Streams |
+|---|---|---|
+| `realize` | plugin | the output of creating or connecting the deployment |
+| `capture` | plugin | the output of taking the capture |
+| `restore` | plugin | the output of restoring a capture |
+| `log` | plugin | the deployment's log output |
+| `run` | plugin | a bidirectional terminal: input, output, resizes and the exit status |
+| `venue_exec` | host | the command's input, output and exit status |
 
 ### 8.6 The host service
 
