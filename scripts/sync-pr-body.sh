@@ -244,6 +244,27 @@ build_body() {
   fi
 }
 
+# The FLEET scale: the number of submodules the umbrella declares, read from its own
+# `.gitmodules`. `grep -c` exits 1 when it matches NOTHING, and under `set -e` that
+# would abort the run BEFORE the floor guard could say anything — the count of a file
+# with no submodule entry is 0, and the guard is what should judge that, not a bare
+# exit status. The count and the guard are ONE implementation each, and the self-test
+# exercises BOTH on a fixture with no entry at all.
+fleet_count() {
+  local n
+  n="$(grep -c '^\[submodule ' "$1" || true)"
+  printf '%s' "${n:-0}"
+}
+
+# The floor: a fixture below the fleet scale proves nothing about the real fleet, so
+# the run must SAY so — naming the file and the floor — rather than quietly testing a
+# smaller shape and reporting it as the real one.
+fleet_floor_guard() {
+  local gm="$1" n="$2" min="$3"
+  [ "$n" -ge "$min" ] \
+    || { echo "sync-pr-body: $gm declares $n submodule(s) — below the fleet-scale floor of $min" >&2; exit 1; }
+}
+
 if [ "${1:-}" = "--self-test" ]; then
   fail() { echo "FAIL: sync-pr-body self-test: $*" >&2; exit 1; }
   tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
@@ -262,12 +283,12 @@ if [ "${1:-}" = "--self-test" ]; then
   git -C "$tmp" init -q
   git -C "$tmp" config user.email t@t; git -C "$tmp" config user.name t
 
-  # A FLEET-SCALE synthetic moved set — 424 paths, the umbrella's full submodule count
-  # (a superset of the 402 #297 actually moved), with realistic long repo names and the
-  # umbrella's longest real path. The built body MUST carry the COMPLETE compact table
-  # (every path, no elision) AND stay under the cap. This is the case that broke the
-  # inline builder (393 pins) AND the bounded builder (#297: 402 pins truncated to 350
-  # evidence rows / 200 path rows — the validator's "a pointer to an artifact is a
+  # A FLEET-SCALE synthetic moved set — the umbrella's CURRENT full submodule count,
+  # read from `.gitmodules` (a superset of what #297 actually moved), with realistic
+  # long repo names and the umbrella's longest real path. The built body MUST carry the
+  # COMPLETE compact table (every path, no elision) AND stay under the cap. This is the
+  # case that broke the inline builder AND the bounded builder (#297, whose evidence
+  # rows and path rows were truncated — the validator's "a pointer to an artifact is a
   # promise, not pasted output" BLOCK).
   #
   # The fixture is self-contained AND full width: a local repo supplies the remote HEAD
@@ -280,9 +301,18 @@ if [ "${1:-}" = "--self-test" ]; then
   git -C "$tmp/remote-src" config user.email t@t; git -C "$tmp/remote-src" config user.name t
   : > "$tmp/remote-src/f"; git -C "$tmp/remote-src" add f; git -C "$tmp/remote-src" commit -qm one
   RHEAD="$(git -C "$tmp/remote-src" rev-parse HEAD)"
-  FLEET=424
+  # The fleet scale is the LIVE submodule count, read from the umbrella's own
+  # `.gitmodules` — DERIVED, never a hand-maintained literal. A literal is a claim
+  # about a collection that grows every time a repo joins the org, and the fixture
+  # exists to prove the body fits AT that scale; a fixture pinned to a number the org
+  # has already outgrown would prove nothing.
+  GITMODULES="$(cd "$SCRIPT_DIR/.." && pwd)/.gitmodules"
+  [ -r "$GITMODULES" ] || { echo "sync-pr-body: cannot read $GITMODULES" >&2; exit 1; }
+  FLEET="$(fleet_count "$GITMODULES")"
+  FLEET_MIN=100   # a fleet-scale fixture below this proves nothing about the real fleet
+  fleet_floor_guard "$GITMODULES" "$FLEET" "$FLEET_MIN"
   : > "$tmp/.gitmodules"
-  for i in $(seq 1 423); do
+  for i in $(seq 1 $((FLEET - 1))); do
     case $((i % 3)) in
       0) p="layer-$(printf 'a-segment-name-%03d' "$i")" ;;
       1) p="plugin-$(printf 'a-longer-segment-name-%03d' "$i")" ;;
@@ -458,7 +488,21 @@ if [ "${1:-}" = "--self-test" ]; then
     && fail "over-cap body must trip the hard guard (non-zero)"
   grep -q '65536\|100' "$tmp/err" || fail "guard must name the offending size/cap on stderr"
 
-  echo "sync-pr-body: self-test OK (fleet-scale 424-pin BODY carries the COMPLETE compact evidence table — every path named, no elision — and stays under the 65536 cap; the caller's evidence file keeps a convenience copy; neither names a CI run artifact; small input names its paths with no elision; the producer excerpt is verbatim for BOTH the retired per-pin and current summary shapes; the body carries the four required sections, the Change classification's change class + verification gate + attribution tier, and rule 7's two-line footer — the Agent: line directly above the italic Assisted-by trailer as the FINAL line, and exactly ONE literal 'Assisted-by:' in the body so squash_body.py's prose contract holds; an unset SYNC_AGENT fails loud, and the Agent: line is shown to TRACK its variable rather than a literal; a trailer with no (tier) fails loud; over-cap trips the hard guard)"
+  # The EMPTY `.gitmodules`: `grep -c` exits 1 when it matches NOTHING, and under
+  # `set -e` that aborted the run BEFORE the floor guard could explain the
+  # situation — the count of a file with no submodule entry is 0, and the GUARD is
+  # what should judge that. This arm proves the count reaches 0 instead of
+  # aborting, and that the guard's own message is the thing the reader sees.
+  : > "$tmp/gitmodules-empty"
+  ZERO_FLEET="$(fleet_count "$tmp/gitmodules-empty")" \
+    || fail "the fleet count must not abort on a .gitmodules with no submodule entry"
+  [ "$ZERO_FLEET" = "0" ] || fail "an empty .gitmodules must count as 0, not $ZERO_FLEET"
+  ( fleet_floor_guard "$tmp/gitmodules-empty" "$ZERO_FLEET" 100 ) 2>"$tmp/err-fleet" \
+    && fail "a fleet below the floor must trip the floor guard (non-zero)"
+  grep -q 'below the fleet-scale floor' "$tmp/err-fleet" \
+    || fail "the floor guard must name the floor, on stderr"
+
+  echo "sync-pr-body: self-test OK (fleet-scale BODY — the umbrella's live submodule count, read from .gitmodules — carries the COMPLETE compact evidence table — every path named, no elision — and stays under the 65536 cap; the caller's evidence file keeps a convenience copy; neither names a CI run artifact; small input names its paths with no elision; the producer excerpt is verbatim for BOTH the retired per-pin and current summary shapes; the body carries the four required sections, the Change classification's change class + verification gate + attribution tier, and rule 7's two-line footer — the Agent: line directly above the italic Assisted-by trailer as the FINAL line, and exactly ONE literal 'Assisted-by:' in the body so squash_body.py's prose contract holds; an unset SYNC_AGENT fails loud, and the Agent: line is shown to TRACK its variable rather than a literal; a trailer with no (tier) fails loud; over-cap trips the hard guard; a .gitmodules with no submodule entry counts as 0 and reaches the floor guard's own message instead of aborting on grep's exit status)"
   exit 0
 fi
 

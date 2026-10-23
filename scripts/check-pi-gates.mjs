@@ -19,10 +19,10 @@
 //      and re-injected every turn, never a pointer to it.
 //   5. WORKTREE COST MODEL — `charly_worktree_create` materializes a SCOPED module set and
 //      BORROWS the main checkout's objects (`--reference`), instead of cloning the whole
-//      425-submodule graph into a worktree-private object store. MEASURED: the eager
-//      `--init --recursive` cost 376 MB of private objects per worktree at ~0.86 s per
-//      module; the scoped `--reference` form costs 1 MB and ~1.4 s, and every commit-time
-//      gate passes with 423 of 425 modules unmaterialized.
+//      submodule graph into a worktree-private object store. MEASURED (2026-10-06, umbrella
+//      tree `9501fb0`): the eager `--init --recursive` cost 376 MB of private objects per
+//      worktree at ~0.86 s per module; the scoped `--reference` form costs 1 MB and ~1.4 s,
+//      and every commit-time gate passes with the rest of the graph left unmaterialized.
 //   6. WORKTREE REMOVAL IS HONEST — asserted BELOW by LOADING the shipped extension and
 //      FIRING `charly_worktree_remove` against real repositories, not by matching its text
 //      (opencharly/opencharly#410). `pi.exec` RESOLVES on a non-zero exit (pi 1.0.4:
