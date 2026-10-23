@@ -8,14 +8,20 @@
 # COMMAND TEXT (force-push, a direct push to main, untokenizable commands); this hook
 # runs on the actual push, from git.
 #
-# It runs ONE assertion: the PR body about to be published passes the org's own
-# body linter (`marketplace/scripts/pr_body_lint.py`). The body IS the changelog and
-# the validator reads it LIVE, so a mechanically-detectable body defect — a missing
-# required section, a trailer that is not the last line, a bare `N/A`, an ellipsized
-# fence, a pasted head SHA that is not HEAD — costs a whole review round when the
-# validator finds it, and a second when this does. Hooks guard DETERMINISTIC
-# MECHANICS only, which is exactly this class: it checks the body's FORM and judges
-# nothing about the change, the tier, or the evidence.
+# It runs TWO assertions. The first is the org's own body linter
+# (`marketplace/scripts/pr_body_lint.py`), which judges the body's FORM. The second is
+# the umbrella's own reconciliation (`scripts/check-pr-body-diff.mjs`), which asks a
+# question the linter cannot: does the body DESCRIBE the diff it is published with?
+# The body IS the changelog and the validator reads it LIVE, so a mechanically-detectable
+# body defect — a missing required section, a trailer that is not the last line, a bare
+# `N/A`, an ellipsized fence, a pasted head SHA that is not HEAD — costs a whole review
+# round when the validator finds it, and a second when this does. The same is true of a
+# file table that lists a file the diff does not change, or one that omits a file it
+# does, or a gate evidence block pasted from a tree that is not the head being pushed:
+# the validator caught all three on this repo's own PR (2026-10-23), a whole round
+# after the push that could have been stopped here. Hooks guard DETERMINISTIC
+# MECHANICS only, which is exactly this class: it checks the body's FORM and its
+# FIDELITY TO THE DIFF, and judges nothing about the change, the tier, or the evidence.
 #
 # THE BODY PATH defaults to the GIT DIR — `git rev-parse --absolute-git-dir`, which is
 # per-WORKTREE (`…/.git/worktrees/<name>`), so two session worktrees can never fight
@@ -23,7 +29,7 @@
 # tracked tree and it survives across a push. Override with `PR_BODY_FILE=<path>`.
 #
 # SKIPS ARE VISIBLE AND NEVER FAIL-CLOSED, the shape pre-commit-gate.sh already uses
-# for a missing golangci-lint. Two of them:
+# for a missing golangci-lint. Three of them:
 #   * NO BODY at the path — the body is written by the author as part of the landing
 #     discipline, so its absence at push time is the DISCIPLINE failing, not a defect
 #     in the diff. A hook that blocked there would be inventing a rule, so it says how
@@ -31,6 +37,9 @@
 #   * NO LINTER — `marketplace/` is a submodule a session worktree may not have
 #     materialized, and blocking a push for an unmaterialized submodule would make
 #     every fresh worktree unlandable. It names the one command that fixes it.
+#   * NO RECONCILER (or no `node`) — the reconciliation is a script in THIS repo, so
+#     its absence is this checkout being incomplete rather than the diff being wrong;
+#     it is named and the push continues.
 
 set -uo pipefail
 
@@ -61,9 +70,29 @@ if [ ! -e "$BODY" ]; then
   exit 0
 fi
 
+# The umbrella's OWN reconciliation, and it runs whether or not the org's linter is
+# here: the diff it reconciles against is this tree's, and it needs nothing from the
+# marketplace submodule. Its skips are visible and never fail-closed, like the linter's.
+RECONCILE="$ROOT/scripts/check-pr-body-diff.mjs"
+if [ ! -f "$RECONCILE" ]; then
+  echo "pre-push: $RECONCILE is absent — body/diff reconciliation SKIPPED." >&2
+elif ! command -v node >/dev/null 2>&1; then
+  echo "pre-push: node not found — body/diff reconciliation SKIPPED." >&2
+else
+  echo "pre-push: reconciling the PR body against the diff ..."
+  if node "$RECONCILE" --body "$BODY" --repo "$ROOT"; then
+    echo "pre-push: OK (the body describes the diff it ships with)"
+  else
+    echo "pre-push: BLOCKED — the PR body does not describe the diff it is published with." >&2
+    echo "pre-push: the body IS the changelog and the validator reads it live; fix EVERY finding" >&2
+    echo "pre-push: and push again. Nothing about the diff's quality is judged here." >&2
+    exit 1
+  fi
+fi
+
 if [ ! -f "$LINT" ]; then
   echo "pre-push: $LINT is absent (the marketplace submodule is not materialized here) — body lint SKIPPED."
-  echo "pre-push: materialize it with: git -C $ROOT submodule update --init --depth 1 marketplace"
+  echo "pre-push: materialize it with: bash scripts/init-submodules.sh  (the working set includes the marketplace)"
   exit 0
 fi
 
@@ -81,7 +110,7 @@ fi
 # one broken submodule blocks every legitimate push in the clone.
 if ! python3 "$LINT" --help >/dev/null 2>&1; then
   echo "pre-push: the body linter cannot run here (it needs its sibling module from the marketplace submodule) — body lint SKIPPED." >&2
-  echo "pre-push: materialize it with: git -C $ROOT submodule update --init --depth 1 marketplace" >&2
+  echo "pre-push: materialize it with: bash scripts/init-submodules.sh  (the working set includes the marketplace)" >&2
   exit 0
 fi
 

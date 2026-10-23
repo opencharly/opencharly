@@ -86,6 +86,15 @@ function check() {
   else if (!/exit 0/.test(absentLintBranch)) fail(`a missing linter SKIPS (exit 0) instead of failing closed`);
   if (!/marketplace\/scripts\/pr_body_lint\.py/.test(code)) fail(`names the marketplace body linter it runs`);
 
+  // 4. The umbrella's OWN reconciliation must be wired in: the linter judges the body's
+  //    FORM, and nothing anywhere judged the body's FIDELITY TO THE DIFF it ships with.
+  //    The validator caught all three of that class on this repo's own PR (2026-10-23),
+  //    a whole round after the push that could have been stopped here.
+  if (!/scripts\/check-pr-body-diff\.mjs/.test(code)) fail(`runs the umbrella's body/diff reconciliation`);
+  if (!/node "\$RECONCILE"/.test(code)) fail(`runs the reconciliation with node`);
+  if (!/BLOCKED — the PR body does not describe the diff/.test(code))
+    fail(`blocks a body that does not describe the diff it is published with`);
+
   if (failures === 0)
     ok(
       `${rel}: executable, git-dir body path with an override, both skips visible and never fail-closed, ` +
@@ -129,6 +138,17 @@ Test fixture, not a real change.
 /** A body the linter rejects on form alone. */
 const BAD_BODY = "# not a PR body\n";
 
+/**
+ * A body the linter accepts that carries the two shapes the umbrella's OWN
+ * reconciliation reads: a file table and a pasted `git rev-parse HEAD`. It is
+ * GOOD_BODY's sections — one definition of the required form — with those two added.
+ */
+const tableBody = (headSha, rows) =>
+  GOOD_BODY.replace(
+    "Fixture body proving the pre-push hook's decision.",
+    `Fixture body proving the pre-push hook's decision.\n\n| file | what it carries |\n|---|---|\n${rows}`,
+  ).replace("$ true", `$ git rev-parse HEAD\n${headSha}`);
+
 async function fire() {
   // The linter lives in the marketplace SUBMODULE, which a DEFAULT fresh session worktree does
   // not have. SKIP VISIBLY rather than fail: this checker is wired into `hooks/pre-commit`, so a
@@ -139,7 +159,7 @@ async function fire() {
   const lintSrc = join(root, "marketplace/scripts");
   if (!existsSync(join(lintSrc, "pr_body_lint.py"))) {
     console.log(`  SKIP  ${rel} fired assertions: ${lintSrc} is absent (the marketplace submodule is not materialized in this checkout)`);
-    console.log(`  SKIP  materialize it with: git -C ${root} submodule update --init --depth 1 marketplace`);
+    console.log(`  SKIP  materialize it with: bash scripts/init-submodules.sh  (the working set includes the marketplace)`);
     return;
   }
   const scratch = mkdtempSync(join(tmpdir(), "check-pr-body-gate-"));
@@ -157,6 +177,15 @@ async function fire() {
     git("add", "-A");
     writeFileSync(join(scratch, "msg.txt"), "base\n");
     git("commit", "-q", "-F", join(scratch, "msg.txt"));
+    // A base ref for the reconciliation to diff against, and a commit on top of it, so
+    // the diff is not empty: `origin/main` is a LOCAL ref here (the scratch repository has
+    // no remote), and HEAD carries a change the base does not.
+    git("update-ref", "refs/remotes/origin/main", "HEAD");
+    writeFileSync(join(repo, "f.txt"), "y\n");
+    writeFileSync(join(repo, "g.txt"), "g\n");
+    git("add", "-A");
+    git("commit", "-q", "-F", join(scratch, "msg.txt"));
+    const changedSha = git("rev-parse", "HEAD").stdout.trim();
 
     // Run the shipped hook (or a mutated copy) with the repository as cwd, as git does.
     const hook = join(scratch, "hook.sh");
@@ -168,6 +197,17 @@ async function fire() {
     };
     const gitDir = git("rev-parse", "--absolute-git-dir").stdout.trim();
     const defaultBody = join(gitDir, "PR_BODY.md");
+
+    // The umbrella's OWN reconciliation travels WITH the hook: the hook runs it out of
+    // the repository it is pushing, so the scratch repository needs its own copy — and
+    // it is the COPY that is fired, exactly as a real clone's is.
+    const reconciler = join(root, "scripts/check-pr-body-diff.mjs");
+    if (!existsSync(reconciler)) {
+      fail(`scripts/check-pr-body-diff.mjs is present (the hook runs it out of the repository it pushes)`);
+      return;
+    }
+    mkdirSync(join(repo, "scripts"), { recursive: true });
+    cpSync(reconciler, join(repo, "scripts/check-pr-body-diff.mjs"));
 
     // The linter as the hook finds it: <repo>/marketplace/scripts/pr_body_lint.py — and it
     // imports a SIBLING module (`squash_body.py`), so the directory is copied WHOLE. A
@@ -232,6 +272,32 @@ async function fire() {
       brokenLint.code === 0 && /cannot run here/.test(brokenLint.out),
       `hooks/pre-push FIRED: a linter that cannot run SKIPS visibly (exit 0) instead of blocking a legitimate push`,
     );
+
+    // F6 — a body whose FILE TABLE lists a file the diff does not change is BLOCKED at
+    //      the push. This is the class the linter cannot see (it judges form, and never
+    //      reads the diff) and the validator caught on this repo's own PR, a whole round
+    //      after the push that could have been stopped here.
+    writeFileSync(defaultBody, tableBody(changedSha, "| `f.txt` | a change |\n| `g.txt` | a change |"));
+    const cleanTable = run();
+    expect(
+      cleanTable.code === 0,
+      `hooks/pre-push FIRED: a body whose file table matches the diff passes (exit 0)`,
+    );
+    writeFileSync(defaultBody, tableBody(changedSha, "| `f.txt` | a change |\n| `g.txt` | a change |\n| `ghost.txt` | a change |"));
+    const phantom = run();
+    expect(
+      phantom.code === 1 && /does not describe the diff/.test(phantom.out),
+      `hooks/pre-push FIRED: a body whose file table lists a file the diff does not change is BLOCKED at the push`,
+    );
+
+    // F7 — a body whose pasted `git rev-parse HEAD` is NOT the head being pushed is
+    //      BLOCKED: the evidence was taken on another tree than the body claims.
+    writeFileSync(defaultBody, tableBody("0".repeat(40), "| `f.txt` | a change |\n| `g.txt` | a change |"));
+    const staleHead = run();
+    expect(
+      staleHead.code === 1 && /does not describe the diff/.test(staleHead.out),
+      `hooks/pre-push FIRED: a body whose pasted \`git rev-parse HEAD\` is not the head being pushed is BLOCKED at the push`,
+    );
   } catch (err) {
     fail(`firing ${rel} (${err instanceof Error ? err.message : String(err)})`);
   } finally {
@@ -248,6 +314,10 @@ if (argv.includes("--self-test")) {
   const original = readFileSync(file, "utf8");
   const tmp = mkdtempSync(join(tmpdir(), "check-pr-body-gate-self-"));
   mkdirSync(join(tmp, "hooks"), { recursive: true });
+  // The reconciler travels WITH the hook, so every mutation is fired against the REAL
+  // reconciler — a stub would prove nothing about the thing the hook runs.
+  mkdirSync(join(tmp, "scripts"), { recursive: true });
+  cpSync(join(root, "scripts/check-pr-body-diff.mjs"), join(tmp, "scripts/check-pr-body-diff.mjs"));
   // `fire()` needs the REAL linter — and the linter imports a sibling module, so the whole
   // scripts directory travels with it. When the submodule is absent this root carries no
   // marketplace at all, the fired assertions skip, and the mutations that depend on them are
@@ -296,6 +366,11 @@ if (argv.includes("--self-test")) {
       "the body path defaults into the tracked tree",
       (s) => s.replace(/BODY="\$\{PR_BODY_FILE:-\$GITDIR\/PR_BODY\.md\}"/, 'BODY="${PR_BODY_FILE:-$ROOT/PR_BODY.md}"'),
       "found at the git-dir default",
+    ],
+    [
+      "the body/diff reconciliation does not run",
+      (s) => s.replace(/if node "\$RECONCILE" --body "\$BODY" --repo "\$ROOT"; then/, "if true; then"),
+      "a body that does not describe the diff is BLOCKED",
     ],
   ];
   let stFails = 0;
