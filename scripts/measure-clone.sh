@@ -34,6 +34,18 @@
 # remote yet), while every SUBMODULE comes from its own HTTPS URL — the remote's cost
 # is the cost a reader pays.
 #
+# The superproject's clone is made OVER THE TRANSPORT, on the ONE branch that holds
+# the tree under test (`--no-local --single-branch`): the LOCAL transport COPIES the
+# source's ENTIRE object store — every commit on every branch, including other
+# sessions' pushed branches and their loose objects — so a clone made that way
+# measures the MACHINE's accumulated store, not the tree. That is measurable, and it
+# is what this flag exists to stop: with the tree, the `charly` pin and the built
+# version stamp all unchanged, the light clone read 75 M, then 76 M, then 77 M over
+# six hours, and the bootstrapped tree read 126, 127, 128 and 129 M — the readings
+# drifted with the org's push traffic and the band the README commits rotted with
+# them. Over the transport the clone carries the TREE's history, so a reading is a
+# property of the tree under test.
+#
 # usage: bash scripts/measure-clone.sh [--ref <ref>] [--no-full] [--keep]
 #   --ref <ref>  the tree under test (default: HEAD of this checkout)
 #   --no-full    skip the --all shape (the slow half: ~2 G and six minutes)
@@ -85,12 +97,26 @@ echo "TREE=$(git -C "$ROOT" rev-parse "${SHA}^{tree}")"
 echo "MEASURED=$(date +%F)"
 echo "WORK=$WORK"
 
-# --- a fresh clone of the tree under test, with the superproject's objects local
-# `--no-hardlinks` copies the objects instead of linking them: a link cannot cross a
-# filesystem boundary, and the measurement's tree may well be on another one. The
-# clone's SIZE is the same either way — the same objects, in the same pack.
+# --- a fresh clone of the tree under test, carrying the TREE's history ---------
+# Over the transport, on one branch: the branch that holds the tree under test, so
+# the clone carries that branch's history and not the source's whole object store.
+# The branch is found from the tree itself — the checkout's own branch when it holds
+# the tree, else the first branch that does, else (a commit on no branch) the whole
+# history, which is the only way to reach it.
 clone_at() {  # clone_at <dir>
-  git clone --no-checkout --no-hardlinks "$ROOT" "$1" >/dev/null 2>&1 || return 1
+  local br=""
+  local head_br
+  head_br="$(git -C "$ROOT" symbolic-ref --quiet --short HEAD 2>/dev/null || true)"
+  if [ -n "$head_br" ] && git -C "$ROOT" merge-base --is-ancestor "$SHA" "$head_br" 2>/dev/null; then
+    br="$head_br"
+  else
+    br="$(git -C "$ROOT" for-each-ref --contains "$SHA" --format='%(refname:short)' refs/heads 2>/dev/null | head -1)"
+  fi
+  if [ -n "$br" ]; then
+    git clone --no-local --single-branch --branch "$br" --no-checkout "$ROOT" "$1" >/dev/null 2>&1 || return 1
+  else
+    git clone --no-local --no-checkout "$ROOT" "$1" >/dev/null 2>&1 || return 1
+  fi
   git -C "$1" checkout --detach "$SHA" >/dev/null 2>&1 || return 1
   return 0
 }

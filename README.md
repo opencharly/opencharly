@@ -56,7 +56,7 @@ umbrella's own gate scripts read — and leaves the rest as index entries:
 Every figure in the table was measured on this machine on 2026-10-22; the bands carry the readings taken on 2026-10-23 as well.
 
 Those sizes are the **clone**; the bootstrap builds the binary and leaves its build cache
-in the tree, so a bootstrapped light tree measures 125–128 M, against the 9.5 G a full
+in the tree, so a bootstrapped light tree measures 125–129 M, against the 9.5 G a full
 checkout occupied on 2026-10-22. Sizes are `du -sh` at whole-unit granularity, and the
 packs move with the upstream repos, so the two shapes the runs repeated carry a **band** —
 the range the runs produced — rather than a number that stays put: the light clone

@@ -71,6 +71,7 @@ const FILES = {
   readme: "README.md",
   script: "scripts/init-submodules.sh",
   manifest: "charly.yml",
+  measure: "scripts/measure-clone.sh",
 };
 
 /** Collapse a text to one whitespace-normalised line, keeping a map back to the
@@ -109,6 +110,37 @@ const RE_POINT_SIZE = /^([0-9.]+) ?([A-Z])$/;
 const RE_RANGE_SEC = /^([0-9]+)[–-]([0-9]+) s$/;
 const RE_RANGE_MIN = /^([0-9]+) m ([0-9]+) s [–-] ([0-9]+) m ([0-9]+) s$/;
 const RE_COARSE = /^[a-z]+$/;
+
+// The bands the README commits, each named by its own sentence. The self-test
+// MUTATES these same values, so each is named ONCE here and read from one place — a
+// number the gate and the README both carry is two copies of one number, and the
+// second copy is where the drift lives. The boot band has already moved once (the
+// runs produced 129 M; the committed band stopped at 128 M) and the hard-coded
+// mutation stopped applying, so the self-test said so itself: "the mutation did not
+// apply". Every mutation below now READS the value it replaces out of the text.
+const RE_BOOT_BAND = /a bootstrapped light tree measures ([0-9.]+)[–-]([0-9.]+) ?([A-Z])/;
+const RE_STORE_BAND = /mirror's module store — ([0-9.]+)[–-]([0-9.]+) ?([A-Z]) in a from-scratch clone/;
+const RE_LIGHT_PROSE_SIZE = /the light clone measured between ([0-9.]+) ([A-Z]) and ([0-9.]+) ([A-Z])/;
+const RE_TABLE_DATES = /Every figure in the table was measured on this machine on (\d{4}-\d{2}-\d{2}); the bands carry the readings taken on (\d{4}-\d{2}-\d{2}) as well\./;
+const RE_SCRIPT_BASELINE = /([0-9.]+) G on disk[\s\S]{0,300}?measured (\d{4}-\d{2}-\d{2})/;
+const RE_MANIFEST_BASELINE = /costs ([0-9.]+) G on disk[\s\S]{0,200}?measured (\d{4}-\d{2}-\d{2})/;
+
+/** A band, read out of a text by its own sentence. */
+function readBand(re, text) {
+  const m = re.exec(text);
+  if (!m) return null;
+  return { lo: +m[1], hi: +m[2], unit: m[3], text: m[0] };
+}
+
+/** A literal, as a pattern — the self-test's mutations replace text it READ. */
+function literal(s) {
+  return new RegExp(s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+}
+
+/** A day that is NOT the one committed, derived so a mutation is never a no-op. */
+function otherDate(d) {
+  return d === "1999-01-01" ? "1998-12-31" : "1999-01-01";
+}
 
 function parseSize(cell) {
   const m = RE_RANGE_SIZE.exec(cell);
@@ -153,7 +185,7 @@ function parseTable(text) {
 }
 
 // --- the core: everything the gate asserts -----------------------------------
-function runChecks({ readme, script, manifest, samples }) {
+function runChecks({ readme, script, manifest, samples, measure }) {
   const findings = [];
   const add = (site, message) => findings.push({ site, message });
 
@@ -207,7 +239,7 @@ function runChecks({ readme, script, manifest, samples }) {
   };
   if (rows.light) {
     const p = prose(
-      /the light clone measured between ([0-9.]+) ([A-Z]) and ([0-9.]+) ([A-Z])/,
+      RE_LIGHT_PROSE_SIZE,
       "the light clone's size band");
     if (p && rows.light.size) {
       const s = rows.light.size;
@@ -259,8 +291,7 @@ function runChecks({ readme, script, manifest, samples }) {
   }
 
   // --- B. the bootstrapped tree's band ---------------------------------------
-  const boot = /a bootstrapped light tree measures ([0-9.]+)[–-]([0-9.]+) ?([A-Z])/
-    .exec(flat.text);
+  const boot = RE_BOOT_BAND.exec(flat.text);
   let bootBand = null;
   if (!boot) {
     add("README.md", "the prose does not state the bootstrapped light tree's size band");
@@ -283,8 +314,7 @@ function runChecks({ readme, script, manifest, samples }) {
   }
 
   // --- S. the openclaw store's band ------------------------------------------
-  const store = /mirror's module store — ([0-9.]+)[–-]([0-9.]+) ?([A-Z]) in a from-scratch clone/
-    .exec(flat.text);
+  const store = RE_STORE_BAND.exec(flat.text);
   let storeBand = null;
   if (!store) {
     add("README.md",
@@ -309,8 +339,7 @@ function runChecks({ readme, script, manifest, samples }) {
   };
   push(/not a ([0-9.]+) GB checkout \(measured (\d{4}-\d{2}-\d{2})\)/,
     "README.md", "headline");
-  const tableDate = /Every figure in the table was measured on this machine on (\d{4}-\d{2}-\d{2}); the bands carry the readings taken on (\d{4}-\d{2}-\d{2}) as well\./
-    .exec(flat.text);
+  const tableDate = RE_TABLE_DATES.exec(flat.text);
   if (!tableDate) {
     add("README.md", "the clone-shape table carries no date of its own");
   } else {
@@ -330,7 +359,7 @@ function runChecks({ readme, script, manifest, samples }) {
   push(/against the ([0-9.]+) G a full checkout occupied on (\d{4}-\d{2}-\d{2})/,
     "README.md", "sizes paragraph");
   if (script !== null) {
-    const m = /([0-9.]+) G on disk[\s\S]{0,300}?measured (\d{4}-\d{2}-\d{2})/.exec(script);
+    const m = RE_SCRIPT_BASELINE.exec(script);
     if (!m) {
       add(FILES.script, "the initializer's header does not carry the baseline's date");
     } else {
@@ -338,13 +367,44 @@ function runChecks({ readme, script, manifest, samples }) {
     }
   }
   if (manifest !== null) {
-    const m = /costs ([0-9.]+) G on disk[\s\S]{0,200}?measured (\d{4}-\d{2}-\d{2})/.exec(manifest);
+    const m = RE_MANIFEST_BASELINE.exec(manifest);
     if (!m) {
       add(FILES.manifest, "the manifest's init header does not carry the baseline's date");
     } else {
       dateSites.push({ site: FILES.manifest, label: "the manifest's init header", figure: +m[1], date: m[2] });
     }
   }
+  // --- X. the measurement clones the TREE, not the machine's object store -------
+  // A band is only as good as the measurement that fills it. The measurement clones
+  // the tree under test from THIS checkout, and the LOCAL transport COPIES the
+  // source's whole object store — every commit on every branch, including other
+  // sessions' pushed branches and their loose objects. A clone made that way
+  // measures the machine's accumulated store, so the reading drifts with the org's
+  // push traffic while the tree stands still: measured, the light clone read 75 M,
+  // then 76 M, then 77 M over six hours, and the bootstrapped tree 126, 127, 128 and
+  // 129 M, with the tree, the `charly` pin and the built version stamp all unchanged.
+  // The band the README commits rotted with the readings. Over the transport
+  // (`--no-local`), on the one branch that holds the tree, the clone carries the
+  // TREE's history and a reading is a property of the tree under test.
+  if (measure === null) {
+    add(FILES.measure, "the file is missing — the gate cannot read the measurement that fills the bands");
+  } else {
+    const clones = (measure.match(/git clone[^\n]*/g) || []).filter((l) => l.includes('"$ROOT"'));
+    if (clones.length === 0) {
+      add(FILES.measure,
+        "the measurement clones no superproject — the readings it produces have no source");
+    }
+    for (const l of clones) {
+      if (!l.includes("--no-local")) {
+        add(FILES.measure,
+          `the measurement clones the tree with the LOCAL transport ("${l.trim()}") — a ` +
+          `local clone copies the source's whole object store, so the reading is the ` +
+          `machine's accumulated store and not the tree; clone over the transport ` +
+          `(--no-local) so the reading is a property of the tree under test`);
+      }
+    }
+  }
+
   if (dateSites.length) {
     const dates = new Set(dateSites.map((d) => d.date));
     if (dates.size > 1) {
@@ -480,8 +540,8 @@ function mutate(text, re, replacement, what) {
   return text.replace(re, replacement);
 }
 
-function runSelfTest(readme, script, manifest, samples) {
-  const base = runChecks({ readme, script, manifest, samples });
+function runSelfTest(readme, script, manifest, samples, measure) {
+  const base = runChecks({ readme, script, manifest, samples, measure });
   if (base.findings.length) {
     return {
       ok: false,
@@ -505,43 +565,102 @@ function runSelfTest(readme, script, manifest, samples) {
     report.push(`  ${caught ? "OK  " : "FAIL"} ${label} — ${why}`);
     if (!caught) ok = false;
   };
-  const withReadme = (newReadme) => ({ readme: newReadme, script, manifest, samples });
+  const withReadme = (newReadme) => ({ readme: newReadme, script, manifest, samples, measure });
 
-  expect("the table's band is widened",
-    () => withReadme(mutate(readme, /\| 73–77 M \|/, "| 73–75 M |", "the table's light row")),
-    "the prose still says 77 M, so the two copies of the band disagree");
-  expect("the prose's band is widened",
-    () => withReadme(mutate(readme, /73 M and 77 M/, "73 M and 75 M", "the prose's light band")),
-    "the table still says 77 M");
-  expect("the table's date sentence is changed",
-    () => withReadme(mutate(readme, /measured on this machine on 2026-10-22/,
-      "measured on this machine on 2026-10-23", "the table's date sentence")),
-    "the baseline is dated differently in different places");
-  expect("the initializer's header loses the date",
-    () => ({ readme, script: mutate(script, /measured 2026-10-22/, "measured",
-      "the initializer's header"), manifest, samples }),
-    "the initializer's header does not carry the baseline's date");
-  expect("the manifest's init header loses the date",
-    () => ({ readme, script, manifest: mutate(manifest, /measured 2026-10-22/, "measured",
-      "the manifest's init header"), samples }),
-    "the manifest's init header does not carry the baseline's date");
-  expect("the bootstrapped band is below the clone's",
-    () => withReadme(mutate(readme, /measures 125–128 M/, "measures 73–80 M",
-      "the bootstrapped tree's band")),
-    "the bootstrap ADDS the binary and its build cache, so its band cannot start below the clone's");
-  expect("the store's band is not a band",
-    () => withReadme(mutate(readme, /module store — 480–520 M in a from-scratch clone/,
-      "module store — about 500 M in a from-scratch clone", "the store's band")),
-    "the runs repeated that measurement, so it carries a band");
+  // The mutation targets are READ out of the committed text, never written here: a
+  // number the gate and the README both carry is two copies of one number, and the
+  // second copy is where the drift lives. The boot band has already moved once — the
+  // runs produced 129 M, the committed band stopped at 128 M — and the hard-coded
+  // mutation stopped applying, so the self-test said so itself: "the mutation did not
+  // apply". Every target below is the value the text itself carries.
+  const rows = parseTable(readme);
+  const lightCell = rows.light?.raw
+    ? /\| ([0-9.]+)([–-])([0-9.]+) ([A-Z]) \|/.exec(rows.light.raw)
+    : null;
+  const lightProse = RE_LIGHT_PROSE_SIZE.exec(readme);
+  const boot = readBand(RE_BOOT_BAND, readme);
+  const store = readBand(RE_STORE_BAND, readme);
+  const tableDates = RE_TABLE_DATES.exec(readme);
+  const scriptDate = script ? RE_SCRIPT_BASELINE.exec(script) : null;
+  const manifestDate = manifest ? RE_MANIFEST_BASELINE.exec(manifest) : null;
+  // The dash the text itself uses, so a mutation never changes the shape of a band.
+  const dash = (s) => (s.includes("–") ? "–" : "-");
+
+  if (lightCell) {
+    expect("the light row's cell is a point figure",
+      () => withReadme(mutate(readme, literal(lightCell[0]),
+        `| ${lightCell[1]} ${lightCell[4]} |`, "the table's light row")),
+      "a shape the runs repeated carries a BAND, not one number");
+    expect("the table's band is narrowed",
+      () => withReadme(mutate(readme, literal(lightCell[0]),
+        `| ${lightCell[3]}${lightCell[2]}${lightCell[3]} ${lightCell[4]} |`,
+        "the table's light row")),
+      "the prose still quotes the wider band, so the two copies of one band disagree");
+  }
+  if (lightProse) {
+    expect("the prose's band is narrowed",
+      () => withReadme(mutate(readme,
+        literal(`${lightProse[1]} ${lightProse[2]} and ${lightProse[3]} ${lightProse[4]}`),
+        `${lightProse[1]} ${lightProse[2]} and ${+lightProse[1] + 1} ${lightProse[4]}`,
+        "the prose's light band")),
+      "the table still quotes the wider band");
+  }
+  if (tableDates) {
+    expect("the table's date sentence names another day",
+      () => withReadme(mutate(readme, literal(`measured on this machine on ${tableDates[1]}`),
+        `measured on this machine on ${otherDate(tableDates[1])}`,
+        "the table's date sentence")),
+      "the baseline is dated differently in different places");
+  }
+  if (scriptDate) {
+    expect("the initializer's header loses the date",
+      () => ({ readme, script: mutate(script, literal(`measured ${scriptDate[2]}`), "measured",
+        "the initializer's header"), manifest, samples, measure }),
+      "the initializer's header does not carry the baseline's date");
+  }
+  if (manifestDate) {
+    expect("the manifest's init header loses the date",
+      () => ({ readme, script, manifest: mutate(manifest, literal(`measured ${manifestDate[2]}`),
+        "measured", "the manifest's init header"), samples, measure }),
+      "the manifest's init header does not carry the baseline's date");
+  }
+  if (measure) {
+    expect("the measurement's clone falls back to the local transport",
+      () => ({ readme, script, manifest, samples, measure: mutate(measure,
+        literal("--no-local --single-branch --branch"), "--no-checkout --single-branch --branch",
+        "the measurement's clone invocation") }),
+      "a local clone copies the source's whole object store, so the reading would be " +
+      "the machine's accumulated store and not the tree");
+  }
+  if (boot && lightCell) {
+    expect("the bootstrapped band is below the clone's",
+      () => withReadme(mutate(readme, literal(boot.text),
+        boot.text.replace(`${boot.lo}${dash(boot.text)}${boot.hi} ${boot.unit}`,
+          `${lightCell[1]}${dash(boot.text)}${+lightCell[1] + 1} ${boot.unit}`),
+        "the bootstrapped tree's band")),
+      "the bootstrap ADDS the binary and its build cache, so its band cannot start below the clone's");
+  }
+  if (store) {
+    expect("the store's band is not a band",
+      () => withReadme(mutate(readme, literal(store.text),
+        store.text.replace(`${store.lo}${dash(store.text)}${store.hi} ${store.unit}`,
+          `${store.lo} ${store.unit}`),
+        "the store's band")),
+      "the runs repeated that measurement, so it carries a band");
+  }
   if (samples) {
     expect("a sample falls outside its band",
-      () => ({ readme, script, manifest, samples: mutate(samples, /^([0-9.]+)M\t/m, "9999M\t",
+      () => ({ readme, script, manifest, measure, samples: mutate(samples, /^([0-9.]+)M\t/m, "9999M\t",
         "a light clone's size sample") }),
       "a band that a sample has outgrown is a defect in the band");
-    expect("the samples' day leaves the table's span",
-      () => withReadme(mutate(readme, /the bands carry the readings taken on \d{4}-\d{2}-\d{2}/,
-        "the bands carry the readings taken on 1999-01-01", "the table's span")),
-      "a band that does not cover the day the readings were taken is unchecked");
+    if (tableDates) {
+      expect("the samples' day leaves the table's span",
+        () => withReadme(mutate(readme,
+          literal(`the bands carry the readings taken on ${tableDates[2]}`),
+          `the bands carry the readings taken on ${otherDate(tableDates[2])}`,
+          "the table's span")),
+        "a band that does not cover the day the readings were taken is unchecked");
+    }
   }
   return { ok, report };
 }
@@ -551,10 +670,11 @@ function main() {
   const readme = read(root, FILES.readme);
   const script = read(root, FILES.script);
   const manifest = read(root, FILES.manifest);
+  const measure = read(root, FILES.measure);
   const samples = samplesPath ? readFileSync(samplesPath, "utf8") : null;
 
   if (selfTest) {
-    const r = runSelfTest(readme, script, manifest, samples);
+    const r = runSelfTest(readme, script, manifest, samples, measure);
     console.log("check-readme-measurements: the self-test — every assertion must be able to fail");
     for (const line of r.report) console.log(line);
     if (!r.ok) {
@@ -565,7 +685,7 @@ function main() {
     process.exit(0);
   }
 
-  const { findings } = runChecks({ readme, script, manifest, samples });
+  const { findings } = runChecks({ readme, script, manifest, samples, measure });
   console.log("check-readme-measurements: the umbrella's measured figures, read against each other");
   if (readme) {
     const rows = parseTable(readme);
