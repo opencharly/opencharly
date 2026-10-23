@@ -35,7 +35,7 @@ A worktree isolates the MUTABLE half of a session — working tree, index, branc
 copy the IMMUTABLE half: git shares the superproject's objects, and `charly_worktree_create`
 materializes only `charly` + `marketplace`, borrowing their objects from the main checkout
 (`--reference`). That is ~1.4 s and a few MB, not the ~6 min and ~600 MB an eager
-`--init --recursive` over all 425 submodules costs. Name anything else the cutover touches in the
+`--init --recursive` over the whole submodule graph costs. Name anything else the cutover touches in the
 tool's `modules` argument, which ADDS to that set — `charly` can never be dropped, because the
 binary build needs it. Materialize one later with
 `git -C <worktree> submodule update --init --reference <umbrella>/.git/modules/<path> -- <path>`.

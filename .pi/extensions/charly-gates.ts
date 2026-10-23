@@ -67,10 +67,11 @@ const GATE_SCRIPTS = [
  *
  * Everything else the umbrella carries is a submodule a cutover needs only if it actually
  * reads or edits it, and is named through the tool's `modules` argument, which ADDS to this set.
- * MEASURED: an eager `--init --recursive` over all 425 costs 376 MB of worktree-PRIVATE module
- * objects and ~0.86 s per module, while this scoped set costs 1 MB and ~1.4 s — and the repo's
- * own pin gate (`scripts/check-verify-submodules.mjs`) documents a session worktree as
- * materializing 1 of 424 paths. `charly` can never be dropped: step 4 builds the worktree binary
+ * MEASURED (2026-10-06, umbrella tree `9501fb0`): an eager `--init --recursive` over the whole
+ * submodule graph costs 376 MB of worktree-PRIVATE module objects and ~0.86 s per module, while
+ * this scoped set costs 1 MB and ~1.4 s — and the repo's own pin gate
+ * (`scripts/check-verify-submodules.mjs`) treats an uninitialized module as a NOTICE and keeps
+ * its drift teeth. `charly` can never be dropped: step 4 builds the worktree binary
  * from `charly/scripts/bootstrap-charly.sh`.
  */
 const REQUIRED_WORKTREE_MODULES = ["charly", "marketplace"];
@@ -343,7 +344,7 @@ export default function (pi: ExtensionAPI) {
       "session. It isolates the MUTABLE half of the session (working tree, index, branch, " +
       "its own binary) while sharing the IMMUTABLE half (object stores), so several sessions " +
       "work from the same umbrella cheaply: ~1.4 s and a few MB, not the ~6 min and ~600 MB " +
-      "an eager --init --recursive over all 425 submodules costs.",
+      "an eager --init --recursive over the whole submodule graph costs.",
     promptSnippet: "Create a worktree for a new feature branch",
     promptGuidelines: [
       "Use charly_worktree_create at the START of every cutover to create an isolated worktree.",
@@ -351,7 +352,7 @@ export default function (pi: ExtensionAPI) {
       "The tool fetches origin, creates a feat/<slug> branch off origin/main, materializes the module set, and builds the binary.",
       "Only the modules a cutover actually needs are materialized: `charly` and `marketplace` " +
       "are ALWAYS present (the binary build and the skill corpus need them) and `modules` ADDS " +
-      "to that set. Never materialize the whole submodule graph 'just in case': the other 423 " +
+      "to that set. Never materialize the whole submodule graph 'just in case': the rest " +
       "stay unmaterialized and can be added later without recreating the worktree.",
       "Use charly_worktree_remove when done; `charly task prune` reaps the worktrees whose PR already merged.",
     ],
@@ -392,16 +393,16 @@ export default function (pi: ExtensionAPI) {
 
         // Step 3: materialize ONLY the modules this cutover needs — never the whole graph.
         //
-        // MEASURED (2026-10-06, on this 425-submodule umbrella): the former
+        // MEASURED (2026-10-06, umbrella tree `9501fb0`): the former
         // `git submodule update --init --recursive` cloned every submodule into a
         // worktree-PRIVATE object store — 376 MB per worktree at ~0.86 s per module, none
         // of it shared with the main checkout. A worktree that materializes nothing is
-        // 3.8 MB in 0.019 s; the repo's own pin gate documents a session worktree as
-        // materializing 1 of 424 paths; and every gate that runs on a commit here
+        // 3.8 MB in 0.019 s; and every gate that runs on a commit here
         // (hooks/pre-commit, `charly task pin-check`, `charly task self-test`,
-        // scripts/check-*.mjs) passes with 2 of 425 materialized. `--reference` makes the
-        // clone BORROW the main checkout's objects through an `alternates` file instead of
-        // copying them (marketplace measured: 1 MB borrowed vs 7 MB copied, 0.5 s).
+        // scripts/check-*.mjs) passes with the rest of the graph left unmaterialized.
+        // `--reference` makes the clone BORROW the main checkout's objects through an
+        // `alternates` file instead of copying them (marketplace measured: 1 MB borrowed
+        // vs 7 MB copied, 0.5 s).
         const requested = (params.modules ?? "")
           .split(",")
           .map((m) => m.trim())

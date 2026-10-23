@@ -24,9 +24,11 @@
 # `gh pr create` fails with "Body is too long". The per-pin evidence table is the
 # largest section. It is emitted in the COMPACT format above (≈50 bytes/row, vs ≈115
 # for the retired `staged-gitlink=… remote-HEAD=… [kind, eq]` row) so the FULL table —
-# every changed path, no elision — fits the body with headroom at fleet scale
-# (measured: 424 rows render COMPLETE at ≈21 KB of table; the whole body is ≈39 KB,
-# well under 65536). SYNC_EVIDENCE_MAX_BYTES (default 50000) is now a FALLBACK
+# every changed path, no elision — fits the body with headroom at fleet scale. The
+# fleet scale is the LIVE one: `sync-pr-body.sh`'s self-test builds its synthetic moved
+# set from the umbrella's own `.gitmodules`, so the bound is re-proved on every run at
+# the real submodule count instead of by a figure recorded once — and it fails loud when
+# the count outgrows the budget. SYNC_EVIDENCE_MAX_BYTES (default 50000) is now a FALLBACK
 # guard only: it does not fire at fleet scale, and if a far larger sync ever
 # tripped it the elision notice names shown/total AND the evidence file holding the
 # rest. The BODY always carries the complete table; SYNC_EVIDENCE_OUT additionally
@@ -42,8 +44,8 @@ set -euo pipefail
 # format the body-size budget is measured against: `  <path>  <staged12>  <remote12>
 # <flag>`. The kind (`distro-*` edge-pinned vs default-branch HEAD) is derivable
 # from the path prefix and stated ONCE in the section legend, so the row carries no
-# verbose `[kind, eq]` suffix — that suffix is what pushed a 402-pin table past the
-# body budget and forced the artifact elision the validator rejects. `flag` is `=`
+# verbose `[kind, eq]` suffix — that suffix is what pushed a fleet-scale table past
+# the body budget and forced the artifact elision the validator rejects. `flag` is `=`
 # when the staged gitlink equals the remote default-branch HEAD, else `!` (a real
 # finding for a non-`distro-*` row, never silently elided). ONE implementation the
 # live path and the self-test both call.

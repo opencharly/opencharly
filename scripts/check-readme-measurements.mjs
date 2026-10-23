@@ -46,6 +46,16 @@
 //      README commits. This is the arm that catches a band that has gone stale: the
 //      band's own samples, checked against the band.
 //
+//   C. The SHAPE counts: a count of a collection that GROWS with the org — the
+//      submodule set, the pin set, the paths they name, the remotes the audit asks —
+//      is a claim about a moving target. The day the org gains a repo the number is
+//      false, and nothing in the repository says so. So a count is only allowed
+//      DERIVED (read from the collection itself at run time) or DATED (a point
+//      figure of one measurement, carrying the day it was taken). This family reads
+//      every prose and script surface the umbrella OWNS — derived from the tracked
+//      file set, never a hand-kept list, because a list of files is itself a claim
+//      about a collection that grows — and reports the counts that are neither.
+//
 // A band that a sample has outgrown is a DEFECT in the band, not in the sample: the
 // gate reports which band and which sample, and the README is widened to the range
 // the runs produce — a new tree, hence a new gate.
@@ -54,7 +64,8 @@
 //                                                 [--self-test]
 // exit 0 clean · 1 finding
 
-import { mkdtempSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync, mkdirSync, lstatSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -184,8 +195,159 @@ function parseTable(text) {
   return rows;
 }
 
+// --- C. the shape counts ------------------------------------------------------
+// A count of a collection that GROWS with the org is a claim about a moving
+// target. The org gains repos; a number written in a comment does not move with
+// them, and nothing in the tree says so. So a count is allowed in exactly two
+// forms: DERIVED (read from the collection itself at run time) or DATED (a point
+// figure of one measurement, carrying the day it was taken).
+//
+// THE FLOOR. Below the floor a number names a handful the author is looking at —
+// a fixture, a pair of files, one hop's attempt count — and it does not stand in
+// for the fleet's size. At or above it the number IS the fleet's size, and the
+// fleet's size is what changes. The floor is a named constant because a number
+// the gate and the text both carry is two copies of one number.
+const SHAPE_COUNT_FLOOR = 10;
+
+// The nouns are the collections the org's shape is made of. "repos" is NOT among
+// them: the org census in the README is DERIVED by `charly task org-map`, which
+// reads `.gitmodules` and compares — that number has a control that keeps it
+// true, so it needs none of its own.
+const RE_SHAPE_COUNT =
+  /(?<![\w-])(~?)(\d{1,4})\s*(?:of\s+(\d{1,4})\s*)?[- ]?(submodules?|pins?|paths?|modules?|remotes?|worktrees?|calls?)\b/gi;
+const RE_SHAPE_REMAINING = /\bthe remaining (\d{1,4})\b/gi;
+
+// A count that is a CAP ("at most N path rows") is a policy number, not a
+// measurement, and it does not drift with the org.
+const RE_SHAPE_CAP =
+  /\b(at most|up to|a cap of|a maximum of|maximum of|max of|limit of|≤)\s*$/i;
+
+const RE_ISO_DATE = /\b20\d{2}-\d{2}-\d{2}\b/;
+
+// The surfaces: the umbrella's OWN prose and scripts, DERIVED from the tracked
+// file set. A gitlink is another repo's tree; a symlink is a projection of
+// another repo's content (the corpus farm); CHANGELOG/ is history, and history
+// may name the legacy form.
+const SHAPE_SURFACE_EXTENSIONS = new Set([
+  "md", "yml", "yaml", "sh", "mjs", "js", "ts", "py", "toml",
+]);
+
+/** The umbrella's own prose and script surfaces, read from the tracked file set. */
+function listShapeSurfaces(rootDir) {
+  let listing;
+  try {
+    listing = execFileSync("git", ["-C", rootDir, "ls-files", "-s", "-z"], { encoding: "utf8" });
+  } catch (e) {
+    return { surfaces: [], error: `the tracked file set could not be read — git failed in ${rootDir}: ${e.message}` };
+  }
+  const surfaces = [];
+  for (const entry of listing.split("\0")) {
+    if (!entry) continue;
+    const tab = entry.indexOf("\t");
+    if (tab === -1) continue;
+    const file = entry.slice(tab + 1);
+    if (entry.slice(0, tab).slice(0, 6) === "160000") continue;   // a gitlink
+    if (file.startsWith("CHANGELOG/")) continue;                    // history
+    const ext = file.includes(".") ? file.split(".").pop() : "";
+    if (!SHAPE_SURFACE_EXTENSIONS.has(ext)) continue;
+    const path = join(rootDir, file);
+    let st;
+    try {
+      st = lstatSync(path);
+    } catch {
+      continue;
+    }
+    if (st.isSymbolicLink()) continue;                             // a projection
+    surfaces.push({ file, text: readFileSync(path, "utf8") });
+  }
+  return { surfaces, error: null };
+}
+
+/** A BLOCK is the unit the family judges, because a figure dated in one place and
+ *  undated in another is one figure with two half-lives: the date must be in the
+ *  block that STATES the count. Prose: a paragraph. Scripts: a run of comment
+ *  lines. YAML: a run of comment lines, and every mapping entry with its value. */
+function shapeBlocks(file, lines) {
+  const blocks = [];
+  const ext = file.includes(".") ? file.split(".").pop() : "";
+  if (ext === "md") {
+    let buf = [];
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i].trim() === "") {
+        if (buf.length) { blocks.push(buf); buf = []; }
+      } else buf.push(i);
+    }
+    if (buf.length) blocks.push(buf);
+    return blocks;
+  }
+  const isComment = (ext === "mjs" || ext === "js" || ext === "ts")
+    ? (line) => /^\s*(\/\/|\*)/.test(line)
+    : (line) => /^\s*#/.test(line);
+  let buf = [];
+  for (let i = 0; i < lines.length; i++) {
+    if (isComment(lines[i])) buf.push(i);
+    else { if (buf.length) { blocks.push(buf); buf = []; } }
+  }
+  if (buf.length) blocks.push(buf);
+  if (ext === "yml" || ext === "yaml") {
+    for (let i = 0; i < lines.length; i++) {
+      const m = /^(\s*)[A-Za-z0-9_."'-]+:(\s|$)/.exec(lines[i]);
+      if (!m) continue;
+      const indent = m[1].length;
+      const block = [i];
+      for (let j = i + 1; j < lines.length; j++) {
+        if (lines[j].trim() === "") { block.push(j); continue; }
+        const ind = lines[j].length - lines[j].trimStart().length;
+        if (ind > indent) { block.push(j); continue; }
+        break;
+      }
+      blocks.push(block);
+    }
+  }
+  return blocks;
+}
+
+/** The counts that are neither derived nor dated. */
+function shapeFindings(surfaces) {
+  const findings = [];
+  const seen = new Set();
+  for (const { file, text } of surfaces) {
+    const lines = text.split("\n");
+    for (const block of shapeBlocks(file, lines)) {
+      const dated = RE_ISO_DATE.test(block.map((i) => lines[i]).join("\n"));
+      for (const i of block) {
+        const line = lines[i];
+        for (const re of [RE_SHAPE_COUNT, RE_SHAPE_REMAINING]) {
+          re.lastIndex = 0;
+          let m;
+          while ((m = re.exec(line)) !== null) {
+            const isCount = re === RE_SHAPE_COUNT;
+            const rounded = m[0].trim().startsWith("~");
+            const n = isCount ? +m[2] : +m[1];
+            const total = isCount && m[3] !== undefined ? +m[3] : null;
+            const big = total !== null ? total >= SHAPE_COUNT_FLOOR : n >= SHAPE_COUNT_FLOOR;
+            if (!big || rounded) continue;
+            if (dated) continue;
+            if (RE_SHAPE_CAP.test(line.slice(0, m.index))) continue;
+            const key = `${file}:${i + 1}:${m.index}`;
+            if (seen.has(key)) continue;
+            seen.add(key);
+            findings.push({
+              site: `${file}:${i + 1}`,
+              message: `the count "${m[0].trim()}" states the size of a collection that grows, ` +
+                `and the block that states it carries no date — derive it from the collection, ` +
+                `or state the day it was measured`,
+            });
+          }
+        }
+      }
+    }
+  }
+  return findings;
+}
+
 // --- the core: everything the gate asserts -----------------------------------
-function runChecks({ readme, script, manifest, samples, measure }) {
+function runChecks({ readme, script, manifest, samples, measure, shapes }) {
   const findings = [];
   const add = (site, message) => findings.push({ site, message });
 
@@ -486,6 +648,15 @@ function runChecks({ readme, script, manifest, samples, measure }) {
     }
     facts.samples = s;
   }
+
+  // --- C. the shape counts ---------------------------------------------------
+  if (!shapes) {
+    add("the shape counts", "the surfaces were never read — the family cannot judge a count it did not see");
+  } else if (shapes.error) {
+    add("the shape counts", shapes.error);
+  } else {
+    findings.push(...shapeFindings(shapes.surfaces));
+  }
   return { findings, facts };
 }
 
@@ -542,8 +713,9 @@ function mutate(text, re, replacement, what) {
   return text.replace(re, replacement);
 }
 
-function runSelfTest(readme, script, manifest, samples, measure) {
-  const base = runChecks({ readme, script, manifest, samples, measure });
+function runSelfTest(readme, script, manifest, samples, measure, shapes) {
+  const inputs = { readme, script, manifest, samples, measure, shapes };
+  const base = runChecks(inputs);
   if (base.findings.length) {
     return {
       ok: false,
@@ -567,7 +739,24 @@ function runSelfTest(readme, script, manifest, samples, measure) {
     report.push(`  ${caught ? "OK  " : "FAIL"} ${label} — ${why}`);
     if (!caught) ok = false;
   };
-  const withReadme = (newReadme) => ({ readme: newReadme, script, manifest, samples, measure });
+  // The mirror of `expect`: a mutation that must STAY green. A family that reports
+  // every count would pass this arm's first half and fail here, so the pair is
+  // what shows the family DISCRIMINATES rather than merely fires.
+  const expectClean = (label, mutateInputs, why) => {
+    let mutated;
+    try {
+      mutated = mutateInputs();
+    } catch (e) {
+      report.push(`  FAIL ${label} — ${e.message}`);
+      ok = false;
+      return;
+    }
+    const r = runChecks(mutated);
+    const clean = r.findings.length === 0;
+    report.push(`  ${clean ? "OK  " : "FAIL"} ${label} — ${why}`);
+    if (!clean) ok = false;
+  };
+  const withReadme = (newReadme) => ({ ...inputs, readme: newReadme });
 
   // The mutation targets are READ out of the committed text, never written here: a
   // number the gate and the README both carry is two copies of one number, and the
@@ -623,19 +812,19 @@ function runSelfTest(readme, script, manifest, samples, measure) {
   }
   if (scriptDate) {
     expect("the initializer's header loses the date",
-      () => ({ readme, script: mutate(script, literal(`measured ${scriptDate[2]}`), "measured",
-        "the initializer's header"), manifest, samples, measure }),
+      () => ({ ...inputs, script: mutate(script, literal(`measured ${scriptDate[2]}`), "measured",
+        "the initializer's header") }),
       "the initializer's header does not carry the baseline's date");
   }
   if (manifestDate) {
     expect("the manifest's init header loses the date",
-      () => ({ readme, script, manifest: mutate(manifest, literal(`measured ${manifestDate[2]}`),
-        "measured", "the manifest's init header"), samples, measure }),
+      () => ({ ...inputs, manifest: mutate(manifest, literal(`measured ${manifestDate[2]}`),
+        "measured", "the manifest's init header") }),
       "the manifest's init header does not carry the baseline's date");
   }
   if (measure) {
     expect("the measurement's clone falls back to the local transport",
-      () => ({ readme, script, manifest, samples, measure: mutate(measure,
+      () => ({ ...inputs, measure: mutate(measure,
         literal("--no-local --single-branch --branch"), "--no-checkout --single-branch --branch",
         "the measurement's clone invocation") }),
       "a local clone copies the source's whole object store, so the reading would be " +
@@ -663,7 +852,7 @@ function runSelfTest(readme, script, manifest, samples, measure) {
   }
   if (samples) {
     expect("a sample falls outside its band",
-      () => ({ readme, script, manifest, measure, samples: mutate(samples, /^([0-9.]+)M\t/m, "9999M\t",
+      () => ({ ...inputs, samples: mutate(samples, /^([0-9.]+)M\t/m, "9999M\t",
         "a light clone's size sample") }),
       "a band that a sample has outgrown is a defect in the band");
     if (tableDates) {
@@ -675,6 +864,38 @@ function runSelfTest(readme, script, manifest, samples, measure) {
         "a band that does not cover the day the readings were taken is unchecked");
     }
   }
+
+  // --- the C family: a count of a growing collection is derived or dated -----
+  // The fixture's count is the floor plus one, so the assertion is exercised
+  // just above the threshold, and NO count is written into this file: this file
+  // is one of the surfaces the family reads, so a count written here would be a
+  // finding about the gate that forbids counts.
+  const shapeFixture = (n) => `The fleet holds ${n} submodules.`;
+  const shapeTarget = shapes
+    ? shapes.surfaces.find((s) => s.file.endsWith(".md") && s.file !== FILES.readme)
+    : null;
+  if (!shapeTarget) {
+    report.push("  FAIL the shape-count family has no prose surface to exercise — " +
+      "the self-test needs a markdown surface that is not the README");
+    ok = false;
+  } else {
+    const withShape = (text) => ({
+      ...inputs,
+      shapes: {
+        ...shapes,
+        surfaces: shapes.surfaces.map((s) => (s.file === shapeTarget.file ? { ...s, text } : s)),
+      },
+    });
+    const count = SHAPE_COUNT_FLOOR + 1;
+    expect("an undated shape count is reported",
+      () => withShape(`${shapeTarget.text}\n\n${shapeFixture(count)}\n`),
+      "a count of a collection that grows is false the day the org gains one, and " +
+      "nothing in the tree says so");
+    expectClean("a dated shape count is not reported",
+      () => withShape(`${shapeTarget.text}\n\n${shapeFixture(count)} (measured 2026-10-22)\n`),
+      "a dated point figure is a measurement of a known tree, not a claim about a " +
+      "moving one");
+  }
   return { ok, report };
 }
 
@@ -685,9 +906,10 @@ function main() {
   const manifest = read(root, FILES.manifest);
   const measure = read(root, FILES.measure);
   const samples = samplesPath ? readFileSync(samplesPath, "utf8") : null;
+  const shapes = listShapeSurfaces(root);
 
   if (selfTest) {
-    const r = runSelfTest(readme, script, manifest, samples, measure);
+    const r = runSelfTest(readme, script, manifest, samples, measure, shapes);
     console.log("check-readme-measurements: the self-test — every assertion must be able to fail");
     for (const line of r.report) console.log(line);
     if (!r.ok) {
@@ -698,7 +920,7 @@ function main() {
     process.exit(0);
   }
 
-  const { findings } = runChecks({ readme, script, manifest, samples, measure });
+  const { findings } = runChecks({ readme, script, manifest, samples, measure, shapes });
   console.log("check-readme-measurements: the umbrella's measured figures, read against each other");
   if (readme) {
     const rows = parseTable(readme);
