@@ -381,8 +381,9 @@ verify:
           set -eu
           fail() { echo "FAIL: $*" >&2; exit 1; }
           # One ls-remote per submodule is the EXPENSIVE half of this gate: those
-          # calls took 197 s to 212 s SERIAL, and 13 s to 15 s run in PARALLEL
-          # at -P 16 (measured 2026-10-22, over repeated runs of this step). The
+          # calls took 192 s to 212 s SERIAL, and 13 s to 15 s run in PARALLEL
+          # at -P 16 (the band over every sample of this step, measured
+          # 2026-10-22 and 2026-10-23, over repeated runs). The
           # clause is unchanged — same .gitmodules parsing, same comparison, same
           # message, same exit status — and it gains one property a serial loop
           # could not have: a parallel run cannot stop at the first mismatch without
