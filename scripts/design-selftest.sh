@@ -32,7 +32,7 @@ while IFS=$'\t' read -r name file expr expect; do
 		fail=1
 	elif ! grep -qF -- "$expect" <<<"$out"; then
 		echo "SELFTEST $name: caught, but without '$expect':"
-		sed 's/^/    /' <<<"$out" | head -8
+		sed -n '1,8s/^/    /p' <<<"$out"
 		fail=1
 	else
 		echo "selftest $name: caught"

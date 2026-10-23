@@ -24,10 +24,16 @@
 //   M1 content → IR      #Content, #ActionAlt               M5 lifecycle and state  _method transition, capture, restore
 //   M2 artifact          #ArtifactRef, _method.build        M6 venue                #VenueAlt, _access
 //   M3 kind × driver     _deploymentKind, _driver           M7 observation          #FactVerbAlt, #ProtocolVerbAlt
-//   M4 need → grant      _capability                        M8 store                _hostMethod get, put
-// A derivation has exactly one spelling, so the generator (DESIGN §6) maps each to one Go shape:
-// a word list is `[for w, _ in T {w}]`, a union `or([for _, a in T {a}])`, and a fragment is
-// composed by spreading it (`#XFields...`, language v0.18.0 strict embedding).
+//   M4 need → grant      _capability                        M8 store                _store, _hostMethod get, put
+// A derivation has exactly one spelling per form, so the generator (DESIGN §6, D-GEN-8) maps each to
+// one Go shape; the design check rejects every other list comprehension:
+//   D1 word list      _xWord: [for w, _ in _x {w}]
+//   D2 row subset     _qWord: [for w, r in _x if <row predicate> {w}]
+//   D3 row grouping   _yX: {for k, _ in _y {(k): [for w, r in _x if <row predicate on k> {w}]}}
+//   D4 tag union      #X: or([for _, a in #XAlt {a}])
+//   D5 word union     or(_xWord), or(_yX[k]); a default is `*"w" | or(_xWord)` with w a row of _x
+//   D6 row selection  or([for v in r.<field> {T[v]}]) inside a definition derived from the rows of r
+// and a fragment is composed by spreading it (`#XFields...`, language v0.18.0 strict embedding).
 // A `// D-…` comment marks the line that enforces that requirement; every tag has a negative case
 // in design/negative/. Rules a single document cannot express are indexed in DESIGN §5.4.
 package design
@@ -190,7 +196,7 @@ _docProjection: {recipe: {}, cli: {}, registry: {}, candy: {}, box: {}, plugin: 
 _docProjectionWord: [for w, _ in _docProjection {w}]
 
 // M4: the host words a need may name (§16).
-_gpu: {nvidia: {}, amd: {}, intel: {}} @vocab(spec)
+_gpu: {any: {}, nvidia: {}, amd: {}, intel: {}} @vocab(spec) // any: a need every vendor satisfies
 _gpuWord: [for w, _ in _gpu {w}]
 _device: [#Word]: #NativeRow
 _device: {
@@ -247,10 +253,9 @@ _driver: {
 	file:           {subsystem: "secret"}
 } @vocab(registry)
 _driverWord: [for w, _ in _driver {w}]
+_subsystemDriver: {for k, _ in _subsystem {(k): [for w, r in _driver if r.subsystem == k {w}]}}
 // Exactly one default per subsystem (D-DRV-1); a package-level `cue vet DESIGN.cue` checks it.
-_defaultDriver: {for s, _ in _subsystem {
-	(s): [for w, r in _driver if r.subsystem == s && r.default {w}] & list.MinItems(1) & list.MaxItems(1)
-}}
+_subsystemDefaultDriver: {for k, _ in _subsystem {(k): [for w, r in _driver if r.subsystem == k && r.default {w}] & list.MinItems(1) & list.MaxItems(1)}}
 
 // ── S4 tag tables ────────────────────────────────────────────────────────────
 // Every kind word and the node it selects (§10): the data and workflow kinds, then every deployment
@@ -457,7 +462,7 @@ _capability: {
 	endpoint:   {key: #Name, need: #EndpointNeed, provide: #Endpoint}
 	network:    {key: #Name, need: {}, provide: {}}
 	harness:    {key: #Ref, need: {}, ref: ["harness"]}
-	gpu:        {key: or(_gpuWord) | "any", need: {}, lease: true}
+	gpu:        {key: or(_gpuWord), need: {}, lease: true}
 	device:     {key: or(_deviceWord), need: {}, lease: true}
 	cpu:        {key: or(_cpuWord), need: #CountNeed, lease: true}
 	memory:     {key: or(_memoryWord), need: #SizeNeed, lease: true}
@@ -470,7 +475,7 @@ _capability: {
 	for r, _ in _role {(r): {key: #Word, need: {}, provide: {}}}
 } @vocab(spec)
 _capabilityWord: [for w, _ in _capability {w}]
-_leasableWord: [for t, c in _capability if c.lease {t}]
+_leasableWord: [for w, r in _capability if r.lease {w}]
 #NeedFields: {optional: *false | bool}   // D-CAP-1
 #LeaseFields: {exclusive: *false | bool} // D-HW-8
 #Need: {for t, c in _capability if c.need != _|_ {
@@ -820,20 +825,17 @@ _#Body: {for k, r in _deploymentKind {(k): {
 	if r.content {#ContentFields...}
 	[#InnerNodeName]: or([for a in r.admit {_#InnerNode[a]}]) // D-NEST-2
 }}}
-_#Created: {for k, r in _deploymentKind {(k): {_#Body[k]..., r.create...}}}
-_#Connected: {for k, r in _deploymentKind if len(r.connect) > 0 {
-	(k): {_#Body[k]..., connect!: or([for v in r.connect {#VenueAlt[v]}])} // D-DEP-6
-}}
+_#Placed: {for k, r in _deploymentKind {(k): {
+	create: {_#Body[k]..., r.create...}
+	if len(r.connect) > 0 {connect: {_#Body[k]..., connect!: or([for v in r.connect {#VenueAlt[v]}])}} // D-DEP-6
+}}}
 // A node inside a body is created there (D-NEST-6); a top-level or alongside node is
 // placed as its row's `top` says, and a node that admits nodes beside it holds them.
 _#InnerNode: {
 	candy: #InnerCandy
-	for k, _ in _deploymentKind {(k): {(k)!: _#Created[k]}}
+	for k, _ in _deploymentKind {(k): {(k)!: _#Placed[k].create}}
 }
-_#TopBody: {for k, r in _deploymentKind {(k): or([ // D-NEST-6
-	if list.Contains(r.top, "create") {_#Created[k]},
-	if list.Contains(r.top, "connect") {_#Connected[k]},
-])}}
+_#TopBody: {for k, r in _deploymentKind {(k): or([for p in r.top {_#Placed[k][p]}])}} // D-NEST-6
 _#BesideNode: {for k, _ in _deploymentKind {(k): {(k)!: _#TopBody[k]}}}
 _#TopNode: {for k, r in _deploymentKind {(k): {
 	(k)!: _#TopBody[k]
@@ -851,7 +853,7 @@ _#TopNode: {for k, r in _deploymentKind {(k): {
 	section?:        {[#Name]: #Opaque}        // S10: each plugin's own section, under its own schema
 }
 // D-DRV-1: one driver per subsystem, a word of that subsystem's rows of the driver table.
-#Driver: {for s, d in _defaultDriver {(s): *d[0] | or([for w, r in _driver if r.subsystem == s {w}])}}
+#Driver: {for s, d in _subsystemDefaultDriver {(s): *d[0] | or(_subsystemDriver[s])}}
 // A leasable host resource: written as the need it satisfies, with that need's attributes giving
 // the resource's capacity (a gpu's vendor, a memory's size).
 #ResourceAlt: {for t, c in _capability if c.lease {(t): {(t)!: c.key, c.need...}}}
@@ -947,7 +949,7 @@ _detailCodeWord: [for w, _ in _detailCode {w}]
 	kube:      {kube!: #VenueKube}
 }
 _venueWord: [for w, _ in #VenueAlt {w}]
-#VenueContainer: {driver!: or([for w, r in _driver if r.subsystem == "pod" {w}]), name!: #Text, namespace: *"default" | #Label, isolation?: or(_isolationWord)}
+#VenueContainer: {driver!: or(_subsystemDriver.pod), name!: #Text, namespace: *"default" | #Label, isolation?: or(_isolationWord)}
 #VenueSsh:       {host!: #Hostname, port: *22 | #Port, user?: #Name, #SecretFields...}
 #VenueKvm:       {address!: #Address, #SecretFields...}
 #VenueAdb:       {address!: #Address}
@@ -984,6 +986,7 @@ _method: {
 	call:       {role: "api", input: #CallInput, output: #CallOutput}
 } @vocab(core)
 _methodWord: [for w, _ in _method {w}]
+_roleMethod: {for k, _ in _role {(k): [for w, r in _method if r.role == k {w}]}}
 #Method: or(_methodWord)
 
 #ValidateOutput: {diagnostic: [...#Diagnostic]}
@@ -1047,7 +1050,7 @@ _pluginMethodWord: [for w, _ in _pluginMethod {w}]
 	schema_digest!:   #Digest
 	manifest_digest!: #Digest
 	// per role, per word of that role: the methods served, each a method of that role
-	method!: {for w, _ in _role {(w)?: {[#KeyWord]: [...or([for m, r in _method if r.role == w {m}])] & list.UniqueItems()}}}
+	method!: {for w, _ in _role {(w)?: {[#KeyWord]: [...or(_roleMethod[w])] & list.UniqueItems()}}}
 }
 
 // D-PROTO-8: every call carries its deadline.
@@ -1106,20 +1109,30 @@ _streamWord: [for w, _ in _stream {w}]
 
 // ── the host service (§8.6) ────────────────────────────────────────────────────
 // D-PROTO-13: the closed set of host methods, with their inputs and outputs. M8: one `get` and one
-// `put` reach every store a plugin may use — content by digest, its own state, a secret, and (read
-// only) its user-configuration section.
-#StoreKeyAlt: {
-	content: {content!: #Digest}
-	state:   {state!: #StateKey}
-	secret:  {secret!: #Name}
-	config:  {config!: {}}
-}
+// `put` reach every store a plugin may use. A store is a row: the key that names an entry, the value
+// it holds, whether its key is the digest of its value (`addressed`), and whether a plugin writes it.
+#StoreRow: {key!: _, value!: _, addressed: *false | bool, put: *true | bool}
+_store: [#Word]: #StoreRow
+_store: {
+	content: {key: #Digest, value: #Base64, addressed: true} // the content-addressed store (§8.6)
+	state:   {key: #StateKey, value: #Opaque}                // S10: the record the calling kind's module defines (D-DEP-5)
+	secret:  {key: #Name, value: #Base64}
+	config:  {key: {}, value: #Opaque, put: false}           // S10: the caller's own section, under its own schema (D-STORE-2)
+} @vocab(core)
+_storeWord: [for w, _ in _store {w}]
+#StoreKeyAlt: {for s, r in _store {(s): {(s)!: r.key}}}
 #StoreKey: or([for _, a in #StoreKeyAlt {a}])
+#StoreValueAlt: {for s, r in _store {(s): {(s)!: r.value}}}
+#StoreValue: or([for _, a in #StoreValueAlt {a}])
+// A put names its store by the value it writes, and its key unless the store is addressed; every
+// put returns the digest of its value.
+#PutInputAlt: {for s, r in _store if r.put {(s): {(s)!: r.value, if !r.addressed {key!: r.key}}}} // D-PROTO-13
+#PutInput: or([for _, a in #PutInputAlt {a}])
 #StateKey: {identity!: #Ref, name!: #Name}
 _hostMethod: [#Word]: #CallRow
 _hostMethod: {
 	venue_exec:   {input: #VenueExecInput, output: #VenueExecOutput, stream: true}
-	get:          {input: #StoreKey, output: #GetOutput}
+	get:          {input: #StoreKey, output: #StoreValue}
 	put:          {input: #PutInput, output: #PutOutput}
 	project:      {input: #ProjectInput, output: #Resolved}
 	call:         {input: #HostCallInput, output: #CallOutput}
@@ -1131,9 +1144,6 @@ _hostMethodWord: [for w, _ in _hostMethod {w}]
 #HostMethod: or(_hostMethodWord)
 #VenueExecInput:  {identity!: #Ref, command!: [...#Text], run_as?: #Name}
 #VenueExecOutput: {exit_status!: int}
-#GetOutput:       {data?: #Base64}
-// A put without a key is a content-addressed write; every put returns the digest of its data.
-#PutInput:         {data!: #Base64, key?: or([for k, a in #StoreKeyAlt if k != "content" && k != "config" {a}])}
 #PutOutput:        {digest!: #Digest}
 #ProjectInput:     {identity!: #Ref}
 #HostCallInput:    {key!: #ApiKey, request!: #Opaque} // S10

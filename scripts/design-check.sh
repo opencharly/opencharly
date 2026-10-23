@@ -15,7 +15,7 @@ step() { printf '\n== %s\n' "$*"; }
 
 step "1/5 toolchain"
 cue="$(bash "$root/scripts/design-cue.sh")"
-"$cue" version | head -1
+"$cue" version | sed -n 1p
 
 step "2/5 DESIGN.md ↔ DESIGN.cue"
 bash "$root/scripts/design-consistency.sh" "$root"

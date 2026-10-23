@@ -179,7 +179,7 @@ is never bent.
 | S8 | **Reserved-name pattern** | `[#InnerNodeName]: …` where `#InnerNodeName` excludes field names and kind words | bodies that hold named inner or beside nodes; what a body admits is its kind's row in `_deploymentKind` (`admit`, `beside`), never a hand-written table |
 | S9 | **Reference field** | `from?: #Ref @ref(box, source)` | every field that names a node; the attribute lists the kinds it may name (`box` = a candy with `from:`). A field derived from a typed row table (`_capability`) takes its kinds from its row's `ref` list instead, because a derived field carries no attribute. Core reads both to link the project (§4.1 stage 4). |
 | S10 | **Foreign-owned payload** | `config?: #Opaque` (a manager package's config) — `#Opaque` is the ONE open struct (§8) | a shape whose **fields** the owning system defines: a manager's config, an installer's answer file, a plugin's own records; an authored one is always named `config`. A foreign system's word lives *inside* one and never becomes an authored key of charly's own (D-IR-5) — the boundary between charly's words and another system's. |
-| S11 | **Typed row table** | `#DriverRow: {…}`, `_driver: [#Word]: #DriverRow`, `_driver: {podman: {…}, …}` | a table whose rows carry several attributes: drivers, capability types, deployment kinds, methods. Every shape it determines — `#Driver`, `#Need`, `#Provide`, a kind's bodies, `#Request` — is a comprehension over it, so a new row is the whole change. A row references named definitions, never writes a struct of its own (§6, C8). |
+| S11 | **Typed row table** | `#DriverRow: {…}`, `_driver: [#Word]: #DriverRow`, `_driver: {podman: {…}, …}` | a table whose rows carry several attributes: drivers, capability types, deployment kinds, methods. Every shape it determines — `#Driver`, `#Need`, `#Provide`, a kind's bodies, `#Request` — is a comprehension over it, so a new row is the whole change. A row is data its row schema (`#DriverRow`, …) types: a shape slot (a field the row schema types `_` — `key`, `need`, `provide`, `create`, `input`, `output`, `value`) holds a named definition, a named scalar, a word union or `{}`, never an inline struct with fields (§6, C1, C7); its other fields hold words, lists of words and maps of words (`grant: {gpu: "shared"}`). |
 
 | Never | Why |
 |---|---|
@@ -378,7 +378,7 @@ CamelCase (`kernel_param` → `KernelParam`), and a definition drops its `#` (`#
 | D-GEN-5 | Anything the runtime can read from the composed schema is read from it, never generated into Go lists. |
 | D-GEN-6 | A wire payload is a generated Go type, encoded as JSON and validated against its definition on receipt. |
 | D-GEN-7 | The generator is charly's own, built on the CUE Go API at the pinned CUE version, and it maps the shapes of §3.1 by the table above; no third-party struct generator and no per-type annotation stands in for it. |
-| D-GEN-8 | Each shape has one spelling — a word list `[for w, _ in T {w}]`, a union `or([for _, a in T {a}])`, a fragment composition `{#XFields..., …}` — and the design check rejects any other, so each spelling maps to exactly one Go shape. |
+| D-GEN-8 | Each shape has one spelling, and the design check rejects every list comprehension outside these six forms, so each spelling maps to exactly one Go shape: **D1** the word list of a table, `_phaseWord: [for w, _ in _phase {w}]`; **D2** a named subset of its rows by a row predicate, `_leasableWord: [for w, r in _capability if r.lease {w}]`; **D3** a named grouping of its rows by another table's words, `_subsystemDriver: {for k, _ in _subsystem {(k): [for w, r in _driver if r.subsystem == k {w}]}}`; **D4** the union of a tag table, `#Source: or([for _, a in #SourceAlt {a}])`; **D5** a union over a named word list, `or(_driverWord)` or `or(_subsystemDriver[s])`, whose default (`*"always" \| or(_restartWord)`) is a row of that table; **D6** inside a definition derived from a table's rows, the union one row selects, `or([for v in r.connect {#VenueAlt[v]}])`. A filter is always a named D2 or D3 list, never written inline in a union. A fragment is composed by spreading it, `{#XFields..., …}`. |
 
 ---
 
@@ -544,18 +544,30 @@ drives. It is closed: adding a method amends this document.
 | Method | Gives | Permitted when |
 |---|---|---|
 | `venue_exec` | runs a command in a deployment's venue, through the sdk executor for its `#VenueOutput` (following `via` for a nested venue); streams I/O and returns the exit status | the call being served operates on that deployment or a node inside it, or the step runs `on: {host: {}}` (the host venue) |
-| `get` | one entry by its key (`#StoreKey`): `content` by digest from the content-addressed store (D-STORE-3); `state`, a record of a deployment (D-DEP-5) in the shape the calling kind's module defines; `secret`, a secret's value; `config`, the caller's section of the user configuration (D-STORE-2) | `content`: always. `state`: the caller's plugin owns that deployment's kind, under the lock core holds (D-DEP-4). `secret`: the secret is bound to the deployment the call operates on (D-CAP-4), or the caller created it. `config`: always |
-| `put` | writes data and returns its digest: without a key, a content-addressed entry (immutable); with a `state` key, a deployment's record; with a `secret` key, a secret the caller generates for a deployment it owns (an ssh key for its venue), in the configured backend | without a key: always. `state` and `secret`: the caller's plugin owns that deployment's kind |
+| `get` | one entry by its key (`#StoreKey`), returned keyed by its store (`#StoreValue`): `content` by digest from the content-addressed store (D-STORE-3); `state`, a record of a deployment (D-DEP-5) in the shape the calling kind's module defines; `secret`, a secret's value; `config`, the caller's section of the user configuration (D-STORE-2) | `content`: always. `state`: the caller's plugin owns that deployment's kind, under the lock core holds (D-DEP-4). `secret`: the secret is bound to the deployment the call operates on (D-CAP-4), or the caller created it. `config`: always |
+| `put` | writes a value named by its store (`#PutInput`) and returns its digest: `content`, a content-addressed entry (immutable, no key); `state` at its key, a deployment's record; `secret` at its key, a secret the caller generates for a deployment it owns (an ssh key for its venue), in the configured backend. `config` is read only | `content`: always. `state` and `secret`: the caller's plugin owns that deployment's kind |
 | `project` | the resolved value of a node (§5.3) | the node is in the call's project |
 | `call` | an `api` method of another plugin | the caller's plugin candy lists that api in `need:` (D-CAP-5) |
 | `report` | events, progress, diagnostics | always |
 | `state_commit` | commits a deployment's state atomically — the transaction a `put` cannot be | the caller's plugin owns that deployment's kind |
 | `audit_append` | appends one audit record (D-AUDIT) | always |
 
+Every store `get` and `put` reach is one row of the store table (`_store`, S11): the key that names
+an entry, the value it holds, whether its key is the digest of its value, and whether a plugin
+writes it. `#StoreKey`, `#StoreValue` and `#PutInput` are derived from its rows.
+
+<!-- schema: _storeWord -->
+| Store | Key | Value | Written by `put` |
+|---|---|---|---|
+| `content` | its digest (D-STORE-3) | bytes, addressed by their digest and immutable | yes, without a key |
+| `state` | `#StateKey`: a deployment and a record name | the record the calling kind's module defines (S10, D-DEP-5) | yes |
+| `secret` | the secret's name | bytes | yes |
+| `config` | none (`{}`) | the caller's own user-configuration section (S10, D-STORE-2) | no: read only |
+
 | ID | Requirement |
 |---|---|
 | D-PROTO-12 | Every host request carries the `call_id` of the core call it serves; core derives the caller's plugin from the socket the request arrives on and its permissions from that call, never from anything the plugin asserts. A request outside its permission is answered `denied`. |
-| D-PROTO-13 | A plugin reaches secrets, state, the store, the project and other plugins only through the host service, and venues of deployments other kinds own only through `venue_exec`. A deployment kind drives its own engine — the container engine, the hypervisor, the cluster API, adb — directly, at the endpoint `config_get` names. |
+| D-PROTO-13 | A plugin reaches secrets, state, the store, the project and other plugins only through the host service, and venues of deployments other kinds own only through `venue_exec`. A deployment kind drives its own engine — the container engine, the hypervisor, the cluster API, adb — directly, at the endpoint its `config` store entry names (`get`, §8.6). |
 
 ### 8.7 Conformance
 
@@ -2191,12 +2203,14 @@ Eight checks. Each failure names the file, the line, and the two disagreeing sid
    header's cell count and ends with `|`, so a stray cell cannot silently misalign a normative
    table.
 8. **Grammar (§3.1, §6).** `cue vet DESIGN.cue` passes as a package, so the schema's own table
-   invariants hold (one default driver per subsystem, D-DRV-1). Every word list is derived from its
-   table, and every union of a tag table is spelled `or([for _, a in #XAlt {a}])` (D-GEN-8); no
-   inline enum has three or more words (S3); no `@go(` attribute appears (§6); no definition ends
-   in a retired suffix (D-NAME-4); every vocabulary table names an `@vocab` owner that is `core`,
-   `registry`, `spec` or a §7.1 plugin; every field name, tag-table key and word is snake_case
-   (D-NAME-2); and no inline struct declares a named field besides its S4 tag (S1, C1).
+   invariants hold (one default driver per subsystem, D-DRV-1). Every list comprehension is one of
+   the six derivation forms D1–D6 (D-GEN-8), and no word is written beside a word union
+   (`or(_xWord) | "w"`); every default word of a word union is a row of its table; no inline enum has
+   three or more words (S3); no `@go(` attribute appears (§6); no definition ends in a retired
+   suffix (D-NAME-4); every vocabulary table names an `@vocab` owner that is `core`, `registry`,
+   `spec` or a §7.1 plugin; every field name, tag-table key and word is snake_case (D-NAME-2); no
+   inline struct declares a named field besides its S4 tag, at any depth (S1, C1); and no row of a
+   typed row table writes an inline struct with fields into a shape slot (S11).
 
 ### A.5 `scripts/design-examples.sh` — examples and negative cases
 

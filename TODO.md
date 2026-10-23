@@ -131,7 +131,7 @@ Still open:
 | 5.8 | Helpers copied across plugins: `session_method`/`recorder` ×6, `setCommandContext` ×8, `shellQuote` ×4, 20 private CheckEnv subsets. | D-SDK-1, D-CODE-3 | sdk mechanisms. |
 | 5.9 | No error model or deadline on plugin calls; plugins reach the engine, ssh and secrets directly; deployment locks are taken inside plugins. | D-PROTO-6..13 | `#Request`/`#Reply` with `#Error` codes; deadlines and cancellation; locks taken by core before mutating methods; the host service as the only reach for venues, store, project, other plugins and secrets, with permissions from the call. |
 | 5.10 | No protocol conformance suite. | §8.7 | The in-memory harness in sdk with the conformance cases; run in every plugin repository's CI. |
-| 5.11 | Deployment plugins keep records in their own files, generate ssh keys on disk, and read engine endpoints from the environment; the candy is built by core-side code. | §8.2, §8.6, D-PROTO-4, D-PROTO-13 | `state_get`/`state_put` for kind records, `secret_put` for generated secrets, `config_get` for engine endpoints; the candy kind (`kind:candy`) with `build` in the build plugin. |
+| 5.11 | Deployment plugins keep records in their own files, generate ssh keys on disk, and read engine endpoints from the environment; the candy is built by core-side code. | §8.2, §8.6, D-PROTO-4, D-PROTO-13 | `get`/`put` on the `state` store for kind records, `put` on the `secret` store for generated secrets, `get` on the `config` store for engine endpoints; the candy kind (`kind:candy`) with `build` in the build plugin. |
 
 ## 6. Plugins and the install IR
 

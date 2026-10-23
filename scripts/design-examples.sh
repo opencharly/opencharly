@@ -124,7 +124,7 @@ for y in "$work"/*.yaml; do
 		count=$((count + 1))
 		if ! out="$("$cue" vet -c -d '#UserConfig' "$schema" "$doc" 2>&1)"; then
 			bad "DESIGN.md:$line: example '$id' does not validate:"
-			echo "$out" | sed 's/^/    /' | head -20
+			echo "$out" | sed -n '1,20s/^/    /p'
 		fi
 		continue
 		;;
@@ -133,17 +133,17 @@ for y in "$work"/*.yaml; do
 	count=$((count + 1))
 	if ! out="$(shape "$doc")"; then
 		bad "DESIGN.md:$line: example '$id' does not validate:"
-		echo "$out" | sed 's/^/    /' | head -20
+		echo "$out" | sed -n '1,20s/^/    /p'
 		continue
 	fi
 	if ! out="$("$cue" vet -d '#Document' "$schema" "$doc" 2>&1)"; then
 		bad "DESIGN.md:$line: example '$id' passes the loader dispatch but not #Document:"
-		echo "$out" | sed 's/^/    /' | head -20
+		echo "$out" | sed -n '1,20s/^/    /p'
 		continue
 	fi
 	if ! v="$(loader_cue export "$schema" "$load" "$rules" -l '"doc"' "$doc" -e violation 2>&1)"; then
 		bad "DESIGN.md:$line: example '$id': rules.cue failed:"
-		echo "$v" | sed 's/^/    /' | head -20
+		echo "$v" | sed -n '1,20s/^/    /p'
 	elif [[ "$v" != "[]" ]]; then
 		bad "DESIGN.md:$line: example '$id' breaks a whole-document rule:"
 		echo "$v" | sed 's/^/    /'
@@ -155,9 +155,9 @@ echo "examples: $count validated"
 ncount=0
 for n in "$root"/design/negative/*.yaml; do
 	name="$(basename "$n")"
-	rule="$(sed -n 's/^# rule: //p' "$n" | head -1)"
-	expect="$(sed -n 's/^# expect: //p' "$n" | head -1)"
-	def="$(sed -n 's/^# def: //p' "$n" | head -1)"
+	rule="$(sed -n '/^# rule: /{s///p;q;}' "$n")"
+	expect="$(sed -n '/^# expect: /{s///p;q;}' "$n")"
+	def="$(sed -n '/^# def: /{s///p;q;}' "$n")"
 	def="${def:-#Document}"
 	ncount=$((ncount + 1))
 	if [[ -z "$rule" || -z "$expect" ]]; then
@@ -168,12 +168,12 @@ for n in "$root"/design/negative/*.yaml; do
 		# a §5.4 case breaks its whole-document rule and nothing else: the schema must accept it
 		if ! out="$("$cue" vet -c -d '#Document' "$schema" "$n" 2>&1)"; then
 			bad "design/negative/$name ($rule): also fails the schema, so it does not isolate its rule:"
-			echo "$out" | sed 's/^/    /' | head -10
+			echo "$out" | sed -n '1,10s/^/    /p'
 			continue
 		fi
 		if ! out="$(loader_cue export "$schema" "$load" "$rules" -l '"doc"' "$n" -e violation 2>&1)"; then
 			bad "design/negative/$name ($rule): rejected by the schema instead of by rules.cue:"
-			echo "$out" | sed 's/^/    /' | head -10
+			echo "$out" | sed -n '1,10s/^/    /p'
 			continue
 		fi
 		if ! grep -q "\"rule\": \"$rule\"" <<<"$out"; then
@@ -197,7 +197,7 @@ for n in "$root"/design/negative/*.yaml; do
 	fi
 	if ! grep -qF -- "$expect" <<<"$out"; then
 		bad "design/negative/$name ($rule): rejected, but not with '$expect':"
-		echo "$out" | sed 's/^/    /' | head -12
+		echo "$out" | sed -n '1,12s/^/    /p'
 	fi
 done
 echo "negatives: $ncount checked"

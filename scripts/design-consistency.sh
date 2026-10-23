@@ -32,6 +32,11 @@
 #              forbidden field ?: _|_, exactly one open struct {...} (#Opaque), and every other use of
 #              #Opaque marks itself `// S10` — no first-party word is left untyped (D-KIND-5)
 #   7 shape    every table row of DESIGN.md and TODO.md has its header's cell count and ends with |
+#   8 grammar  DESIGN.cue vets as a package; every list comprehension is one of the derivation forms
+#              D1–D6 (D-GEN-8); no word beside a word union, and a default word is a row of its table;
+#              no inline enum of 3+ words, no @go(, no retired suffix; every table has an @vocab owner;
+#              schema words are snake_case; no inline struct with named fields besides its S4 tag, at
+#              any depth (C1); no row writes an inline struct into a shape slot (S11)
 #
 # Usage: scripts/design-consistency.sh [root]
 # Self-test: scripts/design-selftest.sh scripts/design-consistency.sh design/consistency/selftest.tsv
@@ -404,20 +409,31 @@ if [[ -s "$work/shape" ]]; then cat "$work/shape"; fail=1; fi
 # Every shape is spelled one way, so the generator maps each to one Go shape (D-GEN-8, D-NAME-2).
 # The schema itself evaluates: a package-level vet checks the invariants of its own tables (one
 # default driver per subsystem, D-DRV-1), which a document vet does not reach.
-"$cue" vet "$schema" > "$work/pkgvet" 2>&1 || { sed 's/^/FAIL DESIGN.cue: /' "$work/pkgvet" | head -5; fail=1; }
+"$cue" vet "$schema" > "$work/pkgvet" 2>&1 || { sed -n '1,5s/^/FAIL DESIGN.cue: /p' "$work/pkgvet"; fail=1; }
 # the S10 marker lines and comments are not code
 g -n '' "$schema" | sed 's|//.*$||' > "$work/code"
 {
 	# a word list is derived from its table, never written out (S3)
 	g '^[0-9]*:_[a-zA-Z]*Word: \[' "$work/code" | g -v '\[for ' |
 		while IFS=: read -r ln _; do echo "FAIL DESIGN.cue:$ln: a hand-written word list; derive it from its table: [for w, _ in _x {w}] (S3)"; done
-	# a word list of a table is spelled the one way (D-GEN-8)
-	g '^[0-9]*:_[a-zA-Z]*Word: \[for _, ' "$work/code" |
-		while IFS=: read -r ln _; do echo "FAIL DESIGN.cue:$ln: a word list is [for w, _ in _x {w}] (D-GEN-8)"; done
-	# a union of a tag table is spelled the one way (D-GEN-8)
-	g '^[0-9]*:.*or(\[for _, ' "$work/code" |
-		g -v 'or(\[for _, \([a-z]\) in #[A-Za-z]*Alt {\1}\])' |
-		while IFS=: read -r ln _; do echo "FAIL DESIGN.cue:$ln: a union is or([for _, a in #XAlt {a}]) over a tag table (D-GEN-8)"; done
+	# every list comprehension is one of the derivation forms D1–D6 (D-GEN-8): strip each form where
+	# it may stand, and whatever comprehension is left is spelled some other way
+	sed -E \
+		-e 's/^([0-9]+):_[a-zA-Z]+Word: \[for w, _ in [_#][a-zA-Z]+ \{w\}\][[:space:]]*$/\1:D1/' \
+		-e 's/^([0-9]+):_[a-zA-Z]+Word: \[for w, r in _[a-zA-Z]+ if [^][{}]+ \{w\}\][[:space:]]*$/\1:D2/' \
+		-e 's/^([0-9]+):_[a-zA-Z]+: \{for k, _ in _[a-zA-Z]+ \{\(k\): \[for w, r in _[a-zA-Z]+ if [^][{}]+ \{w\}\]( & [^{}]+)?\}\}[[:space:]]*$/\1:D3/' \
+		-e 's/or\(\[for _, a in #[A-Za-z]+Alt \{a\}\]\)/D4/g' \
+		-e 's/or\(\[for ([a-z]) in r\.[a-z_]+ \{[_#A-Za-z]+(\[[a-z]\])?\[\1\]\}\]\)/D6/g' \
+		"$work/code" | g -E '\[(for|if) ' |
+		while IFS=: read -r ln _; do echo "FAIL DESIGN.cue:$ln: a list comprehension outside the derivation forms D1–D6; name the filter as a D2 or D3 word list (D-GEN-8)"; done
+	# a word union admits only its table's words: no word written beside it, and a default is a row (S3)
+	g -nE '(^|[^*])"[a-z_]+" *\| *or\(_|or\(_[^)]*\) *\| *"' "$work/code" |
+		while IFS=: read -r ln _; do echo "FAIL DESIGN.cue:$ln: a word written beside a word union; make it a row of the table (S3)"; done
+	g -oE '^[0-9]+:.*\*"[a-z_]+" *\| *or\(_[a-zA-Z]+Word\)' "$work/code" |
+		sed -E 's/^([0-9]+):.*\*"([a-z_]+)" *\| *or\((_[a-zA-Z]+Word)\)$/\1 \2 \3/' |
+		while read -r ln w list; do
+			words "$list" | grep -qxF "$w" || echo "FAIL DESIGN.cue:$ln: the default \"$w\" is not a row of the table of $list (S3)"
+		done
 	# no inline enum of three or more words: a closed set of words is a table (S3)
 	g -n '"[a-z_]*" *| *"[a-z_]*" *| *"' "$schema" | g -v '^[0-9]*:[[:space:]]*//' |
 		while IFS=: read -r ln _; do echo "FAIL DESIGN.cue:$ln: an inline enum of three or more words; make it a vocabulary table (S3)"; done
@@ -433,7 +449,7 @@ g -o '^_[a-zA-Z]*Word: \[for w, _ in _[a-zA-Z]* {w}\]' "$schema" | sed 's/.* in 
 	while read -r t; do
 		line="$(g -n "^$t: {.*@vocab(\|^$t: {" "$schema" | tail -1)"
 		# the table's own text: its one line, or its block up to the closing `}` at column 0
-		blk="$(awk -v t="$t" '$0 ~ "^"t": \\{" { on = 1; print; if ($0 !~ /\{[ \t]*$/) exit; next } on { print } on && /^}/ { exit }' "$schema" | g -o '@vocab([a-z]*)' | head -1)"
+		blk="$(awk -v t="$t" '$0 ~ "^"t": \\{" { on = 1; print; if ($0 !~ /\{[ \t]*$/) exit; next } on { print } on && /^}/ { exit }' "$schema" | g -m1 -o '@vocab([a-z]*)')"
 		ln="${line%%:*}"
 		if [[ -z "$blk" ]]; then echo "FAIL DESIGN.cue:$ln: the table $t names no @vocab owner (S3)"; continue; fi
 		owner="${blk#@vocab(}"; owner="${owner%)}"
@@ -446,8 +462,9 @@ g -o '^_[a-zA-Z]*Word: \[for w, _ in _[a-zA-Z]* {w}\]' "$schema" | sed 's/.* in 
 	for w in $(g -o '^_[a-zA-Z]*Word:' "$schema" | tr -d ':'); do words "$w"; done
 } | g -v '^!' | sort -u | g -vE '^[a-z][a-z0-9]*(_[a-z0-9]+)*$' |
 	while read -r w; do echo "FAIL DESIGN.cue: '$w' is not a snake_case schema word (D-NAME-2)"; done >> "$work/grammar"
-# an inline struct declares at most one named field, its S4 tag (S1, C1); tables and derived
-# definitions (lines under `_…`) are data, and a definition's own one-line body is the definition
+# an inline struct declares at most one named field, its S4 tag (S1, C1), at any depth; tables and
+# derived definitions (lines under `_…`) are data, and a definition's own one-line body is the
+# definition, while a struct nested inside it is not
 awk '
 	function scan(text, skipfirst,   i, c, d, st, n, depth, fields, seg, j, first) {
 		d = 0; first = 1
@@ -455,7 +472,7 @@ awk '
 			c = substr(text, i, 1)
 			if (c == "{") { d++; st[d] = i; nf[d] = 0; seen[d] = "" }
 			else if (c == "}" && d > 0) {
-				if (!(skipfirst && first) && nf[d] > 1) printf "FAIL DESIGN.cue:%d: an inline struct with %d named fields; name it as a definition (S1, §6 C1)\n", NR, nf[d]
+				if (!(skipfirst && first && d == 1) && nf[d] > 1) printf "FAIL DESIGN.cue:%d: an inline struct with %d named fields; name it as a definition (S1, §6 C1)\n", NR, nf[d]
 				if (d == 1) first = 0
 				d--
 			}
@@ -474,6 +491,16 @@ awk '
 	/^#[A-Za-z0-9]*: / { scan($0, 1); next }
 	{ scan($0, 0) }
 ' "$schema" >> "$work/grammar"
+# a row of a typed row table is data: a shape slot (a field its #XRow types `_`) holds a named
+# definition, a scalar, a word union or {}, never an inline struct with fields (S11)
+awk '/^#[A-Za-z]*Row: \{/ { on = 1 } on { print } on && /}[ \t]*$/ && (/^}/ || /^#[A-Za-z]*Row: \{.*}[ \t]*$/) { on = 0 }' "$schema" |
+	g -oE '[a-z_]+[!?]?: +_([,} ]|$)' | sed -E 's/[!?]?:.*//' | sort -u > "$work/slots"
+awk '/^_[a-zA-Z]+: \{/ { on = 1 } on { print NR ": " $0 } on && /^}/ { on = 0 } on && /^_[a-zA-Z]+: \{.*}[ \t]*(@[a-z]+\([a-z]*\))?[ \t]*$/ { on = 0 }' "$schema" |
+	sed 's|//.*$||' > "$work/rows"
+while read -r slot; do
+	g -E "[{ ,]$slot: *\{ *[^} ]" "$work/rows" |
+		while IFS=: read -r ln _; do echo "FAIL DESIGN.cue:$ln: the row writes an inline struct into its shape slot '$slot'; name it as a definition (S11)"; done
+done < "$work/slots" >> "$work/grammar"
 if [[ -s "$work/grammar" ]]; then cat "$work/grammar"; fail=1; fi
 
 if ((fail)); then exit 1; fi

@@ -38,7 +38,7 @@ table-ref-drift	DESIGN.cue	s~ref: \["harness"\]~ref: ["harness", "pod"]~	no refe
 prose-stale-definition	DESIGN.md	s~carries it as its `config` (`#Opaque`, S10)~carries it as `#ManagerInput`~	`#ManagerInput` names no definition of DESIGN.cue
 open-struct-not-opaque	DESIGN.cue	s~^#Opaque: {\.\.\.}~#Opaque: _\n#Payload: {...}~	the one open struct is not the #Opaque definition
 grammar-word-list	DESIGN.cue	s~^_phaseWord: \[for w, _ in _phase {w}\]$~_phaseWord: ["any", "build", "ready", "runtime"]~	a hand-written word list
-grammar-union-spelling	DESIGN.cue	s~^#Guard: or(\[for _, a in #GuardAlt {a}\])$~#Guard: or([for _, a in #GuardAlt if true {a}])~	a union is or([for _, a in #XAlt {a}])
+grammar-union-spelling	DESIGN.cue	s~^#Guard: or(\[for _, a in #GuardAlt {a}\])$~#Guard: or([for _, a in #GuardAlt if true {a}])~	a list comprehension outside the derivation forms D1–D6
 grammar-inline-enum	DESIGN.cue	s~restart:      \*"always" | or(_restartWord)~restart:      *"always" | "on_failure" | "never"~	an inline enum of three or more words
 grammar-go-attribute	DESIGN.cue	s~^#Port:        int & >0 & <65536$~#Port:        int \& >0 \& <65536 @go(Port)~	an @go attribute
 grammar-retired-suffix	DESIGN.cue	s~^#Lease: \(.*\)$~#Lease: \1\n#LeaseEntry: {x?: int}~	#LeaseEntry ends in a retired suffix
@@ -46,4 +46,9 @@ grammar-vocab-missing	DESIGN.cue	s~^_scope: {system: {}, user: {}} @vocab(core)$
 grammar-vocab-owner	DESIGN.cue	s~@vocab(desktop)~@vocab(gui)~	@vocab(gui) of _bus is not
 grammar-word-case	DESIGN.cue	s~_restart: {always: {}, on_failure: {}, never: {}}~_restart: {always: {}, "on-failure": {}, never: {}}~	'on-failure' is not a snake_case schema word
 grammar-inline-struct	DESIGN.cue	s~export?:       {\[#Name\]: #Export}~export?:       {[#Name]: {path!: #AbsPath, mode?: #FileMode}}~	an inline struct with 2 named fields
-grammar-two-defaults	DESIGN.cue	s~docker:         {subsystem: "pod", tool~docker:         {subsystem: "pod", default: true, tool~	_defaultDriver.pod
+grammar-two-defaults	DESIGN.cue	s~docker:         {subsystem: "pod", tool~docker:         {subsystem: "pod", default: true, tool~	_subsystemDefaultDriver.pod
+grammar-inline-filter	DESIGN.cue	s~#VenueContainer: {driver!: or(_subsystemDriver.pod),~#VenueContainer: {driver!: or([for w, r in _driver if r.subsystem == "pod" {w}]),~	a list comprehension outside the derivation forms D1–D6
+grammar-word-beside-union	DESIGN.cue	s~gpu:        {key: or(_gpuWord), need~gpu:        {key: or(_gpuWord) | "all", need~	a word written beside a word union
+grammar-default-not-row	DESIGN.cue	s~restart:      \*"always" | or(_restartWord)~restart:      *"sometimes" | or(_restartWord)~	the default "sometimes" is not a row of the table of _restartWord
+grammar-nested-inline-struct	DESIGN.cue	s~^#StateKey: {identity!: #Ref, name!: #Name}$~#StateKey: {identity!: #Ref, name!: {space!: #Name, name!: #Name}}~	an inline struct with 2 named fields
+grammar-row-slot-struct	DESIGN.cue	s~endpoint:   {key: #Name, need: #EndpointNeed,~endpoint:   {key: #Name, need: {protocol!: or(_protocolWord), port?: #Port},~	inline struct into its shape slot 'need'
