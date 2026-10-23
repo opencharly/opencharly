@@ -148,6 +148,15 @@ root-cause-analyzer-skill:
         name: root-cause-analyzer
         family: internals
         owner: opencharly-guidance
+strict-policy-skill:
+    skill:
+        name: strict-policy
+        family: internals
+        owner: opencharly-guidance
+        triggers:
+            - "Agent Driven Evaluation (ADE) / `charly box feature run` / `charly check feature run` / `charly feature list/pending/validate` / authoring a candy's `plan:` + `description:` string / the agent grader for `agent-check:` steps"
+            - "Engineering-discipline triggers (failure surfaced / dup pattern / ad-hoc fix tempting / \"out of scope\" framing)"
+            - "Go code-quality / AGENTS.md-compliance audit / `golangci-lint` / `dupl` / duplication or dead-code check / `.golangci.yml`"
 
 # -----------------------------------------------------------------------------
 # map — list every submodule with its pin and sync state.
