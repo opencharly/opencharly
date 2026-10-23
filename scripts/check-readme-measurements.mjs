@@ -387,7 +387,9 @@ function runChecks({ readme, script, manifest, samples, measure }) {
   // (`--no-local`), on the one branch that holds the tree, the clone carries the
   // TREE's history and a reading is a property of the tree under test.
   if (measure === null) {
-    add(FILES.measure, "the file is missing — the gate cannot read the measurement that fills the bands");
+    add(FILES.measure,
+      "the measurement script is missing — the gate cannot read the measurement that " +
+      "fills the bands");
   } else {
     const clones = (measure.match(/git clone[^\n]*/g) || []).filter((l) => l.includes('"$ROOT"'));
     if (clones.length === 0) {
@@ -591,11 +593,18 @@ function runSelfTest(readme, script, manifest, samples, measure) {
       () => withReadme(mutate(readme, literal(lightCell[0]),
         `| ${lightCell[1]} ${lightCell[4]} |`, "the table's light row")),
       "a shape the runs repeated carries a BAND, not one number");
-    expect("the table's band is narrowed",
+    // The mutation must produce a band the PROSE does not state, whatever the
+    // committed band is. Narrowing 71–71 M to 71–71 M is a no-op, and a self-test
+    // whose mutation changes nothing proves nothing (R7) — so a band the runs
+    // produced at one value is shifted instead of narrowed.
+    const narrow = +lightCell[1] < +lightCell[3]
+      ? `${lightCell[3]}${lightCell[2]}${lightCell[3]}`
+      : `${+lightCell[3] + 1}${lightCell[2]}${+lightCell[3] + 1}`;
+    expect("the table's band and the prose disagree",
       () => withReadme(mutate(readme, literal(lightCell[0]),
-        `| ${lightCell[3]}${lightCell[2]}${lightCell[3]} ${lightCell[4]} |`,
+        `| ${narrow} ${lightCell[4]} |`,
         "the table's light row")),
-      "the prose still quotes the wider band, so the two copies of one band disagree");
+      "the prose still quotes the other band, so the two copies of one band disagree");
   }
   if (lightProse) {
     expect("the prose's band is narrowed",
@@ -633,10 +642,14 @@ function runSelfTest(readme, script, manifest, samples, measure) {
       "the machine's accumulated store and not the tree");
   }
   if (boot && lightCell) {
+    // The mutated band must start STRICTLY BELOW the clone's band, whatever the
+    // clone's band is: the clone's hi is the boundary the check compares against,
+    // and a band that starts at the clone's lo is not below it when the band is
+    // one value wide.
     expect("the bootstrapped band is below the clone's",
       () => withReadme(mutate(readme, literal(boot.text),
         boot.text.replace(`${boot.lo}${dash(boot.text)}${boot.hi} ${boot.unit}`,
-          `${lightCell[1]}${dash(boot.text)}${+lightCell[1] + 1} ${boot.unit}`),
+          `${+lightCell[1] - 1}${dash(boot.text)}${+lightCell[1] - 1} ${boot.unit}`),
         "the bootstrapped tree's band")),
       "the bootstrap ADDS the binary and its build cache, so its band cannot start below the clone's");
   }

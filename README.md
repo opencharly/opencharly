@@ -50,17 +50,17 @@ umbrella's own gate scripts read — and leaves the rest as index entries:
 | clone shape | on disk | wall clock |
 |---|---|---|
 | `git clone --recurse-submodules` (every checkout, full history) | 9.5 G | minutes |
-| `git clone` + `scripts/init-submodules.sh` (the working set, blobless) | 73–77 M | 14–18 s |
+| `git clone` + `scripts/init-submodules.sh` (the working set, blobless) | 71–71 M | 14–18 s |
 | `git clone` + `scripts/init-submodules.sh --all` (every path, blobless) | 1.9–2.2 G | 5 m 59 s – 6 m 43 s |
 
 Every figure in the table was measured on this machine on 2026-10-22; the bands carry the readings taken on 2026-10-23 as well.
 
 Those sizes are the **clone**; the bootstrap builds the binary and leaves its build cache
-in the tree, so a bootstrapped light tree measures 125–129 M, against the 9.5 G a full
+in the tree, so a bootstrapped light tree measures 123–123 M, against the 9.5 G a full
 checkout occupied on 2026-10-22. Sizes are `du -sh` at whole-unit granularity, and the
 packs move with the upstream repos, so the two shapes the runs repeated carry a **band** —
 the range the runs produced — rather than a number that stays put: the light clone
-measured between 73 M and 77 M, and the `--all` shape between 1.9 G and 2.2 G. The
+measured between 71 M and 71 M, and the `--all` shape between 1.9 G and 2.2 G. The
 `--recurse-submodules` row is the **baseline** this replaces: one measurement, of a full
 checkout; it tracks the upstream mirrors, so it moves as they do. The `--all` shape's band
 is the `openclaw` mirror's module store — 480–520 M in a from-scratch clone, and more
@@ -74,6 +74,14 @@ that the prose agrees with the table, and — handed that script's log — asser
 every reading falls inside its band. The second is a step of `charly task verify` and
 of the pre-commit hook, so a figure the prose and the table disagree about is a
 **failed gate** rather than a sentence nobody notices.
+
+**A reading is a property of the TREE, not of the machine.** The measurement clones the
+superproject over the transport, on the one branch that holds the tree under test: a
+**local** clone copies the source's entire object store — every commit on every branch,
+including other sessions' pushed branches — so a reading made that way drifts with the
+org's push traffic while the tree stands still. The gate fails on a measurement that
+clones the tree locally, and its self-test mutates the measurement's own clone
+invocation to prove the assertion can fail.
 
 The **samples** half needs the run's own log, so it is a manual step after a
 measurement: the two automatic steps above run the comparison *without* `--samples`,
