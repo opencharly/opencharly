@@ -51,7 +51,7 @@ umbrella's own gate scripts read — and leaves the rest as index entries:
 |---|---|---|
 | `git clone --recurse-submodules` (every checkout, full history) | 9.5 G | minutes |
 | `git clone` + `scripts/init-submodules.sh` (the working set, blobless) | 71–71 M | 14–18 s |
-| `git clone` + `scripts/init-submodules.sh --all` (every path, blobless) | 1.9–2.2 G | 5 m 59 s – 6 m 43 s |
+| `git clone` + `scripts/init-submodules.sh --all` (every path, blobless) | 1.9–2.2 G | 5 m 55 s – 6 m 43 s |
 
 Every figure in the table was measured on this machine on 2026-10-22; the bands carry the readings taken on 2026-10-23 as well.
 
@@ -111,7 +111,7 @@ clone, so the two shapes the runs repeated carry the band the runs actually prod
 across this branch — rather than a single number: the light row's fresh clones measured
 between 14 s and 18 s — the whole of it is the network fetch of the working set's
 blobless clones — and the `--all` row's from-scratch materializations measured between
-5 m 59 s and 6 m 43 s.
+5 m 55 s and 6 m 43 s.
 The `--recurse-submodules` row is stated coarsely, as *minutes*: that shape was measured
 once, and its time is the mirrors' fetch. The `--all` row is the maintenance shape: it
 clones every declared path in parallel and then checks them out one at a time, and its
