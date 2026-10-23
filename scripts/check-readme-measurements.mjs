@@ -325,11 +325,22 @@ function holdsString(line) {
 
 /** The lines a code file calls prose: its comments, the lines that quote a
  *  string, and the lines that state a count. */
+/** A boolean test that starts at the BEGINNING of the text.
+ *  The shape patterns carry the `g` flag, because the finding pass walks them with
+ *  `exec` to collect EVERY count on a line. A global `test()` therefore RESUMES
+ *  from wherever the last match ended, so a line's answer could depend on which
+ *  line was read before it — a count read after another count could be missed
+ *  entirely. A line's answer must depend on the line alone. */
+function matches(re, text) {
+  re.lastIndex = 0;
+  return re.test(text);
+}
+
 function isCodeProse(line) {
   if (RE_COMMENT_LINE.test(line)) return true;
   if (holdsString(line)) return true;
   const normalised = normaliseEmphasis(line);
-  return RE_SHAPE_COUNT.test(normalised) || RE_SHAPE_REMAINING.test(normalised);
+  return matches(RE_SHAPE_COUNT, normalised) || matches(RE_SHAPE_REMAINING, normalised);
 }
 
 /** The file's prose, line by line, and the BLOCK each line's prose falls in.
@@ -1036,6 +1047,25 @@ function runSelfTest(readme, script, manifest, samples, measure, shapes) {
       ].join("\n")),
       "a date in a SIBLING entry does not date this one: the whole subtree of a " +
       "top-level key is not one block");
+
+    // DIRECT arm: the same question must get the same answer whatever was asked
+    // before it. The count patterns carry the `g` flag — the finding pass walks
+    // them with `exec` to collect EVERY count on a line — so a global `test()`
+    // RESUMES from wherever the last match ended, and a line read after another
+    // line could be read from a stale offset and MISS a count that is there. The
+    // probe carries its count at its START, so a reader that resumes past it
+    // sees no count at all. Measured: without the reset the second read is false
+    // for every offset the first read can leave behind.
+    {
+      const probe = `${count} pins`;
+      const first = isCodeProse("3 submodules");
+      const second = isCodeProse(probe);
+      const orderFree = first && second;
+      report.push(
+        `  ${orderFree ? "OK  " : "FAIL"} a count is read the same way whatever was read before it — ` +
+        "the shape patterns are global, and a global test resumes from the last match");
+      if (!orderFree) ok = false;
+    }
   }
   return { ok, report };
 }
