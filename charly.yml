@@ -473,6 +473,9 @@ verify:
       - check: the measurement gate discriminates — each mutation turns it RED (fixtures)
         command: node scripts/check-readme-measurements.mjs --self-test
         context: [runtime]
+      - check: the body/diff reconciliation gate discriminates — a file table that omits a changed file, one that lists an unchanged file, and a pasted `git rev-parse HEAD` that is not the head, each turn it RED (fixtures)
+        command: node scripts/check-pr-body-diff.mjs --self-test
+        context: [runtime]
       - check: every step of every task in this file declares a `context:` the plan runner activates — a set disjoint from [build, runtime] (the `[deploy]` this file used to carry) is a no-op in EVERY mode (fixtures)
         command: node scripts/check-task-contexts.mjs
         context: [runtime]
