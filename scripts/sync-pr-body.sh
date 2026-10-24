@@ -181,7 +181,8 @@ build_body() {
     fi
     echo "- **Verification gate:** \`charly task verify\` — the full pinning gate — on"
     echo "  the final tree, plus the per-pin \`git ls-remote\` default-branch table above (rule 10:"
-    echo "  that IS the gate for a diff that moves a gitlink)."
+    echo "  that IS the gate for a diff that touches one of the pin contract's commit-carried"
+    echo "  inputs — a gitlink, the manifest \`charly.yml\`, the declared path set \`.gitmodules\`)."
     echo "- **Attribution tier:** \`${SYNC_TIER}\` — read from this run's \`Assisted-by\` trailer, so"
     echo "  this line and the footer cannot disagree."
     echo "- **Breaking change + rollback:** none — a revert restores the previous snapshot."

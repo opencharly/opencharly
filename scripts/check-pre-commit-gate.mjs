@@ -18,6 +18,17 @@
 // whether the no-binary path fails loud, or whether the index the commit carries is
 // the index that is read — only running it can.
 //
+// WHY THERE IS ONE FIRED ASSERTION PER INPUT (opencharly/opencharly#661). The
+// first version of this fixture asserted that "a commit that moves no gitlink skips
+// the pin check" — and it was RIGHT, for the class it was written for. The pin
+// check, though, reads three commit-carried inputs: the index's gitlinks, the
+// MANIFEST that declares the pin contract (charly.yml's `pin_map` and
+// `pinned_from`), and the DECLARED PATH SET (.gitmodules). A fixture that fires
+// the class it was written for cannot falsify that class, so a commit that edits
+// the declaration slipped through a green gate. Every input now has its own
+// fired assertion, and every input has its own mutation arm: drop a leg and the
+// gate goes red.
+//
 // Usage: node scripts/check-pre-commit-gate.mjs [--root <dir>] [--self-test]
 // exit 0 clean · 1 finding
 
@@ -33,8 +44,10 @@ const rootIdx = argv.indexOf("--root");
 const root = rootIdx === -1 ? resolve(here, "..") : resolve(argv[rootIdx + 1]);
 const gateRel = "hooks/pre-commit-gate.sh";
 const hookRel = "hooks/pre-commit";
+const inputsRel = "scripts/pin-contract-inputs.sh";
 const gateFile = join(root, gateRel);
 const hookFile = join(root, hookRel);
+const inputsFile = join(root, inputsRel);
 
 let failures = 0;
 const fail = (m) => {
@@ -126,6 +139,32 @@ function check() {
   const nodeGates = countOf(hook, 'node "$ROOT/scripts/check-');
   if (nodeGates < 12) fail(`hooks/pre-commit keeps its node gates (found ${nodeGates}, expected at least 12)`);
 
+  // 7. The change class watches EVERY commit-carried input of the pin check
+  //    (opencharly/opencharly#661), and the RULE that says which lives in ONE
+  //    place: scripts/pin-contract-inputs.sh. The gate SOURCES it, and the wave
+  //    body's coverage decision (scripts/sync-pin-evidence.sh) sources the same
+  //    file — because both ask the same question, "can this diff violate the pin
+  //    check?", and a second copy of that question is how the shipped class came
+  //    to be wrong. The verb reads the index's gitlinks, the manifest that
+  //    DECLARES the pin contract, and the declared path set — a class that
+  //    watched only the gitlinks would skip the check on a commit that edits the
+  //    declaration, which is exactly what the verb exists to catch. Each watched
+  //    file must also EXIST here: a name that drifted out of the tree would
+  //    watch nothing, silently.
+  const inputsFile = join(root, inputsRel);
+  if (!existsSync(inputsFile)) {
+    fail(`${inputsRel} exists — the one definition of the pin contract's commit-carried inputs`);
+  } else {
+    const inputs = stripComments(readFileSync(inputsFile, "utf8"));
+    if (!gate.includes(inputsRel)) fail(`${gateRel} sources ${inputsRel} — the one definition of the change class`);
+    if (/PIN_CONTRACT_FILES=/.test(gate)) fail(`${gateRel} keeps no copy of the declaration-file list — it reads ${inputsRel}`);
+    if (!/PIN_CONTRACT_DECLARATION_FILES=/.test(inputs)) fail(`${inputsRel} defines the declaration-file list`);
+    for (const f of ["charly.yml", ".gitmodules"]) {
+      if (!inputs.includes(f)) fail(`${inputsRel} watches ${f} — a commit-carried input of the pin check`);
+      if (!existsSync(join(root, f))) fail(`${f} exists in this repo — the file the class watches`);
+    }
+  }
+
   if (failures === 0)
     ok(
       `${gateRel} + ${hookRel}: one owner for the legs, each run once, the skip visible, the ` +
@@ -165,6 +204,15 @@ function fire() {
     git("config", "user.email", "gate@gate");
     git("config", "user.name", "gate");
     writeFileSync(join(repo, "README.md"), "base\n");
+    // The pin contract's two DECLARATION files, committed at base so that a
+    // LATER change to either is a real staged change — the class watches them
+    // (opencharly/opencharly#661). `.gitmodules` declares the fixture's
+    // submodule path, as the umbrella's own declares its 431.
+    writeFileSync(join(repo, "charly.yml"), "pins: {}\n");
+    writeFileSync(
+      join(repo, ".gitmodules"),
+      '[submodule "distro-example"]\n\tpath = distro-example\n\turl = https://example.invalid/distro-example\n',
+    );
     git("add", "-A");
     writeFileSync(join(scratch, "msg.txt"), "base\n");
     git("commit", "-q", "-F", join(scratch, "msg.txt"));
@@ -173,6 +221,10 @@ function fire() {
     mkdirSync(join(repo, "hooks"), { recursive: true });
     cpSync(gateFile, join(repo, "hooks", "pre-commit-gate.sh"));
     chmodSync(join(repo, "hooks", "pre-commit-gate.sh"), 0o755);
+    // The ONE definition of the change class travels with it: the gate SOURCES it,
+    // so a scratch repo without it would measure a missing file, not the gate.
+    mkdirSync(join(repo, "scripts"), { recursive: true });
+    cpSync(inputsFile, join(repo, "scripts", "pin-contract-inputs.sh"));
     // The self-test the gate calls is a recorder: the REAL one is plain shell and
     // takes 3.4 s, and what is under test here is the gate's DECISION, not the
     // builders' behaviour (that is `charly task verify`'s job).
@@ -198,7 +250,8 @@ function fire() {
       return { code: r.status, out: `${r.stdout ?? ""}${r.stderr ?? ""}`, charly: readLog(charlyLog), self: readLog(selfLog) };
     };
 
-    // Stage a documentation change, and a gitlink change, separately.
+    // Stage a documentation change, a gitlink change, and the two DECLARATION
+    // changes, separately.
     const stageDoc = () => {
       writeFileSync(join(repo, "README.md"), "changed\n");
       git("add", "README.md");
@@ -209,25 +262,47 @@ function fire() {
     const unstageGitlink = () => {
       git("rm", "--cached", "-q", "distro-example");
     };
+    // The manifest that DECLARES the pin contract.
+    const stageManifest = () => {
+      writeFileSync(join(repo, "charly.yml"), "pins: {}\n# the pin contract moved\n");
+      git("add", "charly.yml");
+    };
+    const unstageManifest = () => {
+      git("restore", "--staged", "charly.yml");
+    };
+    // The declared path set the checkout audit walks.
+    const stageGitmodules = () => {
+      writeFileSync(
+        join(repo, ".gitmodules"),
+        '[submodule "distro-example"]\n\tpath = distro-example\n\turl = https://example.invalid/distro-example\n[submodule "distro-other"]\n\tpath = distro-other\n\turl = https://example.invalid/distro-other\n',
+      );
+      git("add", ".gitmodules");
+    };
+    const unstageGitmodules = () => {
+      git("restore", "--staged", ".gitmodules");
+    };
 
-    // F1 — a commit that MOVES A GITLINK runs the pin check, exactly once, and the
+    // F1 — a commit that changes the INDEX's gitlinks — one of the pin contract's
+    //      commit-carried inputs — runs the pin check, exactly once, and the
     //      self-test exactly once.
     stageDoc();
     stageGitlink();
     const f1 = runGate();
     expect(
       f1.code === 0 && f1.charly.length === 1 && f1.charly[0] === "task pin-check" && f1.self.length === 1,
-      `the gate FIRED: a commit that moves a gitlink runs the pin check EXACTLY once and the self-test EXACTLY once`,
+      `the gate FIRED: a commit that changes the index's gitlinks runs the pin check EXACTLY once and the self-test EXACTLY once`,
     );
 
-    // F2 — a commit that moves NO GITLINK skips the pin check, VISIBLY, and runs the
-    //      self-test once. Every value the pin check compares is an index entry, so
-    //      such a commit cannot violate it.
+    // F2 — a commit that changes NONE of the pin contract's commit-carried inputs
+    //      skips the pin check, VISIBLY, and runs the self-test once. The inputs
+    //      are the index's gitlinks, the manifest that DECLARES the pin contract
+    //      and the declared path set; a commit that changes none of them leaves
+    //      every value the check reads as it was, so it cannot violate it.
     unstageGitlink();
     const f2 = runGate();
     expect(
       f2.code === 0 && f2.charly.length === 0 && /SKIPPED/.test(f2.out) && f2.self.length === 1,
-      `the gate FIRED: a commit that moves no gitlink SKIPS the pin check visibly (0 invocations) and still runs the self-test once`,
+      `the gate FIRED: a commit that changes none of the pin contract's inputs SKIPS the pin check visibly (0 invocations) and still runs the self-test once`,
     );
 
     // F3 — the same docs-only commit in a tree with NO charly binary: the fresh
@@ -241,14 +316,26 @@ function fire() {
       `the gate FIRED: a docs-only commit in a tree with NO charly binary PASSES (exit 0) — the fresh-worktree path`,
     );
 
-    // F4 — a commit that DOES move a gitlink in a tree with no binary FAILS LOUD: the
-    //      assertion that judges exactly that cannot run, and a gate that skipped it
-    //      silently would read green over a check that never ran.
+    // F4 — a commit that DOES change the index's gitlinks in a tree with no binary
+    //      FAILS LOUD: the assertion that judges exactly that cannot run, and a
+    //      gate that skipped it silently would read green over a check that never ran.
     stageGitlink();
     const f4 = runGate();
     expect(
       f4.code === 1 && f4.charly.length === 0 && /bootstrap-charly\.sh/.test(f4.out),
-      `the gate FIRED: a commit that moves a gitlink with NO charly binary FAILS LOUD (exit 1) and names the fix`,
+      `the gate FIRED: a commit that changes the index's gitlinks with NO charly binary FAILS LOUD (exit 1) and names the fix`,
+    );
+
+    // F9 — a commit that changes the MANIFEST in a tree with no binary FAILS LOUD
+    //      too. The declaration is a commit-carried input of the check, so the
+    //      check is the leg that cannot run — the loud path is the same one, and
+    //      it must not be the gitlink's alone.
+    unstageGitlink();
+    stageManifest();
+    const f9 = runGate();
+    expect(
+      f9.code === 1 && f9.charly.length === 0 && /bootstrap-charly\.sh/.test(f9.out),
+      `the gate FIRED: a commit that changes the manifest with NO charly binary FAILS LOUD (exit 1) and names the fix`,
     );
 
     // F5 — the pin check's OWN verdict propagates: the gate does not swallow a
@@ -261,11 +348,36 @@ function fire() {
       `the gate FIRED: a FAILING pin check fails the gate (exit ${f5.code}) — the verdict is not swallowed`,
     );
 
+    // F7 — a commit that changes ONLY the MANIFEST runs the pin check, exactly
+    //      once. The manifest DECLARES the edge (`pin_map`, `pinned_from`), so a
+    //      commit that edits the declaration changes what the check compares —
+    //      and the class must see it (opencharly/opencharly#661). This is the
+    //      assertion the first version of this fixture was missing.
+    unstageManifest();
+    stageManifest();
+    const f7 = runGate();
+    expect(
+      f7.code === 0 && f7.charly.length === 1 && f7.charly[0] === "task pin-check" && f7.self.length === 1,
+      `the gate FIRED: a commit that changes the manifest runs the pin check EXACTLY once`,
+    );
+
+    // F8 — and a commit that changes only the DECLARED PATH SET runs it too: the
+    //      checkout audit runs over exactly the paths `.gitmodules` declares, so
+    //      a path declared with no recorded gitlink is a violation this check
+    //      exists to catch.
+    unstageManifest();
+    stageGitmodules();
+    const f8 = runGate();
+    expect(
+      f8.code === 0 && f8.charly.length === 1 && f8.charly[0] === "task pin-check" && f8.self.length === 1,
+      `the gate FIRED: a commit that changes the declared path set runs the pin check EXACTLY once`,
+    );
+
     // F6 — the index the COMMIT carries is the index that is read. Git builds a
     //      temporary index for a path-limited commit (`git commit <path>`): HEAD plus
     //      the selected paths. The repository's own index still holds the staged
-    //      gitlink, so a gate that read the repository's index would fire on a
-    //      commit that carries no gitlink at all.
+    //      path-set change, so a gate that read the repository's index would fire
+    //      on a commit that carries none of the pin contract's inputs at all.
     const partialIndex = join(scratch, "partial-index");
     const gitEnv = { ...process.env, GIT_INDEX_FILE: partialIndex };
     spawnSync("git", ["read-tree", "HEAD"], { cwd: repo, env: gitEnv, encoding: "utf8" });
@@ -275,6 +387,8 @@ function fire() {
       f6.code === 0 && f6.charly.length === 0 && /SKIPPED/.test(f6.out),
       `the gate FIRED: a path-limited commit is judged on the index IT carries, not on the repository's own index`,
     );
+    unstageGitmodules();
+    stageGitlink();
     const f6b = runGate();
     expect(
       f6b.charly.length === 1,
@@ -296,13 +410,21 @@ if (argv.includes("--self-test")) {
   const tmp = mkdtempSync(join(tmpdir(), "check-pre-commit-gate-self-"));
   mkdirSync(join(tmp, "hooks"), { recursive: true });
   mkdirSync(join(tmp, "scripts"), { recursive: true });
+  // The synthetic root must carry the SHAPE of the repo the gate watches: the
+  // manifest that declares the pin contract and the declared path set. Without
+  // them the fixture's own existence reading would fail here, and the arms
+  // would measure the harness instead of the gate.
+  writeFileSync(join(tmp, "charly.yml"), "pins: {}\n");
+  writeFileSync(join(tmp, ".gitmodules"), '[submodule "distro-example"]\n\tpath = distro-example\n\turl = https://example.invalid/distro-example\n');
   const gateSrc = readFileSync(gateFile, "utf8");
   const hookSrc = readFileSync(hookFile, "utf8");
-  const install = (gate, hook) => {
+  const inputsSrc = readFileSync(inputsFile, "utf8");
+  const install = (gate, hook, inputs = inputsSrc) => {
     writeFileSync(join(tmp, gateRel), gate, "utf8");
     chmodSync(join(tmp, gateRel), 0o755);
     writeFileSync(join(tmp, hookRel), hook, "utf8");
     chmodSync(join(tmp, hookRel), 0o755);
+    writeFileSync(join(tmp, inputsRel), inputs, "utf8");
   };
   const runFixture = () => spawnSync(process.execPath, [fileURLToPath(import.meta.url), "--root", tmp], { encoding: "utf8" });
 
@@ -310,7 +432,27 @@ if (argv.includes("--self-test")) {
     [
       "the change class is ignored",
       "gate",
-      (s) => s.replace(/mode_count="\$\(staged_raw[^\n]*\n/, 'mode_count="1"\n'),
+      (s) => s.replace('if ! pin_contract_touches_input "$STAGED_NAMES" "$STAGED_GITLINK_PATHS"; then', "if ! true; then"),
+    ],
+    [
+      "the manifest leg is dropped",
+      "inputs",
+      (s) => s.replace("PIN_CONTRACT_DECLARATION_FILES=(charly.yml .gitmodules)", "PIN_CONTRACT_DECLARATION_FILES=(.gitmodules)"),
+    ],
+    [
+      "the declared path set leg is dropped",
+      "inputs",
+      (s) => s.replace("PIN_CONTRACT_DECLARATION_FILES=(charly.yml .gitmodules)", "PIN_CONTRACT_DECLARATION_FILES=(charly.yml)"),
+    ],
+    [
+      "the declaration files are never watched",
+      "inputs",
+      (s) => s.replace("PIN_CONTRACT_DECLARATION_FILES=(charly.yml .gitmodules)", "PIN_CONTRACT_DECLARATION_FILES=()"),
+    ],
+    [
+      "the shared definition is not the one the gate reads",
+      "gate",
+      (s) => s.replace('. "$ROOT/scripts/pin-contract-inputs.sh"', '. "$ROOT/scripts/no-such-file.sh"'),
     ],
     [
       "the pin check runs twice",
@@ -320,7 +462,7 @@ if (argv.includes("--self-test")) {
     [
       "the missing binary does not fail loud",
       "gate",
-      (s) => s.replace("  exit 1\n", "  exit 0\n"),
+      (s) => s.replace('bootstrap-charly.sh    (in THIS tree: $ROOT)" >&2\n  exit 1', 'bootstrap-charly.sh    (in THIS tree: $ROOT)" >&2\n  exit 0'),
     ],
     [
       "the self-test leg is skipped",
@@ -351,7 +493,7 @@ if (argv.includes("--self-test")) {
   let stFails = 0;
   for (const [name, target, mutate] of mutations) {
     install(gateSrc, hookSrc);
-    const src = target === "gate" ? gateSrc : hookSrc;
+    const src = target === "gate" ? gateSrc : target === "inputs" ? inputsSrc : hookSrc;
     const mutated = mutate(src);
     if (mutated === src) {
       stFails += 1;
@@ -359,6 +501,7 @@ if (argv.includes("--self-test")) {
       continue;
     }
     if (target === "gate") install(mutated, hookSrc);
+    else if (target === "inputs") install(gateSrc, hookSrc, mutated);
     else install(gateSrc, mutated);
     const r = runFixture();
     if (r.status === 0) {

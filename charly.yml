@@ -207,11 +207,15 @@ pins:
         context: [runtime]
 
 # -----------------------------------------------------------------------------
-# pin-check — the cheap, commit-violable half of the pin contract (the pre-commit gate).
+# pin-check — the pin contract AS THE COMMIT GATE RUNS IT (the pre-commit gate's
+# charly-backed leg). It is the WHOLE verb — `mode: verify` runs the EDGE and the
+# CHECKOUT AUDIT in one call — because the gate's change class is derived from what
+# the verb READS (opencharly/opencharly#661), and the checkout audit is one of the
+# things it reads.
 # -----------------------------------------------------------------------------
 pin-check:
   task:
-    description: Assert the pin contract's cheap half — every distro-* gitlink equals charly's own box/* gitlink (the EDGE mechanism)
+    description: Assert the pin contract — every distro-* gitlink equals charly's own box/* gitlink (the EDGE), and every submodule is clean and checked out at its recorded gitlink (the CHECKOUT AUDIT)
     dir: .
     plan:
       - check: the pin check holds
@@ -532,7 +536,7 @@ verify:
       - check: the umbrella's own committed builders pass their self-tests — the set the commit gate runs, owned by scripts/self-test.sh
         command: bash scripts/self-test.sh
         context: [runtime]
-      - check: the commit gate decides by CHANGE CLASS and runs each leg EXACTLY ONCE — the pin check only when the diff moves a gitlink, the skip visible, the missing binary loud, and the index the commit carries read (fixtures)
+      - check: the commit gate decides by CHANGE CLASS and runs each leg EXACTLY ONCE — the pin check only when the diff touches one of the pin contract's commit-carried inputs (a gitlink, the manifest charly.yml, the declared path set .gitmodules), the skip visible, the missing binary loud, and the index the commit carries read (fixtures)
         command: node scripts/check-pre-commit-gate.mjs
         context: [runtime]
       - check: the commit-gate gate discriminates — each mutation turns it RED (fixtures)
