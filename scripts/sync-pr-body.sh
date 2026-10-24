@@ -115,8 +115,20 @@ build_body() {
   # SYNC_EVIDENCE_OUT path); rendering it a SECOND time here (the old shape) would both
   # duplicate the network work and risk the two copies diverging.
   type_file="$(mktemp)"
-  evidence_body="$(printf '%s\n' "$MOVED" | SYNC_EVIDENCE_OUT="$out_evidence" SYNC_EVIDENCE_TYPE_OUT="$type_file" \
-    bash "$SCRIPT_DIR/sync-pin-evidence.sh" "$root" "$pin_check_log")"
+  # The evidence builder's OWN status is checked HERE, not left to `errexit`: the self-test
+  # calls this function as `build_body … || fail "…"`, and in that position bash disables
+  # `errexit` for the WHOLE function body. A dependency that fails inside the builder is
+  # therefore swallowed there, and the arm goes on to assert against a body that is missing
+  # the dependency's output — a degradation that changes nothing the small arms assert, so
+  # it would pass SILENTLY (opencharly/opencharly#679). The live path calls `build_body`
+  # with no `||`, so `errexit` is on there; checking the status here keeps the two paths
+  # identical and makes every arm's `|| fail` message point at the real cause.
+  if ! evidence_body="$(printf '%s\n' "$MOVED" | SYNC_EVIDENCE_OUT="$out_evidence" SYNC_EVIDENCE_TYPE_OUT="$type_file" \
+    bash "$SCRIPT_DIR/sync-pin-evidence.sh" "$root" "$pin_check_log")"; then
+    echo "::error::the evidence builder failed — a body that cannot decide must not claim it does not" >&2
+    rm -f "$type_file"
+    return 1
+  fi
   GITLINK_COUNT=0; FILE_COUNT=0
   # shellcheck disable=SC1090
   . "$type_file"
@@ -527,6 +539,21 @@ if [ "${1:-}" = "--self-test" ]; then
   GITHUB_BODY_MAX=100 build_body "$tmp" "$moved" "$producer" "$pinlog" "$tmp/body3" "$tmp/ev3" 2>"$tmp/err" \
     && fail "over-cap body must trip the hard guard (non-zero)"
   grep -q '65536\|100' "$tmp/err" || fail "guard must name the offending size/cap on stderr"
+
+  # A FAILING evidence builder must fail the build LOUD. This arm is the one that makes
+  # the guard above a claim rather than a hope: the self-test calls `build_body … ||
+  # fail "…"`, and in that position bash disables `errexit` for the WHOLE function body,
+  # so a dependency that fails inside the builder used to be SWALLOWED — the body
+  # rendered with an empty evidence table, and the arm went on to assert against a
+  # degraded body (opencharly/opencharly#679). The builder now checks the dependency's
+  # status itself, so the live path and every arm behave identically.
+  #
+  # The dependency is broken WITHOUT touching the tree: the pin-check log is the
+  # evidence builder's own input, and it `cat`s that log, so a MISSING one makes it
+  # exit non-zero.
+  ( build_body "$tmp" "$moved" "$producer" "$tmp/no-such-pin-check-log" "$tmp/body10" "$tmp/ev10" ) 2>"$tmp/err10" \
+    && fail "a failing evidence builder must fail loud, not render a body with an empty evidence table"
+  grep -q 'the evidence builder failed' "$tmp/err10" || fail "the evidence-builder guard must name the cause, on stderr"
 
   # The EMPTY `.gitmodules`: `grep -c` exits 1 when it matches NOTHING, and under
   # `set -e` that aborted the run BEFORE the floor guard could explain the
