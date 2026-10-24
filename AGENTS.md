@@ -103,7 +103,10 @@ the violation and rerun the gate, or stop and ask the operator. *Detail:*
   shared install. *Detail:* `charly/AGENTS.md`.
 - **R10 — Fresh disposable proof.** Run the gate that `/charly-check:check` selects for the
   change class, on the committed tree you will push. Runtime changes need a fresh rebuild
-  and a live run on every affected `disposable: true` target. No change class is exempt: a
+  and a live run on every affected `disposable: true` target. The live run is a **check
+  bed**: a `disposable: true` deployment driven by `charly check run`, which builds it, passes
+  its artifact checks, realizes it, passes its deployment checks, rebuilds it fresh with
+  `charly update`, passes them again, and removes it. No change class is exempt: a
   plugin-library or schema change runs the full assembled bed.
 
 *Old citations.* Rule references written before 2026-10-09 use the old numbering. Old

@@ -10,26 +10,26 @@
 # An unmarked block, a ```yml fence or an indented yaml fence fails the check, so no example
 # escapes validation. The context blocks and every uses-context block form ONE project, validated
 # as one document (so project-wide rules see all of it). Each document must pass
-#   1. shape, as the loader checks it (§4.2 rule 3): each node against the one definition its
+#   1. shape, as the loader checks it (§11.2 rule 3): each node against the one definition its
 #      kind key selects —  cue vet -c DESIGN.cue load.cue -l '"doc"' <doc>
 #   2. the same verdict from the root union —  cue vet -d '#Document' DESIGN.cue <doc>
 #      (proves the user-facing command and the loader dispatch agree)
-#   3. design/example/rules.cue: an empty `violation` list (the §5.4 rules whose "Design check"
+#   3. design/example/rules.cue: an empty `violation` list (the §12.4 rules whose "Design check"
 #      column says rules.cue)
 #
 # Negatives. Each design/negative/*.yaml starts with header comments:
-#   # rule: D-…            the rule it breaks (a DESIGN.cue tag or a §5.4 rule)
+#   # rule: D-…            the rule it breaks (a DESIGN.cue tag or a §12.4 rule)
 #   # expect: <text>       text the failure output must contain
 #   # def: #Reply          optional; the definition to validate against (default #Document)
-# A §5.4 rule (D-VAL-*) is checked through rules.cue, and the case must pass the schema so it
+# A §12.4 rule (D-VAL-*) is checked through rules.cue, and the case must pass the schema so it
 # isolates that rule; a protocol case (# def:) with
 # `cue vet -d <def>`; any other through the loader dispatch, and the root union must reject it
 # too. A case that passes, or fails without its expected text, fails the check.
 #
-# Usage: scripts/design-examples.sh [root]   (root defaults to the repository root)
+# Usage: bash scripts/design-examples.sh   (run in the repository root)
 set -euo pipefail
 
-root="$(cd "${1:-$(dirname "$0")/..}" && pwd)"
+root="$PWD" # the repository root it runs in
 cue="$(bash "$root/scripts/design-cue.sh")"
 # The loader (design/example/load.cue) runs with CUE's structure sharing off. Measured on
 # v0.18.0-alpha.3 and v0.18.0-rc.1: with sharing on, a closed arm of a key-tagged union stays viable
@@ -45,7 +45,7 @@ trap 'rm -rf "$work"' EXIT
 fail=0
 bad() { echo "FAIL $*"; fail=1; }
 
-# shape <doc>: the loader's view (§4.2): the node definitions its kind keys select, then the steps
+# shape <doc>: the loader's view (§11.2): the node definitions its kind keys select, then the steps
 # dispatched by their intent and verb keys (D-LOAD-5). Prints the diagnostics; fails on any.
 shape() {
 	local out disp rc=0
@@ -165,7 +165,7 @@ for n in "$root"/design/negative/*.yaml; do
 		continue
 	fi
 	if [[ "$rule" == D-VAL-* ]]; then
-		# a §5.4 case breaks its whole-document rule and nothing else: the schema must accept it
+		# a §12.4 case breaks its whole-document rule and nothing else: the schema must accept it
 		if ! out="$("$cue" vet -c -d '#Document' "$schema" "$n" 2>&1)"; then
 			bad "design/negative/$name ($rule): also fails the schema, so it does not isolate its rule:"
 			echo "$out" | sed -n '1,10s/^/    /p'

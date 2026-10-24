@@ -1,0 +1,14 @@
+# rule: D-VAL-2
+# expect: pipeline.stage.checks.deployment: c is a candy, want pod or vm or local or android or kubernetes
+c:
+  description: A candy, not a deployment.
+  package: {jq: {}}
+  step:
+    - check: jq runs
+      command: jq --version
+g:
+  pipeline:
+    description: A gate that names a candy as a deployment to check.
+    stage:
+      checks:
+        deployment: [c]

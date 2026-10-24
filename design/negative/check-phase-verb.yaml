@@ -1,0 +1,9 @@
+# rule: D-VERB-7
+# expect: step.x.0.phase: conflicting values "deployment" and "artifact"
+x:
+  description: A candy.
+  package: {curl: {}}
+  step:
+    - check: the port is open
+      phase: artifact
+      port: {port: 8080}

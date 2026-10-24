@@ -1,4 +1,4 @@
-// rules.cue — the whole-document rules of DESIGN §5.4 whose "Design check" column says
+// rules.cue — the whole-document rules of DESIGN §12.4 whose "Design check" column says
 // `rules.cue` (that column is the one list; design-consistency.sh checks this file emits exactly
 // those rules). Run together with load.cue (it shares `doc`,
 // `_node`, `_kindOf` and `_deployFieldSet`):
@@ -21,7 +21,7 @@ _ns: {for k, _ in *doc.import | {} {(k): true}}
 _refKind: {for n, v in _node {(n): [if _kindOf[n] == "candy" for f, _ in v if f == "from" {"box"}, _kindOf[n]][0]}}
 
 _candyFieldSet: {for f in _candyField {(f): true}}
-_noContent: {description: _, from: _, require: _, parameter: _, with: _, platform: _, build_with: _, entrypoint: _, tag: _, capture: _}
+_noContent: {description: _, from: _, require: _, platform: _, build_with: _, entrypoint: _, tag: _, capture: _}
 
 // The candies of the document: top level, and one level inside top-level candies and local or
 // android bodies — each with its path and value.
@@ -59,19 +59,19 @@ _refs: [
 	for n, v in _node for k, b in v if k == "os" for f, m in b if f == "init" for role, r in m {
 		{node: n, field: "os.init.\(role)", ref: r, want: ["init"]}
 	},
-	for c in _candies for f, nd in c.value if f == "need" for t, m in nd if t == "harness" for a, _ in m {
-		{node: c.at, field: "need.harness", ref: a, want: ["harness"]}
+	for c in _candies for f, nd in c.value if f == "need" || f == "use" for t, m in nd if t == "harness" for a, _ in m {
+		{node: c.at, field: "\(f).harness", ref: a, want: ["harness"]}
 	},
 	for n, v in _node for k, b in v if k == "builder" for arm, p in b if arm == "bootstrap" || arm == "manager" for f, r in p if f == "box" {
 		{node: n, field: "builder.\(arm).box", ref: r, want: ["box"]}
 	},
-	for n, v in _node for k, b in v if k == "pipeline" for f, st in b if f == "stage" for sn, x in st for g, l in x if g == "bed" for r in l {
-		{node: n, field: "pipeline.stage.\(sn).bed", ref: r, want: ["pod", "vm", "local", "android", "kubernetes"]}
+	for n, v in _node for k, b in v if k == "pipeline" for f, st in b if f == "stage" for sn, x in st for g, l in x if g == "deployment" for r in l {
+		{node: n, field: "pipeline.stage.\(sn).deployment", ref: r, want: ["pod", "vm", "local", "android", "kubernetes"]}
 	},
 	for n, v in _node for k, b in v if k == "pipeline" for f, st in b if f == "stage" for sn, x in st for g, r in x if g == "pipeline" {
 		{node: n, field: "pipeline.stage.\(sn).pipeline", ref: r, want: ["pipeline"]}
 	},
-	for n, l in _stepList for i, st in l for f, o in st if f == "on" for g, r in o if g == "node" {
+	for n, l in _stepList for i, e in l let st = e.value for f, o in st if f == "on" for g, r in o if g == "node" {
 		{node: n, field: "step.\(i).on.node", ref: r, want: ["pod", "vm", "local", "android", "kubernetes"]}
 	},
 ]
@@ -123,5 +123,10 @@ violation: [
 	// D-VAL-4
 	for a, _ in _ns if _node[a] != _|_ {
 		{rule: "D-VAL-4", node: a, message: "namespace \(a) is also a top-level node name"}
+	},
+	// D-VAL-14: a node names a capability under `need:` or under `use:`, never both
+	for c in _candies for f, nd in c.value if f == "need" for t, m in nd for name, _ in m
+	for g, ud in c.value if g == "use" for u, um in ud if u == t for uname, _ in um if uname == name {
+		{rule: "D-VAL-14", node: c.at, message: "names \(t) \(name) under both need: and use:"}
 	},
 ]

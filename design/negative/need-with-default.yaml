@@ -1,0 +1,9 @@
+# rule: D-CAP-1
+# expect: node.x.need.env.API_KEY.default: field not allowed
+x:
+  description: A candy.
+  need:
+    env: {API_KEY: {default: none}}
+  step:
+    - check: it runs
+      command: "true"
