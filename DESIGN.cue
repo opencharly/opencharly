@@ -1,10 +1,10 @@
 // DESIGN.cue — the schema of DESIGN.md (Appendix A), CUE v0.18.0-rc.1. The single copy.
 //
 //   Part 1  authoring schema (DESIGN Part III)   validate: cue vet -d '#Document' DESIGN.cue charly.yml
-//   Part 2  user configuration (DESIGN §17)      validate: cue vet -d '#UserConfig' DESIGN.cue config.yml
-//   Part 3  core↔plugin protocol (DESIGN §8)     validate: cue vet -d '#Request' DESIGN.cue request.yaml
+//   Part 2  user configuration (DESIGN §20)      validate: cue vet -d '#UserConfig' DESIGN.cue config.yml
+//   Part 3  core↔plugin protocol (DESIGN §4)     validate: cue vet -d '#Request' DESIGN.cue request.yaml
 //
-// Written with the schema patterns of DESIGN §3.1 and nothing else:
+// Written with the schema patterns of DESIGN §10.1 and nothing else:
 //   S1  closed definition       #Endpoint: {port!: #Port, path?: #AbsPath}   (closed, recursively)
 //   S2  named scalar            #Name: =~"…"
 //   S3  vocabulary table        _x: {word: {row}} @vocab(owner); _xWord: [for w, _ in _x {w}]
@@ -19,13 +19,13 @@
 //   S11 typed row table         #XRow + _x: {[w]: #XRow}; derived shapes are comprehensions over it
 //
 // Every struct with named fields is a named definition; an inline struct declares at most one named
-// field, its S4 tag, and otherwise only embeddings, patterns and comprehensions (DESIGN §6, C1).
+// field, its S4 tag, and otherwise only embeddings, patterns and comprehensions (DESIGN §13, C1).
 // Every concept is defined once; an instance is a row or a word of its table (D-LAW-8).
 //   M1 content → IR      #Content, #ActionAlt               M5 lifecycle and state  _method transition, capture, restore
 //   M2 artifact          #ArtifactRef, _method.build        M6 venue                #VenueAlt, _access
 //   M3 kind × driver     _deploymentKind, _driver           M7 observation          #FactVerbAlt, #ProtocolVerbAlt
 //   M4 need → grant      _capability                        M8 store                _store, _hostMethod get, put
-// A derivation has exactly one spelling per form, so the generator (DESIGN §6, D-GEN-8) maps each to
+// A derivation has exactly one spelling per form, so the generator (DESIGN §13, D-GEN-8) maps each to
 // one Go shape; the design check rejects every other list comprehension:
 //   D1 word list      _xWord: [for w, _ in _x {w}]
 //   D2 row subset     _qWord: [for w, r in _x if <row predicate> {w}]
@@ -35,7 +35,7 @@
 //   D6 row selection  or([for v in r.<field> {T[v]}]) inside a definition derived from the rows of r
 // and a fragment is composed by spreading it (`#XFields...`, language v0.18.0 strict embedding).
 // A `// D-…` comment marks the line that enforces that requirement; every tag has a negative case
-// in design/negative/. Rules a single document cannot express are indexed in DESIGN §5.4.
+// in design/negative/. Rules a single document cannot express are indexed in DESIGN §12.4.
 package design
 
 import (
@@ -77,7 +77,7 @@ import (
 #AbsPath:     =~"^/[^$]*$" // D-SCH-7: a literal absolute path, no variables
 #Scalar:      string | number | bool
 #InitNeutral: string & !~"%[a-zA-Z(]" // D-CANDY-3
-// A package is an OS package name, or `<manager>:<locator>` for a non-OS manager (§7.1); the
+// A package is an OS package name, or `<manager>:<locator>` for a non-OS manager (§3.1); the
 // locator is whatever that manager installs from (a name, or a URL for `android:`).
 #OsPackage:      =~"^[^: ]+$"
 #ManagerLocator: =~"^(\(strings.Join(_managerWord, "|"))):[^ ]+$"
@@ -94,7 +94,7 @@ import (
 
 // ── S3 vocabulary tables ─────────────────────────────────────────────────────
 // Every closed set of words is a table keyed by word; its rows carry the word's data, and its word
-// list is derived. `@vocab` names who owns the set (§7.1): `core` and a plugin owner are closed sets
+// list is derived. `@vocab` names who owns the set (§3.1): `core` and a plugin owner are closed sets
 // compiled into that owner; `registry` is composed from the loaded plugins. An external system's
 // own identifier for a word is its row's `native` (D-NAME-3).
 #NativeRow: {native?: #Text}
@@ -103,9 +103,10 @@ _directive: {repo: {}, plugin: {}, import: {}, discover: {}} @vocab(core)
 _directiveWord: [for w, _ in _directive {w}]
 _intent: {run: {}, check: {}, harness_check: {}, harness_run: {}} @vocab(core)
 _intentWord: [for w, _ in _intent {w}]
-// A step's phase: `build` against the artifact, `ready` gating a realization (the readiness
-// condition of D-LAW-5), `runtime` against a running deployment, or `any`.
-_phase: {any: {}, build: {}, ready: {}, runtime: {}} @vocab(core)
+// A check's phase: what it observes (§16.5). `artifact`: the built artifact, in an instance that runs
+// nothing; `ready`: a realized deployment, as the readiness condition its realization waits on
+// (D-LAW-5); `deployment`: a realized deployment, once it is ready.
+_phase: {artifact: {}, ready: {}, deployment: {}} @vocab(core)
 _phaseWord: [for w, _ in _phase {w}]
 _scope: {system: {}, user: {}} @vocab(core)
 _scopeWord: [for w, _ in _scope {w}]
@@ -125,35 +126,35 @@ _updateGate: {full: {}, restart_only: {}, skip: {}} @vocab(core)
 _updateGateWord: [for w, _ in _updateGate {w}]
 _severity: {error: {}, warning: {}} @vocab(core)
 _severityWord: [for w, _ in _severity {w}]
-// A deployment's state; a `transition` targets a state whose row is a `target` (§8.2).
+// A deployment's state; a `transition` targets a state whose row is a `target` (§4.2).
 #StateRow: {target: *false | bool}
 _state: [#Word]: #StateRow
 _state: {absent: {target: true}, stopped: {target: true}, running: {target: true}, failed: {}} @vocab(core)
 _stateWord: [for w, _ in _state {w}]
 _targetStateWord: [for w, r in _state if r.target {w}]
-// What a venue serves (§12.7); a venue lacking one refuses it (D-VENUE-2).
+// What a venue serves (§17.7); a venue lacking one refuses it (D-VENUE-2).
 _access: {exec: {}, copy: {}, log: {}, console: {}, display: {}, forward: {}, power: {}} @vocab(core)
 _accessWord: [for w, _ in _access {w}]
 // Every pluggable subsystem whose driver the user configuration chooses (D-DRV-1).
 _subsystem: {pod: {}, vm: {}, kubernetes: {}, agent: {}, secret: {}} @vocab(core)
 _subsystemWord: [for w, _ in _subsystem {w}]
 
-// Every manager word and the phase whose work it is (D-IR-7).
-_managerPhase: {build: {}, apply: {}} @vocab(build)
-_managerPhaseWord: [for w, _ in _managerPhase {w}]
-#ManagerRow: {phase!: or(_managerPhaseWord)}
+// Every manager word and the time its work is done (D-IR-7).
+_managerTime: {build: {}, apply: {}} @vocab(build)
+_managerTimeWord: [for w, _ in _managerTime {w}]
+#ManagerRow: {time!: or(_managerTimeWord)}
 _manager: [#Word]: #ManagerRow
 _manager: {
-	npm:     {phase: "build"}
-	cargo:   {phase: "build"}
-	pip:     {phase: "build"}
-	aur:     {phase: "build"}
-	flatpak: {phase: "build"}
-	helm:    {phase: "apply"}
-	android: {phase: "apply"}
+	npm:     {time: "build"}
+	cargo:   {time: "build"}
+	pip:     {time: "build"}
+	aur:     {time: "build"}
+	flatpak: {time: "build"}
+	helm:    {time: "apply"}
+	android: {time: "apply"}
 } @vocab(registry)
 _managerWord: [for w, _ in _manager {w}]
-_buildManagerWord: [for w, r in _manager if r.phase == "build" {w}]
+_buildManagerWord: [for w, r in _manager if r.time == "build" {w}]
 #BuildManager: or(_buildManagerWord)
 _packageManager: {dnf: {}, apt: {}, pacman: {}, apk: {}, zypper: {}} @vocab(registry)
 _packageManagerWord: [for w, _ in _packageManager {w}]
@@ -195,8 +196,8 @@ _hookEventWord: [for w, _ in _hookEvent {w}]
 _docProjection: {recipe: {}, cli: {}, registry: {}, candy: {}, box: {}, plugin: {}, landing: {}} @vocab(documentation)
 _docProjectionWord: [for w, _ in _docProjection {w}]
 
-// M4: the host words a need may name (§16).
-_gpu: {any: {}, nvidia: {}, amd: {}, intel: {}} @vocab(spec) // any: a need every vendor satisfies
+// M4: the host words a need may name (§9).
+_gpu: {nvidia: {}, amd: {}, intel: {}} @vocab(spec) // `gpu: {}` names no vendor: any GPU (D-HW-9)
 _gpuWord: [for w, _ in _gpu {w}]
 _device: [#Word]: #NativeRow
 _device: {
@@ -258,7 +259,7 @@ _subsystemDriver: {for k, _ in _subsystem {(k): [for w, r in _driver if r.subsys
 _subsystemDefaultDriver: {for k, _ in _subsystem {(k): [for w, r in _driver if r.subsystem == k && r.default {w}] & list.MinItems(1) & list.MaxItems(1)}}
 
 // ── S4 tag tables ────────────────────────────────────────────────────────────
-// Every kind word and the node it selects (§10): the data and workflow kinds, then every deployment
+// Every kind word and the node it selects (§15): the data and workflow kinds, then every deployment
 // kind a top-level node may be (its row's `top` is not empty).
 #KindAlt: {
 	source:      {source!: #Source}
@@ -273,38 +274,43 @@ _subsystemDefaultDriver: {for k, _ in _subsystem {(k): [for w, r in _driver if r
 	doc:         {doc!: #Doc}
 	for k, r in _deploymentKind if len(r.top) > 0 {(k): _#TopNode[k]}
 }
-// A top-level node (§4.2 rule 3): the candy is the default entry, selected when no kind key is
-// written; it admits no kind key. Registry key `kind:candy` is reserved for it (§8.2).
+// A top-level node (§11.2 rule 3): the candy is the default entry, selected when no kind key is
+// written; it admits no kind key. Registry key `kind:candy` is reserved for it (§4.2).
 #NodeAlt: {
 	candy: #Candy
 	#KindAlt...
 }
 #Node: or([for _, a in #NodeAlt {a}])
 
-// M7 — every check verb and its input (§20), in exactly two tables. A fact verb observes the state
+// D-VERB-7: each verb arm declares the phases it can observe, and the first is a check's phase
+// unless the check writes another. A verb that can observe the built artifact also observes a
+// deployment; every other verb observes only a deployment.
+#ArtifactPhase:   {phase: *"artifact" | or(_phaseWord)} // D-VERB-7
+#DeploymentPhase: {phase: *"deployment" | "ready"}             // D-VERB-7
+// M7 — every check verb and its input (§23), in exactly two tables. A fact verb observes the state
 // of the system its venue reaches; a protocol verb speaks one generic protocol to an endpoint.
 #FactVerbAlt: {
-	command:      {command!: #Text}
-	file:         {file!: #FileCheck}
-	package:      {package!: #PackageCheck}
-	service:      {service!: #ServiceCheck}
-	process:      {process!: #ProcessCheck}
-	port:         {port!: #PortCheck}
-	user:         {user!: #UserCheck}
-	group:        {group!: #GroupCheck}
-	mount:        {mount!: #MountCheck}
-	kernel_param: {kernel_param!: #KernelParamCheck}
-	dns:          {dns!: #DnsCheck}
-	interface:    {interface!: #InterfaceCheck}
+	command:      {command!: #Text, #ArtifactPhase...}
+	file:         {file!: #FileCheck, #ArtifactPhase...}
+	package:      {package!: #PackageCheck, #ArtifactPhase...}
+	service:      {service!: #ServiceCheck, #DeploymentPhase...}
+	process:      {process!: #ProcessCheck, #DeploymentPhase...}
+	port:         {port!: #PortCheck, #DeploymentPhase...}
+	user:         {user!: #UserCheck, #ArtifactPhase...}
+	group:        {group!: #GroupCheck, #ArtifactPhase...}
+	mount:        {mount!: #MountCheck, #DeploymentPhase...}
+	kernel_param: {kernel_param!: #KernelParamCheck, #DeploymentPhase...}
+	dns:          {dns!: #DnsCheck, #DeploymentPhase...}
+	interface:    {interface!: #InterfaceCheck, #DeploymentPhase...}
 }
 #ProtocolVerbAlt: {
-	http:    {http!: #HttpCheck}
-	kube:    {kube!: #KubeCheck}
-	appium:  {appium!: #AppiumCheck}
-	cdp:     {cdp!: #CdpCheck}
-	dbus:    {dbus!: #DbusCheck}
-	mcp:     {mcp!: #McpCheck}
-	display: {display!: #DisplayCheck}
+	http:    {http!: #HttpCheck, #DeploymentPhase...}
+	kube:    {kube!: #KubeCheck, #DeploymentPhase...}
+	appium:  {appium!: #AppiumCheck, #DeploymentPhase...}
+	cdp:     {cdp!: #CdpCheck, #DeploymentPhase...}
+	dbus:    {dbus!: #DbusCheck, #DeploymentPhase...}
+	mcp:     {mcp!: #McpCheck, #DeploymentPhase...}
+	display: {display!: #DisplayCheck, #DeploymentPhase...}
 }
 #VerbAlt: {#FactVerbAlt..., #ProtocolVerbAlt...} // D-VERB-6: a verb is a fact or a protocol, nothing else
 #Verb: or([for _, a in #VerbAlt {a}])
@@ -312,8 +318,8 @@ _subsystemDefaultDriver: {for k, _ in _subsystem {(k): [for w, r in _driver if r
 // Field names of the bodies that can hold named nodes. Optional fields cannot be enumerated
 // inside CUE, so these lists are written out; design-consistency.sh checks them against the
 // definitions.
-_candyField: ["description", "from", "step", "require", "need", "provide", "package", "os_override", "file", "package_repo", "env", "path_append", "service", "user", "volume", "export", "module", "packaging", "platform", "build_with", "entrypoint", "tag", "parameter", "with", "capture"]
-_deployField: ["description", "step", "disposable", "preemptible", "update_gate", "concurrency", "instrument", "ephemeral", "need", "with", "require", "create", "connect", "from", "publish", "node", "device", "api_level", "config"]
+_candyField: ["description", "from", "step", "require", "need", "use", "provide", "package", "os_override", "file", "package_repo", "path_append", "service", "user", "volume", "export", "module", "packaging", "platform", "build_with", "entrypoint", "tag", "capture"]
+_deployField: ["description", "step", "disposable", "preemptible", "update_gate", "concurrency", "instrument", "ephemeral", "need", "use", "provide", "require", "create", "connect", "from", "publish", "node", "device", "api_level", "config"]
 
 _kindWord: [for w, _ in #KindAlt {w}]
 _verbWord: [for w, _ in #VerbAlt {w}]
@@ -328,7 +334,7 @@ _reserved: strings.Join(list.Concat([_kindWord, _deploymentKindWord]), "|")
 // first-party one.
 #Namespace: #TopName
 
-// ── document (§4.2) ─────────────────────────────────────────────────────────
+// ── document (§11.2) ─────────────────────────────────────────────────────────
 #Document: {
 	repo?:     #Repo
 	plugin?:   {[#Name]: #RepositoryRef} // D-PLUG-4
@@ -345,15 +351,6 @@ _reserved: strings.Join(list.Concat([_kindWord, _deploymentKindWord]), "|")
 }
 #RepositoryRef: or([for _, a in #RepositoryRefAlt {a}])
 
-// Parameterization: a node declares parameters, a reference supplies values with `with:`. A candy's
-// parameter is a bounded choice, never a substitution (D-SCH-7).
-#Parameter: {
-	description?: #Text
-	default?:     #Text
-	choice?:      #TextSet
-}
-#CandyParameter: {#Parameter..., choice!: #TextSet} // D-SCH-7
-#With: {[#Name]: #Text}
 
 // ════ M1 — content: what a candy installs; an `os_override` overrides the same shape ════
 // D-IR-6: an OS package carries nothing; a manager package may carry its plugin's config.
@@ -367,7 +364,6 @@ _reserved: strings.Join(list.Concat([_kindWord, _deploymentKindWord]), "|")
 	package?:      #PackageMap
 	package_repo?: {[#Name]: #PackageRepo}
 	file?:         {[#AbsPath]: #File}
-	env?:          {[#EnvName]: #InitNeutral}
 	path_append?:  [...#AbsPath]
 	service?:      {[#Name]: #Service}
 	user?:         {[#Name]: #User}
@@ -378,13 +374,12 @@ _reserved: strings.Join(list.Concat([_kindWord, _deploymentKindWord]), "|")
 	description!: #Text // D-KIND-3
 	step?:        [...#Step]
 	require?:     #RefSet @ref(candy) // D-CANDY-2: candies only, by reference
-	need?:        #Need
+	need?:        #CandyNeed
+	use?:         #CandyUse
 	provide?:     #Provide
-	parameter?:   {[#Name]: #CandyParameter} // the choices this candy declares
-	with?:        #With                      // the choices it supplies to its `from:`
 	#Content...
 	os_override?: {[#Name]: #Content} // per `os` family or node; the most specific key wins
-	module?:      #Module             // a plugin candy (§8.1)
+	module?:      #Module             // a plugin candy (§4.1)
 	packaging?:   #Packaging
 }
 // The native-package metadata of charly's own packages (D-CANDY-6), owned by the operations plugin.
@@ -443,7 +438,7 @@ _reserved: strings.Join(list.Concat([_kindWord, _deploymentKindWord]), "|")
 }
 #User: {uid?: #Count, group?: #NameSet, shell?: #AbsPath}
 
-// ════ M4 — capabilities: one table of types; a need and a provide are rows of it (§15, §16) ════
+// ════ M4 — capabilities: one table of types; a need and a provide are rows of it (§8, §9) ════
 // A capability type: what its entries are keyed by, what a need entry and a provide entry add,
 // whether it is a leasable host resource, and — for a type whose keys name nodes — the kinds they
 // may name (`ref`, S9). Every need entry is `optional` or not; only a leasable type's entry is
@@ -452,37 +447,54 @@ _reserved: strings.Join(list.Concat([_kindWord, _deploymentKindWord]), "|")
 	key!:     _
 	need?:    _
 	provide?: _
+	use?:     _ // what a `use:` entry carries: its need entry's fields, and a `default` where the type has a value
 	lease:    *false | bool
 	ref?:     [...string]
 }
 _capability: [#Word]: #CapabilityRow
 _capability: {
-	env:        {key: #EnvName, need: {}, provide: #EnvProvide}
-	secret:     {key: #Name, need: {}}
-	endpoint:   {key: #Name, need: #EndpointNeed, provide: #Endpoint}
-	network:    {key: #Name, need: {}, provide: {}}
-	harness:    {key: #Ref, need: {}, ref: ["harness"]}
-	gpu:        {key: or(_gpuWord), need: {}, lease: true}
-	device:     {key: or(_deviceWord), need: {}, lease: true}
-	cpu:        {key: or(_cpuWord), need: #CountNeed, lease: true}
-	memory:     {key: or(_memoryWord), need: #SizeNeed, lease: true}
-	storage:    {key: or(_storageWord), need: #SizeNeed, lease: true}
-	mount:      {key: #Name, need: #MountNeed, lease: true}
-	nesting:    {key: or(_nestingWord), need: {}}
-	isolation:  {key: or(_isolationWord), need: {}} // D-HW-7: a boundary is a need, never a runtime setting
-	privilege:  {key: or(_privilegeWord), need: {}}
-	driver_api: {key: or(_driverWord), need: {}}
-	for r, _ in _role {(r): {key: #Word, need: {}, provide: {}}}
+	env:        {key: #EnvName, need: {}, use: #EnvUse, provide: #EnvProvide}
+	parameter:  {key: #Name, need: #ParameterNeed, use: #ParameterUse, provide: #ParameterProvide} // D-SCH-7
+	secret:     {key: #Name, need: {}, use: {}}
+	endpoint:   {key: #Name, need: #EndpointNeed, use: #EndpointNeed, provide: #Endpoint}
+	network:    {key: #Name, need: {}, use: {}, provide: {}}
+	harness:    {key: #Ref, need: {}, use: {}, ref: ["harness"]}
+	gpu:        {key: or(_gpuWord), need: {}, use: {}, lease: true}
+	device:     {key: or(_deviceWord), need: {}, use: {}, lease: true}
+	cpu:        {key: or(_cpuWord), need: #CountNeed, use: #CountNeed, lease: true}
+	memory:     {key: or(_memoryWord), need: #SizeNeed, use: #SizeNeed, lease: true}
+	storage:    {key: or(_storageWord), need: #SizeNeed, use: #SizeNeed, lease: true}
+	mount:      {key: #Name, need: #MountNeed, use: #MountNeed, lease: true}
+	nesting:    {key: or(_nestingWord), need: {}, use: {}}
+	isolation:  {key: or(_isolationWord), need: {}, use: {}} // D-HW-7: a boundary is a need, never a runtime setting
+	privilege:  {key: or(_privilegeWord), need: {}, use: {}}
+	driver_api: {key: or(_driverWord), need: {}, use: {}}
+	for r, _ in _role {(r): {key: #Word, need: {}, use: {}, provide: {}}}
 } @vocab(spec)
 _capabilityWord: [for w, _ in _capability {w}]
 _leasableWord: [for w, r in _capability if r.lease {w}]
-#NeedFields: {optional: *false | bool}   // D-CAP-1
+// D-CAP-1: a capability's strength is the key it is written under — `need:` MUST be set, `use:` CAN
+// be set — never a field of the entry. Only a `use:` entry carries a `default`.
 #LeaseFields: {exclusive: *false | bool} // D-HW-8
 #Need: {for t, c in _capability if c.need != _|_ {
-	(t)?: {[c.key]: {#NeedFields..., c.need..., if c.lease {#LeaseFields...}}}
+	(t)?: {[c.key]: {c.need..., if c.lease {#LeaseFields...}}}
+}}
+#Use: {for t, c in _capability if c.use != _|_ {
+	(t)?: {[c.key]: {c.use..., if c.lease {#LeaseFields...}}}
 }}
 #Provide: {for t, c in _capability if c.provide != _|_ {(t)?: {[c.key]: c.provide}}}
-#EnvProvide: {value!: string}
+#EnvProvide: {value!: #InitNeutral} // D-CANDY-3
+// A parameter: a value a node takes from whoever references it. A candy's is a bounded choice,
+// never a substitution (D-SCH-7); a pipeline's is any text.
+#ParameterNeed:    {description?: #Text, one_of?: #TextSet}
+#ParameterUse:     {#ParameterNeed..., default?: #Text}
+#ParameterProvide: {value!: #Text}
+#EnvUse:           {default?: #InitNeutral}
+// D-SCH-7: a candy's parameter is a bounded choice, so its entry carries `one_of`.
+#CandyParameterNeed: {#ParameterNeed..., one_of!: #TextSet}
+#CandyParameterUse:  {#ParameterUse..., one_of!: #TextSet}
+#CandyNeed: {#Need..., parameter?: {[#Name]: #CandyParameterNeed}} // D-SCH-7
+#CandyUse:  {#Use..., parameter?: {[#Name]: #CandyParameterUse}}   // D-SCH-7
 #EndpointNeed: {protocol!: or(_protocolWord)}
 #CountNeed: {count!: #Count}
 #SizeNeed: {size!: #Size}
@@ -497,7 +509,7 @@ _leasableWord: [for w, r in _capability if r.lease {w}]
 	host?:     #Hostname
 }
 
-// ── steps (§4.2 rule 5, §20) ─────────────────────────────────────────────────
+// ── steps (§11.2 rule 5, §23) ─────────────────────────────────────────────────
 // D-VERB-3: a matcher is exactly one comparison (S4); `not` and `json` compose any matcher.
 #MatcherAlt: {
 	equals:   {equals!: #Scalar}
@@ -512,7 +524,6 @@ _leasableWord: [for w, r in _capability if r.lease {w}]
 #StepFields: {
 	id?:     #Name
 	run_as?: #Name
-	phase:   *"any" | or(_phaseWord)
 	timeout: *"60s" | #Duration
 }
 // The one repetition model of a check and a stage: until a deadline, or a bounded attempt count,
@@ -557,14 +568,20 @@ _leasableWord: [for w, r in _capability if r.lease {w}]
 // `guard`; a check carries exactly one verb; the harness intents carry no verb. The loader selects
 // the alternative by the intent key (D-LOAD-5).
 #StepAlt: {
-	run:           {run!: #Text, #RunFields...}
+	run:           {run!: #Text, #RunFields...} // D-VERB-7: an install action has no phase
 	check:         {#CheckFields..., #Verb...}
-	harness_check: {harness_check!: #Text, #HarnessStepFields...}
+	harness_check: {harness_check!: #Text, #HarnessStepFields..., #DeploymentPhase...}
 	harness_run:   {harness_run!: #Text, #HarnessStepFields...}
 }
 #Step: or([for _, a in #StepAlt {a}])
-// D-DEP-8: a deployment's steps run in its runtime phase.
-#RuntimeStep: #Step & {phase: "runtime"}
+// D-DEP-8: a deployment's checks observe the deployment.
+#DeploymentStepAlt: {
+	run:           #StepAlt.run
+	check:         {#StepAlt.check..., #DeploymentPhase...}
+	harness_check: #StepAlt.harness_check
+	harness_run:   #StepAlt.harness_run
+}
+#DeploymentStep: or([for _, a in #DeploymentStepAlt {a}])
 
 // The verb inputs (S1), one definition per verb, named #<Verb>Check; an operation table is
 // #<Verb>CheckAlt (D-VERB-4). A fact verb's input is the thing it identifies, whether that thing is
@@ -636,7 +653,7 @@ _leasableWord: [for w, r in _capability if r.lease {w}]
 #DisplayCheck: or([for _, a in #DisplayCheckAlt {a}])
 #DisplayCheckWindow: {app_id?: #Text, title?: #Text}
 
-// ════ data nodes: sources, operating systems, inits, builders (§10, §11) ════
+// ════ data nodes: sources, operating systems, inits, builders (§15, §16) ════
 #SourceFields: {description!: #Text, os!: #Ref @ref(os)} // D-SRC-2
 // D-SRC-1: exactly one origin, remote origins pinned by sha256.
 #SourceAlt: {
@@ -659,7 +676,7 @@ _leasableWord: [for w, r in _capability if r.lease {w}]
 }
 #OsInit: {for r, _ in _initRole {(r)!: #Ref @ref(init)}}
 // The boot content of the disk form: the firmware it boots under, and the kernel a microVM
-// hypervisor boots beside a root drive (§9.2).
+// hypervisor boots beside a root drive (§14.2).
 #Boot: {firmware: *"uefi" | or(_firmwareWord), kernel?: #AbsPath, initrd?: #AbsPath, command_line?: #Text}
 // Vocabulary data (D-KIND-2). One renderer per unit format serves every init.
 #Init: {
@@ -680,18 +697,20 @@ _leasableWord: [for w, r in _capability if r.lease {w}]
 #BuilderBootstrap: {command!: #Text, box?: #Ref @ref(box)}
 #BuilderManager:   {name!: #BuildManager, box!: #Ref @ref(box)}
 
-// ════ workflow, harness and documentation kinds (§10) ════
+// ════ workflow, harness and documentation kinds (§15) ════
 #Harness: {
 	description!: #Text
 	argv!:        [...#Text]
 	model?:       #Text
 	need?:        #Need
+	use?:         #Use
 }
 // The one workflow kind (D-FLOW-1): a named set of stages run in the host venue. A named host
-// routine is a pipeline of one stage; a gate over beds and an agent loop over a run are pipelines.
+// routine is a pipeline of one stage; a gate over deployments and an agent loop over a run are pipelines.
 #Pipeline: {
 	description!: #Text
-	parameter?:   {[#Name]: #Parameter} // required exactly when it has no default
+	need?:        #Need // a parameter it MUST be given
+	use?:         #Use  // a parameter it CAN be given, with its default
 	input_file?:  #TextSet
 	output_file?: #TextSet
 	schedule?:    #Schedule
@@ -705,13 +724,13 @@ _leasableWord: [for w, r in _capability if r.lease {w}]
 	retry?:      #Retry
 	on_error:    *"fail" | or(_onErrorWord)
 	lane?:       #Lane
-	concurrency: *1 | #Count // how many lanes or beds run at once
+	concurrency: *1 | #Count // how many lanes or deployments run at once
 }
 #Lane: {over!: #Name} // run once per item of the list a parameter holds
 #StageAlt: { // D-FLOW-1: a stage does exactly one thing
-	step:     {step!: [...#Step], #StageFields...}
+	step:     {step!: [...#DeploymentStep], #StageFields...} // D-FLOW-1: a stage observes the host venue
 	pipeline: {pipeline!: #Ref @ref(pipeline), #StageFields...}
-	bed:      {bed!: #RefSet @ref(pod, vm, local, android, kubernetes), #StageFields...}
+	deployment: {deployment!: #RefSet @ref(pod, vm, local, android, kubernetes), #StageFields...} // realize each, run its checks
 	ask:      {ask!: #StageAsk, #StageFields...}
 }
 #Stage: or([for _, a in #StageAlt {a}])
@@ -758,10 +777,10 @@ _leasableWord: [for w, r in _capability if r.lease {w}]
 	landing:        *"README.md" | #Text
 }
 
-// ════ M3 — deployments (§12) ════
+// ════ M3 — deployments (§17) ════
 #DeploymentFields: { // D-DRV-2: no driver field — the driver is user configuration
 	description!: #Text
-	step?:        [...#RuntimeStep]
+	step?:        [...#DeploymentStep]
 	disposable:   *false | bool
 	preemptible:  *false | bool
 	update_gate:  *"full" | or(_updateGateWord)
@@ -769,7 +788,8 @@ _leasableWord: [for w, r in _capability if r.lease {w}]
 	instrument?:  {[#Name]: #Instrument} // recordings attached to the run
 	ephemeral?:   #Ephemeral
 	need?:        #Need
-	with?:        #With // supplies the `parameter:` choices of the candy this deployment names
+	use?:         #Use
+	provide?:     #Provide // what it sets for its box and the nodes inside it (D-CAP-3)
 }
 #Instrument: {record!: or(_recorderWord)}
 #Ephemeral: {ttl!: #Duration}
@@ -815,7 +835,7 @@ _deploymentKind: {
 	android:    {create: #AndroidFields, connect: ["adb"], top: ["create", "connect"], admit: ["candy"], content: true}
 	agent:      {create: #AgentFields, top: []}
 } @vocab(registry)
-// The deployment kinds (§2, §12.1).
+// The deployment kinds (§2, §17.1).
 _deploymentKindWord: [for w, _ in _deploymentKind {w}]
 
 // The body every placement of a kind shares, and its two placements: created where written (the
@@ -842,7 +862,7 @@ _#TopNode: {for k, r in _deploymentKind if len(r.top) > 0 {(k): {
 	if len(r.beside) > 0 {[#InnerNodeName]: or([for b in r.beside {_#BesideNode[b]}])}
 }}}
 
-// ════════════════════════════════════════════════════════════════ Part 2 — user configuration (§17)
+// ════════════════════════════════════════════════════════════════ Part 2 — user configuration (§20)
 // What the user sets, never an authored document (D-LAW-6).
 #UserConfig: {
 	driver:          #Driver
@@ -859,7 +879,7 @@ _#TopNode: {for k, r in _deploymentKind if len(r.top) > 0 {(k): {
 #ResourceAlt: {for t, c in _capability if c.lease {(t): {(t)!: c.key, c.need...}}}
 #Resource: or([for _, a in #ResourceAlt {a}])
 
-// ════════════════════════════════════════════════════════════════ Part 3 — protocol (§8)
+// ════════════════════════════════════════════════════════════════ Part 3 — protocol (§4)
 // Moves to spec/protocol when implemented. A word payload (a kind's body, a verb's input, a
 // subcommand's arguments, an api's messages, a kind's state and grants) is #Opaque here because the
 // owning plugin's CUE module defines it (S10); it is validated against that definition on receipt.
@@ -872,7 +892,7 @@ _roleWord: [for w, _ in _role {w}]
 #ApiKey: #Key & =~"^api:"
 #CallId: =~"^[0-9a-f]{32}$"
 
-// ── the audit record (§17.9): one append-only record per mutation and per authority decision ──
+// ── the audit record (§20.1): one append-only record per mutation and per authority decision ──
 _auditEvent: {mutate: {}, authorize: {}, admit: {}, activate: {}, teardown: {}} @vocab(core)
 _auditEventWord: [for w, _ in _auditEvent {w}]
 _auditOutcome: {ok: {}, refused: {}, failed: {}} @vocab(core)
@@ -911,12 +931,12 @@ _detailCodeWord: [for w, _ in _detailCode {w}]
 #NodeInput: {
 	identity!:  #Ref
 	body!:      #Opaque // S10
-	reference!: {[#Ref]: #Resolved} // the linked references of the node (§4.1 stage 4)
+	reference!: {[#Ref]: #Resolved} // the linked references of the node (§11.1 stage 4)
 }
 #ArtifactRef: {form!: or(_formWord), digest!: #Digest}
 #Done: {}
 
-// The IR (§9.4): one action, tagged by its kind; each action is the content entry it installs.
+// The IR (§14.4): one action, tagged by its kind; each action is the content entry it installs.
 #ActionAlt: {
 	package:      {package!: #ActionPackage, #ActionFields...}
 	package_repo: {package_repo!: #ActionPackageRepo, #ActionFields...}
@@ -1010,7 +1030,7 @@ _streamMethodWord: [for w, r in _method if r.stream {w}] // D-PROTO-10
 #CaptureInput:  {#NodeInput..., capture: *"filesystem" | or(_captureWord)}
 #CaptureOutput: {artifact!: #ArtifactRef, process?: #Digest}
 #RestoreInput:  {#NodeInput..., artifact!: #ArtifactRef, process?: #Digest}
-#GrantInput:    {#NodeInput..., need!: #Need}
+#GrantInput:    {#NodeInput..., need?: #Need, use?: #Use}
 #GrantOutput:   {item: [...#GrantItem]}
 #CheckInput:    {config!: #Opaque, venue!: #VenueOutput, run_as?: #Name} // S10: the verb's input
 #RunInput:      {config!: #Opaque} // S10: the subcommand's arguments
@@ -1108,14 +1128,14 @@ _streamWord: [for w, _ in _stream {w}]
 #StreamResize: {height!: #Count, width!: #Count}
 #StreamExit:   {exit_status!: int}
 
-// ── the host service (§8.6) ────────────────────────────────────────────────────
+// ── the host service (§4.6) ────────────────────────────────────────────────────
 // D-PROTO-13: the closed set of host methods, with their inputs and outputs. M8: one `get` and one
 // `put` reach every store a plugin may use. A store is a row: the key that names an entry, the value
 // it holds, whether its key is the digest of its value (`addressed`), and whether a plugin writes it.
 #StoreRow: {key!: _, value!: _, addressed: *false | bool, put: *true | bool}
 _store: [#Word]: #StoreRow
 _store: {
-	content: {key: #Digest, value: #Base64, addressed: true} // the content-addressed store (§8.6)
+	content: {key: #Digest, value: #Base64, addressed: true} // the content-addressed store (§4.6)
 	state:   {key: #StateKey, value: #Opaque}                // S10: the record the calling kind's module defines (D-DEP-5)
 	secret:  {key: #Name, value: #Base64}
 	config:  {key: {}, value: #Opaque, put: false}           // S10: the caller's own section, under its own schema (D-STORE-2)

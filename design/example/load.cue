@@ -1,4 +1,4 @@
-// load.cue — stages 3 and 5 of DESIGN §4.1 for one document placed at `doc`, as D-LOAD-5
+// load.cue — stages 3 and 5 of DESIGN §11.1 for one document placed at `doc`, as D-LOAD-5
 // specifies: every key-tagged choice is resolved by the tag keys the author wrote, and only the
 // selected alternative is unified. design-examples.sh runs it as
 //
@@ -18,7 +18,7 @@ import "strings"
 doc:      _
 envelope:  #Envelope & doc
 
-// The directives of a document; every other key is a node name (§4.2 rule 2).
+// The directives of a document; every other key is a node name (§11.2 rule 2).
 #Envelope: {
 	repo?:     #Repo
 	plugin?:   {[#Name]: #RepositoryRef}
@@ -34,7 +34,7 @@ _kindKeys: {for n, v in _node {(n): [for k, _ in v if #KindAlt[k] != _|_ {k}]}}
 // The kind of a top-level node: its kind key, or "candy" (the default entry of #NodeAlt).
 _kindOf: {for n, ks in _kindKeys {(n): [for k in ks {k}, "candy"][0]}}
 
-// ── inner and beside nodes of a deployment body (§12.2), from the kind rows ──────
+// ── inner and beside nodes of a deployment body (§17.2), from the kind rows ──────
 // What a body of kind k admits inside it, and what may stand beside a node of kind k.
 _innerTable: {for k, r in _deploymentKind if len(r.admit) > 0 {(k): {for a in r.admit {(a): _#InnerNode[a]}}}}
 _besideTable: {for k, r in _deploymentKind if len(r.beside) > 0 {(k): {for b in r.beside {(b): _#BesideNode[b]}}}}
@@ -69,13 +69,14 @@ _inner: [
 // ── steps of top-level nodes and of their kind bodies, dispatched by intent ───────
 _intentSet: {for w in _intentWord {(w): true}}
 _verbSet: {for w in _verbWord {(w): true}}
+// Each step with where it was written: a kind body's steps are a deployment's (D-DEP-8).
 _stepList: {for n, v in _node {
 	(n): [
-		for f, l in v if f == "step" for s in l {s},
-		for k, b in v if #KindAlt[k] != _|_ for f, l in b if f == "step" for s in l {s},
+		for f, l in v if f == "step" for s in l {{value: s, deployment: false}},
+		for k, b in v if #KindAlt[k] != _|_ for f, l in b if f == "step" for s in l {{value: s, deployment: true}},
 	]
 }}
-_stepKey: {for n, l in _stepList {(n): [for i, s in l {
+_stepKey: {for n, l in _stepList {(n): [for i, e in l let s = e.value {
 	let intent = [for f, _ in s if _intentSet[f] != _|_ {f}]
 	// a run step's own `command` field shares the word of the `command` verb
 	let verbs = [for f, _ in s if _verbSet[f] != _|_ if !(f == "command" && intent == ["run"]) {f}]
@@ -103,6 +104,12 @@ node: {for n, v in _node if len(_kindKeys[n]) <= 1 {(n): #NodeAlt[_kindOf[n]] & 
 inner: {for x in _inner if x.error == _|_ {(x.at): x.table[x.key] & x.value}}
 // A check is unified with the one verb arm it names, never with the whole verb union (D-LOAD-5).
 _#CheckWith: {for w, _ in #VerbAlt {(w): {#CheckFields..., #VerbAlt[w]...}}}
-step: {for n, l in _stepKey {(n): [for k in l if k.error == _|_ {
-	[if k.verb != _|_ {_#CheckWith[k.verb]}, #StepAlt[k.key]][0] & _stepList[n][k.index]
+_#DeploymentCheckWith: {for w, _ in #VerbAlt {(w): {_#CheckWith[w]..., #DeploymentPhase...}}}
+step: {for n, l in _stepKey {(n): [for k in l if k.error == _|_ let e = _stepList[n][k.index] {
+	[
+		if k.verb != _|_ && e.deployment {_#DeploymentCheckWith[k.verb]},
+		if k.verb != _|_ {_#CheckWith[k.verb]},
+		if e.deployment {#DeploymentStepAlt[k.key]},
+		#StepAlt[k.key],
+	][0] & e.value
 }]}}

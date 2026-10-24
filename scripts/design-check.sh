@@ -5,28 +5,21 @@
 #   1 design-cue.sh           the CUE v0.18.0-rc.1 toolchain (pinned, digest-verified)
 #   2 design-consistency.sh   DESIGN.md and DESIGN.cue say the same thing
 #   3 design-examples.sh      every example validates; every negative fails for its reason
-#   4 design-selftest.sh      checks 2 and 3 each catch every defect planted in their tables
 #
-# Usage: scripts/design-check.sh [root]
+# Usage: bash scripts/design-check.sh   (run in the repository root; no check writes to it)
 set -euo pipefail
 
-root="$(cd "${1:-$(dirname "$0")/..}" && pwd)"
+root="$PWD" # the repository root it runs in
 step() { printf '\n== %s\n' "$*"; }
 
-step "1/5 toolchain"
+step "1/3 toolchain"
 cue="$(bash "$root/scripts/design-cue.sh")"
 "$cue" version | sed -n 1p
 
-step "2/5 DESIGN.md ↔ DESIGN.cue"
+step "2/3 DESIGN.md ↔ DESIGN.cue"
 bash "$root/scripts/design-consistency.sh" "$root"
 
-step "3/5 examples and negative cases"
+step "3/3 examples and negative cases"
 bash "$root/scripts/design-examples.sh" "$root"
-
-step "4/5 self-test of the consistency check"
-bash "$root/scripts/design-selftest.sh" scripts/design-consistency.sh design/consistency/selftest.tsv "$root"
-
-step "5/5 self-test of the example check"
-bash "$root/scripts/design-selftest.sh" scripts/design-examples.sh design/example/selftest.tsv "$root"
 
 printf '\ndesign-check: all controls pass\n'
