@@ -42,6 +42,11 @@
 //      `command`, under a step's own inputs OR outside any plan step) would silently
 //      escape the rule, so it is reported instead of ignored. A `command:` line inside
 //      a block scalar's body is TEXT, not a key, and is not reported.
+//   T. The PRINTED reference is the PRODUCT's own token (U+2026), never an ASCII
+//      rendering of it: a PR body pastes this gate's output verbatim, and the org's
+//      body linter refuses the AUTHOR's elision while allowing a program's own token
+//      (opencharly/marketplace#537). Asserted against this file's OWN text, because
+//      the printed token is this file's own text.
 //
 // NOT asserted, and why: whether a reference WOULD resolve. That needs the task's merged
 // env at run time (its params, its vars and its env), which a static read of the file
@@ -64,13 +69,17 @@ const root = rootIdx === -1 ? resolve(here, "..") : resolve(argv[rootIdx + 1]);
 const yamlRel = "charly.yml";
 
 /** The reference this gate forbids, as LITERAL text (a template literal would read
- *  `${...}` as an interpolation). Printed with the character the PRODUCT prints: this
+ *  `${…}` as an interpolation). Printed with the character the PRODUCT prints: this
  *  string is PRINTED, and a PR body pastes a gate's output verbatim, and the org's
  *  PR-body linter refuses the AUTHOR's elision of the evidence - an elided command
  *  line, an elided `head` command's output, a dropped line - while a program's OWN
  *  token is ALLOWED (opencharly/marketplace#537). This string is the program's, so the
  *  linter is right to allow it, and the ASCII rendering it used to need is deleted. */
 const REF = "${…}";
+
+/** The line this gate prints when it is clean. ONE owner for the printed text (R2), so
+ *  the self-test can assert the SAME string the main path prints. */
+const okLine = () => `check-task-command-vars: OK — no command step's text carries a ${REF} reference`;
 
 const STEP_RE = /^(\s*)-\s+([A-Za-z0-9_.-]+):\s*(.*)$/;
 const BLOCK_SCALAR_RE = /:\s*[|>][-+0-9]*\s*$/;
@@ -339,6 +348,30 @@ if (argv.includes("--self-test")) {
     console.log("  PASS  negative control — a brace-free $NAME read stays GREEN");
   }
 
+  // T. The PRINTED token is the PRODUCT's own token (U+2026). The printed text is THIS
+  //    FILE's own text, so the assertion reads this file — and a mutation of it turns the
+  //    assertion RED. (The ASCII rendering is spelled here in PIECES, never as a literal:
+  //    the R5 sweep greps for that literal, and the gate must not defeat its own sweep.)
+  const SELF = readFileSync(fileURLToPath(import.meta.url), "utf8");
+  const TOKEN = "…";
+  const printedRefOf = (src) => (src.match(/^const REF = "(.*)";$/m) || [null, null])[1];
+  if (!okLine().includes(TOKEN)) {
+    stFails += 1;
+    console.error("  FAIL  the printed reference is not the product's own token (U+2026)");
+  } else {
+    console.log("  PASS  the PRINTED reference is the product's own token (U+2026), not an ASCII rendering of it");
+  }
+  const mutatedSelf = SELF.replace(/^const REF = ".*";$/m, 'const REF = "${x}";');
+  if (mutatedSelf === SELF) {
+    stFails += 1;
+    console.error("  FAIL  the printed-token mutation did not apply — this file no longer declares `const REF = \"…\";`");
+  } else if (String(printedRefOf(mutatedSelf)).includes(TOKEN)) {
+    stFails += 1;
+    console.error("  FAIL  the printed-token assertion did NOT catch a reference that is not the product's own token");
+  } else {
+    console.log("  PASS  mutation 'the printed reference is not the product's own token — the claim this change makes' is caught by assertion T");
+  }
+
   if (stFails) {
     console.error(`check-task-command-vars --self-test: FAIL (${stFails})`);
     process.exit(1);
@@ -352,4 +385,4 @@ if (n) {
   console.error(`check-task-command-vars: ${n} finding(s)`);
   process.exit(1);
 }
-console.log(`check-task-command-vars: OK — no command step's text carries a ${REF} reference`);
+console.log(okLine());
