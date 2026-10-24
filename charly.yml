@@ -239,7 +239,7 @@ pins:
 # -----------------------------------------------------------------------------
 pin-check:
   task:
-    description: Assert the pin contract — every distro-* gitlink equals charly's own box/* gitlink (the EDGE), and every submodule is clean and checked out at its recorded gitlink (the CHECKOUT AUDIT)
+    description: assert the pin contract's consistency half — the EDGE (every `pin_map` entry equals its twin in the `pinned_from` checkout) and the CHECKOUT AUDIT (every declared path clean and at its recorded gitlink). It READS the index's gitlinks, the MANIFEST `charly.yml`'s `pins:` block and the DECLARED PATH SET `.gitmodules`, so a commit can violate it by moving a gitlink **or** by editing the manifest **or** by editing the declared path set — a commit that moves NO gitlink can still violate it. It is the half of `verify` that needs no remote (the per-submodule `git ls-remote` default-branch audit is the rest), and it is what `hooks/pre-commit` runs. Checkout DRIFT on its own — a checkout dirty or at another commit, caused by NO commit — stays with `charly task verify`
     dir: .
     plan:
       - check: the pin check holds
