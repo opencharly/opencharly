@@ -399,18 +399,26 @@ if [ "${1:-}" = "--self-test" ]; then
   # THE CURRENT PRODUCER SHAPE — the summary the product prints today, rendered by
   # ONE definition so that no arm can carry a shape of its own.
   #
-  # The shape, read from the product's own source (`candy/plugin-task/verbs.go:736`
-  # in the module the binary is built from — `charly/charly/go.mod` pins
-  # `plugin-task v0.2026296.2153`) and confirmed end to end by a real
-  # `charly task sync` run of this repo (the umbrella's wave PR #671):
+  # The STEP MESSAGE, read from the product's own source
+  # (`candy/plugin-task/verbs.go:736` in the module the binary is built from —
+  # `charly/charly/go.mod` pins `plugin-task v0.2026297.1542`) and confirmed end
+  # to end by a real `charly task sync` run of this repo (the umbrella's wave
+  # PR #671, and the wave that advances this pin):
   #     pinned N pin_map entr(y|ies) (…) after rolling M submodule(s) to their
   #     default-branch HEAD and advancing K pin(s) in the index
   # — indented six spaces under its step line, exactly as the product renders a
-  # step's message (`candy/plugin-task/cli.go:252`). The summary the product
-  # RETIRED in plugin-task#25 (the per-pin count this one replaced) is NOT this
-  # shape: the fixture used to carry it while this script's own self-test
-  # message claimed the arm covered "the current summary shape"
-  # (opencharly/opencharly#678).
+  # step's message (`candy/plugin-task/cli.go:261`, formatStepLine — the retired
+  # release cited a lower line number, and the retired one is gone).
+  #
+  # The HEADLINE is the task runner's own line (`candy/plugin-task/cli.go:210`),
+  # and the release this pin compiles in carries its THIRD bucket — a step that
+  # ran nothing is counted and disclosed:
+  #     task %s: %d step(s), %d failed, %d skipped
+  # The TWO-bucket headline this fixture used to render is the shape that
+  # release RETIRED, and the fixture carried it while this script's own
+  # self-test message claimed the arm covered "the current summary shape"
+  # (opencharly/opencharly#678). The summary the product retired in
+  # plugin-task#25 (the per-pin count) is likewise NOT this shape.
   #
   # The headline's step count is this fixture's own scenario (a one-step task);
   # the SHAPE under test is the summary line, which is what the product retired.
@@ -418,7 +426,7 @@ if [ "${1:-}" = "--self-test" ]; then
     local out="$1" names="$2" n
     n="$(printf '%s' "$names" | tr ',' '\n' | grep -c .)"
     {
-      printf 'task sync: 1 step(s), 0 failed\n'
+      printf 'task sync: 1 step(s), 0 failed, 0 skipped\n'
       printf '  [pass] run — bump the pins\n'
       printf '      pinned %d pin_map entr(y|ies) (%s) after rolling %d submodule(s) to their default-branch HEAD and advancing %d pin(s) in the index\n' \
         "$n" "$names" "$n" "$n"
@@ -435,6 +443,13 @@ if [ "${1:-}" = "--self-test" ]; then
   # regresses — which is exactly how the retired shape survived here.
   grep -qF 'pin_map entr(y|ies)' "$tmp/body4" || fail "the CURRENT producer summary must reach the body verbatim"
   grep -qF 'advancing 2 pin(s) in the index' "$tmp/body4" || fail "the CURRENT producer summary must reach the body verbatim"
+  # The HEADLINE is its own shape, and the release this pin compiles in carries the
+  # third bucket. The expectation is a CONCRETE instance of the product's current
+  # line — a renderer that regressed to the two-bucket form would not produce it,
+  # so this arm is what turns red when the fixture drifts back to the retired shape
+  # (the same discrimination the step-message arm above carries).
+  grep -qF 'task sync: 1 step(s), 0 failed, 0 skipped' "$tmp/body4" \
+    || fail "the CURRENT producer HEADLINE must reach the body verbatim"
   grep -q 'MISSING from producer log' "$tmp/body4" && fail "the excerpt must never inject a MISSING line — the producer's words are pasted as-is"
 
   # THE MIXED LIST — the class the pre-fix builder got WRONG (measured: the real 45-gitlink
