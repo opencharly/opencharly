@@ -1,0 +1,356 @@
+## B1 — the two-step branch-per-change loop
+
+**Step 0 — Create your session worktree.** Every session that commits,
+branches, or pushes works in its OWN worktree under
+`.claude/worktrees/<slug>/`, branched off fresh `origin/main` (B4 "Worktree
+hygiene") — never `git switch -c` in the shared main tree. Only ONE worktree
+can hold `main` at a time (B7), and a session doing `git switch -c` there
+hijacks the checkout from every other session on the system. The main tree
+stays on `main`; the session's edits, commits, beds, and PR all happen in its
+worktree, which it removes after the PR lands.
+
+**Step 1 — Author** (opens the PR; NEVER merges it):
+
+```bash
+# sync-before-start (see B4): branch off up-to-date origin/main INTO your
+# session worktree (step 0) — the main tree stays on `main`
+git fetch origin --prune --tags
+git worktree add .claude/worktrees/<slug> -b feat/<slug> origin/main
+#                                            ^ slug = kebab summary of the change
+# all edits, commits, beds, and the PR happen inside .claude/worktrees/<slug>/
+
+# ... implement the whole cutover; run beds freely throughout to VERIFY
+#     (Risk Driven Development: prove high-risk assumptions on a bed first) ...
+# commit LOCALLY as often as you like — any honest tier, amend freely —
+# nothing is pushed yet (the project rulebook "Commit, push, land")
+
+# run the change-class R10 gate on the COMMITTED tree you will push; on PASS,
+# reword the commit to the tier it EARNED, write the WHOLE body, then push and
+# open a READY PR (no draft PRs; never push at `syntax check only`). Do NOT merge:
+# the PR body IS the changelog — no CHANGELOG file is staged; the
+# org-wide tag-on-merge workflow writes CHANGELOG/<merge-time VER>.md
+# from the merged PR title + body after merge.
+git add <only the cutover's files>
+git commit -m "<conventional commit>" \
+  -m "Assisted-by: <Harness> <Provider Full Model Name> (<confidence>)"
+git push origin feat/<slug>                       # feat push — allowed by the gate
+gh pr create --base main --head feat/<slug> \     # fill the PR template completely (single org source: opencharly/.github/.github/PULL_REQUEST_TEMPLATE.md — no per-repo copy)
+  --title "<subject>" \
+  --body-file <pr-body.md>
+# STOP. Do NOT merge your own PR. Hand off to a FRESH pr-validator (Step 2).
+```
+
+**Step 2 — Org-wide gate** (`marketplace/internals/agents/pr-validator.md`, the fresh
+evaluator in NEW context): it independently re-validates the PR vs R0–R10 + the
+relevant skills and certifies `Verdict: PASS|BLOCK` for the ORG-WIDE
+`charly/pr-validator` GitHub Actions workflow (`opencharly/.github`), whose
+check run is the branch-protection context (green on PASS, red on BLOCK). On
+PASS the workflow enables GitHub native auto-merge (squash); after the merge
+the org-wide `tag-on-merge` workflow writes `CHANGELOG/<VER>.md` from the PR
+body, mints the `v<VER>` tag, and backfills any schema version bump. Its inputs include the
+PR's FULL comment thread, per the pr-validator spec's comment-intake rule — every
+comment is investigated independently and considered in the verdict, never
+granted or denied authority merely by existing (see
+`marketplace/internals/agents/pr-validator.md` "Comment intake", never restated
+here). The author pastes the validator's verbatim verdict + the gate outcomes
+(paste-proof survives delegation). On FAIL the check stays RED and the PR is
+**UPDATED IN PLACE** → the author reads every new comment and the full verdict,
+runs a fresh R1 RCA that names the MISSED CONTROL, fixes EVERY finding in the same
+tree, APPENDS ONE fix commit, and pushes it fast-forward (the check resets) → the
+validator re-runs ("BEFORE ANY UPDATE PUSH"). **Never close a PR and open a replacement to carry a fix.**
+
+Because the merge is a SQUASH and `main` is protected linear, `main` gains exactly
+ONE commit per cutover — the author's change, any review-round fix commits, and the
+version stamp, folded together.
+
+### Concurrent landings — N open cutovers do NOT serialize beyond git itself
+
+With several cutovers in flight (a multi-cutover program), **only two things are
+inherently ordered: the merge instants (git — seconds each) and any real dependency
+DAG between cutovers.** Everything else runs CONCURRENTLY, and no doc may mandate
+more serialization than that without a technical reason:
+
+- **Implementation** — one git worktree per cutover, per-worktree binaries for
+  verification (`/charly-internals:agents` "Per-worktree binaries", proven), bed
+  gates from multiple branches overlapping under the shared hardware ceiling.
+- **Validation** — fresh `pr-validator`s run CONCURRENTLY across all ready PRs
+  (each is an independent context; nothing couples them before the merge instant).
+- **After each merge** — every still-open PR goes `BEHIND` (branch protection is
+  org-wide via ONE ruleset, not per-repo-set: `opencharly/.github/scripts/org-ruleset.sh`
+  applies `strict: true` require-up-to-date with the single `validate / validate`
+  context to EVERY active `main`-default repo — ~409 today — so every repo in a
+  cross-repo cutover is covered; KEPT deliberately: one shared Go package with
+  no CI on `main` means merging a stale-base green PR opens a semantic-conflict
+  blind spot; that is the technical reason, not doctrine). Recover with
+  `gh pr update-branch` (never force-push), then a **risk-proportional DELTA
+  RE-GATE** re-posts the per-commit status: compute the overlap
+  `git diff --name-only <old-main>..main` ∩ the branch's touched files —
+  EMPTY → rebuild + `go test ./...` + `golangci-lint run` + re-post (minutes);
+  NON-EMPTY → additionally re-run the cutover's primary beds; a full roster re-run
+  only when the overlap hits the cutover's risky paths. The ORIGINAL full R10
+  against the branch's final code remains mandatory before the FIRST validation —
+  the delta re-gate covers only the mechanical update-branch merge on top of an
+  already-R10'd `main`.
+
+**Re-running the bed is HALF the remedy — re-pointing the citations is the other
+half.** `gh pr update-branch` merges `main` into the branch, and that merge can
+pull a new BUILDER-CHAIN input — a submodule gitlink advance, a candy change —
+into the very chain a bed's fixture image builds from. Every bed result pasted
+before that merge then describes a tree that is not the one being merged: true
+when written, false when read (`references/evidence-and-freshness.md`, "Three
+freshness surfaces, failing independently"). The delta re-gate above produces the
+fresh run; nothing in it updates the artifacts that CITE the old one, so a run
+directory named in the PR body or the CHANGELOG still points at a superseded tree
+— and it is the PR body that the tag-on-merge workflow writes to the CHANGELOG
+file at merge time.
+
+**Scope — block on what gets TAGGED, report what gets squashed away.** The
+CHANGELOG entry (written from the PR body at merge) and the PR body are both
+durable: the entry lands in the tagged
+tree, and a merged PR body stays public and quotable long after the branch is
+deleted. A superseded run directory in either is BLOCKING. An intermediate commit
+message is replaced by the squash merge, so a stale citation there
+is reportable but not blocking. The general form, which outlives the specific
+case: **a claim-keyed sweep runs LAST, once the final tree exists** — a record
+written alongside the change it describes is written before the tree its reader
+will check it against.
+
+**Before merging a superproject leg, verify every gitlink is an ANCESTOR of its own repo's
+`origin/main` — not merely that it matches a local checkout.** Those are different questions and
+only the first discriminates:
+
+```bash
+git config --file .gitmodules --get-regexp path | awk '{print $2}' | while read -r s; do
+  g=$(git ls-tree HEAD "$s" | awk '{print $3}')
+  (cd "$s" && git fetch -q origin &&
+   git merge-base --is-ancestor "$g" origin/main && echo "$s MERGED" || echo "$s NOT ON main")
+done
+```
+
+"The gitlink matches the submodule's HEAD" **cannot fail in the case it exists to catch**: a checkout
+sitting on a PR head satisfies it perfectly. Measured on one leg, that phrasing reported nine
+submodules clean while **four** named commits on no branch — and it counted seven, with both
+uncounted submodules in the failing set, so the miscount and the wrong question compounded.
+
+**An unmerged pin is worse than an early one:** when the target PR merges, the CalVer commit plus the
+squash produce a DIFFERENT sha, so the pin becomes permanently wrong rather than eventually right. A
+pin may legitimately name an unmerged head while its PR is open — the normal mid-flight state — but it
+must be re-derived from `origin/main` before the leg merges.
+
+Expect **post-squash staleness** too: a pin at a pre-squash feat head stops being an ancestor the
+moment its PR squash-merges. Check whether `origin/main` is strictly AHEAD (it usually is, carrying the
+CalVer finalization) before concluding anything was orphaned.
+
+**Gitlink ANCESTOR bump → `gh pr update-branch` flags CONFLICTING (recover
+locally).** When the just-merged delta and a still-open PR both bump the SAME
+submodule gitlink and one bump is an ANCESTOR of the other, GitHub's
+`gh pr update-branch` does NOT auto-resolve it — it conservatively reports the PR
+CONFLICTING instead of fast-forwarding the gitlink to the descendant. The
+compliant recovery is the update-branch EQUIVALENT done LOCALLY: in the feat
+worktree, `git merge origin/main` (git resolves the gitlink to the descendant
+commit automatically), then push the result FAST-FORWARD. A MERGE, never a rebase;
+no force-push — the exact constraints `gh pr update-branch` itself honors. **Then
+VERIFY the merge resolved the gitlink FORWARD** — `git ls-tree HEAD <sub>` (or
+`git diff --submodule=short origin/main..HEAD`) must show the DESCENDANT commit, never
+the ancestor: a recovery that silently re-pins the OLDER submodule bump is the exact
+regression this class produces (a sibling merge advances `main` mid-validation, then a
+naive recovery reverts the gitlink to the older pointer). Only after the descendant-wins
+check re-post the status and delta-re-gate as above.
+
+**Prefer the whole-tree check over this per-path one.** `git ls-tree HEAD <sub>`
+only helps when you already suspect the right submodule, and the failure it misses
+— a gitlink silently reverted by a merge that never conflicted, so the path is
+named nowhere — is the one that actually occurred. Compare the merge result against
+git's own resolution instead, which covers every path at once:
+`references/evidence-and-freshness.md`, "Submodule pointers can be reverted by a
+merge without ever conflicting". Use the per-path form above only as a quick
+confirmation once the whole-tree comparison has already told you where to look.
+
+**The docs site's pin lives ONLY in candy config, and no gitlink check can see
+it.** Since the docs de-submodule cutover, charly carries no `docs` gitlink;
+`candy/docs-site/charly.yml` records the tested `docs` sha twice in two plain-text
+surfaces — once as the `DOCS_REF` var (the clone step's ENV, hence that layer's
+cache key) and once as the literal matcher in the `docs-site-pinned-commit` check
+— and a merge resolves plain text line-wise, with no notion that those strings
+name a commit. So a recovery can leave the candy pinned at an older commit than
+the docs `main` the forward landing published: the same regression this class
+produces, one surface over, invisible to every instrument aimed at gitlinks. The
+gates are complementary — the gitlink checks compare checked-out repos;
+`task docs:pin` compares `DOCS_REF` against the docs repo's CURRENT `main` head
+(fetching `ls-remote`) and fails when they disagree, passing silently only when
+both regressed together. So run BOTH whenever a change touches the docs site. The
+rule is lockstep: the candy pins move with the docs `main`, on a recovery exactly
+as on the forward landing (B6a step 4, which also owns that re-pin's change class).
+
+**Multi-committer main advances — out-of-tree PRs from other committers.** The
+orchestrator is NOT the sole source of `main` advances: another committer (a human
+maintainer, a parallel session, an outside contributor via the fork+PR path) may
+land an unrelated PR on `main` WHILE this plan's `feat/` branches are in flight. The
+discipline above is main-advance-agnostic and applies to ANY merge regardless of
+source — treat an out-of-tree merge IDENTICALLY to an internal one:
+- **Detect proactively, not only reactively.** Fetch `origin/main` (and each
+  submodule's `main`) before opening EACH PR and before each merge — do not rely
+  solely on the orchestrator's own-merge broadcast. A `feat/` branch that goes
+  `BEHIND` from an external merge is recovered exactly as above (`gh pr
+  update-branch`, delta re-gate, forward-gitlink verify). `strict: true` is KEPT
+  precisely for this: a stale-base green PR merged over an external advance opens a
+  semantic-conflict blind spot, so the delta re-gate's overlap check
+  (`git diff --name-only <old-main>..main` ∩ branch-files) is what makes an
+  out-of-tree merge safe — EMPTY overlap → re-post; NON-EMPTY → re-run the primary
+  beds. A teammate pushing while `BEHIND` an external merge updates its branch and
+  reports the overlap for the orchestrator's delta-re-gate call.
+- **Divergent-lineage submodule bump (not ancestor/descendant).** The
+  descendant-wins rule above covers the common case (the external merge bumped a
+  submodule to a DESCENDANT of our feat's pin). If an out-of-tree merge bumps a
+  submodule to a commit NOT in our feat's gitlink ancestry (a divergent lineage — a
+  different branch merged, or a revert), do NOT blindly descendant-wins:
+  re-resolve the feat to the new `main`'s submodule commit, RE-RDD the affected
+  cross-repo composition (the composition-at-latest-versions high-risk unknown —
+  prove it on a `disposable: true` bed), and only then re-post status. A naive
+  update-branch that re-pins the OLDER or divergent gitlink is the exact regression.
+- **The rebase broadcast covers external advances too.** When the orchestrator
+  detects ANY `main` advance — internal OR external — it broadcasts the rebase to
+  every in-flight teammate and re-runs the per-merge delta re-gate over the
+  external delta; the orchestrator OWNS external-advance detection (it is the one
+  actor that fetches `origin/main` across all lanes).
+
+### The cross-repo WIP landing sequence — commit-to-rebase without shipping unproven code
+
+A multi-repo cutover hits a genuine tension: the WIP must be COMMITTED before a
+rebase onto freshly-advanced mains (a submodule-spanning working tree makes
+`git stash` unsafe — a gitlink stash can silently drop a submodule's in-progress
+pointer, R6), yet a runtime-class commit gate demands LIVE proof of the FINAL code,
+which does not exist until AFTER the rebase. Resolve it by committing at the tier
+that is HONEST at each stage on an UNPUSHED branch, then re-stamping the tier once
+the final code is proven — never by shipping anything pre-bed:
+
+- **(a) Freeze + exploratory roster.** Freeze the WIP and run the EXPLORATORY bed
+  roster against that frozen state (the `disposable: true` beds whose kinds match
+  the change).
+- **(b) Commit LOCALLY at the then-honest tier — do NOT push.** With the live
+  runner having actually run and its output pasted, the honest tier is
+  `analysed on a live system` (the project rulebook "AI Attribution"). Commit at that tier to
+  create the rebase-able base. The commit stays LOCAL.
+- **(c) Rebase onto the current mains.** Bring the branch onto the just-advanced
+  `origin/main` of every repo, and REGENERATE every generated file from the merged
+  sources (`charly task cue-gen`, codegen) — never hand-merge a generated artifact
+  (generated-artifact drift is an R1 incident).
+- **(d) Re-run the gates, re-freeze.** `go test` / `golangci-lint` / build /
+  `charly box validate` on the rebased tree, then freeze again.
+- **(e) FINAL roster on the rebased FINAL code.** The R10 acceptance roster runs on
+  the rebased, transitional-free code — the state that will actually ship.
+- **(f) Amend/reword to the EARNED tier, then push + open the PRs.** Re-stamp the
+  commit's attribution tier to what the FINAL roster earned (`fully tested and
+  validated` on a clean full pass). This amend is legal ONLY because the branch is
+  UNPUSHED — the "amend only before the first push" invariant above. THEN push
+  `feat/<slug>` and open the PRs (B1 step 1; multi-repo order = B2).
+
+Nothing pre-bed ever ships, and every intermediate commit states its attribution
+tier TRUTHFULLY at the stage it was made — the tier only ever moves UP, to match
+proof that now exists. No hook enforces this in any harness: the gate scripts
+contain no tier logic (`gate_test.py` asserts attribution text is ALLOWed as
+validator-owned), so tier truth is judged by the fresh `pr-validator`, per the
+rulebook's "never by hook regexes".
+
+## B4 — sync to upstream + prune (per repo: main, sdk, plugins, docs, box/*)
+
+- **Sync-before-start.** `git fetch origin --prune --tags`; ff local `main` to
+  `origin/main`. Never force-reset a diverged local `main` — if it cannot
+  fast-forward, STOP + run `/charly-internals:root-cause-analyzer`. (Local `main`
+  now only ever fast-forwards to what agent-validated PRs merged remotely.)
+- **Switch-to-upstream check.** Before opening the PR, confirm `origin` is the
+  canonical upstream and the PR targets the upstream `main` (not a stale
+  fork/branch). On mismatch, STOP and surface it.
+- **Prune merged branches.** `feat/` is deleted at merge (`--delete-branch` +
+  `delete_branch_on_merge`). Sweep leftovers: `git branch --merged main` → delete
+  local; `git fetch --prune` drops remote-tracking refs deleted upstream. **Only
+  ever delete branches confirmed `--merged`**; never `-D` an unmerged/abandoned
+  branch without operator confirmation — it may hold unlanded work.
+- **The mechanical reaper — `charly task prune`.** The per-session close-out
+  above is PROSE an agent self-enforces, and it is NOT executed when a session is
+  auto-closed at the validator's block threshold, when a fix lands on a NEW
+  branch/PR superseding an abandoned one, or when a session simply ends — so
+  worktrees and branches accumulate without bound (measured 2026-10-03: 108 worktrees and
+  ~900 local branches on one umbrella checkout). `charly task prune` (umbrella
+  `verb:prune`, plugin-task) is the ONE mechanical control that contract lacked: it
+  collects merged-upstream session worktrees + branches across the umbrella root
+  AND every submodule. It is **fail-safe by construction** — a branch is pruned
+  only when its merge is PROVEN (tip is an ancestor of `origin/main`, OR its PR is
+  MERGED and its tip is contained in the merged head — the squash-merge case git
+  ancestry alone cannot see); a branch carrying unmerged commits BEYOND a merged
+  head is never touched, and a worktree with modified tracked files is skipped. If
+  `gh` is unavailable (no auth/offline) it prunes strictly LESS. `MODE=report`
+  (default) is a DRY RUN; `MODE=prune` performs it. Run it from the umbrella root.
+- **Worktree hygiene — the per-session lifecycle (create → work → land →
+  remove).** Every session that commits/branches/pushes works in its OWN
+  worktree under `.claude/worktrees/<slug>/`, branched off fresh `origin/main`
+  (B1 step 0) — never `git switch -c` in the shared main tree, which only ONE
+  worktree can hold (B7). A session's own lifecycle:
+    1. **Create at session start** — after `git fetch origin --prune --tags`,
+       `git worktree add .claude/worktrees/<slug> -b feat/<slug> origin/main`.
+       The harness `EnterWorktree` tool does exactly this automatically.
+    2. **Work in it** — all edits, commits, beds, and the PR happen in that
+       worktree (B1 step 1); initialize only the submodules the cutover needs
+       (below).
+    3. **Remove after landing** — once `gh pr view <n> --json state` confirms
+       the PR is MERGED, `git worktree remove .claude/worktrees/<slug>` + `git
+       branch -d feat/<slug>` (clean-status and confirmed-merged checks first,
+       R6). A session never touches another session's worktree — each owns its
+       own lifecycle (an independent parallel session is NOT an
+       orchestrator-managed teammate; `/charly-internals:agents` "Worktree
+       lifecycle").
+  `git worktree list` inventories; `git worktree prune` clears stale admin
+  entries. Remove an agent `isolation: worktree` after its change lands. A linked
+  superproject worktree shares superproject objects but not submodule objects:
+  initialize only the submodules the cutover needs, and initialize each from the
+  common Git directory's matching `modules/<path>` reference so its clone records a
+  Git alternate instead of duplicating object packs. Verify the alternate and the
+  exact gitlink before use; never compensate with `/tmp`, a user cache, or an
+  unrelated recursive submodule checkout.
+
+## B8 — after the PR merges: the close-out checklist (landed repo → umbrella)
+
+A landing is NOT finished at the merge. Close the loop in the landed repo AND
+keep the umbrella consistent. Edge cases live in B4; this is the ordered
+sequence.
+
+**Where the session worktree lives — standalone clone vs umbrella (the ONE
+difference).** In a normal clone of a repo (`charly`, a plugin, `docs`, …) it
+is `.claude/worktrees/<slug>/` (B1 step 0). In the UMBRELLA
+(`opencharly/opencharly`, the ~400-submodule view) it is
+`<umbrella>/.worktrees/<slug>/<repo>/`, and the umbrella's TRACKED submodule
+checkouts stay DETACHED at their recorded gitlinks.
+
+**In the landed repo:**
+1. Confirm merged: `gh pr view <n> --repo <owner>/<repo> --json state,mergedAt`
+   → `MERGED`. Never clean up an unmerged PR.
+2. Remove YOUR worktree (clean status first): `git -C <repo> worktree remove
+   .claude/worktrees/<slug>`. Another session's worktree is theirs — never
+   remove it.
+3. Delete the local branch ONLY if merged: `git branch --merged main` must list
+   it, then `git branch -d feat/<slug>`. NEVER `-D` an unmerged/abandoned
+   branch without operator sign-off — it may hold unlanded work.
+   `delete_branch_on_merge` already deleted the REMOTE branch;
+   `git fetch --prune` drops the stale remote-tracking ref.
+4. Fast-forward the local default branch (`main`) ONLY: `git fetch origin
+   --prune --tags && git switch main && git merge --ff-only origin/main`. If it
+   cannot fast-forward, STOP and RCA (R1) — never force-reset a diverged main.
+
+**In the umbrella:**
+5. Remove your umbrella worktree after its PR merged: `git -C <umbrella>
+   worktree remove .worktrees/<slug>/<repo>`.
+6. Fast-forward the umbrella's own `main` (same ff-only rule).
+7. Advance pins ONLY with `charly task sync`, prove with `charly task verify`,
+   and land the bump as a normal `feat/` PR
+   (`chore(sync): bump submodule pins …`). A submodule pin is a GITLINK: its
+   checkout stays DETACHED at the recorded commit — NEVER `git -C <sub>
+   checkout main` / `git -C <sub> reset --hard origin/main` to "catch up" (that
+   dirties the umbrella and fails `verify`). Setting up a NEW repo is
+   `/charly-internals:repo-setup`.
+8. **Reap what the per-session steps missed:** run `charly task prune` (a dry run;
+   `MODE=prune` performs it). Steps 2/3 are the ONE session that remembers to run
+   them — an auto-closed, superseded, or simply-ended session never does, and
+   nothing else swept the leftovers until this verb existed. It reaps the merged
+   worktrees + branches across the umbrella and every submodule, proven-merged
+   only (see B4 "The mechanical reaper").
+

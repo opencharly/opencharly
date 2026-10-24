@@ -1,0 +1,249 @@
+# The pre-validator self-audit — one pass to avoid N BLOCK cycles
+
+The checklist the validator applies is the project rulebook's "What the
+validator checks" table: every check, the rule it enforces, and the skill
+section with its full criteria. The six classes below are the ones measured
+to cause first-push BLOCKs, and the preflight removes them before the push.
+
+## Why (measured, umbrella #286)
+
+Across 9 docs PRs landed in one session, 6 FIRST pushes BLOCKed; 17 validator
+runs total. Every block was one of five classes, each detectable BEFORE the
+first push. A BLOCK cycle costs a full `charly/pr-validator` run plus a
+re-review; a pre-push self-audit removes it. The one PR that PASSed first try
+had done this pass; the ones that did not, blocked.
+
+A SIXTH class was measured later, by opencharly/marketplace#404, on two more
+first-push BLOCKs — `opencharly/distro-fedora#79` and `opencharly/docs#142` —
+both body-only, and neither covered by classes 1-5.
+
+## The six classes (root causes)
+
+1. **Body claims the diff does not carry** (body-truthfulness): a pasted command
+   output that cannot reproduce (a sweep returning `(none)` while a
+   non-excluded file still held the token); a placeholder command
+   (`<org-map check>`) instead of the executed one; a title advertising a change
+   absent from the diff.
+2. **Change-class / tier misclassification**: `documentation-only` /
+   `documentation reviewed` claimed while a non-`.md` code/config file changed.
+3. **A1 incomplete rule accounting**: only some rules answered; a bare `N/A.`
+   with no reason.
+4. **Surfaced-failure parking (R1, CONC)**: a failing check pasted with
+   "pre-existing / unrelated / environmental" framing and neither fixed nor
+   filed as a real issue under `## Filed issues`.
+
+   **A gate your change turns RED in ANOTHER repo is the same class, whatever its
+   framing.** "The normal producer-first order" describes *why* the red is
+   expected; it does not dispose of the finding. Measured: a plugin PR that
+   canonicalized data the consumer had committed made the consumer's own
+   fail-closed `drift` gate report one stale artifact; the consequence was
+   disclosed in the body and not filed, and the validator correctly BLOCKed it.
+   A producer PR cannot regenerate another repository's artifact — which is
+   exactly why the remedy is the FILED half: an issue in the repo that owns the
+   artifact, a `WAITING` on both threads, and the close condition stated.
+5. **Split cutover (HC)**: content removed from surface A in this PR while
+   its replacement home on surface B is deferred.
+6. **The asserted-check overclaim (universal / negative quantifier)**: a claim
+   of COMPLETENESS stated as fact — "only occurrence in the repo", "every URL
+   checked", "no other file uses it", "the lists match `…`" — with no pasted
+   command and its output behind it. Measured pair: `distro-fedora#79` (a
+   repo-wide "only occurrence" with no command at all) and `docs#142` ("every
+   URL checked", two configured endpoints missing). A completeness claim IS a
+   check: paste the command that proves it, or drop the claim — never leave a
+   quantifier standing on the author's confidence.
+
+   **A PROPERTY of the surface the PR changes is the same species, and it does
+   not look like a quantifier.** Which fields are required, what a default is,
+   what a key's type is, what a value's indicator means — each is a check about
+   the very file the diff edits, and stating it from the design notes instead of
+   the committed file is the identical failure. Measured: `spec#247` round 1
+   BLOCKed on "*`#Skill`'s `name`, `description` and `content` become optional;
+   `family`, `owner`, `triggers` and `category` stay required*", when only
+   `family` and `owner` carried no `?` — `triggers` and `category` were already
+   optional and stayed so. No command stood behind the sentence, and the PR's
+   own test contradicted it.
+
+   **The PROSE half is the same class: a claim about the change's OWN
+   measurements is checked against the measurements, not against the code.** A
+   body that says "eight mutations" beside a paste that shows seven is the same
+   failure as a quantifier with no command behind it — the number is a claim
+   about a RUN, and the run is what decides it. Measured 2026-10-22: the umbrella
+   PR `opencharly/opencharly#591`'s round-6 body quoted the gate's arm count (eight)
+   while pasting the DEFAULT run (seven); the eighth is guarded by `if (samples)`,
+   so it never executes in the default mode. Both numbers were true of their own
+   runs, and the body paired them as though they were one. Count the arms the
+   pasted output shows, and quote the mode you pasted.
+   **And a RELATION over those numbers carries its OPERANDS.** A relation is
+   checkable only if the reader can re-derive it, and the operands are exactly
+   what the reader needs: state it **with its operands**, so a reader can
+   re-derive it by division from the pasted measurements — or drop it. A
+   relation whose operands are not in the paste is the same defect as a
+   quantifier with no command behind it. Measured 2026-10-23: the umbrella PR
+   `opencharly/opencharly#591`'s round-2 body said a bootstrapped tree was
+   "*still three orders of magnitude below the 9.5 G a full checkout occupies*"
+   while the two numbers the same sentence names are 124 M and 9.5 G — and
+   `9500 / 124` is 76.6, under two orders of magnitude. The sentence asserted a
+   relation its own operands contradict, in the PR that exists to delete a false
+   size claim.
+
+## The preflight (run BEFORE the first push)
+
+1. `git fetch origin`; if BEHIND, `gh pr update-branch` BEFORE writing the body,
+   so the diff is against current `origin/main`.
+2. Class the diff from `git diff --stat $(git merge-base origin/main HEAD)..HEAD`
+   — NEVER from intent. `docs-only` iff EVERY path is
+   `*.md`/comment-only/all-doc-submodule; else code/config, and
+   `documentation reviewed` is forbidden. Pick a tier the pasted evidence
+   supports.
+3. Paste ONLY commands you executed on THIS head, with their REAL output. No
+   placeholders. Show every filter/pathspec. If a known survivor exists (a
+   deliberately deferred reference), name it — never imply the sweep is
+   complete when it is not.
+   **3b. Re-read the WHOLE edited unit, not just the hunk.** A claim can
+   contradict the change inside the very text you edited: `distro-fedora#79`
+   was fixing a candy description while the description still said "injected
+   init" and "neither composed candy" — the fix and its contradiction shipped
+   together. Read the complete paragraph / string / template you touched, then
+   read its siblings (the other `description:`s in the same file) for the same
+   phrase. `docs#142` is the same failure one level up: a completeness claim
+   ("every URL checked") that two lines of the changed file already refuted.
+   **3c. Derive every asserted PROPERTY of the changed surface from the
+   COMMITTED file, and keep the claim and its command adjacent.** The command
+   that decides a requiredness, a default, a key's type or an indicator's
+   meaning runs against the file as committed — after the edit, from `HEAD` —
+   never the working tree and never the pre-edit text, and its output goes in the
+   body beside the claim or the claim is dropped. Reading the file and then
+   writing the claim from memory are indistinguishable in the resulting body;
+   only the pasted output tells them apart.
+   **3d. A fence is evidence about a HEAD, and it EXPIRES when the head moves —
+   re-run or drop EVERY fence in the body, not only the ones you just wrote.** A
+   fence carried across a head is indistinguishable from a fabricated paste to
+   the validator, which is right to block it. Measured: `spec#247` round 3 blocked
+   on a round-1 fence whose pasted `git diff --stat` showed `+38/−11` —
+   legitimate at round 1, when the generated file was not yet committed, and a
+   no-op by round 3. That round exposed the sub-case too: the command's first
+   re-run FAILED on a `TMPDIR` that did not exist, and a command that cannot
+   succeed is not evidence — an `rc` read from a pipeline rather than from the
+   command is how such a failure hides.
+   **3e. A consequence your change causes in ANOTHER repo is FILED, never
+   narrated.** When the diff turns a CONSUMER's gate red — its corpus, its
+   drift, a pin that no longer matches — file the issue in the repo that owns
+   the artefact, post `WAITING` on both threads, and state the close condition.
+   "Expected", "by design" and "the normal producer-first order" explain WHY it
+   is red; none of them is a disposition. R1's remedy for a consequence you
+   cannot fix in-tree is the filed half, and only the filed half.
+   **3f. A MEASURED FIGURE is a fence about a HEAD too — so it must be a BAND
+   over the samples, or a DATED point; never a bare point estimate.** A number
+   that is true of one run is true of that run. When the change is about
+   measurements (a size, a wall clock, a count of pins), the figure the prose
+   carries is either a BAND over every sample the branch produced, or a dated
+   reading that names what it was measured on. **A band that a sample has
+   outgrown is a defect in the BAND, not in the sample** — the honest band is
+   the union of the samples, and it is re-derived on the tree that carries it.
+   Measured 2026-10-23: the umbrella PR `opencharly/opencharly#591`'s `--all` band
+   was one second narrower than the branch's own samples, and the fix was the union
+   of the samples, re-derived on the tree that carries the band. **And a LIVE
+   reading is not a figure at all:** a count that changes as the org's remotes
+   advance belongs in the verb's own output, stamped there — never in prose, where
+   it is already stale by the time it is read.
+   **And a number that is NOT measured on a head is quoted by its SOURCE.** A
+   constant of a pinned dependency is not a measurement: it is not sampled, and
+   it has no date of its own, so 3f's premise — a MEASURED figure — does not
+   reach it, and quoting it as "*measured: 120 s*" states that something was
+   measured that never was. Name the source instead: the pinned spec's field,
+   the manifest's key, the upstream's constant. Measured 2026-10-23: the
+   umbrella PR `opencharly/opencharly#591`'s round-3 body quoted the never-hang
+   floor as "*measured: 120 s*", when 120 s is `readinessPerAttemptFallback` in
+   the pinned spec's `poll` package. A constant and a measurement are different
+   kinds of number, and the prose says which one it is holding.
+4. Account for EVERY applicable rule (the repo's numbered rules AND R1–R10)
+   with a one-line `HOW` or `N/A — <reason>`; never a bare `N/A.`
+5. NEVER surface a failure you cannot own. Either fix it (including the coupled
+   pin/migrate, not just the manifest) or omit it and paste only the repo's
+   authoritative gate. If it is genuinely separate (non-blocking), FILE it
+   and list the real `<repo>#<n>` under `## Filed issues` (R1) —
+   "pre-existing/unrelated" with no issue number is a BLOCK. The
+   repo's authoritative gate must be **DISCOVERED** (its CURRENT workflow file
+   under `.github/workflows/`, read from upstream — `gh api
+   repos/<o>/<r>/contents/.github/workflows` / `git ls-remote`), never
+   assumed from a brief or a memorized file name: `opencharly/.github#141`
+   deleted the per-repo `deploy.yml` gate from ~376 repos, so a brief-baked
+   gate name is a falsity the body would carry (R5/R1).
+6. One cutover = remove AND place in the SAME change. If the replacement home
+   does not exist yet, land the home first (producer-first). Removing content
+   whose home is deferred is a split cutover and is blocking, never filed.
+7. Guardrail / validator-spec edits (a validator's own prompt, a
+   `FORBIDDEN_*` list, a gate) are T4 self-modifying-security changes: they
+   need a maintainer-account sign-off or must be split into their own
+   signed-off change. The sign-off is posted BEFORE the next push or re-run,
+   never after (B2b.1 "How and when a sign-off is made"). Never WEAKEN a marker without pasted proof; prefer
+   strengthening.
+8. The PR title must match the diff.
+9. Arm the watcher (`marketplace/scripts/pr_state_watch.sh <owner>/<repo> <pr>`),
+   and run the read-in-full gate before EVERY update push (the project
+   rulebook "Before every update push: read everything, fix everything"):
+   every new comment and the full verdict read IN FULL; EVERY finding fixed or
+   rebutted with evidence; a fresh RCA naming the missed control posted in the
+   round's comment; then ONE new commit and ONE push — never re-dispatch the
+   same head, never push again while at the auto-close block limit.
+10. List every issue R1 filed or updated under `## Filed issues`
+   (`<repo>#<n> — <one line>`), and post `STATUS` on your claimed thread
+   (the project rulebook Part II #11).
+11. **Read the PUSHED RANGE's trailers — the body's footer is not the branch's
+    commits.** The linter below reads the BODY's last line, and no control reads
+    the commits the branch is about to push, so a trailer-less commit can sit
+    below the head while every control stays green. Measured 2026-10-23: the
+    umbrella PR `opencharly/opencharly#591`'s branch carried three published
+    merge commits with no `Assisted-by:` trailer — one per review round's
+    catch-up merge — and the gap surfaced only when the history was re-read by
+    hand. The range is the PR's BASE branch's head to this branch's head —
+    `origin/<base>..HEAD`, where `<base>` is the branch this PR merges INTO
+    (`origin/main` in the common case) — so it covers every commit the branch
+    contributes, INCLUDING the catch-up merges it pulls in from the base. Read
+    it with
+    `git rev-list origin/<base>..HEAD | while read -r c; do git log -1 --format='%B' "$c" | grep -q '^Assisted-by:' || git log -1 --format='%H %p%n%s%n%b' "$c"; done`
+    — each commit it names owes the trailer, unless it is a merge whose message
+    you did not write; the rule and that one exemption are in the org rulebook's
+    *AI Attribution* section. A commit you wrote that still owes the trailer
+    carries it BEFORE the push: amend it while it is local, and never rewrite a
+    published commit — a published gap is reported on the issue, not rewritten
+    (R6). **Run it over YOUR OWN head and over THAT range:** a range you chose
+    yourself proves a different range's commits, not the ones you are pushing.
+
+## The mechanical half — `scripts/pr_body_lint.py`
+
+The classes that need no judgment are checked by a TOOL, not by eye.
+`marketplace/scripts/pr_body_lint.py` fails closed (exit 1) before the push on:
+a missing required section (`## Summary`, `## How tested`, `## Rulebook
+compliance`, `## Change classification`); a trailer that is not the LAST line (or
+an `Agent:` line not directly preceding it); a rule with no answer, or a bare
+`N/A` with no reason (class 3); an asserted check with no LATER fenced block
+carrying a `$ ` command (class 6); a pasted head SHA that is not `git rev-parse
+HEAD` (class 1); and an AUTHORIAL elision inside a fence — an elided `$ `
+command line, an elided `head` command's output, or a dropped line of the
+paste. An ellipsis character that a PROGRAM printed in its own output is
+ALLOWED: the body pastes the product's output verbatim, so the product's own
+token is not an elision (`opencharly/marketplace#537`). Run it on the body
+file BEFORE the push:
+
+```
+python3 scripts/pr_body_lint.py <body.md> --repo <worktree>
+```
+
+The rule ids required in `## Rulebook compliance` default to R0-R10; a repo with
+its own numbered rules passes `--rules R0,R1,R2,R3,R4,R5,R6,R7,R8,R9,R10`.
+Exit 0 is clean, exit 1 is a finding to fix before the push.
+
+It removes the classes that need no judgment; whether the evidence is
+SUFFICIENT stays the validator's call. A body-only BLOCK that survives a clean
+lint run is a judgment failure, not a lint failure — which is exactly why step
+3b is not optional.
+
+## For the delegating parent
+
+A parent brief that spawns a worker MUST include this preflight, AND: (a) the
+worker reads the LATEST skill from `origin/main` (the worktree's `marketplace/`
+may be a stale gitlink), (b) it checks upstream `origin/main` and updates the
+base before writing the body, (c) it reports the FULL final verdict (not a
+paraphrase). The measured result: briefs carrying this pass produced first-try
+PASSes; briefs without it produced BLOCK→BLOCK→PASS.

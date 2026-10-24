@@ -1,0 +1,743 @@
+## B2 — multi-repo / multi-worktree coordination
+
+One logical change spanning several repos uses the **same `feat/<slug>` in each**
+(main, `sdk`, `plugins`, `docs`, `box/<distro>`), so the branches correlate. R10 runs
+against the **assembled superproject** (submodule pointers at the `feat/` commits)
+— the whole change is verified before any PR is opened. Then land in **dependency
+order**, each repo as its OWN two-step PR (author opens; fresh `pr-validator`
+merges + tags):
+
+0. the **sdk contract repo** (`github.com/opencharly/sdk` — NOT a submodule;
+   this repo consumes it from the module proxy at the pinned require version,
+   so only a touched CONTRACT lands there) — PR →
+   native auto-merge + tag-on-merge → tag `v0.<YYYYDDD>.<HHMM leading-zeros-stripped>` (its
+   Go-module tag scheme; the superproject `vYYYY.DDD.HHMM` form is not a valid Go
+   module version — e.g. superproject `v2026.185.0751` ⇄ sdk `v0.2026185.751`) —
+   whenever the cutover touched sdk content;
+1. each `box/<distro>` submodule — PR → auto-merge + tag-on-merge tags (it has `charly.yml`);
+2. `plugins` — PR → auto-merge **+ tag-on-merge tags `v<YYYY.DDD.HHMM>`** (it carries no `charly.yml`; the
+   tag marks the merge, same as every repo);
+3. the superproject — stage the now-MERGED submodule pointers (a touched sdk:
+   adopt the tagged sdk release as the new shared pinned require in every
+   module — `charly task mods-tidy` re-syncs go.sum and the canonical-go.mod gate
+   asserts the ONE shared pin; there is no gitlink and no `replace`) → PR → native
+   auto-merge + tag-on-merge tags `main`.
+
+A producer PR must be **merged** (not merely green) before the consumer's pointer
+bump — the superproject pointer must reference a commit that is on the submodule's
+real `main`, which only the merge produces.
+
+**A valid base is an ASSEMBLED PAIR, not a lone submodule advance.** A new consumer
+cutover branches from a base that is valid only once BOTH halves have merged: an `sdk`
+`main` advance is a valid consumer base ONLY after its superproject adaptation (the
+tagged sdk release adopted as the new shared pinned require — there is no gitlink) has
+ALSO merged. Branch a consumer off a bare
+`sdk` main advance whose super side is still open and you pin a superproject state no
+`main` records — the consumer's R10 builds against a half-assembled base and its pointer
+bump references a commit `main` has never seen. Wait for the pair before treating a
+producer advance as a base.
+
+**Submodule-pointer-bump safety (step 3) — bump AFTER the session worktree exists,
+then stage AND verify.** A `git switch` / `git checkout` — and equally the
+`git worktree add` that creates a session's landing branch — re-materializes each
+submodule at the gitlink the *target* records, silently discarding an **unstaged**
+working-tree pointer bump (it happens even with `submodule.recurse` unset — an
+unstaged gitlink is not carried across the switch / worktree-add). So bumping the
+pointer *before* creating the session worktree (`git worktree add
+.claude/worktrees/<slug> -b feat/<slug> origin/main`, B1 step 0 — the feat branch
+is created there at session start, never by `git switch -c` in the shared main
+tree) — or merely `git -C <sub> checkout <new>` without `git add` — drops it from
+the commit, and a `git add <sub>; git commit` afterward stages nothing because the
+working tree was reset to the old pointer. Always, in order: (a) create the
+session worktree + feat branch FIRST (B1 step 0); (b) THEN `git -C <sub>
+checkout <new-commit>` + `git add <sub>`; (c) VERIFY it is staged — `git diff
+--cached --submodule=short <sub>` must print `<old>...<new>`; (d) after committing,
+confirm the commit records it — `git show --stat` lists `<sub>` and `git ls-tree
+HEAD <sub>` shows `<new>`. A pointer-bump commit whose `--stat` omits the submodule
+is the silent-drop failure.
+
+**Attribution of the pointer-bump commit — derived from what it points at.** When
+the bumped submodule commit is itself all-documentation (a skill / `*.md` edit),
+the superproject pointer-bump commit IS the Documentation-only change class and
+lands at `documentation reviewed`: the fresh validator inspects the submodule's
+own `old..new` diff to certify it. A bump that integrates submodule CODE is a
+code class and takes a runtime tier, the docs riding along. So a docs-only skill
+cutover lands `plugins` (the `*.md`) at `documentation reviewed`, then the
+superproject pointer bump at `documentation reviewed` too — both halves honest.
+
+**The derivation stops at the gitlink, and the reason is a general rule: a change
+class must be decidable FROM THE DIFF.** A gitlink is a pointer git itself
+resolves, so "what it points at" is reachable from the PR — the validator reads
+the submodule's own `old..new` in the repo the PR is against, and the derivation
+above is certifiable without leaving it. A sha inside a candy `var:` is not: it
+is a string, and following it means cloning a remote repository at a named
+commit. Were "the referenced content is documentation" the test, the class would
+be a property of a tree the PR does not contain, and no validator could rule on
+it from the PR — which is why re-pinning `DOCS_REF` after a docs merge is a
+CONFIG change carrying its own bed gate (B6a step 4), no matter how documentary
+the commit it names. Any pin the diff cannot resolve behaves the same way. When
+the diff cannot decide the class, the class is the heavier one.
+
+**For the full multi-worktree end-to-end — the doc-tier `git -C` literal-path
+rule, and the mandatory post-landing worktree refresh — see B7.**
+
+### Per-module verification — verify by MODULE CLASS, and prove the fix is in the BINARY
+
+Two mechanics that bite every cross-repo landing:
+
+**Verify each Go module by its CLASS, always with `GOWORK=off`** (the repo is a Go
+workspace, so module-level checks must disable it or they pull the workspace's transitive
+requires):
+
+- **`sdk` is a STANDALONE-CONSUMED contract module** (out-of-tree consumers import it
+  directly), so it earns the full standalone battery: `GOWORK=off go mod tidy && go mod
+  verify && go build ./... && go test ./...`. It MUST tidy and build cleanly on its own.
+- **`charly` is a WORKSPACE MEMBER**, not a standalone module: verify it with `GOWORK=off
+  go mod verify` + the WORKSPACE build. A full standalone `go mod tidy` on `charly`
+  POLLUTES its `go.mod` with `candy/plugin-*` pseudo-requires (they resolve through the
+  workspace, not the module graph), and a standalone `go build` that fails ONLY on
+  `candy/plugin-*` imports is an ARCHITECTURAL fact (the plugins are workspace siblings),
+  never a defect to "fix" by hand-editing `go.mod`.
+- **`plugins` candies tidy PER-MODULE** — each candy is its own module; tidy/verify them
+  individually, never as one tree.
+
+**Prove a fix is in the BUILT BINARY by a content marker, NOT by the version stamp.**
+`scripts/calver.sh` derives the CalVer from the HEAD commit's UTC time (`TZ=UTC0 git
+log -1 --format=%cd --date='format-local:%Y %j %H %M'` — the `TZ=UTC0` is what makes
+the bare `%cd` UTC; without it `%cd` uses the commit's own TZ offset), so the stamp
+identifies the SOURCE COMMIT, never the build moment — a
+`scripts/bootstrap-charly.sh` on a DIRTY working tree reports the IDENTICAL version as the clean
+commit under it. So `charly version` matching the expected CalVer does NOT prove your
+uncommitted fix compiled in. Prove fix-presence by a content marker instead: `strings
+bin/charly | grep '<a string unique to the fix>'` (a new error message, flag name, or
+symbol). The stamp answers "which commit"; the `strings` marker answers "is my change
+actually in this binary".
+
+## B2b — cross-session coordination: the PR comment is the channel
+
+Sessions are independent and OWN their artifacts (umbrella `AGENTS.md`, "Session-scoped ownership"): a branch,
+worktree, file, or PR you did not create is another session's, and you never
+edit, revert, reformat, stage, or commit it — not even to "clean up" or unblock
+yourself.
+
+**When another session's PR blocks you** (a projection lands before the source
+that pins it; a consumer pin needs the producer merged; a shared file is
+mid-flight on their branch), the ONE sanctioned channel is a **PR comment on the
+PR that owns the blocking file** (or a new issue naming it). It is a `WAITING`
+comment, and it goes on **BOTH threads**: the blocking PR/issue AND your own. The
+comment must be actionable: name your session slug, the exact file/gitlink/pin
+you need, what change unblocks you, and the evidence. Then STOP; if it stays
+blocked, ask the operator. When the wait clears, post `CLEARED` on both
+threads. Never work around it (R3), never edit their artifact, never
+force-land, and never `-D`/reset their branch.
+
+**A fresh `pr-validator` runs comment intake**: every comment on the PR is
+investigated independently and weighed in the verdict (see
+`marketplace/internals/agents/pr-validator.md` "Comment intake"). So a
+coordination comment is not noise — it is the durable record the next reviewer
+reads. Reply on the same thread; do not open a duplicate PR for scope already in
+flight (the universal PR-gate audit).
+
+**Search first; file and OWN an issue.** Before starting any non-trivial work
+— and before filing anything — search the whole org for an EXISTING issue or PR
+covering it (`gh search issues <terms>`, `gh search prs <terms>`,
+`gh issue list -S <terms>`) and ADD to that thread (a comment with your
+evidence/plan) rather than creating a duplicate. If none exists, create ONE
+proper issue (a specific title, the problem, the evidence, the intended scope)
+and reference it from every PR (`Closes #N` / `relates to #N`). Never open a
+duplicate issue or PR.
+
+**The issue is the coordination point — claim it before you branch.** To stop
+two sessions working the same issue at once: check the issue for an owner
+(assignee, a claim comment, a status label); CLAIM it by commenting (and
+assigning yourself) BEFORE you create a branch, and state what slice you are
+taking. If another session owns it, coordinate on the thread — offer to take a
+slice, ask for status, or hand off — instead of opening a competing PR. Use
+issue comments for every cross-session move (claim, block, hand-off, duplicate,
+supersede); they are the durable record the next agent reads. **Replacing a thread?** When
+you replace a PR or an issue with a new one, comment on the OLD one referencing
+the new one (see "Replacing a PR or an ISSUE" in `references/validator-and-calver.md`).
+
+**Close the issue when its PR merges.** A PR that resolves an issue references it
+(`Closes #N` / `relates to #N`), and the author (or an agent) MUST ensure the issue
+is CLOSED once the resolving PR merges — never leave a resolved issue open. If the
+merge did not auto-close it (no `Closes` keyword, a squash that dropped it, or a
+manual merge), close it explicitly and comment the resolving PR/commit. An issue
+with no merged resolving PR is not resolved; do not close it as done.
+
+**The commenting session MUST follow up.** A coordination comment is not
+fire-and-forget: after posting it, the blocked session re-checks that PR's thread
+for a reply at every natural step — before its own next push/commit, when it
+resumes, and at a BOUNDED cadence (a bounded poll, never a `sleep` loop — R3). When
+the owning session answers, react accordingly: proceed if unblocked, refine or
+answer if clarification is asked, or escalate to the operator if it stays blocked.
+A one-shot comment with no follow-up leaves the block unresolved and the record
+one-sided.
+
+**Keep other sessions informed — progress and blocks are posted, never discovered**
+(the project rulebook Part II #11). Coordination is a duty the OWNER performs:
+
+- **Look before you start, and again before every push.** Search the org for open
+  issues and PRs touching your scope (`gh search prs <terms> --owner opencharly
+  --state open`, `gh search issues …`), read their latest `CLAIM`/`OWNING`/`STATUS`,
+  and check `git worktree list`. Never start or push over a live claim.
+- **Post `STATUS` at every milestone** on your claimed issue or PR: when you claim it,
+  when you open the PR, at the end of each review round, when you are blocked or
+  unblocked, and when you hand over or land. Each `STATUS` names the current head,
+  what is done, what is next, and when the next update is due. Silence is what lets
+  the takeover window (B2b.1) start, so an owner who wants to keep a claim keeps
+  posting.
+- **Say so the moment you hold someone up.** When YOUR issue or PR is holding another
+  session's progress (you hold a file, a producer they pin, a gitlink they need), post
+  `HOLDING` on BOTH threads immediately. Name the held item, what you hold, and
+  your expected unblock. Do not wait for them to find it.
+- **Answer coordination before your own work.** A `WAITING`, a `HOLDING`, a `TAKING OVER`,
+  or a question addressed to your slug is read in full and answered in-thread before
+  your next push.
+- **Record every thread** you claimed or posted `WAITING`/`HOLDING` on in the session ledger
+  (`/charly-internals:agents`), so an interrupted session resumes its reporting.
+- **Close out:** `RESOLVED` on every coordination thread you opened, once the work
+  lands.
+
+**The PR-owning session MUST read AND act on every comment/reply before its next
+push**: the "BEFORE ANY UPDATE PUSH" invariant in this skill's SKILL.md, which covers
+the PR AND every related issue. An unread issue reply can mean another session has
+claimed or changed the work since you branched. The loop is: blocked session
+comments → owning session answers/acts → blocked session re-checks and reacts.
+
+### B2b.1 — agent identity and the coordination verb grammar
+
+**Identity is in the footers; authority is in the verb.** An agent
+identifies itself with TWO italic lines at the END of a comment or PR
+body — the `Agent:` line naming the WORK and the session, then the
+`Assisted-by` trailer. **One canonical order on BOTH surfaces: `Agent:`
+FIRST, `Assisted-by:` LAST** (in a PR body this also satisfies the
+validator, which requires the `Assisted-by` trailer to be the FINAL line).
+The slug is NEVER appended to `Assisted-by`:
+
+```markdown
+*Agent: `<slug>` · session `<ses_…>`*
+*Assisted-by: <Harness> <Provider Model> (<confidence>)*
+```
+
+- **agent slug** — a stable, human-readable, kebab-case name the session
+  chooses for the WORK (`c7-plugin-adoption`), never the harness or the
+  GitHub account. It is the authority key.
+- **session** — the harness session id.
+
+**Optional by default; MANDATORY on the trigger.** Neither the `Agent:`
+line nor the verb grammar is required of a solo agent on an uncontended PR
+— never tax every comment. They become MANDATORY the moment EITHER holds:
+
+1. **two or more agents work the same issue or PR**, or
+2. **the scope is a blocking dependency** (any `WAITING` / `HOLDING` / `CLEARED` is in play).
+
+On a triggered scope, EVERY agent-authored comment and PR body carries the
+two-line footer, and coordination comments open with the verb.
+
+**The first non-blank line of a coordination comment is ONE label from a
+CLOSED set**, uppercase, then sharp prose in proper GitHub Markdown
+(headings, bold, tables, inline code):
+
+| Verb | Means | Required fields |
+|---|---|---|
+| `CLAIM` | taking a scope before branching | scope ref, your slug, the slice |
+| `OWNING` | the standing owner of a live scope | scope ref, your slug |
+| `HANDING OVER` | the owner passes the scope to a named slug | scope ref, from-slug, to-slug, state + next step |
+| `TAKING OVER` | a slug assumes an unowned or window-expired scope | scope ref, your slug, `authority:` |
+| `WAITING` | this scope is waiting on another scope | waiting-on ref, what you need, what unblocks it |
+| `HOLDING` | this scope is holding another scope up | held ref, what you hold, what unblocks it |
+| `CLEARED` | the wait is over | ref, who cleared it |
+| `STATUS` | progress, no authority change | scope ref, your slug, state |
+| `RESOLVED` | the scope is done | merged PR ref + `v<CalVer>` tag |
+
+The set is CLOSED, and it is the whole set: a coordination comment opens with one
+of those nine labels and nothing else. A comment whose first non-blank line is any
+other word is not a coordination comment, so a gate looking for one does not count
+it. The set changes only through a rulebook change, landed like any other.
+
+Rendered example — a claim on a PR:
+
+```markdown
+**CLAIM** — `opencharly/layer-charly-internals#41`
+
+Claiming the `git-workflow` B2b identity/grammar slice; will push `feat/agent-coord-grammar`.
+
+*Agent: `agent-coord-grammar` · session `ses_f1ca67065ffe71KOr87cfv8aNw`*
+*Assisted-by: OpenCode opencode-go/deepseek-v4.1-flash (analysed on a live system)*
+```
+
+**Same-account authority — the slug is authoritative, not the GitHub
+author.** Sessions on one host share ONE account, so the comment author
+field cannot tell two agents apart; across accounts it still cannot name
+the work. For a scope, the LATEST `OWNING` (or `TAKING OVER`) comment
+wins. An agent MUST NOT push to a branch/PR another slug has claimed
+unless (a) a `HANDING OVER` addressed it, (b) it posts `TAKING OVER`
+naming its authority, or (c) the operator authorizes it. A coordinator
+relaying another leg's status is NOT a claim — a claim requires the verb.
+
+**The progress signal is a COMPLETED VALIDATOR RUN — never session
+activity.** Coordination progress on a scope is a `charly/pr-validator`
+run **COMPLETING** on a new head (a new commit or a new comment also
+count). A looping agent never falls quiet, so activity is a false
+positive; and a peer **waiting on a RUNNING validator looks quiet — it is
+working, not stalled.** Detect a stall/loop ONLY as **no new completed
+verdict within the window while the scope is open and unmerged** — never
+by silence. A monitor/coordinator MUST watch the scopes actually in
+flight: the repo set changes as work moves, and a **stale watch list
+produces false stalls** (a real failure today).
+
+**Window-based takeover — comment-FIRST.** A `TAKING OVER` comment MUST
+cite `authority: hand-off | operator | window-expired` and MUST be posted
+BEFORE the first push to the taken scope. A takeover may proceed ONLY
+after ALL of:
+
+1. **A coordination comment posted on the scope FIRST** — an ownership
+   board, or a `WAITING`/`HOLDING`/`STATUS` addressed to the owner, asking them to
+   reply with their status or `HANDING OVER — <reason>`. **No comment, no
+   takeover, ever.**
+2. **The window elapsing** with **no answer from the original session AND
+   no progress** (the progress signal above). **The window is 60 minutes**
+   — a FLOOR, measured from the timestamp of that comment: it may be
+   EXTENDED, never shortened without operator sign-off, and **any answer
+   from the owner RESETS it.** A scope with no progress for the window
+   while open+unmerged is `window-expired`.
+3. **`TAKING OVER — authority: window-expired` posted BEFORE any push.**
+   The takeover is WITHDRAWABLE if the owner replies.
+
+**Auto-close carry-forward — continue on a CLEAN thread, cross-referenced
+on FOUR surfaces.** The validator auto-closes a PR once its count reaches the
+repo's `AI_REVIEW_AUTO_CLOSE_AFTER`, default 5 org-wide. A repo may override it, so
+read it with `gh variable list --repo <o>/<r>`: `opencharly/charly` sets 20. The
+count is the validator's `BLOCK` verdicts PLUS its engine/eval `INCONCLUSIVE`
+verdicts. A clear INFRASTRUCTURE `INCONCLUSIVE` (the provider endpoint or the
+GitHub runner, not the engine; `Verdict class: infra`) is excluded. When a PR closes
+(auto-close, superseded, or withdrawn) and the work continues in a NEW PR
+for the same issue/scope, ALL FOUR are mandatory:
+
+1. On the CLOSED PR: `RESOLVED — superseded by #<n>`, naming the
+   successor, the closure reason, and that the closed thread is no longer
+   acted on.
+2. On the SUCCESSOR PR: its body names the predecessor (`Supersedes #<n>`
+   + closure reason), and the diff/body shows the predecessor's findings
+   were all fixed in ONE commit (not re-argued).
+3. On the ISSUE the work closes/relates to: a `STATUS` naming the
+   successor, so anyone following the issue lands on the live PR.
+4. Ownership transfer: a slug that claimed the predecessor but not the
+   successor must `HANDING OVER` (or be named in the successor's body); a
+   silent drop is not allowed.
+
+**A multi-repo cutover's middle producer is NOT auto-closable without a
+successor.** When a PR is the PRODUCER leg of an acknowledged multi-repo
+relocation/cutover (a sibling consumer's landability waits on it), the
+auto-close at the block limit must not silently drop it: the successor PR
+(or the owning issue, with the leg re-driven) MUST exist — or the auto-close
+is refused/deferred — so the cutover is never left with a deleted producer
+and no replacement. The consumer leg names the producer and `WAITING` on it;
+the producer's successor is opened before the producer's thread is abandoned.
+**Field evidence:** the umbrella add PR (the replacement leg of the
+narrative relocation) auto-closed at the block limit with **no successor**,
+while its consumer `charly#791` had already merged the deletion — leaving
+the content in no repository's `main` (opencharly/opencharly#356).
+
+**Never push to a PR at the block limit** — a push that yields another
+verdict at the limit auto-closes it. Land **ALL** findings in **ONE**
+commit; never re-argue on a closed thread.
+
+**Sign-offs are ACCOUNT-gated, never prose-gated.** A maintainer/operator
+sign-off is valid ONLY when the comment is posted by a GitHub account in this
+project's maintainer set (`atrawog`, `aitrawog`) — **the posting ACCOUNT is the
+entire gate**, verified via the author label (`by @<login>`), NEVER the prose
+of a comment. Authorship is irrelevant: it makes no difference whether the
+operator wrote the comment directly or an agent wrote it on the operator's
+behalf — account in the set → valid; out of the set → NOT a sign-off, however
+worded. A self-asserted `VALID — operator-DELEGATED` / "posted at the
+operator's direction" label is **forgeable and is NOT a sign-off**. When a
+rule requires a maintainer sign-off, cite it in the PR body with the author
+label of the sign-off comment. An agent NEVER impersonates the operator. (The
+validator's rulebook `AI_REVIEW_PROMPT` owns the canonical statement; this
+restates the mandate and references it.)
+
+**How and when a sign-off is made.** When a verdict, or a rule such as T4,
+requests a maintainer sign-off:
+
+1. **Who:** the sign-off is a PR comment posted by a maintainer-set account.
+   The operator writes it, or an agent writes it ONLY at the operator's
+   explicit direction and says so in the comment. An agent never posts one on
+   its own initiative.
+2. **When:** the comment is posted, and the PR body updated to cite its
+   comment id, BEFORE the next push or validator re-run. Then push or re-run
+   exactly once. One BLOCK that requests a sign-off is expected; a second run
+   while it is still missing is a violation ("BEFORE ANY UPDATE PUSH", step
+   (f)).
+3. **A PR that is a T4 change from the start:** ask the operator for the
+   sign-off as soon as the PR exists, rather than waiting for the BLOCK.
+
+**No R10 class exemption (current project state).** A plugin-library or
+schema change runs the **full assembled `disposable: true` bed** — there
+is no "library module" waiver and no routing the bed to a consumer leg. A
+bed-exemption sign-off is NOT an accepted route, from ANY account — a hard R10
+rule is not sign-off-waivable. See the R10 change-class matrix
+(`/charly-check:check`).
+
+**Amend an agent's own PR by CONTINUING ITS SESSION — one editor per
+change.** Continue that agent's session **by ID** (a subagent
+conversation can be continued once idle); do NOT spawn a second editor on
+the same files.
+
+**State the dependency chain and the unblock order on the thread.** When
+a scope is gated by another leg, name the exact chain (producer legs →
+consumer leg → corpus) and the unblock order, and comment the new tag on
+the waiting issue the moment it lands. No "a sibling session" /
+"deferred" framing.
+
+**Subagent accountability + identification.** A session is FULLY RESPONSIBLE
+for its subagents: it owns each dispatched subagent's guidance, results, and
+EVERY action the subagent takes (pushes, PRs, comments, takeovers, sign-offs);
+responsibility does NOT delegate away with the task — the parent cannot disclaim
+a subagent's error. An action taken by a subagent MUST identify itself and name
+its parent, so the chain of responsibility is followable — the footer extends to
+`*Agent: <slug> (subagent of <parent-slug>) · session <ses_…>*` + the
+`Assisted-by:` trailer (`Agent:` FIRST, `Assisted-by:` LAST). `CLAIM` /
+`TAKING OVER` / `HANDING OVER` / `WAITING` / `HOLDING` are addressed to the accountable PARENT,
+not merely a subagent. A `CLAIM` carries a PRODUCE-OR-HAND-OVER duty: produce an
+artifact or `HANDING OVER` with the reason — "still investigating" past the
+window is a silent block, not progress.
+
+**The parent's MONITORING DUTY.** Responsibility implies a duty to monitor: a
+session MUST NOT dispatch-and-forget. The parent MUST actively watch each
+subagent's artifacts and INTERVENE when the subagent STALLS (no artifact
+progress — no push, PR, or completed `charly/pr-validator` run — within the
+window; the SILENCE/STALL ALARM) or receives ONE BLOCK after another (not
+converging toward the 5/5 auto-close) — re-brief it with the exact findings, take
+over the fix, or take over the PR under the comment-first hand-off rule, BEFORE
+the auto-close. Liveness ≠ progress: judge progress by ARTIFACTS (a pushed
+branch, a new commit, an opened PR, a merged tag), never a session heartbeat or
+"still investigating". BEFORE dispatch: complete, correct guidance (the owning
+skills, the binding rules, the EXACT deliverable) and a defined completion
+(merged, with the tag). AFTER dispatch: independently VERIFY the artifacts (PR
+state, merge, tag, gate output) — never trust the subagent's own report. AT
+session end: no orphaned scopes — complete them, explicitly `HANDING OVER`, or
+report blocked. Monitor the PRs blocking your own work too: fire on `merged`
+(unblocked), `closed` (find its successor per the carry-forward rule), and
+`stall` (takeover candidate under the comment-first 60-min rule). Monitoring a
+subagent is how the parent discharges its accountability; a parent that does not
+watch its subagents is NOT compliant.
+
+**A sign-off is never impersonation.** An agent NEVER impersonates the
+operator: no comment, sign-off, or approval may claim to BE them. A sign-off
+is valid ONLY when the posting account is in the maintainer set (the
+ACCOUNT-gated rule above) — never on the prose of a label. The validator's
+rulebook (`AI_REVIEW_PROMPT`) and the skill must agree on this form.
+
+**Grep the grammar** (the label is the first non-blank uppercase line):
+
+```bash
+gh pr view <n> --repo <r> --json comments --jq '.comments[].body' \
+  | grep -E '^(CLAIM|OWNING|HANDING OVER|TAKING OVER|WAITING|HOLDING|CLEARED|STATUS|RESOLVED)\b'
+gh pr view <n> --repo <r> --json comments --jq '.comments[].body' \
+  | grep -oE 'Agent: `[^`]+`'         # who has a voice on this PR
+```
+
+**Lifecycle:** search → `CLAIM` (comment + assign where possible) → work →
+`HANDING OVER` → `RESOLVED` (link the merged PR + its CalVer tag, and close
+the resolved issue). The SAME protocol applies across accounts and
+harnesses — the footer carries identity regardless of who owns the GitHub
+account; there is no per-account case.
+
+### B2c — the PR backlog sweep (org-wide triage)
+
+When the ask is to clear the backlog — "check all open PRs, close the superseded,
+take over the stalled" — triage from LIVE state, never from a thread's claim: a
+"blocked" PR's blocker may already have landed, and a "superseded" PR may never
+have been closed.
+
+1. **Enumerate authoritatively.** `gh search prs --owner <org> --state open --limit
+   200` is the snapshot, but search is index-backed; reconcile its total against
+   per-repo `gh pr list --state open` before declaring the set complete.
+2. **Classify each PR by its artifacts** (`gh pr view <n> --json
+   state,comments,statusCheckRollup,commits,mergeable`, or arm the watcher):
+   - **superseded** — a successor carries the same work (successor MERGED, or an
+     existing `Superseded by #<n>` comment). Close it with the carry-forward
+     comment if the thread lacks one — see `references/validator-and-calver.md`
+     "Replacing a PR".
+   - **actively worked** — a commit, comment, or completed `charly/pr-validator`
+     run on the current head within the working window. Leave it.
+   - **stalled** — none of the above. Start the formal takeover (B2b).
+3. **Act, then arm — never hand-poll.** Close the superseded. For each stalled PR
+   post the ownership-board comment (`OWNING` or `STATUS` / `HANDING OVER —
+   <reason>`) and arm `gh_watch.sh --events comment,stall <item>` so the reply OR
+   the window's end wakes you (`references/watch-and-wake.md`); after the window
+   with no reply, `TAKING OVER — authority: window-expired` (B2b). Treat a
+   cross-leg block as a dependency to verify, not a verdict to accept: name the
+   chain and the unblock order on the thread.
+
+## B3 — agent teams in per-teammate worktrees
+
+When an agent team parallelizes work, **each teammate works in its OWN worktree**
+under `.claude/worktrees/<slug>/` (B1 step 0) — the same worktree-per-session
+model every session uses, never a shared checkout. A team is N worktrees, each
+with its own `bin/charly` and its own freshness-guard scope; there is no
+shared-tree alternative. Within a worktree, **the check bed is the unit of
+isolation**: each teammate owns a disjoint check bed's SOURCE files; distinct
+beds get distinct `charly-<bed>` container/VM/domain names, and a bed run tags
+every fixture IMAGE it builds with a per-run `<bed-root>-<runCalver>` tag (#75)
+so two beds building the SAME fixture image name never race the store-global tag
+namespace; host-port disjointness is not statically guaranteed, so every bed
+uses port auto-allocation — never a hardcoded host port (the loader checks no
+ports, so a collision surfaces only at deploy; manual port-picking is
+forbidden), and a bed pins an
+image → layers → files, so bed-ownership already isolates the source files each
+teammate edits. **Teammates edit; a PERSISTENT owner runs every full `charly
+check run <bed>`** as a `run_in_background` task — the lead's persistent
+session, a background agent, or (interactive tmux) a split-pane teammate; an
+in-process teammate CANNOT (its bg dies on yield).
+
+- Teammates edit their bed-scoped files + run short foreground checks (`charly check
+  box`) — never the full `charly check run`, and **never commit, push, or open a
+  PR**. The lead runs the full beds and, on R10 PASS, opens the SINGLE PR for the
+  cutover (B1 step 1); a FRESH `pr-validator` (never a teammate that authored code)
+  merges it.
+- **Schedule longest-pole-first.** `charly check run` has no bed-level concurrency
+  and no `charly` cap — the limit is host CPU/RAM/podman. Run ALL full beds as
+  concurrent background tasks; order by expected DURATION, not bed count: launch the
+  slow VM/desktop beds first and overlap the cheap pod beds, so wall-clock ≈ the
+  slowest single bed, not the sum.
+- **No shared freeze barrier — per-worktree self-freeze instead.** Because each
+  worktree carries its own `bin/charly` and its own freshness-guard scope, a
+  teammate editing `charly/*.go` in its own worktree never trips another
+  teammate's bed run — there is no shared binary to freeze. The only freeze that
+  applies is the WITHIN-worktree self-freeze: freeze your own worktree's
+  `charly/*.go` for the duration of your own bed run (the per-tree freshness guard
+  compares the invoked binary against the cwd's sources at every heavy verb,
+  mid-run), and keep one binary-build owner per worktree at a time. Full
+  discipline: `/charly-internals:agents` "The charly binary in a multi-teammate /
+  multi-worktree setup" + "Within-worktree self-freeze".
+
+## B6 — cross-repo landing when a change is referenced via `@github`
+
+The resolver (`EnsureRepoDownloaded`) fetches a producer repo from the REMOTE at
+the pinned ref, so a producer change on a local `feat/` branch — or an OPEN,
+unmerged PR — is invisible to a consumer's R10. **The producer PR must be MERGED
+first.** Staged landing:
+
+1. Develop producer (A) + consumer (B) on the same `feat/<slug>`.
+2. **Land the producer FIRST:** A's own R10 PASS → open A's PR → fresh
+   `pr-validator` validates, **merges, and tags A `v<CalVer_A>`** — now an
+   immutable, fetchable remote tag on A's real `main`.
+3. **Repoint the consumer:** `charly box reconcile` rewrites B's `@github.../A:...`
+   pins to `v<CalVer_A>` (see `/charly-build:reconcile`).
+4. **Authoritative consumer R10 against the real tag:** B's R10 now fetches A from
+   the pushed `v<CalVer_A>` — verified against exactly what shipped.
+5. **Land the consumer:** open B's PR → fresh `pr-validator` validates, merges, tags.
+6. **New candy:** a new candy has no standalone R10 — its gate is the consuming
+   image's build. A lands a **provisional** `v<CalVer_A>` (layer + `go test` /
+   `charly box generate` smoke); step 4 (B's image R10 against that tag) is the real
+   gate. On failure, fix A, land a **new** tag (immutable + accumulate — never move
+   the old one), re-reconcile, re-run step 4.
+
+Each repo gets ONE R10 against ITS final code; repos land producer→consumer.
+Multi-level chains (A→B→C) recurse the same way.
+
+### B6a — the documentation landing is the same chain
+
+This project publishes opencharly.ai from GENERATED trees, so a prose edit is a
+producer→consumer landing exactly like a code one, and the same "producer must be
+merged first" rule applies. `/charly-build:docs` owns the projection model; the
+load-bearing part of it is that the two chains have DIFFERENT lengths — candy and
+box prose is a ONE-hop projection read straight off each repo's `charly.yml`,
+while skill prose is a TWO-hop projection that `charly docs generate` reads from
+the `marketplace/` tree, never from `candy/*/charly.yml`.
+
+The commands below are maintenance THIS REPOSITORY performs on itself. They are
+not steps an charly user runs, and they never belong on a reader-facing page.
+
+1. **Edit the source, never a generated file** — the candy's `description:` /
+   `plan:`, or the owning candy's `skill:` content.
+2. **For a skill edit, project and land `plugins` FIRST** (`charly marketplace
+   generate`, then the `plugins` PR). Locally the docs generator reads the dirty
+   `marketplace/` tree, so a local regeneration picks the edit up immediately; every
+   other reader gets it only once the gitlink advances. Advancing that gitlink
+   WITHOUT regenerating `docs` in the same landing is precisely what leaves the
+   published site stale, and only the drift gate will say so. Superproject-facing
+   drift is EXPECTED while the projection PR is in flight — the superproject
+   necessarily still pins the old gitlink until the projection merges — so that
+   redness is not the tagging bar for the projection PR itself: its gate is the
+   `plugins` tree, and the superproject catches up at step 5.
+3. **Regenerate and land `docs`** — a docs PR that bumps the charly pin in
+   `docs/.gitmodules` and carries the regenerated pages; the docs repo's deploy
+   workflow is the gate (it regenerates on every run and fails on any diff).
+   Regeneration rewrites the generated trees WHOLESALE, so a mirror already
+   behind cannot be brought forward selectively: every pending page lands with
+   the next commit or none of them do. Budget for carrying someone else's
+   backlog when the mirror has drifted.
+4. **Re-pin the new `docs` merge** in `candy/docs-site/charly.yml`; `task
+   docs:pin` is the gate (it compares `DOCS_REF` against the docs repo's current
+   `main` head) and asserts more than one occurrence
+   (`/charly-tools:docs-site` owns the pin contract). This step edits candy
+   CONFIG rather than prose, so its own gate is the `check-docs` bed — a
+   documentation-only change class does NOT cover it, and the commit that carries
+   it cannot claim the `documentation reviewed` tier. Positively: its gate is
+   `charly box validate` PLUS `check-docs` — the `disposable: true` bed that
+   composes the changed entity, through `docs-site-app` — at `fully tested and
+   validated`. Watch for it on a landing whose only "extra" is this re-pin: the
+   step silently upgrades the WHOLE cutover's gate, because `DOCS_REF` is emitted
+   as an ENV line above the clone step, so re-pinning it changes the emitted
+   Containerfile and therefore the image. The general rule the boundary rests on
+   is in B2, "the derivation stops at the gitlink".
+5. **Bump the superproject gitlinks** for whichever submodules moved.
+
+**Why that order and not any other — the two-directional pin rule.** A superproject
+gitlink and a mirror's own pin are DIFFERENT relations, and conflating them is what
+produces an unpinnable mirror:
+
+- **Source-covers.** The superproject pins a `plugins` sha that must CONTAIN every
+  source edit producing what the mirror shows. It is a coverage claim: "everything
+  rendered downstream is generated from something at or before this sha."
+- **Mirror-reflects.** The `docs` mirror is a PROJECTION of one specific source state.
+  It is an identity claim: "these pages are what that state renders to."
+
+The two shas are not the same and are not required to be — but the second is only
+meaningful relative to the first. **A mirror leg that accumulates a SECOND merge before its
+superproject leg pins the first makes the mirror unpinnable by any state the
+superproject can reach**: the mirror becomes a composite of projections from several
+submodule commits, and no single pin reproduces a composite.
+
+Landing the mirror ahead is not the hazard — it is REQUIRED, because a superproject
+cannot pin a commit that does not exist yet. The hazard is the GAP, and specifically
+**other legs' projections landing inside it**.
+
+The mechanism, stated because a reader without it reconstructs the unqualified rule
+and then finds it forbids the procedure below: several legs share ONE submodule
+pointer. While your mirror merge sits unpinned, every other leg that lands projects
+into the same tree. The superproject then has no sha that reproduces only your
+change — the mirror is a composite, and **the last leg to pin inherits every
+projection beneath it**. That is not hypothetical: it is how a four-cutover forced
+union — `charly#278` — came to carry four cutovers' candy sources in one commit: the
+check-verb resolver, the git-workflow landing lessons, the merge-tree guard, atop
+the R4 sweep. None of those authors chose to couple their work; no intermediate
+self-consistent superproject state existed for them to land against.
+
+So: land each mirror leg immediately before its superproject leg, keeping at most one
+outstanding merge **per mirror** — not one across all of them. B6 legitimately has
+`plugins` and `docs` both outstanding between steps 2/3 and step 5; that is two
+mirrors with one merge each, which is fine. What is not fine is two merges in ONE
+mirror awaiting a single pin. Then nothing intervenes, each mirror contains only
+your own projection, and the shas coincide naturally with no reconciliation to
+perform.
+
+*Proof that this is a live invariant rather than an aspiration:* regenerate at
+`main`'s OWN pins and count the pages that move. Zero means every published page is
+reproducible from the state the superproject currently points at. A non-zero count is
+the composite above, and it names its own repair — the pages listed are exactly those
+whose source landed out of order.
+
+## B7 — Multi-worktree landing + refresh (the canonical end-to-end)
+
+When this project is driven from multiple git worktrees sharing one `.git`, only
+ONE worktree can have `main` checked out at a time. The main tree stays on
+`main`; every feature session works in its OWN worktree under
+`.claude/worktrees/<slug>/` — one worktree per session, created at session
+start and removed after landing (B1 step 0 + B4 "Worktree hygiene"). Every
+"land + update all worktrees" follows this EXACT ordered sequence. It composes
+B1 (branch loop), B2 (per-repo order + pointer-bump safety), B4 (sync/prune).
+
+**0. Pre-flight (worktree safety).** `git worktree list` → note which worktree
+holds `main`. Pin ONE worktree for the whole edit→commit→push sequence; drive every
+step with a **literal absolute path** `git -C /abs/path …`. NEVER a leading
+`cd`+`\`-continued chain (it scopes every later command into the submodule) and
+NEVER a shell variable for a path — **shell variables do NOT persist between Bash
+tool calls**, so a `WT=…` set in an earlier call is EMPTY later and `git -C
+"$WT/plugins"` silently becomes `git -C /plugins` (this was a real failure). Verify:
+`git -C /abs rev-parse --show-toplevel` == the path you edited AND `git -C /abs
+status --short` lists your edits.
+
+**1. Sync-before-start.** `git fetch origin --prune --tags`; ff local `main` to
+`origin/main` (B4).
+
+**2. Open the PRs in dependency order, same `feat/<slug>` in every repo** (sdk when
+touched → box submodules → plugins → superproject). Per-repo mechanics = B2 + B1
+step 1; pointer-bump safety = B2 step 3.
+Two proven additions:
+  - **plugins docs commit at `documentation reviewed`: `git -C <LITERAL-abs-plugins>
+    commit …`.** The literal path keeps repository selection explicit and lets
+    the fresh validator inspect the plugins diff independently. Do NOT use a
+    shell variable that may be unset or an in-command directory change.
+  - **box/<distro> re-stamp** (schema-HEAD bump): edit on the submodule's own feat
+    branch; **gate = `charly box validate` standalone** (a version-stamp change has
+    no build behavior — building proves nothing); commit, open PR, native
+    auto-merge + tag-on-merge tags.
+
+**3. Land `main` via the PR — NEVER `git push origin main` (blocked) and NEVER `git
+switch main` in another worktree** (git fatals "already used by worktree"). The
+org-wide native auto-merge performs the server-side squash merge (it advances
+`origin/main` remotely); then advance the LOCAL `main` ref where it lives:
+`git -C <main-wt> merge --ff-only origin/main`. A local `main` now only ever
+fast-forwards to what was merged remotely.
+
+**4. Tags: annotated only** (`git tag -a v<…> -m "<desc>" <merged-HEAD>`), applied
+by tag-on-merge on the merged `main` HEAD and pushed as `refs/tags/…` (allowed by
+the pre-push-gate; the user token triggers the release-binary workflow). Verify `git
+cat-file -t <tag>` == `tag` AND `git ls-remote --tags origin <tag>` is non-empty.
+
+**5. Reconcile (when box submodules were re-stamped).** Bump the superproject
+GITLINKS `+1` to the re-stamped box mains (a separate superproject PR; B2 step-3
+safety) — do **NOT** bump the `@github` build pins: they lag deliberately, `charly
+box reconcile` reports "already reconciled", and bumping them pulls multi-cutover
+producer drift (a separate version-adoption cutover, NOT reconciliation).
+
+**6. Refresh EVERY worktree — PART of landing, NEVER a follow-up (Hard Cutover).** For each
+worktree: the one on `main` → `git -C <wt> merge --ff-only origin/main`; each other
+→ `git -C <wt> checkout --detach origin/main`; THEN refresh only already-initialized
+submodules with `git -C <wt> submodule update --recursive` (no `--init`). Initialize
+only the paths the next task needs: a root R10 worktree needs `sdk`, so
+use `git -C <wt> submodule update --init --recursive sdk`; box-submodule work
+initializes its own declared path. Never blanket-initialize every submodule merely to
+refresh a worktree: it creates unnecessary per-worktree clone state. The Skill tool
+serves skills from the MAIN worktree — a stale main worktree silently serves STALE SKILLS
+to sessions, so refreshing it is mandatory. (A ` M <sub>` in a worktree used only for
+the ff-merge is this drift, not lost work.)
+
+**A disposable bed that builds from a submodule builds from the submodule's
+ON-DISK WORKING-TREE checkout, NOT from the committed gitlink alone.** After a
+CLEAN gitlink auto-merge (no conflict), `git ls-tree HEAD <sub>` can already
+show the correct new pin while the submodule's on-disk `HEAD` is still the OLD
+commit — a gitlink merge does not itself check out the new submodule content;
+that needs its own `git -C <wt> submodule update --checkout <path>` (or
+`--recursive` over the initialized set), same as any other post-merge refresh
+in this step. Skipping it means the bed silently builds STALE source even
+though the committed pointer is correct.
+
+**Landing gotchas (each cost real time):** `git merge-base --is-ancestor A B` ERRORS if B's object isn't
+fetched (common for a sibling-worktree submodule) → `git fetch` first; cross-check
+`git ls-tree origin/main <sub>` before concluding "DIVERGED". A `git grep --
+<submodule-path>` from the superproject is a FALSE ZERO (git grep does not cross a
+gitlink) → `git -C <sub> grep` for the R5 sweep. The authoritative feat-branch head
+SHA comes from `git ls-remote origin refs/heads/<branch>` — `gh pr view --json
+headRefOid` LAGS a fresh push and will post the status on a stale SHA. Deriving the
+merge-time CalVer from a COMMIT's recorded date (`git show --date=format:'<fmt>'
+<sha>`, `git log -1 --format=%cd`) uses that commit's own author/committer TZ
+offset, not UTC, and can mis-stamp the tag/changelog by hours — `$VER` always comes
+from the LIVE clock at the moment of merge (`date -u +%Y.%j.%H%M`; the CalVer contract
+lives in `references/validator-and-calver.md`, not in this file), never from a
+commit's stored timestamp. A metric or grep verification
+command (a LOC count, a `git grep` sweep, a file-count claim) run from an
+ambient, `cd`-inherited working directory silently measures the WRONG tree the
+moment more than one worktree is in play — anchor every such command to an
+explicit repo root (`git -C /abs/path grep …`, or a `git rev-parse
+--show-toplevel` cross-check first), never a bare relative command trusting
+the shell's current directory. A stronger, WRITE-side form of the same
+footgun: a MUTATING command (anything that writes files or runs `git
+submodule update` as a side effect — a codegen task such as
+`charly task cue-gen`, or the old `task cue:gen` it replaced, are canonical
+offenders) run against a stale, ambient cwd doesn't just misreport, it
+MUTATES the wrong tree. Failure mode: a fresh evaluator ran a cue-codegen
+task with a persisted shell cwd that had drifted to the main session
+worktree — the task's own `git submodule update` chain rewound 5 submodule
+checkouts there before the mistake was caught (fully restored,
+disclosed). So every mutating task/command invocation in an isolated-worktree
+workflow (a validator run, a teammate's branch work, a spike) carries an
+explicit `cd <worktree> &&` anchor IN THE SAME compound command — never a
+bare mutating task (or any command with submodule/file-write side effects)
+trusting a cwd set by an earlier, unrelated step.
+
