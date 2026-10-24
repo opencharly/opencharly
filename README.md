@@ -206,7 +206,7 @@ installed-binary form — `charly task …`, the same shape a packaged `charly` 
 | `charly task hooks` | install `hooks/pre-commit` for this clone (once) |
 | `charly task org-map` | verify the README org-map tables against the repo and `.gitmodules` |
 | `charly task skills` | splice the generated R0 dispatcher from the pinned marketplace into AGENTS.md |
-| `charly task pin-check` | assert the pin contract's cheap half — every `distro-*` gitlink equals charly's own `box/*` gitlink |
+| `charly task pin-check` | assert the pin contract's cheap half — every `distro-*` gitlink equals charly's own `box/*` gitlink, and every submodule is clean and checked out at its recorded gitlink |
 | `charly task pins` | the pin-contract pin operation over the `distro-*` set (mode via param) |
 | `charly task self-test` | self-test the committed CI body/pin-evidence builders + the dispatcher splice + the submodule initializer |
 | `charly task prune` | reap merged-upstream session worktrees + branches (MODE=report is a dry run) |

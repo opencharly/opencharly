@@ -11,11 +11,15 @@
 #      umbrella's own builders' self-tests (cheap: 3.4 s measured 2026-10-24, and they
 #      need no binary, no project and no submodule) and the pin check (29 s measured
 #      2026-10-24 over the umbrella's whole pin set, so it is decided by CHANGE CLASS:
-#      it runs only when the staged diff moves a gitlink, which is the only thing it
-#      can violate). The legs live in their own file so that their decision can be
-#      fired in isolation (`node scripts/check-pre-commit-gate.mjs`) and so that the
-#      charly-backed pair has ONE owner — it used to run TWICE per commit
-#      (opencharly/opencharly#645).
+#      it runs only when the staged diff changes one of the pin contract's
+#      commit-carried inputs — a gitlink, the manifest that declares the pin
+#      contract (charly.yml), or the declared path set (.gitmodules) — because those
+#      are the only things it can violate; the checkout drift it also sees is caused
+#      by no commit and stays with `charly task verify`
+#      (opencharly/opencharly#661)). The legs live in their own file so that their
+#      decision can be fired in isolation (`node scripts/check-pre-commit-gate.mjs`)
+#      and so that the charly-backed pair has ONE owner — it used to run TWICE per
+#      commit (opencharly/opencharly#645).
 #   2. the pure-node gates below — each one a claim about a file in this repo, and
 #      each one cheap enough to run on every commit.
 #

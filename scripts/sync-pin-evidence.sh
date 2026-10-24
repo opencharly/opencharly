@@ -17,7 +17,13 @@
 # Modes:
 #   (default) <root> <pin-check-log>   read MOVED (one path per line) from stdin; print
 #                                     the evidence section (table + coverage framing).
-#   --self-test                       exercise pin_row + coverage_note on fixtures.
+#   --self-test                       exercise pin_row + the coverage DECISION on fixtures.
+#
+# The coverage decision — "is the pin check this diff's coverage?" — is the shared
+# rule (scripts/pin-contract-inputs.sh), the same one the commit gate's change class
+# reads: the check reads the index's gitlinks, the manifest that declares the pin
+# contract (charly.yml) and the declared path set (.gitmodules), so a diff that
+# touches none of them cannot violate it.
 #
 # SIZE BOUND (a GitHub platform limit, not a preference). A sync PR body is capped by
 # GitHub at 65536 characters; a sync that moves hundreds of pins overflows it and
@@ -38,6 +44,14 @@
 # promise, not pasted output, which is exactly what the validator BLOCKed.
 
 SYNC_EVIDENCE_MAX_BYTES="${SYNC_EVIDENCE_MAX_BYTES:-50000}"
+
+# The pin contract's commit-carried inputs — ONE definition, shared with the commit
+# gate's change class (hooks/pre-commit-gate.sh). Both ask the same question — can
+# this diff violate the pin check? — so both read the same answer. Sourced from this
+# script's own directory, so it travels with it.
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck source=scripts/pin-contract-inputs.sh
+. "$SCRIPT_DIR/pin-contract-inputs.sh"
 set -euo pipefail
 
 # pin_row <path> <staged_gitlink> <remote_head> — ONE evidence row, in the COMPACT
@@ -80,11 +94,21 @@ file_row() {
   printf '  %s  %.12s  (file)\n' "$1" "$2"
 }
 
-# coverage_note <distro_moved_count> — the pin check asserts only `distro-*` gitlinks, so it
-# is this diff's coverage ONLY when at least one `distro-*` pin moved. ONE decision,
-# shared by the live path and the self-test.
+# coverage_note <touched> — is the pin check this diff's coverage? The ANSWER comes
+# from the shared definition (scripts/pin-contract-inputs.sh): the check reads the
+# index's gitlinks, the manifest that declares the pin contract (charly.yml) and the
+# declared path set (.gitmodules), so a diff that touches none of them cannot violate
+# it — and a diff that touches one of them CAN.
+#
+# The old rule was "a `distro-*` pin moved", which was NARROWER than the truth on two
+# counts: a diff that moves charly's OWN gitlink moves the edge's `want` side (charly's
+# `box/*` twins), and a diff that edits the manifest changes what the check compares.
+# Both are commit-carried inputs of the check, and the commit gate now watches the same
+# set — so a narrower rule here would make this body under-claim what the gate proves.
+#
+# ONE decision, shared by the live path and the self-test.
 coverage_note() {
-  if [ "${1:-0}" -gt 0 ]; then
+  if [ "${1:-0}" -ne 0 ]; then
     echo "PIN_CHECK_IS_COVERAGE"
   else
     echo "PIN_CHECK_NOT_COVERAGE"
@@ -207,8 +231,22 @@ if [ "${1:-}" = "--self-test" ]; then
     || fail "row shape must be <path> <staged> <remote> <flag> regardless of path length"
 
   # coverage_note: both directions.
-  [ "$(coverage_note 0)" = "PIN_CHECK_NOT_COVERAGE" ] || fail "0 distro moved should NOT offer the pin check"
-  [ "$(coverage_note 2)" = "PIN_CHECK_IS_COVERAGE" ] || fail ">0 distro moved should offer the pin check"
+  [ "$(coverage_note 0)" = "PIN_CHECK_NOT_COVERAGE" ] || fail "0 touched inputs should NOT offer the pin check"
+  [ "$(coverage_note 1)" = "PIN_CHECK_IS_COVERAGE" ] || fail "1 touched input should offer the pin check"
+
+  # The COVERAGE DECISION itself — the shared rule (scripts/pin-contract-inputs.sh).
+  # Every arm names a real input of the check, and the arms are the ones that make
+  # the decision falsifiable: a manifest edit, a path-set edit, and ANY moved gitlink
+  # (not only a `distro-*` one — moving charly's own gitlink moves the edge's `want`
+  # side) all make the check applicable, and a plain file does not.
+  pin_contract_touches_input "charly.yml" "" || fail "a manifest edit must touch a commit-carried input"
+  pin_contract_touches_input ".gitmodules" "" || fail "a path-set edit must touch a commit-carried input"
+  pin_contract_touches_input "charly" "charly" || fail "ANY moved gitlink must touch a commit-carried input"
+  pin_contract_touches_input "plugin-vm" "plugin-vm" || fail "a moved non-distro gitlink must touch a commit-carried input"
+  if pin_contract_touches_input "README.md" ""; then fail "a plain file must NOT touch a commit-carried input"; fi
+  pin_contract_touches_input "README.md
+charly.yml" "" || fail "a manifest edit among plain files must still touch an input"
+  if pin_contract_touches_input "README.md" "distro-arch"; then fail "a gitlink that was NOT changed must not touch an input"; fi
 
   # bounded_rows: the 65536-char body-cap guard. A generous budget emits every row and
   # NO elision notice; a tiny budget emits at least ONE row plus an elision naming
@@ -320,9 +358,6 @@ cd "$ROOT"
 
 MOVED="$(cat)"
 MOVED_COUNT=$(printf '%s\n' "$MOVED" | grep -c . || true); MOVED_COUNT=${MOVED_COUNT:-0}
-# Count distro-* over ALL moved paths (path prefix only — no network), so the pin-check
-# coverage is decided from the full diff, never from the truncated emission window.
-DISTRO_MOVED=$(printf '%s\n' "$MOVED" | grep -c '^distro-' || true); DISTRO_MOVED=${DISTRO_MOVED:-0}
 
 evidence_legend
 # Render every row to a temp file, THEN bound — never pipe the producer into the bounder.
@@ -331,6 +366,7 @@ evidence_legend
 # script. A file sidesteps that entirely (only a few hundred rows).
 ROWS_FILE="$(mktemp)"; trap 'rm -f "$ROWS_FILE"' EXIT
 GITLINK_COUNT=0; FILE_COUNT=0
+GITLINK_PATHS=""
 while IFS= read -r p; do
   [ -n "$p" ] || continue
   if is_gitlink_path "$ROOT" "$p"; then
@@ -338,6 +374,7 @@ while IFS= read -r p; do
       "$(git ls-remote "$(git config -f .gitmodules --get "submodule.$p.url" 2>/dev/null || echo '')" HEAD 2>/dev/null | awk '{print $1}' || echo '')" \
       >> "$ROWS_FILE"
     GITLINK_COUNT=$((GITLINK_COUNT + 1))
+    GITLINK_PATHS="${GITLINK_PATHS}${p}"$'\n'
   else
     # A non-gitlink changed path (a hand-edit beside the pins): its staged blob, no flag.
     file_row "$p" "$(staged_gitlink "$ROOT" "$p")" >> "$ROWS_FILE"
@@ -363,23 +400,47 @@ if [ -n "${SYNC_EVIDENCE_OUT:-}" ]; then
   } >> "$SYNC_EVIDENCE_OUT"
 fi
 echo
-if [ "$(coverage_note "$DISTRO_MOVED")" = "PIN_CHECK_IS_COVERAGE" ]; then
-  echo "**The pin check — the assertion this diff CAN violate** (\`${DISTRO_MOVED}\`"
-  echo "\`distro-*\` pin(s) moved). \`charly task pin-check\` reads charly's own"
+# The pin contract's commit-carried inputs THIS diff touches — named, because a body
+# that says "the check covers this diff" without saying WHICH input changed is a claim
+# a reader cannot check.
+TOUCHED_INPUTS=""
+TOUCHED_COUNT=0
+while IFS= read -r p; do
+  [ -n "$p" ] || continue
+  if pin_contract_is_declaration_input "$p" || printf '%s\n' "$GITLINK_PATHS" | grep -qxF -- "$p"; then
+    TOUCHED_COUNT=$((TOUCHED_COUNT + 1))
+    TOUCHED_INPUTS="${TOUCHED_INPUTS}${TOUCHED_INPUTS:+, }${p}"
+  fi
+done <<< "$MOVED"
+
+# The DECISION — the shared rule (scripts/pin-contract-inputs.sh), the same one the
+# commit gate's change class reads. Both ask the same question: can this diff violate
+# the pin check?
+if pin_contract_touches_input "$MOVED" "$GITLINK_PATHS"; then
+  COVERED=1
+else
+  COVERED=0
+fi
+
+if [ "$(coverage_note "$COVERED")" = "PIN_CHECK_IS_COVERAGE" ]; then
+  echo "**The pin check — the gate that judges this diff's pin-contract inputs**"
+  echo "(\`charly task pin-check\`). It reads the index's gitlinks, the manifest that"
+  echo "declares the pin contract (\`charly.yml\`) and the declared path set"
+  echo "(\`.gitmodules\`), and **this diff changes ${TOUCHED_COUNT} of them**"
+  echo "(${TOUCHED_INPUTS}), so that gate CAN fail on it. The check reads charly's own"
   echo "gitlinks with \`git ls-tree\` (tree objects — present in a shallow clone;"
   echo "charly's NESTED submodules need not be initialised) and asserts every umbrella"
-  echo "\`distro-*\` gitlink equals it, pasted verbatim from this run:"
+  echo "\`distro-*\` gitlink equals it, then audits every submodule's checkout against its"
+  echo "recorded gitlink, pasted verbatim from this run:"
   echo
   echo '```'
   cat "$PIN_CHECK_LOG"
   echo '```'
 else
-  echo "**The pin check is NOT offered as this diff's coverage:** it asserts the umbrella"
-  echo "\`distro-*\` gitlinks equal charly's own, and **this diff moved zero \`distro-*\`"
-  echo "pins**, so that gate cannot fail on this diff. The coverage for the pins that"
-  echo "DID move is the per-pin \`git ls-remote\` default-branch evidence above (and, for"
-  echo "\`charly\`, its own default-branch HEAD). For transparency the pin-check gate still"
-  echo "ran and passed:"
+  echo "**The pin check is NOT offered as this diff's coverage:** **this diff changes NONE"
+  echo "of the pin contract's commit-carried inputs** (no gitlink, the manifest"
+  echo "\`charly.yml\`, the declared path set \`.gitmodules\`), so that gate cannot fail on"
+  echo "this diff. For transparency the pin-check gate still ran and passed:"
   echo
   echo '```'
   cat "$PIN_CHECK_LOG"
