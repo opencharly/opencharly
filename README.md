@@ -3,7 +3,7 @@
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/opencharly/opencharly)
 
 **One clone of the whole org — and the place all charly development happens.**
-`opencharly/opencharly` is an org-level umbrella repo: every OpenCharly repo (412 today)
+`opencharly/opencharly` is an org-level umbrella repo: every OpenCharly repo (411 today)
 is pinned here as a git submodule ("gitlink", in the org's vocabulary), flat at the
 root — submodule path == repo name for all but one alias (`.github`, pinned at the
 `dotgithub/` path).
@@ -96,11 +96,11 @@ So a band a reading has outgrown is a **failed check** against the run that prod
 the reading — the run stamps the day it was taken (`MEASURED=`), and the comparison
 holds that day to the span this table states.
 
-The last of those four sources is what keeps the light tree honest. Two of the
-umbrella's gate scripts compare a surface that lives in a submodule — the committed
-rulebook in `action-review/` and the authored coordination grammar in
-`layer-charly-internals/` — and a gate **skips** a comparison whose surface is not
-checked out, so it still exits 0. Measured on a light clone, 2026-10-22: `charly task
+The last of those four sources is what keeps the light tree honest. The umbrella's
+gate scripts compare surfaces that live in submodules — the committed rulebook in
+`action-review/charly.yml` and the coordination shell in `marketplace/scripts/coord.sh`
+— and a gate **skips** a comparison whose surface is not checked out, so it still
+exits 0. Measured on a light clone, 2026-10-22: `charly task
 verify` reported 26/26 steps passed while six cross-repo comparisons never ran. The
 working set therefore includes the repos the gates read, so a light tree's gate
 covers what the full tree's covers — and the light tree now reports **every step
@@ -328,12 +328,11 @@ six vendored OpenClaw upstream forks.
 
 ### Charly candy layers
 
-4 repos — the charly meta/skill candy layers.
+3 repos — the charly meta/skill candy layers.
 
 | path | repo | role |
 |---|---|---|
 | `layer-charly-check/` | [opencharly/layer-charly-check](https://github.com/opencharly/layer-charly-check) | The charly-check candy — 14 check skills (extracted from charly/candy) |
-| `layer-charly-internals/` | [opencharly/layer-charly-internals](https://github.com/opencharly/layer-charly-internals) | The charly-internals concept candy — contributor skills (go, plugin, agents, install-plan, cutover-policy, …)… |
 | `layer-charly-internals-extra/` | [opencharly/layer-charly-internals-extra](https://github.com/opencharly/layer-charly-internals-extra) | The charly-internals-extra candy — 2 internals skills (extracted from charly/candy) |
 | `layer-charly-tools/` | [opencharly/layer-charly-tools](https://github.com/opencharly/layer-charly-tools) | image layer / candy |
 

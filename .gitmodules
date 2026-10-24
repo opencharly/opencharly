@@ -1502,10 +1502,6 @@
 	path = layer-charly-check
 	url = https://github.com/opencharly/layer-charly-check.git
 	branch = main
-[submodule "layer-charly-internals"]
-	path = layer-charly-internals
-	url = https://github.com/opencharly/layer-charly-internals.git
-	branch = main
 [submodule "layer-charly-internals-extra"]
 	path = layer-charly-internals-extra
 	url = https://github.com/opencharly/layer-charly-internals-extra.git
