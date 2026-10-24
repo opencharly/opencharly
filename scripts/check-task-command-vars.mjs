@@ -64,11 +64,13 @@ const root = rootIdx === -1 ? resolve(here, "..") : resolve(argv[rootIdx + 1]);
 const yamlRel = "charly.yml";
 
 /** The reference this gate forbids, as LITERAL text (a template literal would read
- *  `${...}` as an interpolation). Rendered with three ASCII dots, NOT the "…"
- *  character: this string is PRINTED, and a PR body pastes a gate's output
- *  verbatim, and the org's PR-body linter refuses a fenced block that contains
- *  "…" (it cannot tell a program's own output from an author's ellipsis). */
-const REF = "${...}";
+ *  `${...}` as an interpolation). Printed with the character the PRODUCT prints: this
+ *  string is PRINTED, and a PR body pastes a gate's output verbatim, and the org's
+ *  PR-body linter refuses the AUTHOR's elision of the evidence - an elided command
+ *  line, an elided `head` command's output, a dropped line - while a program's OWN
+ *  token is ALLOWED (opencharly/marketplace#537). This string is the program's, so the
+ *  linter is right to allow it, and the ASCII rendering it used to need is deleted. */
+const REF = "${…}";
 
 const STEP_RE = /^(\s*)-\s+([A-Za-z0-9_.-]+):\s*(.*)$/;
 const BLOCK_SCALAR_RE = /:\s*[|>][-+0-9]*\s*$/;
