@@ -313,18 +313,24 @@ export const SURFACES = [
     extract: (t) => capture(t, /closed set: ([^.]*)\./),
   },
   {
-    name: "layer-charly-internals git-workflow SKILL.md (the CLOSED set)",
-    file: "layer-charly-internals/.agents/skills/git-workflow/SKILL.md",
+    // AUTHORED HERE since opencharly/opencharly#672: the coordination grammar lives in
+    // THIS repo's `.agents/skills/git-workflow/` — the umbrella is its home (AGENTS.md
+    // Part II #5's measured exception), so the surface is a local path. It was
+    // `layer-charly-internals/...` while that carrier owned the body, and that path is
+    // gone with the carrier: a locator that names a retired repo would SKIP forever and
+    // leave these copies uncompared.
+    name: "umbrella .agents/skills/git-workflow/SKILL.md (the CLOSED set)",
+    file: ".agents/skills/git-workflow/SKILL.md",
     extract: (t) => capture(t, /CLOSED set — ([^.]*)\./),
   },
   {
-    name: "layer-charly-internals git-workflow SKILL.md (the B2 row)",
-    file: "layer-charly-internals/.agents/skills/git-workflow/SKILL.md",
+    name: "umbrella .agents/skills/git-workflow/SKILL.md (the B2 row)",
+    file: ".agents/skills/git-workflow/SKILL.md",
     extract: (t) => capture(t, /the (CLAIM\/[^)]*?) verb grammar/),
   },
   {
-    name: "layer-charly-internals multi-repo-coordination.md (the verb table)",
-    file: "layer-charly-internals/.agents/skills/git-workflow/references/multi-repo-coordination.md",
+    name: "umbrella .agents/skills/git-workflow/references/multi-repo-coordination.md (the verb table)",
+    file: ".agents/skills/git-workflow/references/multi-repo-coordination.md",
     extract: (t) => tableVerbs(t),
   },
   {
@@ -332,8 +338,8 @@ export const SURFACES = [
     // of the set like any other, and it is the copy that BREAKS SILENTLY: a rename
     // that misses it leaves a recipe that matches nothing, and the recipe is how an
     // agent looks the grammar up. A recipe nobody compares is a recipe free to drift.
-    name: "layer-charly-internals multi-repo-coordination.md (the grep recipe)",
-    file: "layer-charly-internals/.agents/skills/git-workflow/references/multi-repo-coordination.md",
+    name: "umbrella .agents/skills/git-workflow/references/multi-repo-coordination.md (the grep recipe)",
+    file: ".agents/skills/git-workflow/references/multi-repo-coordination.md",
     extract: (t) => capture(t, /grep -E '\^\(([^)]*)\)/),
   },
   {
@@ -608,7 +614,7 @@ function selfTest() {
     // gate READS that shape and COMPARES it — before the fix the recipe was invisible
     // to the gate, and a retired label in it passed unnoticed.
     {
-      const refFile = "layer-charly-internals/.agents/skills/git-workflow/references/multi-repo-coordination.md";
+      const refFile = ".agents/skills/git-workflow/references/multi-repo-coordination.md";
       const coordRef = (alternation) => {
         const rows = CANONICAL.map((l) => `| \`${l}\` | it means what it says |`).join("\n");
         return [
