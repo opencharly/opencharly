@@ -480,6 +480,12 @@ none; a model-free CI body uses the `<Harness> <Runtime>` form. A local commit m
 honest tier; **the tier on a pushed commit is the tier it earned**. *Detail:*
 `/charly-internals:git-workflow`.
 
+**A merge commit is judged by its message, not by its content.** It brings upstream's
+commits in and adds no content of its own — those commits keep their own trailers — but its
+own message is the agent's authorship, so a merge the agent writes ends with the trailer
+like any other commit. A merge whose message the agent did **not** write — the one
+`gh pr update-branch` writes on GitHub's behalf — carries no trailer and owes none.
+
 | Confidence | Required proof |
 |---|---|
 | `fully tested and validated` | The change-class gate passed on the final tree (every affected fresh-rebuild R10 target for runtime changes); changed paths executed live. |
