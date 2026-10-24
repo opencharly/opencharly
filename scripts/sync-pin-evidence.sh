@@ -47,6 +47,35 @@ SYNC_EVIDENCE_MAX_BYTES="${SYNC_EVIDENCE_MAX_BYTES:-50000}"
 
 set -euo pipefail
 
+# scratch — create a temporary path and register it for removal on EVERY exit
+# path of the calling shell.
+#
+# WHY ONE HELPER. `fail` EXITS: a removal that only runs at the end of a block is
+# SKIPPED on every failure, so the scratch leaks. The leak is not cosmetic — one
+# of the ways this script fails is a full filesystem, so a leaked scratch
+# amplifies the very condition it reports. Measured on 2026-10-24: the host's
+# /tmp (a tmpfs with nr_inodes=1048576) ran out of inodes while this script's
+# own arm was running; the arm's positive control failed with "No space left on
+# device", the arm reported it, and the arm's OWN scratch was left behind — the
+# leak this helper removes.
+#
+# ONE trap removes EVERY registered path, so registering a second scratch never
+# unregisters the first.
+#
+# Usage:  scratch <varname> [dir|file]
+SCRATCH_PATHS=()
+scratch() {
+  local name="$1" kind="${2:-dir}" path
+  if [ "$kind" = dir ]; then
+    path="$(mktemp -d)"
+  else
+    path="$(mktemp)"
+  fi
+  printf -v "$name" '%s' "$path"
+  SCRATCH_PATHS+=("$path")
+  trap 'rm -rf -- ${SCRATCH_PATHS[@]+"${SCRATCH_PATHS[@]}"}' EXIT
+}
+
 # The pin contract's commit-carried inputs — ONE definition, shared with the commit
 # gate's change class (hooks/pre-commit-gate.sh). Both ask the same question — can
 # this diff violate the pin check? — so both read the same answer. Sourced from this
@@ -282,7 +311,11 @@ charly.yml" "" || fail "a manifest edit among plain files must still touch an in
   # check is NOT this diff's coverage" as a FACT and exited 0. An exit-code-only
   # assertion would not separate the two trees, so the arm asserts the fail-open
   # text is ABSENT and the guard's own text is PRESENT.
-  guard_dir="$(mktemp -d)"
+  # The scratch is registered through the helper, so it is removed on EVERY exit
+  # path — including the ones this arm takes when it FAILS (`fail` exits). The
+  # explicit removal at the end of the arm is the tidy path; the registration is
+  # what makes the failure path safe.
+  scratch guard_dir
   cp "$SCRIPT_DIR/sync-pin-evidence.sh" "$guard_dir/sync-pin-evidence.sh"
   : > "$guard_dir/pin-check.log"
   if ( cd "$guard_dir" && bash "$guard_dir/sync-pin-evidence.sh" "$guard_dir" "$guard_dir/pin-check.log" ) \
@@ -315,6 +348,21 @@ charly.yml" "" || fail "a manifest edit among plain files must still touch an in
     || fail "with the shared definition PRESENT the copy must reach the coverage decision"
   rm -rf "$guard_dir"
 
+  # The removal must hold on the FAILURE path — the path `fail` takes. This arm
+  # registers a scratch through the SAME helper the arm above uses, in a
+  # subshell that exits non-zero, and asserts the scratch is gone afterwards:
+  # remove the helper's trap and this arm goes RED, because the arm above would
+  # then leak its scratch on every failure too.
+  probe_leaked="$(
+    scratch probe_scratch
+    printf '%s\n' "$probe_scratch"
+    exit 1
+  )" || true
+  [ -n "$probe_leaked" ] \
+    || fail "the scratch probe must record the scratch it created"
+  [ ! -e "$probe_leaked" ] \
+    || fail "a registered scratch must be removed even when the shell exits non-zero (leaked: $probe_leaked)"
+
   # bounded_rows: the 65536-char body-cap guard. A generous budget emits every row and
   # NO elision notice; a tiny budget emits at least ONE row plus an elision naming
   # shown/total (so a huge sync can never overflow the body nor emit an empty fence).
@@ -341,7 +389,7 @@ charly.yml" "" || fail "a manifest edit among plain files must still touch an in
   # …` here would write into the CALLING repo (measured: it set core.bare=true,
   # user.*, and a stray `sub` gitlink in the umbrella). Run the fixture ops in a
   # subshell with those variables scrubbed, so the fixture is fully isolated.
-  tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
+  scratch tmp
   fixture() (
     unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES
     cd "$tmp"
@@ -431,7 +479,7 @@ evidence_legend
 # This environment ignores SIGPIPE, so an early-exiting bounder would leave the producer
 # writing to a closed pipe; under `set -o pipefail` those failed writes would abort the
 # script. A file sidesteps that entirely (only a few hundred rows).
-ROWS_FILE="$(mktemp)"; trap 'rm -f "$ROWS_FILE"' EXIT
+scratch ROWS_FILE file
 GITLINK_COUNT=0; FILE_COUNT=0
 GITLINK_PATHS=""
 while IFS= read -r p; do
