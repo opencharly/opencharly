@@ -654,7 +654,15 @@ Before declaring completion, answer every applicable item YES. There is one line
      somewhere, the skill goes there.
    - **A general-guidance skill — one with no code, plugin, or config behind it — belongs in this
      umbrella**, because the umbrella is the only repo every consumer shares and guidance with no
-     home repo has no other place a consumer can reach it from.
+     home repo has no other place a consumer can reach it from. **The same holds for a skill whose
+     described config does have a home repo, when that repo cannot AUTHOR skills** — no project
+     manifest and no `.agents/` tree, so it can be neither a skill host nor a corpus source — and
+     once again the umbrella is the only place a consumer can reach the skill from. That is a
+     **deliberate policy exception, not an oversight**: `opencharly/.github` owns the org ruleset
+     and the required `charly-pr-validator` workflow, and measured it holds neither a `charly.yml`
+     nor an `.agents/` tree, so `git-workflow` and `repo-setup` are authored here while the config
+     they describe stays there (opencharly/opencharly#611). The exception is bounded by its own
+     reason: a repo that CAN author skills is still the right home, and this never widens it.
    - **A repo whose only content is skills is not a valid class**, and neither is a `*-skills`
      carrier that exists only to own prose. The class rule that retires them is
      [Repo classes and naming](#repo-classes-and-naming).

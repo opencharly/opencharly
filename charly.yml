@@ -53,9 +53,11 @@ defaults:
 # owned elsewhere. It ships NO image and composes NO box — its only candy is the
 # `opencharly-guidance` CONCEPT candy below, which exists to OWN the org's
 # general-guidance skills (Part II #5: a skill with no code, plugin, or config
-# behind it belongs here, the one repo every consumer shares). Everything else on
-# this manifest is the maintenance TASK surface (`charly task <name>`), which
-# replaced the former Taskfile.yml + the human-facing scripts/*.sh.
+# behind it belongs here, the one repo every consumer shares — and, by the same
+# rule's measured exception, a skill whose config repo cannot author skills; the
+# block below names both cases). Everything else on this manifest is the
+# maintenance TASK surface (`charly task <name>`), which replaced the former
+# Taskfile.yml + the human-facing scripts/*.sh.
 #
 # Run `charly task list` for the surface. The binary comes from the `charly/`
 # submodule: build it ONCE per clone with `./charly/scripts/bootstrap-charly.sh`
@@ -95,10 +97,16 @@ defaults:
 #
 # A skill with no code, plugin, or config behind it belongs here, because the
 # umbrella is the one repo every consumer shares and guidance with no home repo
-# has nowhere else a consumer can reach it from. Every OTHER skill lives in the
-# repo of the code, plugin, or config it describes — the destination map for a
-# relocation is measured, never read off prose (opencharly/opencharly#606), and
-# this family's own re-derivation is opencharly/opencharly#611.
+# has nowhere else a consumer can reach it from. A skill whose described config
+# DOES have a home repo that cannot AUTHOR skills — no `charly.yml`, no
+# `.agents/` tree, so it can be neither a skill host nor a corpus source —
+# belongs here for the same reason, as a deliberate exception: `git-workflow`
+# and `repo-setup` describe `opencharly/.github`'s ruleset and workflows, and
+# that repo can host neither (opencharly/opencharly#611). Every OTHER skill
+# lives in the repo of the code, plugin, or config it describes — the
+# destination map for a relocation is measured, never read off prose
+# (opencharly/opencharly#606), and this family's own re-derivation is
+# opencharly/opencharly#611.
 #
 # `opencharly-guidance` is a CONCEPT candy: it ships no install content, composes
 # no box, and appears in no image — so these `skill:` nodes add nothing to any
@@ -112,8 +120,9 @@ opencharly-guidance:
     candy:
         description: |-
             Concept candy owning the umbrella's general-guidance skills — the ones with no code,
-            plugin, or config behind them (AGENTS.md Part II #5). It ships no install content and
-            composes no image; it carries the family's `skill:` routing nodes, and the prose lives
+            plugin, or config behind them — and the exception of AGENTS.md Part II #5: the two skills
+            whose config home, opencharly/.github, cannot author skills. It ships no install content
+            and composes no image; it carries the family's `skill:` routing nodes, and the prose lives
             in `.agents/skills/<name>/SKILL.md` at this repo's root.
         plan:
             - run: this documentation-only candy ships no install content (it carries the org's general-guidance skill entities); validate-satisfying no-op
@@ -148,6 +157,21 @@ root-cause-analyzer-skill:
         name: root-cause-analyzer
         family: internals
         owner: opencharly-guidance
+git-workflow-skill:
+    skill:
+        name: git-workflow
+        family: internals
+        owner: opencharly-guidance
+        triggers:
+            - "Git/`gh` workflow \u2014 `feat/` branch, commit, PR-only landing (NO direct push to main), branch protection, the `pr-validator` fresh-evaluator gate, native auto-merge + tag-on-merge CalVer-at-merge, worktree, sync-to-upstream, branch/worktree prune, cross-repo R10 landing"
+repo-setup-skill:
+    skill:
+        name: repo-setup
+        family: internals
+        owner: opencharly-guidance
+        triggers:
+            - "Set up a new repository in the opencharly org (required workflows, ruleset, auto-merge, CalVer tags)"
+            - "How the org ruleset / dotgithub workflows / native auto-merge / tag-on-merge CalVer work"
 
 # -----------------------------------------------------------------------------
 # map — list every submodule with its pin and sync state.

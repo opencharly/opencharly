@@ -1,0 +1,458 @@
+---
+name: git-workflow
+description: |-
+  The feat/-branch, R10-gated, PR-ONLY, org-workflow-validated, never-force-push landing across the main repo, box submodules, marketplace, and the proxy-resolved sdk contract module. Use when committing, branching, pushing, opening PRs, or landing with gh; covers sync-to-upstream, fork+PR, cross-repo @github order, CalVer-at-merge.
+---
+
+# git-workflow — branch-per-change, PR-only org-workflow-validated landing
+
+Every change to an OpenCharly repo lands through ONE discipline: a **pull request**
+gated by the ORG-WIDE `charly/pr-validator` GitHub Actions workflow
+(`opencharly/.github`), which validates and, on a PASS verdict, enables GitHub's
+OWN native auto-merge (squash) inline — there is no separate `auto-merge`
+workflow; the CalVer tag and the CHANGELOG are written afterwards by the
+independent `tag-on-merge` workflow, triggered by the merge. A **direct
+push to `main` is FORBIDDEN and mechanically disabled** — ONE organization branch
+RULESET blocks it. On GitHub Team that ONE ruleset carries both the branch rules
+(`creation`/`deletion`/`non_fast_forward` + a strict required `validate / validate`
+status check) and the `workflows` rule ("Require workflows to pass") naming
+`opencharly/.github/.github/workflows/org-wide-pr-validator-required.yml`, so the
+validator is required ONCE org-wide with no per-repo stub to install. The legacy
+branch-protection API is NOT used
+and `org-ruleset.sh` removes it wherever it survives, because it has no bypass slot
+for the app that writes the CHANGELOG. The `pre-push-gate` adds a local backstop in
+every harness that wires it — including Claude Code, via
+`.claude/settings.json`'s PreToolUse hooks. The **R10 pass
+authorizes OPENING the PR, never a self-merge**: the two-step landing separates the
+author (who opens the PR) from the fresh validator (a check run on the same PR).
+This skill is the mechanics; the project rulebook "Commit, push, land" (`AGENTS.md`) carries the
+mandate, `/charly-internals:cutover-policy` the one-phase rule, `/charly-build:migrate`
+the schema-version/tag coupling, and the marketplace's `internals/agents/pr-validator.md` the
+validator's own spec.
+
+## THE BODY-BEFORE-PUSH RULE (the one that bites hardest)
+
+**Publish the body before you re-run.** A re-run fired before the new body is published reviews whatever is on GitHub at that moment, so the rule is a race rather than an architectural one: the validator fetches the pull request live by number, so a re-run issued after the body is published reads the current text.
+
+
+**Write the WHOLE PR body BEFORE the push.** The validator validates the PR — its
+diff at the branch head, and its body — each time its run is triggered, and it
+fetches the PR LIVE by number. Getting the body final first is the cheapest order:
+a run that fires before the body is final reviews the old text and costs an extra
+cycle.
+
+**The org required workflow fires ONLY on the default push-driven types.** MEASURED:
+the REQUIRED workflow (the org ruleset `workflows` rule) acts on `opened` /
+`synchronize` / `reopened` and IGNORES `on.types` for anything else — a body edit did
+NOT fire it even with `edited` listed, and a draft->ready transition did NOT fire it
+even with `ready_for_review` listed. A PLAIN per-repo workflow with the same `types:`
+DOES fire (verified live), but the org no longer ships one. So do NOT rely on a body
+edit to re-run the required gate.
+
+**The head SHA is known BEFORE the push, so this is always possible.** A commit's
+identity is content-addressed: `git rev-parse HEAD` (and `git diff --stat
+origin/main...HEAD`) give the exact SHA and diff-stats the push will publish, with
+nothing pushed yet. The correct order:
+
+1. Commit the SOURCE locally (do not push yet).
+2. Compute the head + diff-stats from the committed tree:
+   `git rev-parse HEAD`, `git log --oneline origin/main...HEAD`,
+   `git diff --stat origin/main...HEAD`.
+3. Write the WHOLE body (`--body-file …`) keyed to that real SHA — Summary,
+   evidence with the real SHAs/diff-stats, rulebook section, attribution footer
+   LAST.
+4. Push.
+
+If you must move the head again (a real fix), the body is stale again — repeat 1–4
+in ONE batch: edit the body, then push.
+
+**A body-only fix after a pushed head: re-run the failed gate MANUALLY through the
+REST API; an empty re-freeze commit is the alternative.** A body edit does NOT
+re-run the required workflow (the ruleset `workflows` rule fires only on `opened`/
+`synchronize`/`reopened` and ignores `types` — MEASURED and confirmed by the GitHub
+docs, "Troubleshooting rules"), so the fix is applied by explicitly re-running the
+failed run: `gh api -X POST repos/<owner>/<repo>/actions/runs/<run-id>/rerun` (find
+the run with `gh run list --repo <r> --json databaseId,headSha,conclusion`). Do NOT
+use `gh run rerun`: the required workflow is defined in `opencharly/.github`, and gh
+(measured on 2.100.0) resolves the run's workflow against the TARGET repo, gets
+`HTTP 404 … /actions/workflows/<id>`, and exits 1 without re-running anything
+(`gh run view`/`watch` fail the same way; `gh run list` works). The re-run is a new
+ATTEMPT on the SAME head SHA with a NEW same-name check run; the merge gate reads the
+newest check run per name, so a passing re-run supersedes the failure and the
+corrected body is re-read — MEASURED on opencharly/docs#142 (head `041625863`):
+`check-runs?filter=all` lists `110609410070 failure` and `110611257957 success`,
+`filter=latest` only the success, and the PR merged. Because it keeps the head SHA it
+is the cheaper choice.
+
+**There is no automatic `rerun`-label channel any more.** The org-wide `rerun` label
+plus scheduled sweep was RETIRED: a label can be added for ANY reason — including a
+comment — and the sweep re-ran the gate without a body change. The REST re-run
+(`gh api -X POST repos/<owner>/<repo>/actions/runs/<run-id>/rerun`) is the ONE
+body-fix path now. An empty re-freeze commit (`git commit --allow-empty -m "docs:
+re-freeze …"`) ALSO re-fires the required gate: the ruleset `workflows` rule acts on
+the push-driven `synchronize` type, so the push mints a NEW head SHA and a fresh
+`validate / validate` run on it (the old head's checks no longer apply). It is
+equally valid, just more expensive — the head moves, so re-key the body to the new
+SHA (repeat steps 1–4 above). Neither is ever REQUIRED: the cheapest correct move is
+to write the body before the push and need neither.
+
+`gh workflow run pr-validator.yml -f pr-number=<N> --ref <branch>` is the manual
+alternative, and **`--ref` is MANDATORY**: a `workflow_dispatch` with no `--ref`
+runs on the DEFAULT branch, so its check registers on `main` and counts for
+nothing on the PR. Measured on opencharly/plugin-vm#39 (head `c9457a9`): the same
+dispatch without `--ref` produced no head check; carrying the branch ref --
+`--ref feat/deploy-shape-override` -- it registered the green check on the branch head.
+But a `gh workflow run` mints a NEW run (a new same-name check run on the head) and
+can re-poison the rollup; prefer the REST re-run of the failed run.
+
+**There is NO self-heal.** The reusable workflow sets a `head_ref` output but
+never consumes it (`grep -c 'steps.pr.outputs'` in
+`opencharly/.github/.github/workflows/pr-validator.yml` is 0); the org required
+workflow contains no re-dispatch step. A `workflow_dispatch` does NOT land its check on the
+PR head by itself — supply `--ref`.
+
+### A body is a DERIVED artefact — four mechanical checks, not care
+
+**Read the prose a change ADDS, not only what it MOVES.** A relocation diff shows removals and additions; the additions are new claims and are read as such. Measured: a moved paragraph asserted "30+ direct candies" over a manifest listing 26, and the number did not move with the text.
+
+The order above gets the body written before the push. **These four checks keep it TRUE**, and they are what actually
+blocks PRs: in one leg, five verdicts on one PR turned on prose while the code and the schema passed every single time.
+
+1. **PARSE, DO NOT TRANSCRIBE.** *When the body quotes a machine's output, read the machine's file and extract the field BY
+   KEY — never retype it.* **A parsed substitution cannot drift; a retyped one always can.**
+2. **EVERY CONTENT COMMIT INVALIDATES A MEASURED BODY.** *An empty `chore(pr): re-trigger` commit moves the HEAD and not the
+   TREE; a content commit moves BOTH — and with them every count, every tree key and every "the diff is N files"
+   statement.* **A tree key is stable only while commits are empty.**
+3. **EVERY CLAIM ABOUT STATE MUST BE LOCATED IN ITS ARTEFACT — and this includes the ledger, which is not exempt from
+   its own rules.** *A claim written inside a section that TEACHES checking is the worst place to leave one unchecked,
+   because the next reader trusts it precisely because of where it sits.*
+4. **FIXING A CLAIM MEANS FINDING EVERY INSTANCE OF IT.** *A body-wide claim is a property of the WHOLE body, so its repair
+   is a SWEEP — the same shape as an R5 deletion grep.* **And never write a NEGATIVE claim about the body's own contents
+   (`the only place`, `no other`, `nowhere else`): a positive description cannot be falsified by a later paragraph; a
+   negative one can, and will be.**
+
+**And name ONE owner consistently.** *If a body says a piece of proof is owed by the consumer and an issue says it is owed
+here, the two cannot both be the disposition.* **Grep the body for every statement about a responsibility and reconcile
+them before the push — being scrupulous is not the same as being consistent.**
+
+### The POISON state — green verdict, still BLOCKED
+
+A branch protection rule requires ALL same-name `validate / validate` check runs on
+the head to pass, so a COMPLETED earlier run that did not pass keeps the PR `BLOCKED`
+even after a later SUCCESS of the same name — it reads like a verdict BLOCK but is
+not. **"Did not pass" is the whole non-passing vocabulary, not just `FAILURE`:
+`CANCELLED`, `TIMED_OUT`, `STARTUP_FAILURE`, `STALE` and `ACTION_REQUIRED` all block
+the merge gate the same way.** Measured: `opencharly/opencharly#460` reached PASS with
+auto-merge armed and did not merge, its head carrying one `success` beside one
+`cancelled` run — and the tooling that classifies this read the pair as PASS until the
+classifier was fixed (opencharly/marketplace#442), because it tested `=="FAILURE"` and
+let every other conclusion fall through. Two runs
+on ONE head produce two such check runs; a `gh workflow run` re-dispatch on the same
+head mints another and can keep the PR stuck. **The capability-free remedy is a
+REST re-run of the failed run** (`gh api -X POST
+repos/<owner>/<repo>/actions/runs/<run-id>/rerun` — not `gh run rerun`, which 404s on
+the org-required workflow): the re-run is a new ATTEMPT of that same run on the SAME
+`GITHUB_SHA`, and its newer check run supersedes the failure in the newest-per-name
+view the merge gate reads (measured on opencharly/docs#142, see "THE BODY-BEFORE-PUSH
+RULE"). Find the failed run with `gh run list --repo <r> --json
+databaseId,headSha,conclusion,attempt` and re-run the one whose `headSha` is the PR
+head. This is `actions: write`-free and needs no
+new SHA. The per-PR concurrency dedupe lives in the ONE org required workflow
+(`org-wide-pr-validator-required.yml`), not a per-repo dispatcher. Full mechanics and
+the dedupe YAML:
+`references/validator-and-calver.md` "The POISON state".
+
+### The INCONCLUSIVE (verdict-less) class — the gate ran but produced no verdict
+
+A third terminal state sits beside PASS and BLOCK: **`## validator INCONCLUSIVE —
+no review verdict was produced (not a BLOCK; no code finding)`**. The required
+check stays **RED on purpose** (unreviewed code must never merge), but this is
+**NOT a finding about your diff** — it means the review engine produced no
+`Verdict:` line at all. Read the `## validator INCONCLUSIVE` comment's
+`Diagnostics` tail before touching your branch: it is the evidence that names the
+class. Do NOT "fix" your code for an INCONCLUSIVE — there is no code finding to
+fix — and do NOT re-dispatch the same head hoping for a different result; classify
+the cause from the diagnostics, then act on THAT.
+
+The two root causes, and how to tell them apart from the diagnostics tail:
+
+- **`turn 1: N tool call(s)` → `turn 2: final content len=0`** = the STALE-ENGINE
+  class. The gate's review engine is whatever `plugin-review` is **welded into the
+  charly binary** it runs; an engine OLDER than the fix that produced those lines
+  spins a tool loop and emits no verdict. The org pins a current engine via
+  `vars.CHARLY_VERSION`; a self-hosted runner whose IMAGE bakes an older `charly`
+  used to short-circuit that pin (`if command -v charly; then exit 0`) and silently
+  ran the stale welded engine. The pin enforcement that closes this is
+  `opencharly/.github#115` (`ensure-charly` now verifies the on-PATH `charly`
+  against the pin and downloads the pinned release when they differ). If you see
+  this signature, the cause is the RUNNER ENVIRONMENT, not your diff — escalate to
+  the operator (a stale runner image; the pin enforcement makes a stale on-PATH
+  engine harmless once the workflow at `main` is the enforced one).
+- **`inconclusive: … provider did not respond / attempt timed out`** (or an HTTP
+  status / stall marker) = the PROVIDER/ENDPOINT class. The evidence is in the
+  message: the provider returned a status, or the stream stalled / the whole-request
+  deadline elapsed. This is owned by the gate's provider configuration (the org
+  `AI_REVIEW_*` vars: provider/model, `AI_REVIEW_ATTEMPT_TIMEOUT`,
+  `AI_REVIEW_REASONING_EFFORT`, `AI_REVIEW_MAX_TOKENS`) — escalate to the operator,
+  who owns that configuration, rather than re-running blindly. Do not record it as
+  a "flake"; a provider-class INCONCLUSIVE is a real signal that the provider bound
+  or budget needs the operator's attention.
+
+**The distinction that matters:** a real **BLOCK** has a `## Review — BLOCK`
+heading and a `### Blocks` list you MUST fix; an **INCONCLUSIVE** has neither and
+must NOT be treated as a review finding (reporting it as one, or "fixing" code to
+satisfy it, is an R1 misdiagnosis). The gate's own workflow classifies INCONCLUSIVE
+as exit 3 and keeps the check RED; `pr_state_watch.sh` reports it distinctly from a
+verdict BLOCK. **Never merge around the red check** — an INCONCLUSIVE is an
+environment/provider condition to fix or escalate, not a licence to bypass the
+gate. The only merge under a red required check is an explicit, operator-issued
+override decision, taken by the operator on evidence THEY accept — it is never an
+agent's call, and never a documented standing procedure.
+
+### `pr_state_watch.sh` — STOP on a terminal state, never poll in a loop
+
+`marketplace/scripts/pr_state_watch.sh <owner>/<repo> <pr-number>` watches the
+required check across ALL its same-name runs on the head and exits the instant a
+terminal state is reached, distinguishing a real verdict BLOCK from POISON.
+Exit codes: `0` MERGED · `2` BLOCKED · `3` CLOSED · `4` TIMEOUT · `5` ERROR. It is
+the ONLY sanctioned poll — `gh pr checks --watch` cannot see POISON (it reads the
+collapsed rollup), and a hand-rolled `while`/`sleep` loop is the R3 band-aid this
+replaces. On exit 2: read the verdict, fix, re-finalize the body, push a NEW
+commit — never re-dispatch the same head. Detail: the reference + the script header.
+
+
+## Non-negotiable invariants
+
+- **MANDATORY PRECONDITION — read this skill (and every dispatched skill) BEFORE ANY code change.** As soon as a task will edit a file, create a branch, commit, push, open or update a PR, touch a submodule, or run any git/`gh` action, this skill MUST be loaded FIRST. It is NOT optional: a git/PR action taken before loading it is an R0 violation and the change is not landable.
+
+- **No direct push to `main`** (the project rulebook's PR-only landing mandate — see "Commit, push, land"). Enforced by ONE organization branch RULESET on `refs/heads/main` (`creation` + `deletion` + `non_fast_forward` + a strict required status check named exactly **`validate / validate`**), with the `charly-auto-merge` GitHub App as the only bypass actor (its scoped bypass is what lets tag-on-merge's CHANGELOG commit land on a protected `main`). On GitHub Team that ONE ruleset also carries the **`workflows`** rule ("Require workflows to pass") naming `opencharly/.github/.github/workflows/org-wide-pr-validator-required.yml`, so the validator is required ONCE org-wide with no per-repo dispatcher to install. The LEGACY branch-protection API is deliberately NOT used: it has no bypass slot for that app, so `org-ruleset.sh` deletes it wherever it survives, and `enforce_admins` plays no part. The `pre-push-gate` adds a local backstop in every harness that wires it — Claude Code included, via `.claude/settings.json`'s PreToolUse hooks. Organization-wide apply/verify is owned only by `opencharly/.github/scripts/org-ruleset.sh`.
+- **Never force-push, on any branch, ever** (mandate, same rulebook section). `main` only fast-forwards via native auto-merge's squash; a `feat/` branch, once pushed, advances only by ADDING commits (the author's change plus any review-round fix commits), and the squash-merge collapses them. A stale `feat/` catches up with `gh pr update-branch` (a merge, NOT a rebase-force); tags are add-only. **Amending a `feat/` branch is a normal authoring action — legal until the first push** (amending a pushed branch would require a force-push, which is forbidden).
+- **R10-gated; the merge requires the `charly/pr-validator` gate's green check run.** R10 PASS authorizes opening the PR (with pasted evidence); a rule violation or R10 FAIL means a red `charly/pr-validator` check and no merge — fix in the same tree, re-run R10, re-push; the check resets and the validator re-runs.
+- **Zero warnings is part of R10** (project rulebook R1). A version-mismatch warning clears with `charly box reconcile`; any other warning gets `/charly-internals:root-cause-analyzer` then a real fix — "warning" is never an accepted end state.
+- **Atomic on `main`, never on `feat/`.** The org-wide `charly/pr-validator` workflow's PASS enables GitHub native auto-merge (squash), which folds the author's change and any review-round fix commits into one commit on `main`; the `feat/` branch may freely accumulate fix commits across review rounds. The merge-time CalVer tag and the `CHANGELOG/<CalVer>.md` entry (written from the PR body — the PR body IS the changelog) are created after merge by the org-wide `tag-on-merge` workflow (see "CalVer" in `references/validator-and-calver.md`). Two separate cutovers must never share one PR.
+- **Update the PR; never close-and-recreate** (except for work that will not land at all — a disproven premise, an abandoned approach). When a review demands changes, append a commit and push it fast-forward — the check resets and the validator re-runs. This is what makes the no-force-push rule livable: because `main` gets a squash, a branch carrying five fix commits still lands as one. **If the PR is AUTO-CLOSED after too many failed validation rounds (or the operator closes it) and the work is carried forward in a NEW PR, you MUST post a comment on the OLD (closed) PR that references the new one (its number/URL) and states what it supersedes** — a closed PR is a durable public record that must point to where the work continued.
+- **FINISH THE BODY BEFORE THE PUSH.** The validator validates the PR — the diff at the branch head and the body — each time it runs, and fetches the PR live. The org REQUIRED workflow fires only on the default push-driven types (`opened`/`synchronize`/`reopened`) and IGNORES `on.types` (MEASURED); because the head SHA is content-addressed and therefore known BEFORE the push (`git rev-parse HEAD`), write the body first: commit → compute head/diff-stats → write the WHOLE body (footer last) → push. A body-only fix after the push needs no empty commit — re-run the gate MANUALLY with the REST call **`gh api -X POST repos/<owner>/<repo>/actions/runs/<run-id>/rerun`** on the failed run (find it with `gh run list --repo <r> --json databaseId,headSha,conclusion`; `gh run rerun` 404s on the org-required workflow and re-runs nothing; the re-run is a new attempt on the same `GITHUB_SHA` whose newer check run supersedes the failure — measured on opencharly/docs#142). An empty re-freeze commit ALSO re-fires the gate (the ruleset `workflows` rule acts on the push-driven `synchronize` type) but mints a NEW head SHA — equally valid, just re-key the body to it. Full mechanics: "THE BODY-BEFORE-PUSH RULE" above. Corollary: a PR whose diff is EMPTY because the base already contains the change (you branched from a stale snapshot) is a no-op — close it rather than re-pushing (the validator flags it as body-truthfulness violation: body describes files the diff does not carry). Always `git fetch origin main` + diff against CURRENT main before opening or finalizing a PR.
+- **BEFORE ANY UPDATE PUSH: read everything, fix everything, RCA every failure, then write the body** (the project rulebook "Before every update push: read everything, fix everything"). Before ANY push that updates an existing PR — a fix commit, a body edit, or `gh pr update-branch` — do ALL of these, in THIS order:
+  - **(a) Read EVERY new comment IN FULL.** That means every PR comment, review, and review thread since your last push, plus every comment on every ISSUE this PR closes or relates to. Paginate and track ids: `gh api 'repos/<o>/<r>/issues/<n>/comments?per_page=100'`, `gh api 'repos/<o>/<r>/pulls/<n>/reviews?per_page=100'`, `gh api 'repos/<o>/<r>/pulls/<n>/comments?per_page=100'`, and `gh issue view <N> --comments`. The default page is 30 comments, so `.[-1]` on a busy PR is NOT the newest comment. Never use a truncated view.
+  - **(b) Read the latest validator result IN FULL.** Read the whole `## Review — BLOCK`/`PASS`/`INCONCLUSIVE` comment and its `### Blocks` list, not the check's one-line status. Do the same for every red check on the head (via `marketplace/scripts/pr_state_watch.sh`, then the run's comment).
+  - **(c) Fix EVERY finding.** Every validator block and every reviewer finding is fixed in the new head, or rebutted in-thread with evidence. Never fix a subset, and never file a finding raised ON the PR away as an issue.
+  - **(d) RCA every validation failure.** A BLOCK, an `INCONCLUSIVE`, a red CI check, or an auto-close is an R1 anomaly. Run a fresh `/charly-internals:root-cause-analyzer` pass BEFORE the fix, and name the **missed control**: why your own pre-push gate did not catch it. Put the root fix into that control (your self-audit, a gate, a skill) as well as into the code. Post the RCA summary in the round's PR comment. An `INCONCLUSIVE` has no code finding: classify its engine or provider cause from the diagnostics and escalate it (see "The INCONCLUSIVE class" above).
+  - **(e) Answer coordination first.** A `WAITING`, a `HOLDING`, a `TAKING OVER`, or a question addressed to your slug is answered in-thread before your push (B2b.1).
+  - **(f) Everything the verdict asks for is in place BEFORE the push or re-run.** That includes a requested T4 sign-off comment (B2b.1, "How and when a sign-off is made") and every PR-body change. Make all of them first, then push or re-run exactly once. One BLOCK that requests a T4 sign-off is expected. A second run with the sign-off or a body fix still missing is a violation.
+  - **(g) Write the WHOLE updated body** for the head you are about to publish (footer last), then push ONE new commit carrying every fix of the round.
+
+  A push that skips any step is an R1 violation. A partial fix set or a skipped RCA is one too. The validator re-reviews the diff + body + the FULL live thread on every run, so pushing with a stale read OR a stale body re-reviews the wrong state and can re-ship a defect an existing comment already named. A hook/classifier block is never reshaped-and-retried (B5).
+- **Assert the body edit LANDED, then read the LIVE body back — a silently-failed edit is the same defect as a stale body.** A PR body is rewritten by script far more often than by hand, and its failure mode is silent: `str.replace`/`sed` whose anchor stopped matching (a renamed heading, a reflowed line, a re-quoted string) returns the input UNCHANGED and exits 0, so the script reports success while the prose keeps describing an edit the artefact never received — and the next verdict blocks on evidence attributed to a head or a symbol that is not there. Do BOTH whenever a body is rewritten by a script: (a) **assert every insertion** — `assert s.count(anchor) == 1` (or an explicit `if anchor not in s: raise`) around EACH replacement, so a no-op cannot pass silently; and (b) **read the live body back** — `gh api repos/<o>/<r>/pulls/<n> --jq .body`, then grep it for a NAMED marker unique to each edit (a symbol, a line number, a section heading) BEFORE firing any re-run, because the validator reads the body GitHub is serving, not the file on disk. Two supporting habits close the same class from the other end: put the head SHA and the command INSIDE every evidence fence (`# head <sha> (git rev-parse HEAD)` as the fence's first line) so a paste carries its own provenance instead of depending on the prose around it; and put a NUMBER on every deferred debt (an issue number, a run id, a count) rather than a phrase like "later", so the record says what is owed and to whom.
+- **A fence that names its head is self-ATTRIBUTING, not self-VERIFYING — add one command whose output would DIFFER if the paste were from another tree.** Naming the head inside the fence is necessary and not sufficient: the label can be right while the content is stale. Measured (`opencharly/plugin-clean#13`): a fence headed "every command below ran on this tree" printed `git rev-parse HEAD` → `8c67522` and then a `git log` listing the PREDECESSOR's commits — correct head, stale body, and the contradiction sat in plain sight. The instrument is a single command: `git rev-parse <A>^{tree} <B>^{tree}` printing TWO EQUAL hashes establishes tree identity, and two equal tree hashes cannot both be true of different content. Use it (or any command whose result changes with the tree) instead of arguing the trees are equivalent; when the paste IS from an earlier head, say which head it is from and back the delta with the same instrument.
+- **A claim about THE object is only as good as the string you hand the probe — paste the exact string you fetched, and use a check whose output would differ for a different object.** The falsifier can be sitting in the object's OWN NAME. Measured (`charly#843`): a body claimed an image-filename shape was gone; the probe fetched `…cloudimg-v20261001.604814.qcow2`, while the pin's real name carries NO `v` — re-run with the real string, the shape returns `QFI3` on the newest AND the oldest release, and only the `v`-prefixed name returns `<html`. The shape was alive, the mechanism was an artefact of testing a DIFFERENT object, and an RCA that had read as two mechanisms collapsed to one. Same failure as the tree-hash bullet at a different scale: a fence that names its head while its content is stale, and a probe that names a filename but not THE filename — both cured by one command whose output would differ if the object were not the intended one, and both made auditable by pasting the exact string beside the result.
+- **Presence checks catch a MISSING fix; only an ABSENCE check catches a LEFTOVER one — after any correction, grep for the RETRACTED claim too.** All three bullets above are presence checks: the new marker is there, the head is named, the object is named. A body can satisfy every one of them and still carry the sentence it was corrected to delete. Measured twice in one evening (`charly#843`, `plugin-clean#13`): a summary carried the correction while the R1 bullet three paragraphs later still asserted the retracted mechanism verbatim, and a SECOND `git log --oneline origin/main...HEAD` still printed the predecessor's commits under a "ran on this tree" heading — both bodies had been grepped for what was ADDED and never for what was REMOVED. So the pair is mandatory: grep that the replacement is present AND that the retracted string is gone (an empty result for the old text, pasted like any other check).
+- **After ANY branch update, every tree-pinned fence in the body is invalidated — re-take the evidence, do not re-label it.** A branch update rewrites the head by definition, so a fence that names the commit it ran on now names a commit that is not the head — and the body that says a count is only comparable to another count from the same tree has, by its own standard, evidence from the wrong tree. Measured three times in one evening (`charly#846`, `charly#849`, `charly#843`), each losing a review round to exactly this. The cure is the one the staged discharges already use: rebuild on the head, run the gate on that tree, paste THAT run's own attribution, and delete the bridge rather than re-arguing tree equivalence or artifact identity. `charly#843`'s update-invariance covered the STATE; this covers the EVIDENCE.
+- **A producer can be declared twice in one tree, in two tag spellings — and the artefact under test is governed by the one you did not read.** `charly.yml`'s `@github` ref and `charly/go.mod`'s module requirement both name `plugin-candy`, and only the second builds the binary: the ref feeds the resolver and the docs corpus, the requirement feeds the compiler. Worse, the two spell the same release differently — the module form `v0.2026271.2318` is NOT a git tag, so `git ls-remote` and `git show` on it return nothing and look like a missing release. Measured on 2026-10-08: advancing the ref alone changed no compiled behaviour, and advancing the module produced the verb. **Before concluding a pin is stale, grep the tree for every declaration of that producer and find which one the artefact is built from.**
+- **A check must be able to fail: a check that cannot fail proves nothing, and three shapes of that defect cost review rounds in a single evening.** (1) **Normalise whitespace before asserting absence** — a retracted phrase survived a line break while the absence grep read zero, so the check was a presence check wearing a disguise. (2) **Assert the extraction is non-empty before believing its verdict** — a selection matched an `id:` marker that does not exist and printed a confident `identical=True` from zero lines. (3) **Hand the probe the string that is really there** — a sweep searched `cloudimg-v<ver>` while the retired filename has no `v`, so its `total=0` was vacuous and would have let the real reference slip past. **Before trusting any grep, count, or comparison: prove the instrument is pointed at something that exists, and that it would have gone red if the thing were present.**
+- **A claim is only as good as the object it names - find what the words actually denote, then measure THAT.** Two failures in one evening, one shape: (1) `go list -m` was pasted as evidence about `go.work.sum`, but the first reports the build-list SELECTION and the second records BUILD HASHES - different objects, and the pasted first contradicted the diff it claimed to explain; (2) a CI step NAMED `golangci-lint` failed, while the step runs TWO commands under TWO environments (`charly/`, then each `tools/*` module with `GOWORK=off`) - so "the lint is red" was a claim about an object the name does not denote, and naming the commands is what makes the failure addressable at all. **Before explaining, proving, or fixing: name the object - the string, the file, the command - and confirm the thing you measured is the thing you are talking about.** *(A third instance is the bullet above, item 3: a sweep for a string that occurs nowhere.)* **And the corollary, which a review caught in this bullet's own first draft: naming the right object is step one, not the answer - a re-run that comes back green is not an RCA, and a real failure that is dismissed by a re-run stays unfixed.** (The `golangci-lint` failure's own RCA is tracked separately rather than resolved here.)
+- **A guard must WRITE LAST: assert the anchor first, then patch - never patch and then assert.** A patch script that writes the file before checking its anchor leaves a PARTIALLY PATCHED file on disk when the anchor misses: the assertion fires and the bad write is prevented, but a stale write has already happened, which is the same hazard one step along. Measured three times in one session while retiring claims from a PR body - each guard refused correctly and each refusal was preceded by a partial write. **The order is the whole fix: read, assert the anchor exists exactly once, construct the replacement in memory, write once. A guard that can leave the artefact worse than it found it is not a guard.**
+- **Absence of evidence in a TRUNCATED run is not evidence of absence - check that the run got far enough to look.** A red gate that fails in *setup* cannot report a finding that its *analysis* step would have produced, so "the run shows no finding" from such a run is not a statement about the code. Measured four times in one session: a step that died building its own tool, a provider outage, a cold module cache, and a cache-restore failure that made a typecheck report a missing sum - each read initially as *"the gate is red for reasons unrelated to this change"*, each resolved only by reproducing the step's OWN order (generate, then analyse) rather than the part that happened to finish. **Before concluding that a failure is not yours, establish that the failing run reached the stage that judges your change.**
+- **Derive every figure from the artefact, and state a branch SHAPE rather than its arithmetic - a numeric claim about a branch is invalidated by the very commit that re-triggers the judgement.** Four verdicts on one PR were all one error: the body mixed revisions - a pasted log from the previous run, a step count left over from the prior wording, a commit count that the re-trigger itself made stale. **Each number must be read back from the thing that owns it:** commits from `git log`, diff counts from `git diff --numstat`, a run directory from `ls .check/`, a sum file completeness from the tool that writes it. **And a claim the next commit can falsify must not be numeric at all** - *"the branch carries the fix commit and its content-free re-triggers"* cannot go stale, while *"four commits"* is wrong the moment it is written. **Corollary, measured the same evening: two counts can differ and both be right - a bed's `steps=10` and the live probe's `9 checks` are different objects**, so name the object, not just the number.
+- **Locate an error's OWNER in the module cache, not the checkout.** A message a program prints is emitted by whichever MODULE built that code, which is rarely the repo the failing command was run in. `grep -rn '<the exact format string>' $GOMODCACHE/<org>/` finds the file and line in one step. Measured: three greps inside the repo that ran the command found nothing, and one grep across the module cache produced `loaderkit/walk.go:192` - *an hour of guessing was an hour spent in the wrong repository.* **Search where the code is BUILT, not where it RAN.**
+- **A closing keyword inside BACKTICKS does not close an issue.** GitHub's closing-keyword parser ignores a reference that is code-formatted, so `Closes \`<owner>/<repo>#N\`` in a PR body merges the PR and leaves the issue OPEN - silently, with no error anywhere. **Verify the ISSUE, not only the PR: a merge and a closure are two artefacts.** Measured: a fully green cutover landed and its issue stayed open until it was closed explicitly with a RESOLVED comment naming the merged PR and the merge tag. *When you find one left open this way, the honest repair is that comment plus the close - the automatic path did not run, and nothing else will notice.*
+- **A body claim must be one you RAN. "I checked X and found none" is not evidence without the command and its output - and pasting an empty result is a trap when the result is not empty.** Measured: a claim that a sibling package had no such error format, when the grep matched twice (in an unrelated package). **Paste the real output and state what it supports, including the hits that exist.**
+- **A monitor's alarm must have a CLEARING CONDITION, and its window must match the cadence of what it watches.** A state-shaped alarm fires at arm time while its condition holds, so on an item whose silence is permanent - a peer's PR nobody is pushing - the condition never clears, every re-arm re-fires immediately, and the watch never actually waits. *An alarm whose condition cannot clear is not an alarm; it is a loop with a label.* **Where nothing can clear it, do not arm it - record the state instead.** And for a long-lived backlog item, minutes of silence are the normal state: a window shorter than the item's expected cadence manufactures the alarm it claims to detect.
+- **A monitor must be a MANAGED background command, and re-arming REPLACES rather than adds.** A detached watcher cannot be waited on, so the harness is never woken by it and every round becomes a poll. Arm the watch as a managed job over the whole item list in ONE invocation (a batched poll costs one request for N items), then block on that job - *a completed job IS the wake.* **And check the per-args lock before trusting it: a changed item list is a DIFFERENT argument list, so "re-arming with the new list" starts a parallel watcher instead of replacing the live peer - duplicate polls and duplicate wakes. Stop the live watcher first, then arm one.** `ps` over the process table is the authority; a job listing is not, because an auto-rearming watcher detaches a successor and reads as finished while it is alive.
+- **Search existing issues/PRs before starting; file ONE proper issue if none; claim it before branching.** Before any non-trivial work — and before filing anything — search the whole org (`gh search issues <terms>` / `gh search prs <terms>` / `gh issue list -S <terms>`) and ADD to the existing issue/PR thread rather than creating a duplicate. If none exists, file ONE proper issue (specific title, the problem, the evidence, the intended scope) and reference it from the PR (`Closes #N` / `relates to #N`). The issue is the coordination point: check its owner (assignee / claim comment / status label) and CLAIM it (comment + assign) BEFORE you create a branch; if another session already owns it, coordinate on the thread instead of opening a competing PR. **Every issue resolved by a PR MUST be closed by an agent once that PR merges** (with a comment linking the merge); never leave a resolved issue open. Full protocol: B2b.
+- **Filter a PR list on `merged_at`, never on `merged`.** The GitHub pull-list API returns `merged: null` for PRs that HAVE merged, so a session that reads it as "not merged" reports landed work as in flight and then rebuilds it. *Measured: a fix called "unpushed" that had landed hours earlier, which understated a whole clause of a wave.* `merged_at` carries the timestamp or nothing at all, and `state=all` is what finds a merged PR; use those. The same shape applies to any bounded query: **a field that is null for "unknown" and null for "no" cannot be counted with**, and `per_page` is a window, not an inventory.
+- **Identity is in the footers; authority is in the comment verb.** On a triggered scope — two or more agents on one issue/PR, OR a blocking dependency (any `WAITING`/`HOLDING`/`CLEARED` in play) — EVERY agent-authored comment and PR body carries the two-line footer in ONE canonical order, **`Agent:` FIRST and `Assisted-by:` LAST** (a PR body thereby also satisfies the validator's "`Assisted-by` FINAL line" requirement), and a coordination comment OPENS with a label from the CLOSED set — `CLAIM` · `OWNING` · `HANDING OVER` · `TAKING OVER` · `WAITING` · `HOLDING` · `CLEARED` · `STATUS` · `RESOLVED`. Both are optional for a solo agent on an uncontended PR; the slug is NEVER appended to `Assisted-by`. Because same-account sessions are indistinguishable by comment author, the SLUG is authoritative for COORDINATION IDENTITY (who is doing the work), not the GitHub author: the LATEST `OWNING` (or `TAKING OVER`) for a scope wins, and you MUST NOT push to another slug's claimed branch/PR without a `HANDING OVER` addressed to you, a `TAKING OVER` naming your `authority:`, or operator sign-off. **The sign-off authority is a SEPARATE axis and is ACCOUNT-gated** — a maintainer sign-off is valid ONLY when the comment is posted by a maintainer-set account (`atrawog`/`aitrawog`), verified by the author label (`by @<login>`), never the prose; the two rules do not conflict (the slug governs WHO, the account governs the sign-off's VALIDITY). **Progress is a COMPLETED `charly/pr-validator` run, never session activity; takeover is comment-FIRST over a 60-minute FLOOR window; the auto-close carry-forward touches FOUR surfaces (closed PR, successor body, the issue, ownership transfer); and there is no R10 class exemption for a library/schema change.** An agent NEVER impersonates the operator. Full mechanics + rendered examples: B2b "agent identity and the coordination verb grammar".
+- **A dispatched workflow defaults to the DEFAULT BRANCH — `--ref` is MANDATORY.** `gh workflow run <wf> --ref <branch>` is required to dispatch CI on a PR head; a dispatch with no `--ref` runs on `main`, so its check registers there and counts for nothing on the PR's required checks. There is NO self-heal: the reusable workflow's `head_ref` output is never consumed and no dispatcher re-dispatches itself. For run-on-head diagnostics, target the PR's branch explicitly.
+- **Tree-safety before destructive actions (R6).** Check `git status` + `git stash list` before any destructive working-tree action — `git stash` discards in-progress work; `rm` on a tracked file is destructive. When the sandbox blocks an action, find a non-destructive alternative rather than working around it. The stash/pop cycle can itself silently un-stage a `git rm`: a stash taken while a deletion is staged restores the deletion as unstaged on `pop`, so a `git status` right after the cycle that shows the deleted file back as a plain unstaged change (rather than the staged deletion you left) has quietly lost the staging — re-stage it (`git rm <path>` again, or `git add -u`) before committing. A stash/pop round-trip is never a no-op on a mixed add+rm working tree.
+- **Right worktree — pin one absolute path for the whole edit→commit→push sequence.** Before branching, staging, or committing, confirm the worktree you are driving is the same one your edits landed in: `git -C <path> rev-parse --show-toplevel` must equal the path you edited, and `git -C <path> status --short` must list those edits. Under symlinked or near-twin sibling worktrees — a parent dir that is itself a symlink (`~/projects` → `~/Sync/projects`), or look-alike names such as `…/charly` vs `…/<other-worktree>` — `cd`-ing to the wrong sibling makes `git switch -c` + `git commit` run against a clean tree and report "nothing to commit", silently landing nothing (or landing in the wrong repo). Never change the path spelling mid-sequence. An unexpected "nothing to commit" right after editing a file is the signature of this mistake — stop and re-verify `--show-toplevel` before retrying (blind retry is an R1 violation).
+- **The universal PR-gate — audit before any PR action, unconditionally.** Before opening, updating, or merging any pull request, run the aggregate audit: `gh pr list` across every touched repo + `git worktree list` + the live teammate/agent roster. This is a standing preflight, run first every time — never reached for only once something already looks off — because skipping it risks a duplicate PR for scope already covered in flight, a branch update from a stale worktree, or a merge over a still-running validator's verdict. Full operational detail: `/charly-internals:agents` "The universal PR-gate".
+- **Post-commit staging verification.** After every commit, re-run `git status --short` (expect it empty, or only unrelated untracked paths) and `git show --stat` (confirm every intended file is actually listed) — a multi-path `git add` naming several paths where one is mistyped or stale can commit only the files that did resolve while `git commit` still succeeds, producing a commit that would not even compile. `git show --stat` catches that AFTER the fact, and it is the only post-commit check ON THE COMMITTING SIDE that sees a commit whose message describes an intent its diff does not carry — no gate that reads the tree can, because the mismatch is between the message and the tree, and the tree does not hold the message. It is NOT the only thing that can catch the class: any reader holding message and diff together — a review, a cross-repo reference sweep — catches it too, and catches the cases `--stat` cannot, such as a mismatch that spans two repositories.
+- **Chain the edit to the commit so the failure cannot reach one.** A script that edits and the `git add` / `git commit` that follow are SEPARATE statements: a guard that aborts the edit does not stop the commit, which then lands under a message describing an edit it does not contain. Joining them — `edit && git add … && git commit …` — makes a failed edit unable to produce a commit at all. The defect occurred three times in one session; the chain was exercised ONCE, and that occurrence left no artifact by construction — so three is the evidence for the PROBLEM and one is the evidence for the REMEDY. Do not report them under a single "measured". **The chain is necessary, not sufficient:** `&&` short-circuits on a non-zero exit, so an edit that fails LOUDLY cannot reach the commit, but a SILENT no-op edit — a pattern that matches nothing — exits 0 and lands the commit under a describing message exactly as before. That case still needs the post-commit read above; the chain closes only the aborting one. **A rule held in a head is exactly as effective as a rule not held, unless something in the command line enforces it.**
+- **`git add` is all-or-nothing: never name a path that no longer exists.** A single `git add` whose pathspec includes a vanished path fails the WHOLE add — `fatal: pathspec '<old>' did not match any files`, exit 128, nothing staged, including the paths that did resolve. Two shapes hit this, and both are silent because a PRIOR command already staged something, so the failed `add` leaves `git status` looking exactly as intended:
+  - **a deletion**, where the removed file's path is still named in the `add` (the deletion was already staged) — lands a partial commit carrying only the deletion;
+  - **a rename plus a content edit**, where `git mv old new` is followed by `git add old new` (the `mv` already staged the rename) — lands the rename with the content edit dropped.
+
+  Stage a rename+edit as `git add <new>` alone, and a deletion by DIRECTORY or with `git add -u`; never name the vanished path. **This shape defeats the post-commit check above**, which is why it needs stating separately: `git show --stat` DOES list the file, as `old.md => new.md | 0`, so "every intended file is listed" passes. Presence is not the signal — the tells are the **magnitude** (`| 0` insertions on a commit meant to change content) and a **leftover ` M <new>`** in `git status` afterwards. Read the numbers and the post-commit status, not just the filenames, and confirm content directly with `git show HEAD:<new-path> | head -1` whenever the edit is the point of the commit.
+- **Check-coverage is part of R10.** The change must ship the test coverage that proves its functionality (`check:` checks for new/changed layers & images, Go tests for `charly` code) AND the live run must have exercised it. A change whose new functionality has no test that would fail without it is not landable.
+- **Every repo is tagged at merge.** The superproject, every `box/<distro>`, `plugins`, and `docs` all mint `v<YYYY.DDD.HHMM>` on their own merged HEAD — the tag marks the MERGE, decoupled from any `charly.yml` `version:` schema field, so a repo needs no `charly.yml` to be tagged. The sole exception is the sdk contract repo, which tags under its own Go-module scheme `v0.<YYYYDDD>.<HHMM with all leading zeros stripped>` (B2 step 0) — **not an exemption but a hard Go-module requirement**: `v<YYYY.DDD.HHMM>` is not a valid Go module version (semver forbids a leading-zero segment — `0733`→`733` — and a `major ≥ 2` would force a `/vN` module-path suffix that breaks every `import github.com/opencharly/sdk`), so the stripped `v0.<…>` form is mandatory, not a choice. A skipped tag is a defect, not an exemption: the orchestrator verifies the tag landed after each merge (`git ls-remote --tags origin v<VER>` non-empty) and, if tag-on-merge skipped it, backfills it add-only on the merged HEAD (`git tag -a v<VER> -m "<subject>" <merged-HEAD>` + `git push origin refs/tags/v<VER>`) — tags are immutable, so a backfill only adds one, never moves an existing tag.
+
+## Umbrella mechanics (when you work in the ~400-submodule umbrella)
+
+**These are umbrella-REPO-maintenance mechanics, run inside a checkout of the
+`opencharly/opencharly` umbrella — never commands a charly user runs with only the
+`charly` binary.** They are documented here because the umbrella `AGENTS.md`
+Skill Dispatcher routes its pinning/gitlink row to this skill, and the umbrella
+`AGENTS.md` names them as the sanctioned path for that maintenance work
+("Umbrella-native mechanics are the sanctioned path for umbrella work"). A charly
+end-user never sees them; they are the umbrella's own `charly task` entities.
+
+Inside the umbrella checkout the umbrella `AGENTS.md` governs (Part I is the org-wide
+rulebook; a subrepo's own `AGENTS.md` — e.g. `charly/AGENTS.md` for the charly
+core — adds repo-specific rules on top). The umbrella's own commands — never an ad-hoc substitute — answer
+three DIFFERENT questions: `charly task map` is **state** (a listing), `charly task
+verify` is **consistency** (each checkout matches the recorded gitlink), and
+**currency** — whether each recorded pin is the value its declared INTENT names, read
+from the REMOTE — is a **first-class mode of the ONE pin verb** (`verb: git-submodules`
+with `mode: currency`), never a second implementation and never a hand-measured table.
+**That is the CONTRACT, and the mode IS in a released binary**: measured 2026-10-23 on
+the built binary (2026.295.1709), the umbrella's own `charly task pins --param
+MODE=currency` answers the question and names the states. Do not MEASURE the
+question by hand: a hand-built `<path>: <recorded gitlink> vs <remote
+default-branch HEAD>` table is the second implementation of a verb that already
+answers it, and it drifts. Do not quote its COUNTS here either — they are a LIVE
+reading of the org's remotes, not a constant, so the same binary can report a
+different number an hour later than it did before. The rule and its reason are in
+`references/pin-intent-and-currency.md`, which owns the contract; the command,
+the shapes and the states are there too.
+A green `verify` still does NOT answer the currency question — it passes on a tree
+whose submodules are all behind their remotes (measured 2026-10-15; the `distro-*`
+reading is in `references/umbrella-mechanics.md`)
+— which is why the pin contract now has its own reference: the intent model and its
+two structural rules, the states and what each obliges, and the producer-first leg
+order are in `references/pin-intent-and-currency.md`. `charly task hooks` installs the
+per-commit gate. Hard rules
+there: **never edit inside a submodule** (change lands by PR to the owning repo; the
+umbrella only records gitlinks), run submodule git through `git -C <absolute-path>`
+from the umbrella root, no worktrees inside submodules, pin only MERGED refs, run
+`charly task sync` on a base current with `origin/main` (its answer is base-relative),
+and bound every command's output (SIGPIPE is ignored — `grep` floods on `Broken
+pipe`). Full detail: `references/umbrella-mechanics.md`.
+
+## Reference Index
+
+| Topic | File |
+|---|---|
+| B1 (the two-step branch-per-change loop, concurrent landings, the cross-repo WIP landing sequence) and B4 (sync to upstream + prune) | `references/branch-and-pr-loop.md` |
+| B2 (multi-repo/multi-worktree coordination, per-module verification), **B2b (cross-session coordination via PR comments when another session's PR blocks you; the two-line identity footer + the CLAIM/OWNING/HANDING OVER/TAKING OVER/WAITING/HOLDING/CLEARED/STATUS/RESOLVED verb grammar, mandatory on a contended or blocking scope)**, B3 (agent teams in per-teammate worktrees), B6 (cross-repo `@github` landing), and B7 (multi-worktree landing + refresh, the canonical end-to-end) | `references/multi-repo-coordination.md` |
+| B5 (the fresh evaluator + fork/PR path, the two-gate autonomous-landing model), CalVer generation, post-landing cleanliness + report format, and the validation-FAILS recovery sequence | `references/validator-and-calver.md` |
+| Evidence discipline — provenance vs plausibility of a pasted gate, the three freshness surfaces (head / body / pasted output), positive-vs-negative claim decay, sweeping for claims a fix invalidated, the merged-tree gate for a `BEHIND` PR, source-and-regeneration as one cross-repo cutover, submodule pointers reverted by a non-conflicting merge, and why status-absence on a known head proves nothing | `references/evidence-and-freshness.md` |
+| The pin contract — a pin declares its INTENT (`upstream:<ref>` leaf vs `derived-from:<path>` edge), the two structural rules (an edge may not point at an edge; every leaf remote-verifiable), the states with what each obliges, why `behind` and `blocked-by` PASS by design, and the producer-first leg order | `references/pin-intent-and-currency.md` |
+| Umbrella mechanics — the ~400-submodule view, the pin contract's umbrella side (policy B is its edge mechanism), the full `charly task` maintenance table, session worktrees, the no-edit-in-submodule rule, pin discipline | `references/umbrella-mechanics.md` |
+| Watch-and-wake — the self-sustaining watcher family (`--auto-rearm`, the single-instance lock, rate-limit backoff) and the arm → wake → act → re-arm runbook | `marketplace/scripts/pr_state_watch.sh`, `marketplace/scripts/pr_watch_many.sh`, `marketplace/scripts/gh_watch.sh` (run one — never hand-roll a poll) + `references/watch-and-wake.md` |
+| The pre-validator self-audit — the six BLOCK classes detectable before the first push, the ten-step preflight that removes them, and the delegating-parent duties | `references/pre-validator-self-audit.md` |
+
+## The pre-validator self-audit — one pass before the first push
+
+Before the first push, run the **pre-validator self-audit**: a short, six-class
+preflight that catches EVERY block cause a `charly/pr-validator` run would
+otherwise return. MEASURED (umbrella #286): across 9 docs PRs landed in one
+session, 6 first pushes blocked and 17 validator runs were spent; every block fell
+into one of five diff-derivable classes (a SIXTH was measured later by
+opencharly/marketplace#404, against two more first-push BLOCKs), and the one PR that
+passed first try had run this pass. The full checklist — the six classes, the ten
+steps, and the delegating-parent duties — lives in
+`references/pre-validator-self-audit.md`. The checks those classes predict are
+the ones in the project rulebook's "What the validator checks" table, which maps
+every validator check to its rule and owning skill section. Self-audit against
+that table: the validator only enforces what the rulebook states.
+A parent that spawns a worker MUST embed it in the brief (see
+`/charly-internals:agents`), and the worker MUST run it before its first push.
+
+## The watcher family — a self-sustaining loop
+
+Three generic watcher scripts under `scripts/` in the **`opencharly/marketplace`**
+repo (addressed as `marketplace/scripts/<name>` from the umbrella checkout), plus a
+shared helper library `_watch_common.sh`, turn a landing into a background command
+that EXITS — and, because the harness notifies the owning agent when a background
+command finishes, **exiting IS the notification**.
+
+**The harness constraint: an agent is woken ONLY when a background command
+COMPLETES.** A watcher (or a `while true` loop) that never exits gives NO wake, and a
+one-shot watcher that exits leaves nothing watching until an agent re-arms — the
+dropped step this family exists to remove. Two patterns:
+
+- **per-event notify** (`--no-rearm`, the default) — one-shot; the agent re-arms on
+  each wake;
+- **durability** (`--auto-rearm`) — on a non-terminal exit the watcher detaches a
+  **lock-guarded successor with the SAME args BEFORE it prints and exits**, so a
+  watch is ALWAYS alive independent of the agent. `--auto-rearm` keeps a WATCH alive;
+  the agent's re-arm keeps NOTIFICATIONS alive. A durable supervisor never exits, so
+  it is NOT the answer.
+
+**THE RE-ARM INVARIANT.** An agent that acts on a wake MUST leave a watcher armed —
+`--auto-rearm` makes that automatic; a per-event agent re-arms in the same turn. An
+agent that fires an event and does not re-arm has silently stopped watching.
+
+**Single instance; rate limits.** A per-args **lockfile** (flock + a holder PID)
+means repeated arms never stack — a foreground arm takes over a live peer cleanly.
+Before each poll the remaining core quota is read from the FREE `/rate_limit`
+endpoint; below `WATCH_RATE_MIN` (default 200) the watcher **backs off** (4x, capped)
+rather than hammering into the observed HTTP-403 wall.
+
+| Arm this | To watch | Wake event |
+|---|---|---|
+| `pr_state_watch.sh <owner>/<repo> <pr>` | ONE PR's terminal state, across ALL same-name check-runs on the head | `0` MERGED · `2` BLOCKED · `3` CLOSED · `4` TIMEOUT · `5` ERROR — and it names **POISON** (a green re-dispatch stuck behind an older same-name FAILURE) distinctly from a verdict BLOCK |
+| `pr_watch_many.sh [--repos R,…] [--interval S] [--stallmin M] [--validator NAME] [--auto-rearm] <owner>/<repo> <pr> …` | a CROSS-REPO **PR batch** | the first of: a PR terminal (above, delegated); a **NEW verdict** — a new `<validator>` run COMPLETING on any watched repo; a **STALL** — no new verdict for the window while scopes stay open+unmerged |
+| `gh_watch.sh [--events L] [--interval S] [--stallmin M] [--workflow NAME] [--auto-rearm] <owner>/<repo>#<num> …` | a per-item list of PRs **and/or issues** | a NEW `comment`; a NEW `verdict`; `merged` (unblocked); `closed` without merge (find the successor); or a `stall` (takeover candidate) |
+
+Both batch watchers poll every `--interval` and exit when a new `--workflow` run
+(default `charly/pr-validator`) **COMPLETES**; the STALL layer fires only when **no
+new verdict lands within the window** while the scope is still open+unmerged. That
+is the B2b.1 progress-signal rule applied to a monitor — progress is a completed
+validator run, never session activity (a looping agent never falls quiet; a peer
+WAITING on a running validator looks quiet but is working). Watch the scopes
+actually in flight — a stale watch list produces false stalls.
+
+**`gh_watch.sh` events are DELTA or STATE.** `comment` and `verdict` are DELTA:
+arming seeds the current comment-count / newest run id, so a pre-existing comment
+or verdict never wakes you. `merged`, `closed`, and `stall` are STATE: they fire
+while the item IS in that state — arming `merged` on an already-merged PR wakes
+immediately (exactly how "has my blocker landed?" reads). STATE `stall` additionally
+requires the item to be **open+unmerged**, so a closed/merged item never emits a
+false `(open, unmerged)` alarm.
+
+**Three field-learned watcher requirements — mandatory, not tips:**
+
+- **Silence is an ALARM.** A blocked item with no pushes emits **no validator runs and
+  no events**, so an event-only watcher is blind to the worst case. Every watcher MUST
+  carry a per-item **stall/silence alarm** — no progress (no new commit, comment, or
+  completed `charly/pr-validator` run; i.e. `updated_at` unchanged) for the window
+  while the item is open+unmerged. `gh_watch.sh`'s `stall` is therefore **ON BY
+  DEFAULT**. The events tell you when something HAPPENED; the stall alarm tells you
+  when something SHOULD have and did not. (Measured: a PR sat silently unchanged for
+  ~2 hours with NO alert; the instant `stall` was armed it fired.)
+- **Watch the OUTCOME, not every event.** Waking on every comment of an actively
+  iterating owner is noise. The DEFAULT event set is the terminal outcomes
+  (`merged`,`closed`) **plus the `stall` alarm**; add `comment`/`verdict` ONLY for a
+  wait that genuinely needs them (`EVENTS=comment` on an issue you asked a question
+  on and want the moment anyone replies).
+- **Liveness ≠ progress.** Judge progress by **artifacts** — a pushed branch, a new
+  commit, an opened PR, a merged tag — never by a session heartbeat or "still
+  investigating". The stall alarm is the mechanism: it keys on the item's
+  `updated_at`, so its silence is measured against artifacts, not activity.
+
+**On exit 2 of `pr_state_watch.sh`, read the verdict, fix, re-finalize the body,
+push a NEW commit — never re-dispatch the same head** to "see if it clears". It is
+preferred over `gh pr checks --watch` (which reads the collapsed rollup and cannot
+see POISON) and over any hand-rolled loop.
+
+The wake feeds the coordination protocol (B2b.1): a `stall` wake makes the scope a
+**TAKEOVER candidate** — post a coordination comment FIRST, wait the window, then
+`TAKING OVER — authority: window-expired` **BEFORE** any push. A `merged` wake is
+the **UNBLOCK** signal. The full arm → wake → act → re-arm loop, the event
+catalog, and the takeover it feeds: `references/watch-and-wake.md`.
+
+## Cross-References
+
+- the project rulebook "Commit, push, land" — the mandate this skill operationalizes.
+- `marketplace/internals/agents/pr-validator.md` — the fresh evaluator's full spec.
+- `marketplace/scripts/pr_state_watch.sh` — the per-PR terminal-state poll (stop, never loop).
+- `marketplace/scripts/pr_watch_many.sh` — the cross-repo PR-batch watcher (terminal / new verdict / stall).
+- `marketplace/scripts/gh_watch.sh` — the per-item PR/issue event watcher (comment / verdict / merged / closed / stall).
+- `references/watch-and-wake.md` — when to arm which watcher, the event semantics, and the re-arm-after-wake loop.
+- `opencharly/.github/scripts/org-ruleset.sh` — the sole organization-wide owner
+  of the ONE branch ruleset (required workflow + branch rules) apply/verify.
+- `/charly-internals:repo-setup` — the org/dotgithub configuration, the landing
+  automation (required workflow, native auto-merge, tag-on-merge CalVer), and the
+  new-repo setup checklist.
+- `/charly-internals:cutover-policy` — one-phase, atomic-commit, R10-at-the-end.
+- `/charly-build:migrate` — the version-free migration table, per-merge tags, push order.
+- `/charly-build:reconcile` — cross-repo `@github` pin alignment used by B6.
+- `/charly-check:check` — the check-coverage gate (R10) every change must satisfy.
+- `/charly-internals:root-cause-analyzer` — run on any FAIL before re-trying.
+
+## When to Use This Skill
+
+Invoke before any `git` / `gh` action that commits, branches, pushes, opens a PR,
+or drives the `pr-validator` merge/tag — and whenever syncing to upstream, applying
+branch protection, or pruning branches/worktrees across the main repo and its
+submodules.

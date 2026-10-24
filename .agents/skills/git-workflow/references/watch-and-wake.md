@@ -1,0 +1,234 @@
+## Watch and wake — arm, wake, act, re-arm
+
+A landing that depends on other sessions' work is a WAIT, and a wait you poll by
+hand is the R3 band-aid. Arm ONE background watcher instead: it exits the instant
+the event you care about fires, and the harness notifies the owning agent when a
+background command finishes — so **exiting IS the notification**.
+
+**THE HARNESS CONSTRAINT — design to it, do not fight it.** An agent is woken
+ONLY when a background command **COMPLETES**. So a watcher (or a `while true`
+loop) that NEVER exits gives **NO wake**, and a one-shot watcher that exits
+leaves **nothing watching** until an agent re-arms it. Re-arming is therefore
+not optional: the correct architecture is **each wake is produced by a finite
+watcher run, and a successor is already armed before the wake lands**. Two
+supported patterns:
+
+| Pattern | How | Use when |
+|---|---|---|
+| **per-event notify** (default, `--no-rearm`) | a one-shot run: it exits on the event, the harness wakes the agent, and the **AGENT re-arms** | the agent must act on every event |
+| **durability** (`--auto-rearm`) | on a non-terminal exit the watcher **detaches a lock-guarded successor with the SAME args** BEFORE it prints + exits | a STANDING watch that must survive fires independent of the agent |
+
+`--auto-rearm` keeps a **watch** alive; the agent's re-arm keeps **notifications**
+alive. With the single-instance lock, exactly ONE is active at a time. **A durable
+supervisor is NOT the answer** — it never exits, so it never wakes.
+
+**THE RE-ARM INVARIANT (an agent rule, not just a tool flag).** An agent that
+acts on a wake MUST leave a watcher armed. `--auto-rearm` makes that automatic
+(the successor is spawned before the wake); a per-event agent must re-arm itself
+in the same turn it acts. An agent that fires an event and then does not re-arm
+has silently stopped watching — the failure this whole family exists to prevent.
+
+The loop is:
+
+1. **Arm** the narrowest watcher that covers the wait (table below). Pass
+   `--auto-rearm` for a standing watch, or arm one-shot and re-arm on each wake.
+2. **Wake** on its single output line.
+3. **Act** on the wake (read the verdict / claim / unblock / take over).
+4. **Re-arm** — automatic with `--auto-rearm`; otherwise re-arm now (the
+   invariant above).
+
+Never poll session activity as a progress signal: a looping agent never falls
+quiet, so activity is a false positive, and a peer waiting on a running
+validator looks quiet but is working. The progress signal is a **COMPLETED
+WORKFLOW RUN** (default `charly/pr-validator`) — the B2b.1 rule, which this
+watcher family merely operationalizes.
+
+### One watcher, one poll per five minutes, and the API budget
+
+Four rules, all enforced by the tools — plus the numbers that motivate them:
+
+- **ONE watcher per session.** Do not run several watchers on one scope; the
+  single-instance lock makes a re-arm take over a live peer, so extra arms are
+  never an extra watch — they are churn. Arm the ONE watcher whose wake you
+  actually act on.
+- **A 300-second poll FLOOR (`POLL_FLOOR=300`).** Every watcher defaults to 300s
+  and REFUSES a sub-300s `--interval` at parse time (exit 5). Tests that must run
+  fast opt in explicitly with `ALLOW_FAST_POLL=1`; it is never a production
+  setting. Budget it explicitly: **a `gh_watch.sh` at a 20s cadence over N items
+  was a budget incident** — see the measured numbers below.
+- **Prefer terminal-outcome events.** Arm `gh_watch.sh --events merged,closed`
+  (the default, plus `stall`), NOT `comment`/`verdict`. Outcome events fire once
+  at the end of a wait; per-verdict/per-comment polling wakes you on every
+  iteration of an actively-working owner and multiplies the budget. Add
+  `comment`/`verdict` ONLY for a wait that genuinely needs them.
+- **Never stack `--auto-rearm` watchers.** One `--auto-rearm` watch per scope is
+  the design; two identical arms do not double the coverage — the lock displaces
+  the first. A successor keeps the WATCH alive; the agent's re-arm keeps
+  NOTIFICATIONS alive.
+
+**The measured budget.** The account shares a **5000 calls/hr** core budget
+(plus a separate GraphQL points budget, also 5000/hr). MEASURED 2026-09-28:
+`gh_watch.sh`'s `snapshot()` issued **6 REST calls per ITEM per poll** (a
+`/pulls` type probe, `/issues` state, `/pulls` merged, `/issues/comments`, a
+per-item `gh run list`, and `/issues` updated_at). Over **5 items** that is
+**30 calls per poll**: at `gh_watch.sh`'s own old 30s default (2 polls/min)
+that is 6 × 5 × 2 = **3600/hr — 72% of the budget for ONE watcher** — and at
+the then-reachable 20s cadence (the old floor was 1s; `pr_watch_many.sh`
+defaulted to 20s) it is 6 × 5 × 3 = **5400/hr, OVER budget**. Repeated
+fast/stacked polls produced **HTTP 403** and dead watchers.
+
+The tools now make that arithmetic safe:
+
+- **`gh_watch.sh` polls in ONE GraphQL request for the whole item list.**
+  MEASURED with a call-counting `gh` wrapper, 6 items over TWO rounds (seed
+  + one poll): **73 gh invocations (old) → 3 (new)**. The old 73 reconciles
+  with the 6-per-item rate: (73 − 1 free `/rate_limit`) ÷ (6 items × 2
+  rounds) = 6/item/poll. The new 3 are 2 GraphQL requests (seed + poll) plus
+  1 FREE `/rate_limit` read — so the billable constant is **1 request per
+  poll for N items, independent of N**, and a 60s watch is **~60 requests/hr
+  for the whole list** whatever N is.
+- **Rate-limit discipline.** Before each poll the FREE `/rate_limit` endpoint is
+  read; below `WATCH_RATE_MIN` (default 200) the watcher **backs off**
+  (`--interval × WATCH_RATE_BACKOFF_FACTOR`, default 2, capped 600s) and logs
+  `RATE-LIMIT`. A genuine **exhaustion is a HARD ABORT**: any rate-limit signal
+  (HTTP **403/429**, a zero remaining quota, or a GraphQL **`RATE_LIMIT`** error)
+  prints a `FATAL` naming the reset time and exits **non-zero** — a rate limit is
+  a STOP condition, never a retry. Never raise the poll rate to "catch up".
+
+### Which watcher to arm
+
+| You are waiting on … | Arm | Wake |
+|---|---|---|
+| ONE PR's terminal state (its landing is what you act on) | `pr_state_watch.sh <owner>/<repo> <pr>` | MERGED / BLOCKED (verdict, or POISON) / CLOSED |
+| a CROSS-REPO PR batch (producer→consumer chains) | `pr_watch_many.sh <owner>/<repo> <pr> …` (or `--repos` for a repo set) | first PR terminal, OR a NEW verdict, OR a STALL |
+| a per-ITEM list of PRs **and/or issues** | `gh_watch.sh <owner>/<repo>#<num> …` with `--events` | `comment` / `verdict` / `merged` / `closed` / `stall` |
+| "tell me the moment anyone replies to the issue I commented on" | `gh_watch.sh --events comment <owner>/<repo>#<num>` | a NEW comment |
+| "tell me the instant my BLOCKER lands" | `gh_watch.sh --events merged <owner>/<repo>#<num>` | MERGED (fires immediately if already merged) |
+
+Generic usage (no org, repo, session, or date is baked in):
+
+```
+# per PR — exit on a terminal state
+pr_state_watch.sh <owner>/<repo> <pr> [--interval SEC] [--timeout SEC]
+
+# cross-repo PR batch — exit on the first terminal / new verdict / stall
+pr_watch_many.sh [--repos owner/repo,…] [--interval SEC] [--stallmin MIN] \
+                 [--validator NAME] [--all] [--auto-rearm|--no-rearm] <owner>/<repo> <pr> …
+
+# per-item PR/issue — exit on any chosen event (default merged,closed,stall)
+gh_watch.sh [--events merged,closed,stall] [--interval SEC] \
+            [--stallmin MIN] [--workflow NAME] [--auto-rearm|--no-rearm] <owner>/<repo>#<num> …
+```
+
+`--auto-rearm` applies to `pr_watch_many.sh` and `gh_watch.sh` — the family's
+self-sustaining watchers. `pr_state_watch.sh` is the low-level per-PR terminal
+poll that `pr_watch_many.sh` wraps; it stays one-shot (its wrapper owns the
+re-arm), so it takes no re-arm flag.
+
+### Delivering a wake (the harness binding)
+
+The generic scripts are **harness-independent**: each emits one line and
+exits, and re-arming is the caller's loop. How a wake REACHES the agent is
+the harness's job, never the script's:
+
+- **opencode** — no background-completion notification by default (`task` is
+  synchronous, `bash` blocks; `OPENCODE_EXPERIMENTAL_BACKGROUND_SUBAGENTS`
+  opts into async tasks) and config loads once (no hot reload); the
+  documented push is `opencode run --session <ses_…> "<alert>"`, plus a
+  durable inbox drained each turn. Binding: `.opencode/instructions.md`.
+- **Claude Code** — a `run_in_background` Bash child's completion notifies the
+  spawning session; re-arm after each wake.
+- **Any other harness** — bind the script's exit / `--notify-cmd` to whatever
+  surfaces a message to the agent, and keep the durable inbox fallback.
+
+A wake that starts a new turn can interrupt in-flight work, so an alert is an
+ADDITION to the todo ledger, never a reset (see the `/charly-internals:agents`
+skill, "Todo ledger & interruption safety").
+
+### Delta vs STATE events (`gh_watch.sh`)
+
+`comment` and `verdict` are DELTA — arming seeds the current comment-count /
+newest run id, so a pre-existing comment or verdict never causes a false wake.
+`merged`, `closed`, and `stall` are STATE — they fire while the item IS in that
+state, INCLUDING at arm time, which is why `EVENTS=merged` on an already-merged PR
+wakes immediately. `stall` additionally requires the item to be **open+unmerged**,
+so a closed/merged item never emits a false alarm.
+
+### The three watcher requirements — mandatory, not tips
+
+These are field-learned and are ENCODED in the tools, not left to judgement:
+
+1. **Silence is an ALARM — every watcher carries a stall layer.** A blocked item
+   with no pushes emits **no validator runs and no events**, so an event-only
+   watcher is blind to the worst case. So `stall` is **ON BY DEFAULT** in
+   `gh_watch.sh` and every watched item gets it, and `pr_watch_many.sh` grows a
+   `--stallmin` layer alongside its new-verdict layer. The alarm fires on **no
+   progress** — no new commit, comment, or completed `charly/pr-validator` run
+   (`updated_at` unchanged) — for the window while the item is open+unmerged.
+   *The events tell you when something HAPPENED; the stall alarm tells you when
+   something SHOULD have and did not.* (Measured: an item sat silently unchanged
+   for ~2 hours with **no alert**; the instant `stall` was armed it fired.)
+2. **Watch the OUTCOME, not every event.** Waking on every comment of an actively
+   iterating owner is noise. The DEFAULT event set is therefore the terminal
+   outcomes (`merged`,`closed`) **plus the `stall` alarm**; add `comment` /
+   `verdict` ONLY for a wait that genuinely needs them (`EVENTS=comment` on an
+   issue you asked a question on). Arm the narrowest set the wait needs.
+3. **Liveness ≠ progress.** Progress is judged by **artifacts** — a pushed
+   branch, a new commit, an opened PR, a merged tag — never by a session
+   heartbeat or "still investigating". The stall alarm IS that mechanism: it
+   keys on the item's `updated_at`, so its silence is measured against artifacts,
+   not activity. This is the same rule as B2b.1's "progress is a completed
+   validator run", stated for a per-item watch.
+
+### A "new" event must be genuinely newer — never a stale fire
+
+A watcher must be armed against a **known baseline**, and a delta event fires
+only on a value NEWER than arm time — never merely *different* from an empty
+seed. An **empty seed is UNKNOWN**, not "no prior run": a transient `gh` failure
+or a not-yet-finished run leaves the seed blank, and a naively-armed watcher
+then treats an OLD completed run as new. Measured (twice): an immediate
+validator watcher re-surfaced a run from ~90 minutes / ~3 hours earlier as
+though it were fresh. The guards, all mandatory:
+
+- **The COMPLETION time is the PRIMARY and sufficient gate.** A `verdict` fires
+  only when the run's completion timestamp (`updatedAt`; the helper returns
+  `completedEpoch`) is **at/after arm time**. Comparing run **ids** is NOT a
+  substitute: the "newest completed" run can CHANGE from one old run to a
+  DIFFERENT old run (a seed/poll ordering shift, or a transient seed failure),
+  and an id compare alone then false-fires on a run that completed hours ago.
+  The id compare is a SECONDARY guard against re-reporting the SAME run.
+- **Treat an empty seed as UNKNOWN**: adopt the first observation as the new
+  baseline WITHOUT firing. (For `comment`, an empty count from a transient
+  failure is likewise UNKNOWN — never treat a real count as a rise from 0.)
+- `merged`/`closed`/`stall` baseline from the arm moment too, so pre-existing
+  state never spuriously fires beyond the deliberate STATE semantics.
+
+A stale fire is noise that trains the operator to ignore the watcher; the
+discipline is the same "watch the outcome, not noise" rule as above.
+
+**`pr_watch_many.sh` is REPO-SCOPED.** It watches `<validator>` runs across the
+repos you pass — it does **not** filter to your PR, so it fires on ANY newer
+run in those repos, including another session's PR. To watch ONE PR (yours, or
+a specific blocker), arm `gh_watch.sh` on `owner/repo#<n>` instead.
+
+A `stall` is the correct STALL/loop detector: **no new verdict within the window
+while the scope is open+unmerged** (B2b.1). A re-arguing agent emits no new
+verdicts; a peer waiting on a running validator does not stall. `STALL_MIN`
+defaults to 60 — the B2b.1 takeover-window FLOOR.
+
+### What each wake drives (the takeover protocol)
+
+- **MERGED** → the UNBLOCK. Proceed; comment the merge on the waiting issue.
+- **VERDICT / a batch new-verdict** → read that PR in full (the pre-update-push
+  read: every block, every comment disposition); act, then re-arm.
+- **STALL** → the scope is a **TAKEOVER candidate**: run the B2b.1
+  window-based takeover in full — comment FIRST, wait the 60-minute FLOOR
+  window, then `TAKING OVER — authority: window-expired` BEFORE any push.
+- **COMMENT** → a peer or the owner replied; read it and answer on the thread.
+
+### Watch the RIGHT scopes
+
+A monitor/coordinator MUST watch the scopes actually in flight (B2b.1) — the
+repo set changes as work moves, and a **stale watch list produces false
+stalls**. Re-derive the watch list from the currently-open PRs each time you
+re-arm, never from a memorized fixed list.
