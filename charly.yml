@@ -231,14 +231,11 @@ self-test:
     description: Self-test the committed CI body/pin-evidence builders + the dispatcher splice + the submodule initializer + the measurement's clone path
     dir: .
     plan:
+      # The SET is owned by scripts/self-test.sh, so the commit gate can reach it
+      # without the charly binary (opencharly/opencharly#498) and the two callers
+      # cannot drift (R2).
       - run: self-test sync-pin-evidence + sync-pr-body + sync-dispatcher + init-submodules + measure-clone
-        command: |
-          set -eu
-          bash scripts/sync-pin-evidence.sh --self-test
-          bash scripts/sync-pr-body.sh --self-test
-          bash scripts/sync-dispatcher.sh --self-test
-          bash scripts/init-submodules.sh --self-test
-          bash scripts/measure-clone.sh --self-test
+        command: bash scripts/self-test.sh
         context: [runtime]
 
 # -----------------------------------------------------------------------------
@@ -531,6 +528,15 @@ verify:
         context: [runtime]
       - check: the body/diff reconciliation gate discriminates — a file table that omits a changed file, one that lists an unchanged file, and a pasted `git rev-parse HEAD` that is not the head, each turn it RED (fixtures)
         command: node scripts/check-pr-body-diff.mjs --self-test
+        context: [runtime]
+      - check: the umbrella's own committed builders pass their self-tests — the set the commit gate runs, owned by scripts/self-test.sh
+        command: bash scripts/self-test.sh
+        context: [runtime]
+      - check: the commit gate decides by CHANGE CLASS and runs each leg EXACTLY ONCE — the pin check only when the diff moves a gitlink, the skip visible, the missing binary loud, and the index the commit carries read (fixtures)
+        command: node scripts/check-pre-commit-gate.mjs
+        context: [runtime]
+      - check: the commit-gate gate discriminates — each mutation turns it RED (fixtures)
+        command: node scripts/check-pre-commit-gate.mjs --self-test
         context: [runtime]
       - check: every step of every task in this file declares a `context:` the plan runner activates — a set disjoint from [build, runtime] (the `[deploy]` this file used to carry) is a no-op in EVERY mode (fixtures)
         command: node scripts/check-task-contexts.mjs
