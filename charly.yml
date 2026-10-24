@@ -530,7 +530,7 @@ verify:
       - check: the measurement gate discriminates — each mutation turns it RED, the figures and the shape counts alike (fixtures)
         command: node scripts/check-readme-measurements.mjs --self-test
         context: [runtime]
-      - check: the body/diff reconciliation gate discriminates — a file table that omits a changed file, one that lists an unchanged file, and a pasted `git rev-parse HEAD` that is not the head, each turn it RED (fixtures)
+      - check: the body/diff reconciliation gate discriminates — a file table that omits a changed file, one that lists an unchanged file, a pasted `git rev-parse HEAD` that is not the head, a stale count of the diff's new files, and a pasted evidence line that does not resolve in the tree being pushed, each turn it RED (fixtures)
         command: node scripts/check-pr-body-diff.mjs --self-test
         context: [runtime]
       - check: the umbrella's own committed builders pass their self-tests — the set the commit gate runs, owned by scripts/self-test.sh
