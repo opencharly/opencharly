@@ -18,15 +18,20 @@ failures = []
 ran = 0
 
 
-def gate(script, command, cwd=None):
-    result = subprocess.run(
+def gate(script, command, cwd=None, env=None):
+    result = gate_result(script, command, cwd=cwd, env=env)
+    return "BLOCK" if result.returncode == 2 else "ALLOW"
+
+
+def gate_result(script, command, cwd=None, env=None):
+    return subprocess.run(
         [script],
         input=json.dumps({"tool_input": {"command": command}}),
         capture_output=True,
         text=True,
         cwd=cwd,
+        env=env,
     )
-    return "BLOCK" if result.returncode == 2 else "ALLOW"
 
 
 def expect(label, actual, expected):
@@ -40,14 +45,43 @@ def expect(label, actual, expected):
     ))
 
 
-def repo(go_module=False):
+def local_go_version():
+    """The version of the Go toolchain this host has, e.g. '1.27.3'.
+
+    The Go fixtures name it, so the gate's toolchain pin resolves to the LOCAL
+    toolchain and the lint cases need no toolchain download. None when this
+    host has no Go at all.
+    """
+    try:
+        result = subprocess.run(["go", "env", "GOVERSION"], capture_output=True,
+                                text=True, timeout=60)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if result.returncode != 0:
+        return None
+    text = (result.stdout or "").strip()
+    if text.startswith("go"):
+        text = text[2:]
+    parts = text.split("-", 1)[0].split(".")
+    if len(parts) < 2 or not all(part.isdigit() for part in parts):
+        return None
+    while len(parts) < 3:
+        parts.append("0")
+    return ".".join(parts[:3])
+
+
+LOCAL_GO = local_go_version()
+
+
+def repo(go_module=False, go_version=None):
     path = tempfile.mkdtemp(prefix="gate-test-")
     for args in (("init", "-q"), ("config", "user.email", "t@t"),
                  ("config", "user.name", "t")):
         subprocess.run(["git", "-C", path, *args], capture_output=True)
     if go_module:
+        version = go_version or LOCAL_GO or "1.24"
         with open(os.path.join(path, "go.mod"), "w") as stream:
-            stream.write("module gatetest\n\ngo 1.24\n")
+            stream.write("module gatetest\n\ngo %s\n" % version)
         with open(os.path.join(path, "main.go"), "w") as stream:
             stream.write("package main\n\nfunc main() {}\n")
     else:
@@ -121,6 +155,102 @@ if shutil.which("golangci-lint") is not None:
     shutil.rmtree(cache_home, ignore_errors=True)
 
 
+# --- the Go toolchain the module names (opencharly/opencharly#642) --------------
+#
+# The lint leg must run the linter under the TOOLCHAIN the module's own go.mod
+# names — the one CI selects through `go-version-file` — and not under the
+# host's ambient Go: a newer ambient compiler writes an export-data version the
+# pinned linter cannot read, and the linter then reports typecheck failures on a
+# CLEAN tree.
+#
+# The stub linter RECORDS the GOTOOLCHAIN it was invoked under, so the
+# assertion is about the environment the lint leg ran in. Without the pin the
+# recorded value is empty and both cases below fail. The stub `go` answers the
+# two questions the gate asks: what the HOST has (`go env GOVERSION`) and
+# whether the named toolchain can be obtained (`go version` under
+# GOTOOLCHAIN=goX.Y.Z).
+def stub_toolchain(go_toolchain, local="go1.27.3"):
+    """A directory holding a stub `go` that reports `local` and, when
+    `go_toolchain` is given, can also produce that toolchain."""
+    path = tempfile.mkdtemp(prefix="gate-test-go-")
+    go = os.path.join(path, "go")
+    with open(go, "w") as stream:
+        stream.write(
+            "#!/bin/sh\n"
+            "case \"$1\" in\n"
+            "  env) echo \"%s\" ;;\n"
+            "  version)\n"
+            "    if [ -z \"%s\" ]; then exit 1; fi\n"
+            "    echo \"go version %s linux/amd64\" ;;\n"
+            "esac\n"
+            "exit 0\n" % (local, go_toolchain or "", go_toolchain or "")
+        )
+    os.chmod(go, 0o755)
+    return path
+
+
+def stub_linter(recorder):
+    """A directory holding a `golangci-lint` stub that records the GOTOOLCHAIN
+    it was invoked under."""
+    path = tempfile.mkdtemp(prefix="gate-test-lint-")
+    linter = os.path.join(path, "golangci-lint")
+    with open(linter, "w") as stream:
+        stream.write("#!/bin/sh\necho \"${GOTOOLCHAIN}\" > \"%s\"\nexit 0\n" % recorder)
+    os.chmod(linter, 0o755)
+    return path
+
+
+def recorded_toolchain(recorder):
+    if not os.path.exists(recorder):
+        return ""
+    with open(recorder) as stream:
+        return stream.read().strip()
+
+
+# The module names 1.26.8; the host has 1.27.3. The linter must run under
+# go1.26.8 — the toolchain the module names.
+record = os.path.join(tempfile.mkdtemp(prefix="gate-test-rec-"), "toolchain")
+env = dict(os.environ)
+env["PATH"] = os.pathsep.join([
+    stub_toolchain("go1.26.8"),
+    stub_linter(record),
+    env.get("PATH", ""),
+])
+pinned = repo(go_module=True, go_version="1.26.8")
+with open(os.path.join(pinned, "main.go"), "a") as stream:
+    stream.write("\n// touched\n")
+subprocess.run(["git", "-C", pinned, "add", "main.go"], capture_output=True)
+result = gate_result(COMMIT_GATE, f"git -C {pinned} commit -m x", env=env)
+expect("commit: the lint leg runs under the toolchain the module names",
+       recorded_toolchain(record), "go1.26.8")
+expect("commit: a lint-clean module under the named toolchain is allowed",
+       "BLOCK" if result.returncode == 2 else "ALLOW", "ALLOW")
+shutil.rmtree(pinned, ignore_errors=True)
+
+# The named toolchain cannot be obtained on this host: the lint leg is skipped
+# with a visible NOTE and the commit is NOT blocked — an environment problem
+# must not block a commit (the pr-validator remains the gate).
+record = os.path.join(tempfile.mkdtemp(prefix="gate-test-rec-"), "toolchain")
+env = dict(os.environ)
+env["PATH"] = os.pathsep.join([
+    stub_toolchain(""),
+    stub_linter(record),
+    env.get("PATH", ""),
+])
+unprovidable = repo(go_module=True, go_version="1.26.8")
+with open(os.path.join(unprovidable, "main.go"), "a") as stream:
+    stream.write("\n// touched\n")
+subprocess.run(["git", "-C", unprovidable, "add", "main.go"], capture_output=True)
+result = gate_result(COMMIT_GATE, f"git -C {unprovidable} commit -m x", env=env)
+expect("commit: an unobtainable toolchain skips the lint leg without blocking",
+       "BLOCK" if result.returncode == 2 else "ALLOW", "ALLOW")
+expect("commit: an unobtainable toolchain says so in a NOTE",
+       "go1.26.8" in (result.stderr or ""), True)
+expect("commit: the lint leg does not run under the ambient toolchain",
+       recorded_toolchain(record), "")
+shutil.rmtree(unprovidable, ignore_errors=True)
+
+
 # --- ZERO-ALIASES gate tests (charly superproject shape; no go.mod so the lint
 # gate does not interfere — the alias gate is tested in isolation) ---
 def charly_repo():
@@ -174,6 +304,26 @@ subprocess.run(["git", "-C", c, "add", "-A"], capture_output=True)
 expect("commit: grouped alias in grown alias file blocked (#87 class)",
        gate(COMMIT_GATE, f"git -C {c} commit -m x"), "BLOCK")
 shutil.rmtree(c, ignore_errors=True)
+
+# The same case under a HOSTILE diff-prefix configuration: `diff.noprefix` and
+# `diff.mnemonicPrefix` change the `+++` header of `git diff --cached`, and the
+# gate recovers each hunk's path from that header. If the gate trusted the
+# default prefixes, the grouped-alias leg would silently stop blocking on every
+# developer whose git config sets either — a guardrail that disables itself
+# under configuration. The env vars below reach every git the gate runs.
+for label, key, value in (("diff.noprefix", "diff.noprefix", "true"),
+                           ("diff.mnemonicPrefix", "diff.mnemonicPrefix", "true")):
+    c = charly_repo()
+    with open(os.path.join(c, "charly", "existing_aliases.go"), "w") as stream:
+        stream.write("package main\n\nvar (\n    NewAlias = vmshared.VmDomainIdentity\n)\n// pre-existing\n")
+    subprocess.run(["git", "-C", c, "add", "-A"], capture_output=True)
+    env = dict(os.environ)
+    env["GIT_CONFIG_COUNT"] = "1"
+    env["GIT_CONFIG_KEY_0"] = key
+    env["GIT_CONFIG_VALUE_0"] = value
+    expect("commit: grouped alias in grown alias file blocked under %s" % label,
+           gate(COMMIT_GATE, f"git -C {c} commit -m x", env=env), "BLOCK")
+    shutil.rmtree(c, ignore_errors=True)
 
 # A plain kit CALL is ALLOWED — IMPORT-PURITY's residual-call-site exception; the
 # hook gates only alias FORMS, never a plain call (validator judges IMPORT-PURITY).
