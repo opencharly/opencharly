@@ -119,6 +119,177 @@ def workspace_member_roots(repo):
     return members
 
 
+# --- the Go toolchain the module names ------------------------------------------
+#
+# The lint leg must run the linter under the toolchain the module's own go.mod
+# names — the same selection CI makes through `go-version-file` — and NOT under
+# the host's ambient Go. A NEWER ambient compiler writes an export-data version
+# the pinned linter's reader cannot read, and the linter then reports typecheck
+# failures on a CLEAN tree: the gate would block a commit for code that is fine.
+#
+# (Measured on this host: golangci-lint v2.13.2 links x/tools v0.49.0, whose
+# export-data reader understands version 4 and below; the host's go1.27.3 emits
+# version 5, and the toolchain the module names, go1.26.8, emits version 4.)
+GO_DIRECTIVE = re.compile(r"^\s*(go|toolchain)\s+(\S+?)(?:\s*//.*)?$")
+GO_VERSION = re.compile(r"^(\d+)\.(\d+)(?:\.(\d+))?$")
+
+
+def go_directives(path):
+    """The `go` and `toolchain` directives of a go.mod or a go.work file."""
+    found = {}
+    try:
+        with open(path, encoding="utf-8") as stream:
+            for line in stream:
+                match = GO_DIRECTIVE.match(line)
+                if match and match.group(1) not in found:
+                    found[match.group(1)] = match.group(2)
+    except OSError:
+        return {}
+    return found
+
+
+def go_version_key(version):
+    """(major, minor, patch) for a Go version, or None when it is not one.
+
+    A `toolchain` directive names its compiler "go1.26.8"; a `go` directive
+    names the language version "1.26.8". Both parse here. A `go` directive
+    with no patch ("go 1.24") is a LANGUAGE version: GOTOOLCHAIN rejects it
+    ("go1.24 is a language version but not a toolchain version"), so it is
+    taken at its lowest patch, which satisfies the language version and is a
+    real release. A build suffix ("go1.27.3-X:nodwarf5") is cut, so the
+    host's own toolchain parses like any other.
+    """
+    text = version[2:] if version.startswith("go") else version
+    match = GO_VERSION.match(text.split("-", 1)[0])
+    if not match:
+        return None
+    return (int(match.group(1)), int(match.group(2)), int(match.group(3) or 0))
+
+
+def go_version_text(key):
+    """The "1.26.8" form of a version key."""
+    return "%d.%d.%d" % key
+
+
+def exact_toolchain(directives):
+    """The exact compiler a directive set names, or None."""
+    named = directives.get("toolchain")
+    if not named:
+        return None
+    key = go_version_key(named)
+    return go_version_text(key) if key else None
+
+
+def floor_version(directives):
+    """The minimum language version a directive set names, or None."""
+    named = directives.get("go")
+    if not named:
+        return None
+    key = go_version_key(named)
+    return go_version_text(key) if key else None
+
+
+def wanted_toolchain(root, is_member, workspace_directives):
+    """(version, exact) — the toolchain the module at `root` names.
+
+    A standalone module is governed by its own go.mod. A go.work MEMBER is
+    governed by the WORKSPACE: the go command ignores a module's own
+    toolchain line in workspace mode, so the workspace's exact toolchain wins
+    and otherwise the floor is the highest of the two files' `go` directives.
+
+    `exact` says whether the version is a named compiler (a `toolchain`
+    directive) or a floor (a `go` directive, which admits any patch of that
+    release and therefore has no single name to pin to).
+    """
+    module = go_directives(os.path.join(root, "go.mod"))
+    if not is_member:
+        exact = exact_toolchain(module)
+        if exact:
+            return exact, True
+        floor = floor_version(module)
+        return (floor, False) if floor else (None, False)
+    exact = exact_toolchain(workspace_directives)
+    if exact:
+        return exact, True
+    floors = [f for f in (floor_version(module), floor_version(workspace_directives)) if f]
+    if not floors:
+        return None, False
+    return max(floors, key=go_version_key), False
+
+
+def local_toolchain(root, env):
+    """The version of the toolchain this host has, or None when it is unknown.
+
+    GOTOOLCHAIN=local makes the probe report the LOCAL toolchain and never
+    switch, so the answer is about the host and not about the module.
+    """
+    if shutil.which("go") is None:
+        return None
+    probe = dict(env)
+    probe["GOTOOLCHAIN"] = "local"
+    try:
+        result = subprocess.run(["go", "env", "GOVERSION"], cwd=root, env=probe,
+                                capture_output=True, text=True, timeout=60)
+    except (subprocess.TimeoutExpired, OSError):
+        return None
+    if result.returncode != 0:
+        return None
+    key = go_version_key((result.stdout or "").strip())
+    return go_version_text(key) if key else None
+
+
+def toolchain_usable(version, root, env):
+    """Whether the named toolchain can be obtained on this host.
+
+    `go version` under GOTOOLCHAIN=goX.Y.Z is the honest probe: the go command
+    switches (and downloads) the toolchain before it runs any subcommand, so a
+    successful probe means the lint leg really runs under the named compiler.
+    A failed probe is an ENVIRONMENT problem, not a code problem — the lint leg
+    is skipped with a NOTE instead of blocking a commit on it, the same
+    fail-open the timeout and the exception path already take, and the
+    pr-validator remains the gate.
+    """
+    if shutil.which("go") is None:
+        return False
+    probe = dict(env)
+    probe["GOTOOLCHAIN"] = "go" + version
+    try:
+        result = subprocess.run(["go", "version"], cwd=root, env=probe,
+                                capture_output=True, text=True, timeout=180)
+    except (subprocess.TimeoutExpired, OSError):
+        return False
+    if result.returncode != 0:
+        return False
+    return ("go" + version) in (result.stdout or "")
+
+
+def pinned_toolchain(root, is_member, workspace_directives, env):
+    """The toolchain to pin the lint leg to, or None to keep the ambient one.
+
+    The ambient toolchain is the HOST's. When it is not the one the module
+    names, the linter reads a different export-data version than the one it
+    was built for, and the lint leg reports typecheck failures on a clean tree
+    — so the leg is pinned to the module's own toolchain, the one CI selects
+    through `go-version-file`.
+
+    One case keeps the ambient toolchain even when the versions differ: the
+    module names a FLOOR (its `go` directive) and the host's toolchain
+    satisfies that floor within the SAME release. A different patch of the
+    same release writes the same export data, and GOTOOLCHAIN rejects a
+    language version, so a floor has no exact name to pin to — pinning it
+    would change the developer's compiler for no gain.
+    """
+    wanted, exact = wanted_toolchain(root, is_member, workspace_directives)
+    if wanted is None:
+        return None
+    local = local_toolchain(root, env)
+    if local is None:
+        return wanted
+    if exact or go_version_key(local)[:2] != go_version_key(wanted)[:2]:
+        return wanted
+    return None
+
+
 def lint_staged_go(repo):
     if shutil.which("golangci-lint") is None:
         return
@@ -127,6 +298,7 @@ def lint_staged_go(repo):
     # go.work) must lint with GOWORK=off or golangci-lint fails typechecking
     # ("does not contain modules listed in go.work").
     workspace_members = workspace_member_roots(repo)
+    workspace_directives = go_directives(os.path.join(os.path.abspath(repo), "go.work"))
     roots = sorted(touched_go_modules(repo))
     if not roots:
         return
@@ -143,8 +315,21 @@ def lint_staged_go(repo):
         cache_root = None
     for root in roots:
         env = dict(os.environ)
-        if os.path.abspath(root) not in workspace_members:
+        is_member = os.path.abspath(root) in workspace_members
+        if not is_member:
             env["GOWORK"] = "off"
+        # The linter runs under the toolchain the module names, so its export
+        # data is one it can read.
+        pinned = pinned_toolchain(root, is_member, workspace_directives, env)
+        if pinned:
+            if not toolchain_usable(pinned, root, env):
+                sys.stderr.write(
+                    "pre-commit-gate NOTE: the Go toolchain go%s (named by %s) is not "
+                    "available here; the lint leg is skipped for that module and the "
+                    "pr-validator remains the gate.\n" % (pinned, os.path.join(root, "go.mod"))
+                )
+                continue
+            env["GOTOOLCHAIN"] = "go" + pinned
         try:
             with tempfile.TemporaryDirectory(prefix="charly-gate-lint-", dir=cache_root) as cache:
                 env["GOCACHE"] = os.path.join(cache, "go-build")
@@ -273,7 +458,15 @@ def alias_gate(repo):
               "boundary law' + the ZERO-ALIASES standing rule." % ", ".join(new_alias_files))
     # 2. Declaration-form kit-alias lines in the staged charly/*.go diff — again
     #    skipping any line the merge carried in from an incoming parent.
-    diff = git(["diff", "--cached", "-U0", "--no-renames", "--", "charly/*.go"], repo)
+    #
+    #    The prefixes are pinned because the diff header is how the path of each
+    #    hunk is recovered, and the DEFAULT prefixes are a user setting:
+    #    `diff.mnemonicPrefix` (on this host) makes `git diff --cached` emit
+    #    `+++ i/<path>`, and `diff.noprefix` emits `+++ <path>` — either one
+    #    leaves the path unrecovered, and the grouped-alias leg below then
+    #    silently stops blocking. The explicit prefixes override both.
+    diff = git(["diff", "--cached", "-U0", "--no-renames",
+                "--src-prefix=a/", "--dst-prefix=b/", "--", "charly/*.go"], repo)
     if not diff:
         return
     cur_path = None
