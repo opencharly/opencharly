@@ -15,7 +15,7 @@
 # notification therefore cannot "start the bed and act when it finishes" at all. This
 # script is the neutral half of that: it RUNS the bed, keeps the full output in a log, and
 # emits the honest completion event (the process EXIT CODE — `summary.yml`'s `ok:` alone
-# does NOT distinguish a pass from a prereq skip, see `/charly-check:check`).
+# does NOT distinguish a pass from a SKIP, of either kind, see `/charly-check:check`).
 #
 # USAGE
 #   check-bed-watch.sh [OPTIONS] <bed> [<bed> ...]
@@ -32,15 +32,16 @@
 #
 # OUTPUT (stdout; one line per bed, in completion order; the first token is the class)
 #   BED <bed> pass    rc=0  ok=<true|false|unknown> total_seconds=<n|?> log=<path> summary=<path|->
-#   BED <bed> skip    rc=3  ok=...  (a host-prereq SKIP — NOT a pass, NOT a failure)
+#   BED <bed> skip    rc=3  ok=...  (a SKIP — the bed could not run, or it proved nothing)
 #   BED <bed> fail    rc=<n> ok=...  (a real failure)
 #   BED <bed> timeout rc=124 ok=...  (the --timeout deadline elapsed)
 #
 #   `ok` is the NEWEST `<log-dir>/../<bed>/<calver>/summary.yml`'s top-level `ok:`, or
 #   `unknown` when no summary exists (the authoritative signal is `rc`).
 #
-# EXIT  0 when every bed passed; 3 when the only non-zero exits were prereq SKIPs (rc 3);
-#       2 when any bed failed; 4 when any bed timed out. A usage error exits 5.
+# EXIT  0 when every bed passed; 3 when the only non-zero exits were SKIPs (rc 3 — the bed
+#       could not run, or it ran and proved nothing); 2 when a bed failed; 4 on timeout; 5
+#       on a usage error.
 set -uo pipefail
 
 prog="$(basename "$0")"
