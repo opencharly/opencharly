@@ -68,6 +68,12 @@
 #                          needs the run's own log, so it is the MANUAL `--samples <log>`
 #                          step after a measurement (the README says which), because a
 #                          reading nobody measured is a reading no gate can see.
+#  13. cited plugin-task version — every plugin-task version this repo's OWN prose cites
+#                          equals the version the PINNED charly compiles; the version is
+#                          DERIVED from the pin, so a charly pin bump turns the gate RED
+#                          at the moment the citations beside it must be re-read
+#                          (`node scripts/check-cited-plugin-task-version.mjs`;
+#                          opencharly/opencharly#689)
 #
 # Deliberately NOT here (see `charly task verify`): the per-submodule
 # `git ls-remote` default-branch audit — it reads remote state no commit can change
@@ -117,6 +123,7 @@ node "$ROOT/scripts/check-pr-body-gate.mjs"
 node "$ROOT/scripts/check-pre-commit-gate.mjs"
 node "$ROOT/scripts/check-validator-rule-map.mjs" --no-live
 node "$ROOT/scripts/check-readme-measurements.mjs"
+node "$ROOT/scripts/check-cited-plugin-task-version.mjs"
 bash "$ROOT/scripts/check-bed-watch.sh" --self-test
 
 echo "pre-commit: OK"

@@ -401,7 +401,11 @@ if [ "${1:-}" = "--self-test" ]; then
   #
   # The STEP MESSAGE, read from the product's own source
   # (`candy/plugin-task/verbs.go:736` in the module the binary is built from —
-  # `charly/charly/go.mod` pins `plugin-task v0.2026297.1542`) and confirmed end
+  # `charly/charly/go.mod` at the umbrella's PINNED charly pins
+  # `plugin-task v0.2026297.2108`, and that version is the SENTINEL for the source
+  # lines beside it: scripts/check-cited-plugin-task-version.mjs re-derives it from
+  # that pin and fails when it moves, so these lines are re-read, not re-remembered)
+  # and confirmed end
   # to end by a real `charly task sync` run of this repo (the umbrella's wave
   # PR #671, and the wave that advances this pin):
   #     pinned N pin_map entr(y|ies) (…) after rolling M submodule(s) to their

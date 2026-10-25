@@ -186,7 +186,9 @@ map:
       # re-implemented that table (R2 duplication) AND its `command` stdout was
       # discarded by the task reporter (the `command` verb's pass path returns only
       # `exit=N`), so `map` printed no map at all. Composition makes the verb's
-      # table the step's Result.Message, which plugin-task v0.2026268.1402 renders.
+      # table the step's Result.Message, which plugin-task v0.2026297.2108 renders —
+      # the version the umbrella's PINNED charly compiles, re-derived from that pin by
+      # scripts/check-cited-plugin-task-version.mjs.
       # A `task:` verb wrapper is deliberately NOT used: verb:task returns only a
       # one-line summary, which would discard the table again.
       - run: print the submodule map
@@ -553,6 +555,18 @@ verify:
         context: [runtime]
       - check: the measurement gate discriminates — each mutation turns it RED, the figures and the shape counts alike (fixtures)
         command: node scripts/check-readme-measurements.mjs --self-test
+        context: [runtime]
+      # The prose-vs-tree gate for a TRANSCRIBED version. A version written into a
+      # comment is a copy of a fact whose owner (the charly pin) moves on every
+      # release, so nothing but a gate that re-derives it from the pin can see the
+      # copy go stale (opencharly/opencharly#689). The version is derived from the
+      # PINNED charly's own go.mod, so a pin bump turns this RED at the moment the
+      # citations beside it must be re-read.
+      - check: every plugin-task version this repo's OWN prose cites equals the version the PINNED charly compiles — the version is DERIVED from the pin, and the scan is derived from the tracked file set (fixtures)
+        command: node scripts/check-cited-plugin-task-version.mjs
+        context: [runtime]
+      - check: the cited-version gate discriminates — a stale citation, an advanced pin and a moved owner each turn it RED, and a version naming another module stays GREEN (fixtures)
+        command: node scripts/check-cited-plugin-task-version.mjs --self-test
         context: [runtime]
       - check: the body/diff reconciliation gate discriminates — a file table that omits a changed file, one that lists an unchanged file, a pasted `git rev-parse HEAD` that is not the head, a stale count of the diff's new files, and a pasted evidence line that does not resolve in the tree being pushed, each turn it RED (fixtures)
         command: node scripts/check-pr-body-diff.mjs --self-test
