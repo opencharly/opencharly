@@ -16,10 +16,11 @@
 // charly's gitlink, `U` = unmerged) for the DRIFT half. The `-` half moved with
 // opencharly/opencharly#647: `charly task init` now materializes a MATERIALIZED path's
 // OWN nested level, so a nested path that is absent under a materialized charly is no
-// longer the ordinary state of a session worktree — it is a tree whose currency report
-// cannot judge an edge whose source is a nested pin — and the step FAILS it, naming
-// the path and the remedy. A charly that is not materialized at all is a light tree,
-// and stays a notice. The module-loop half of #337 — the
+// longer the ordinary state of a session worktree — it is a tree whose ABSENT nested
+// level is INVISIBLE to the currency report, which judges a twin's currency from the
+// twin's REMOTE alone — and the step FAILS it, naming the path and the remedy. A charly
+// that is not materialized at all is a light tree, and stays a notice. The module-loop
+// half of #337 — the
 // `[ -d "$path" ]` dead guard, the `git -C` directory walk-up, and the dirty/gitlink
 // teeth — is no longer implemented in this repo: it is owned by `verb:git-submodules
 // {mode: verify}`, which `charly.yml` composes, and is therefore not fixture-tested here.

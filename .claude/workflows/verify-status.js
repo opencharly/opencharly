@@ -53,7 +53,9 @@ const INVARIANTS = [
     proves:
       '+/U prefixes (moved / unmerged) FAIL; a `-` prefix (uninitialized) FAILS under a MATERIALIZED ' +
       'charly — the nested post-condition the umbrella gate asserts (opencharly/opencharly#710), ' +
-      'because the currency report cannot judge an edge whose twin is absent; an uninitialized ' +
+      'because the currency report cannot see an absent twin: it judges the CURRENCY of a twin from ' +
+      'the REMOTE alone and never asks whether the checkout EXISTS, so it can classify the ANCESTRY ' +
+      'of a moved twin only with that checkout in hand; an uninitialized ' +
       'charly/ itself is a NOTICE (#337)',
   },
 ]

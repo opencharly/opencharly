@@ -43,10 +43,17 @@ harness's own tools and gates read — and any other module is named explicitly 
 step runs `charly/scripts/bootstrap-charly.sh`. A materialized module also carries its **own
 nested level** — `charly`'s six `box/*` twins — materialized by the umbrella's own initializer
 (`scripts/init-submodules.sh`, re-rooted at the module), because the umbrella's gate now ASSERTS
-that post-condition (opencharly/opencharly#710): without the nested level the currency report
-cannot JUDGE an edge whose twin is a nested pin — it prints
-`differs (no checkout of box/cachyos to judge ancestry)`, the twin's class left UNDETERMINED and
-indistinguishable from a real divergence — while the gate stays green. An
+that post-condition (opencharly/opencharly#710). The currency report cannot SEE the absence: a
+twin's currency is judged from the twin's REMOTE alone and the report never asks whether the
+checkout EXISTS, so while that remote has not moved the twin reads `cur` and the report exits 0
+— MEASURED in the reproduced defect state (2026-10-26), `0 of 411 pin(s) NOT current [411 cur]`,
+the same verdict the healthy tree prints. The checkout is needed only to CLASSIFY a twin whose remote HAS
+moved, and only then does the report print
+`differs (no checkout of box/cachyos to judge ancestry)` — the twin's class left UNDETERMINED,
+because without the checkout the report cannot say whether the difference is `behind`, `unmerged`
+or `not-on-the-served-line`; the state itself names the reason it cannot, and at the VERDICT
+level the twin counts as not-current, exactly as a real divergence does. The gate asserts the
+post-condition itself, precisely because the report cannot. An
 UNINITIALIZED module at the umbrella level stays a NOTICE — its pin is still audited from the
 index — and every commit-time gate here passes with the rest of the graph left unmaterialized:
 `hooks/pre-commit`, `charly task pin-check`, `charly task self-test`, and every

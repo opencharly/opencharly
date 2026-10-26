@@ -74,10 +74,14 @@ const GATE_SCRIPTS = [
  *
  * A materialized module also carries its OWN nested level (step 3b). That is the
  * post-condition `charly task init` guarantees (opencharly/opencharly#647) and the
- * umbrella's gate now ASSERTS (opencharly/opencharly#710): without the nested level the
- * umbrella's currency report cannot JUDGE an edge whose twin is a nested pin, and it
- * prints `differs (no checkout of box/cachyos to judge ancestry)` — the twin's class
- * left UNDETERMINED, which a reader cannot tell apart from a real divergence. An
+ * umbrella's gate now ASSERTS (opencharly/opencharly#710). The umbrella's currency
+ * report cannot SEE the absence: a twin's currency is judged from the twin's REMOTE
+ * alone and the report never asks whether the checkout EXISTS, so while that remote
+ * has not moved the twin reads `cur` and the report exits 0 (MEASURED in the
+ * reproduced defect state: `0 of 411 pin(s) NOT current [411 cur]`). The checkout is
+ * needed only to CLASSIFY a twin whose remote HAS moved, and only then does the report
+ * print `differs (no checkout of box/cachyos to judge ancestry)` — the twin's class left UNDETERMINED — without the checkout the report cannot say whether the difference is `behind`, `unmerged` or `not-on-the-served-line`, and its own state names the reason it cannot; at the VERDICT level the twin counts as not-current, exactly as a real divergence does.
+ * The gate asserts the post-condition itself, precisely because the report cannot. An
  * UNINITIALIZED module at the umbrella level stays a NOTICE — its pin is still audited
  * from the index — but a MATERIALIZED module's nested level is not optional.
  */
@@ -436,10 +440,14 @@ export default function (pi: ExtensionAPI) {
         // A module's OWN declared submodules, materialized at the gitlinks the module's
         // current tree records — the post-condition `charly task init` guarantees
         // (opencharly/opencharly#647) and the umbrella's gate now ASSERTS
-        // (opencharly/opencharly#710). Without it the umbrella's currency report cannot
-        // JUDGE an edge whose twin is a nested pin: it prints `differs (no checkout of
-        // box/cachyos to judge ancestry)` — the twin's class left UNDETERMINED, which a
-        // reader cannot tell apart from a real divergence — while the gate stays green.
+        // (opencharly/opencharly#710). The umbrella's currency report cannot SEE the
+        // absence: a twin's currency is judged from the twin's REMOTE alone and the
+        // report never asks whether the checkout EXISTS, so while that remote has not
+        // moved the twin reads `cur` and the report exits 0 (MEASURED in the reproduced
+        // defect state: `0 of 411 pin(s) NOT current [411 cur]`). The checkout is needed
+        // only to CLASSIFY a twin whose remote HAS moved, and only then does the report
+        // print `differs (no checkout of box/cachyos to judge ancestry)` — the twin's class left UNDETERMINED — without the checkout the report cannot say whether the difference is `behind`, `unmerged` or `not-on-the-served-line`, and its own state names the reason it cannot; at the VERDICT level the twin counts as not-current, exactly as a real divergence does.
+        // The gate asserts the post-condition itself, precisely because the report cannot.
         //
         // The umbrella's OWN initializer does it, re-rooted at the module: ONE lifecycle
         // implementation at every level (R2). At a module's root, `--all` IS that module's
@@ -463,7 +471,8 @@ export default function (pi: ExtensionAPI) {
           );
           // FAIL CLOSED (property 1): `pi.exec` RESOLVES on a non-zero exit, so the code
           // is read here — a worktree whose nested level is missing is a worktree whose
-          // currency report cannot judge an edge, and it must never be reported as ready.
+          // ABSENT nested level the currency report cannot SEE (it judges a twin's
+          // currency from the twin's REMOTE alone), and it must never be reported as ready.
           if (res.code !== 0) {
             const why = (res.stderr || res.stdout || "").trim() || `exit ${res.code}`;
             throw new Error(`the nested level of ${modulePath} did not materialize: ${why}`);
