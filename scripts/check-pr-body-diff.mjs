@@ -561,11 +561,20 @@ if (argv.includes("--self-test")) {
     g("commit", "-q", "-F", join(scratch, "msg.txt"));
     const head = g("rev-parse", "HEAD").stdout.trim();
 
+    // The pasted command is a GLOB over the fixture's `scripts` directory, sorted, so
+    // the output it claims is exactly the evidence block below it — the command and
+    // its output name the same files, in a fixed order (grep's own file order is not
+    // stable, so the sort is what makes the pasted output reproducible). It cannot
+    // name ONE of them: the record-path mutation below works by REMOVING the
+    // record's file from the evidence, and a command that named that file would keep
+    // the body naming it, so the mutation would not fire.
+
     const body = (
       tableRows,
       pastedSha,
       claim = "",
-      evidence = "scripts/one.sh:1:#!/bin/sh\nscripts/blank.sh:2:#!/bin/sh",
+      evidence =
+        "scripts/blank.sh:2:#!/bin/sh\nscripts/one.sh:1:#!/bin/sh\nscripts/two.sh:1:#!/bin/sh",
     ) => `## Summary
 
 A fixture body.
@@ -583,7 +592,7 @@ ${pastedSha}
 \`\`\`
 
 \`\`\`
-$ grep -n one scripts/two.sh
+$ grep -n 'sh' scripts/*.sh | sort
 ${evidence}
 \`\`\`
 
