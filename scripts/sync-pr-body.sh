@@ -44,8 +44,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # producer_log_excerpt <max-lines> reads the producer log on stdin and prints at
 # most <max-lines> lines VERBATIM. It deliberately parses NOTHING: the retired
 # scripts/sync-gitlinks.sh emitted `  <path> -> <sha>` per pin and the current
-# `charly task sync` (verb:git-submodules bump) emits a `bumped N submodule
-# pin(s): …` summary, but coupling this builder to either incidental format is
+# `charly task sync` (verb:git-submodules bump) emits a `pinned N pin_map
+# entr(y|ies) (…) after rolling M submodule(s) … and advancing K pin(s) in the
+# index` summary, but coupling this builder to either incidental format is
 # what broke after the Taskfile→task cutover — the old per-pin-only grep matched
 # nothing against the new shape and the body read "MISSING from producer log —
 # investigate" for every moved pin (measured). The AUTHORITATIVE per-pin proof is
@@ -114,8 +115,20 @@ build_body() {
   # SYNC_EVIDENCE_OUT path); rendering it a SECOND time here (the old shape) would both
   # duplicate the network work and risk the two copies diverging.
   type_file="$(mktemp)"
-  evidence_body="$(printf '%s\n' "$MOVED" | SYNC_EVIDENCE_OUT="$out_evidence" SYNC_EVIDENCE_TYPE_OUT="$type_file" \
-    bash "$SCRIPT_DIR/sync-pin-evidence.sh" "$root" "$pin_check_log")"
+  # The evidence builder's OWN status is checked HERE, not left to `errexit`: the self-test
+  # calls this function as `build_body … || fail "…"`, and in that position bash disables
+  # `errexit` for the WHOLE function body. A dependency that fails inside the builder is
+  # therefore swallowed there, and the arm goes on to assert against a body that is missing
+  # the dependency's output — a degradation that changes nothing the small arms assert, so
+  # it would pass SILENTLY (opencharly/opencharly#679). The live path calls `build_body`
+  # with no `||`, so `errexit` is on there; checking the status here keeps the two paths
+  # identical and makes every arm's `|| fail` message point at the real cause.
+  if ! evidence_body="$(printf '%s\n' "$MOVED" | SYNC_EVIDENCE_OUT="$out_evidence" SYNC_EVIDENCE_TYPE_OUT="$type_file" \
+    bash "$SCRIPT_DIR/sync-pin-evidence.sh" "$root" "$pin_check_log")"; then
+    echo "::error::the evidence builder failed — a body that cannot decide must not claim it does not" >&2
+    rm -f "$type_file"
+    return 1
+  fi
   GITLINK_COUNT=0; FILE_COUNT=0
   # shellcheck disable=SC1090
   . "$type_file"
@@ -181,7 +194,8 @@ build_body() {
     fi
     echo "- **Verification gate:** \`charly task verify\` — the full pinning gate — on"
     echo "  the final tree, plus the per-pin \`git ls-remote\` default-branch table above (rule 10:"
-    echo "  that IS the gate for a diff that moves a gitlink)."
+    echo "  that IS the gate for a diff that touches one of the pin contract's commit-carried"
+    echo "  inputs — a gitlink, the manifest \`charly.yml\`, the declared path set \`.gitmodules\`)."
     echo "- **Attribution tier:** \`${SYNC_TIER}\` — read from this run's \`Assisted-by\` trailer, so"
     echo "  this line and the footer cannot disagree."
     echo "- **Breaking change + rollback:** none — a revert restores the previous snapshot."
@@ -244,6 +258,27 @@ build_body() {
   fi
 }
 
+# The FLEET scale: the number of submodules the umbrella declares, read from its own
+# `.gitmodules`. `grep -c` exits 1 when it matches NOTHING, and under `set -e` that
+# would abort the run BEFORE the floor guard could say anything — the count of a file
+# with no submodule entry is 0, and the guard is what should judge that, not a bare
+# exit status. The count and the guard are ONE implementation each, and the self-test
+# exercises BOTH on a fixture with no entry at all.
+fleet_count() {
+  local n
+  n="$(grep -c '^\[submodule ' "$1" || true)"
+  printf '%s' "${n:-0}"
+}
+
+# The floor: a fixture below the fleet scale proves nothing about the real fleet, so
+# the run must SAY so — naming the file and the floor — rather than quietly testing a
+# smaller shape and reporting it as the real one.
+fleet_floor_guard() {
+  local gm="$1" n="$2" min="$3"
+  [ "$n" -ge "$min" ] \
+    || { echo "sync-pr-body: $gm declares $n submodule(s) — below the fleet-scale floor of $min" >&2; exit 1; }
+}
+
 if [ "${1:-}" = "--self-test" ]; then
   fail() { echo "FAIL: sync-pr-body self-test: $*" >&2; exit 1; }
   tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
@@ -262,12 +297,12 @@ if [ "${1:-}" = "--self-test" ]; then
   git -C "$tmp" init -q
   git -C "$tmp" config user.email t@t; git -C "$tmp" config user.name t
 
-  # A FLEET-SCALE synthetic moved set — 424 paths, the umbrella's full submodule count
-  # (a superset of the 402 #297 actually moved), with realistic long repo names and the
-  # umbrella's longest real path. The built body MUST carry the COMPLETE compact table
-  # (every path, no elision) AND stay under the cap. This is the case that broke the
-  # inline builder (393 pins) AND the bounded builder (#297: 402 pins truncated to 350
-  # evidence rows / 200 path rows — the validator's "a pointer to an artifact is a
+  # A FLEET-SCALE synthetic moved set — the umbrella's CURRENT full submodule count,
+  # read from `.gitmodules` (a superset of what #297 actually moved), with realistic
+  # long repo names and the umbrella's longest real path. The built body MUST carry the
+  # COMPLETE compact table (every path, no elision) AND stay under the cap. This is the
+  # case that broke the inline builder AND the bounded builder (#297, whose evidence
+  # rows and path rows were truncated — the validator's "a pointer to an artifact is a
   # promise, not pasted output" BLOCK).
   #
   # The fixture is self-contained AND full width: a local repo supplies the remote HEAD
@@ -280,9 +315,24 @@ if [ "${1:-}" = "--self-test" ]; then
   git -C "$tmp/remote-src" config user.email t@t; git -C "$tmp/remote-src" config user.name t
   : > "$tmp/remote-src/f"; git -C "$tmp/remote-src" add f; git -C "$tmp/remote-src" commit -qm one
   RHEAD="$(git -C "$tmp/remote-src" rev-parse HEAD)"
-  FLEET=424
+  # The fleet scale is the LIVE submodule count, read from the umbrella's own
+  # `.gitmodules` — DERIVED, never a hand-maintained literal. A literal is a claim
+  # about a collection that grows every time a repo joins the org, and the fixture
+  # exists to prove the body fits AT that scale; a fixture pinned to a number the org
+  # has already outgrown would prove nothing.
+  GITMODULES="$(cd "$SCRIPT_DIR/.." && pwd)/.gitmodules"
+  [ -r "$GITMODULES" ] || { echo "sync-pr-body: cannot read $GITMODULES" >&2; exit 1; }
+  FLEET="$(fleet_count "$GITMODULES")"
+  FLEET_MIN=100   # a fleet-scale fixture below this proves nothing about the real fleet
+  fleet_floor_guard "$GITMODULES" "$FLEET" "$FLEET_MIN"
   : > "$tmp/.gitmodules"
-  for i in $(seq 1 423); do
+  # This arm's producer log is deliberately the LONG per-pin form (the retired
+  # scripts/sync-gitlinks.sh shape): it is the only producer log in the suite
+  # that is LONGER than the excerpt's bound, so it is what proves the bound is
+  # applied INSIDE the body — a one-line summary would never exercise it. The
+  # builder is shape-agnostic by design, and this arm, with the small one below
+  # it, is the coverage that says so.
+  for i in $(seq 1 $((FLEET - 1))); do
     case $((i % 3)) in
       0) p="layer-$(printf 'a-segment-name-%03d' "$i")" ;;
       1) p="plugin-$(printf 'a-longer-segment-name-%03d' "$i")" ;;
@@ -346,13 +396,64 @@ if [ "${1:-}" = "--self-test" ]; then
   grep -q '  p1  ' "$tmp/body2" || fail "small body must name p1 in the table"
   grep -q 'rows shown' "$tmp/body2" && fail "small body must never carry an elision notice"
 
+  # THE CURRENT PRODUCER SHAPE — the summary the product prints today, rendered by
+  # ONE definition so that no arm can carry a shape of its own.
+  #
+  # The STEP MESSAGE, read from the product's own source
+  # (`candy/plugin-task/verbs.go:736` in the module the binary is built from —
+  # `charly/charly/go.mod` at the umbrella's PINNED charly pins
+  # `plugin-task v0.2026297.2108`, and that version is the SENTINEL for the source
+  # lines beside it: scripts/check-cited-plugin-task-version.mjs re-derives it from
+  # that pin and fails when it moves, so these lines are re-read, not re-remembered)
+  # and confirmed end
+  # to end by a real `charly task sync` run of this repo (the umbrella's wave
+  # PR #671, and the wave that advances this pin):
+  #     pinned N pin_map entr(y|ies) (…) after rolling M submodule(s) to their
+  #     default-branch HEAD and advancing K pin(s) in the index
+  # — indented six spaces under its step line, exactly as the product renders a
+  # step's message (`candy/plugin-task/cli.go:261`, formatStepLine — the retired
+  # release cited a lower line number, and the retired one is gone).
+  #
+  # The HEADLINE is the task runner's own line (`candy/plugin-task/cli.go:210`),
+  # and the release this pin compiles in carries its THIRD bucket — a step that
+  # ran nothing is counted and disclosed:
+  #     task %s: %d step(s), %d failed, %d skipped
+  # The TWO-bucket headline this fixture used to render is the shape that
+  # release RETIRED, and the fixture carried it while this script's own
+  # self-test message claimed the arm covered "the current summary shape"
+  # (opencharly/opencharly#678). The summary the product retired in
+  # plugin-task#25 (the per-pin count) is likewise NOT this shape.
+  #
+  # The headline's step count is this fixture's own scenario (a one-step task);
+  # the SHAPE under test is the summary line, which is what the product retired.
+  producer_log_current() {
+    local out="$1" names="$2" n
+    n="$(printf '%s' "$names" | tr ',' '\n' | grep -c .)"
+    {
+      printf 'task sync: 1 step(s), 0 failed, 0 skipped\n'
+      printf '  [pass] run — bump the pins\n'
+      printf '      pinned %d pin_map entr(y|ies) (%s) after rolling %d submodule(s) to their default-branch HEAD and advancing %d pin(s) in the index\n' \
+        "$n" "$names" "$n" "$n"
+    } > "$out"
+  }
+
   { echo p3; echo p4; } > "$moved"
-  printf 'task sync: 1 step(s), 0 failed\n  [pass] run — bump the pins\n' > "$producer"
-  printf 'bumped 2 submodule pin(s): p3, p4\n' >> "$producer"
+  producer_log_current "$producer" "p3, p4"
   git -C "$tmp" update-index --add --cacheinfo "160000,${RHEAD},p3"
   git -C "$tmp" update-index --add --cacheinfo "160000,${RHEAD},p4"
   build_body "$tmp" "$moved" "$producer" "$pinlog" "$tmp/body4" "$tmp/ev4" || fail "task-summary producer must build"
-  grep -q 'bumped 2 submodule pin(s): p3, p4' "$tmp/body4" || fail "task-summary producer form must reach the body verbatim"
+  # The expectation is an INDEPENDENT literal, NOT the renderer's own template:
+  # an assertion that greps the definition cannot fail when the definition
+  # regresses — which is exactly how the retired shape survived here.
+  grep -qF 'pin_map entr(y|ies)' "$tmp/body4" || fail "the CURRENT producer summary must reach the body verbatim"
+  grep -qF 'advancing 2 pin(s) in the index' "$tmp/body4" || fail "the CURRENT producer summary must reach the body verbatim"
+  # The HEADLINE is its own shape, and the release this pin compiles in carries the
+  # third bucket. The expectation is a CONCRETE instance of the product's current
+  # line — a renderer that regressed to the two-bucket form would not produce it,
+  # so this arm is what turns red when the fixture drifts back to the retired shape
+  # (the same discrimination the step-message arm above carries).
+  grep -qF 'task sync: 1 step(s), 0 failed, 0 skipped' "$tmp/body4" \
+    || fail "the CURRENT producer HEADLINE must reach the body verbatim"
   grep -q 'MISSING from producer log' "$tmp/body4" && fail "the excerpt must never inject a MISSING line — the producer's words are pasted as-is"
 
   # THE MIXED LIST — the class the pre-fix builder got WRONG (measured: the real 45-gitlink
@@ -362,7 +463,7 @@ if [ "${1:-}" = "--self-test" ]; then
   # a file with NO `=`/`!` flag, and derive the change class from the split — never claim
   # `gitlink-only`.
   { echo p1; echo p5; } > "$moved"
-  printf 'task sync: 1 step(s), 0 failed\nbumped 1 submodule pin(s): p1\n' > "$producer"
+  producer_log_current "$producer" "p1"
   printf 'x\n' > "$tmp/p5"; git -C "$tmp" add p5
   build_body "$tmp" "$moved" "$producer" "$pinlog" "$tmp/body7" "$tmp/ev7" || fail "mixed gitlink+file input must build"
   grep -q '^\*\*1\*\* gitlink(s) and \*\*1\*\* non-gitlink changed path(s)' "$tmp/body7" \
@@ -458,7 +559,36 @@ if [ "${1:-}" = "--self-test" ]; then
     && fail "over-cap body must trip the hard guard (non-zero)"
   grep -q '65536\|100' "$tmp/err" || fail "guard must name the offending size/cap on stderr"
 
-  echo "sync-pr-body: self-test OK (fleet-scale 424-pin BODY carries the COMPLETE compact evidence table — every path named, no elision — and stays under the 65536 cap; the caller's evidence file keeps a convenience copy; neither names a CI run artifact; small input names its paths with no elision; the producer excerpt is verbatim for BOTH the retired per-pin and current summary shapes; the body carries the four required sections, the Change classification's change class + verification gate + attribution tier, and rule 7's two-line footer — the Agent: line directly above the italic Assisted-by trailer as the FINAL line, and exactly ONE literal 'Assisted-by:' in the body so squash_body.py's prose contract holds; an unset SYNC_AGENT fails loud, and the Agent: line is shown to TRACK its variable rather than a literal; a trailer with no (tier) fails loud; over-cap trips the hard guard)"
+  # A FAILING evidence builder must fail the build LOUD. This arm is the one that makes
+  # the guard above a claim rather than a hope: the self-test calls `build_body … ||
+  # fail "…"`, and in that position bash disables `errexit` for the WHOLE function body,
+  # so a dependency that fails inside the builder used to be SWALLOWED — the body
+  # rendered with an empty evidence table, and the arm went on to assert against a
+  # degraded body (opencharly/opencharly#679). The builder now checks the dependency's
+  # status itself, so the live path and every arm behave identically.
+  #
+  # The dependency is broken WITHOUT touching the tree: the pin-check log is the
+  # evidence builder's own input, and it `cat`s that log, so a MISSING one makes it
+  # exit non-zero.
+  ( build_body "$tmp" "$moved" "$producer" "$tmp/no-such-pin-check-log" "$tmp/body10" "$tmp/ev10" ) 2>"$tmp/err10" \
+    && fail "a failing evidence builder must fail loud, not render a body with an empty evidence table"
+  grep -q 'the evidence builder failed' "$tmp/err10" || fail "the evidence-builder guard must name the cause, on stderr"
+
+  # The EMPTY `.gitmodules`: `grep -c` exits 1 when it matches NOTHING, and under
+  # `set -e` that aborted the run BEFORE the floor guard could explain the
+  # situation — the count of a file with no submodule entry is 0, and the GUARD is
+  # what should judge that. This arm proves the count reaches 0 instead of
+  # aborting, and that the guard's own message is the thing the reader sees.
+  : > "$tmp/gitmodules-empty"
+  ZERO_FLEET="$(fleet_count "$tmp/gitmodules-empty")" \
+    || fail "the fleet count must not abort on a .gitmodules with no submodule entry"
+  [ "$ZERO_FLEET" = "0" ] || fail "an empty .gitmodules must count as 0, not $ZERO_FLEET"
+  ( fleet_floor_guard "$tmp/gitmodules-empty" "$ZERO_FLEET" 100 ) 2>"$tmp/err-fleet" \
+    && fail "a fleet below the floor must trip the floor guard (non-zero)"
+  grep -q 'below the fleet-scale floor' "$tmp/err-fleet" \
+    || fail "the floor guard must name the floor, on stderr"
+
+  echo "sync-pr-body: self-test OK (fleet-scale BODY — the umbrella's live submodule count, read from .gitmodules — carries the COMPLETE compact evidence table — every path named, no elision — and stays under the 65536 cap; the caller's evidence file keeps a convenience copy; neither names a CI run artifact; small input names its paths with no elision; the producer excerpt is verbatim for BOTH the historical per-pin form and the CURRENT summary shape (pinned N pin_map entr(y|ies) … in the index); the body carries the four required sections, the Change classification's change class + verification gate + attribution tier, and rule 7's two-line footer — the Agent: line directly above the italic Assisted-by trailer as the FINAL line, and exactly ONE literal 'Assisted-by:' in the body so squash_body.py's prose contract holds; an unset SYNC_AGENT fails loud, and the Agent: line is shown to TRACK its variable rather than a literal; a trailer with no (tier) fails loud; over-cap trips the hard guard; a .gitmodules with no submodule entry counts as 0 and reaches the floor guard's own message instead of aborting on grep's exit status)"
   exit 0
 fi
 

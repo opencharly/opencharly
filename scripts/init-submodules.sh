@@ -33,15 +33,15 @@
 # already found to be declared.)
 #
 # WHY SOURCE 4 EXISTS — the light tree's gate must cover what the full tree's
-# covers. Two of the umbrella's gate scripts compare a surface that lives in a
-# submodule: action-review/charly.yml (the committed rulebook) and
-# layer-charly-internals/.../git-workflow/SKILL.md (the authored coordination
-# grammar). When those checkouts are absent, both gates SKIP the comparison and
-# still exit 0 — a GREEN GATE THAT PROVES LESS, which is the defect class this
-# branch exists to end. Measured on a light clone, 2026-10-22: the light tree's
-# `charly task verify` reported 26/26 steps passed while six cross-repo
-# comparisons never ran. Only a QUOTED path counts: a path in a COMMENT is a
-# source citation (sdk/kit/runner.go is one), not a read.
+# covers. Gate scripts compare surfaces that live in a submodule:
+# action-review/charly.yml (the committed rulebook) and
+# marketplace/scripts/coord.sh (the coordination shell). When those checkouts are
+# absent, both gates SKIP the comparison and still exit 0 — a GREEN GATE THAT
+# PROVES LESS, which is the defect class the light-tree cutover existed to end.
+# Measured on a light clone, 2026-10-22: the light tree's `charly task verify`
+# reported 26/26 steps passed while six cross-repo comparisons never ran. Only a
+# QUOTED path counts: a path in a COMMENT is a source citation (sdk/kit/runner.go
+# is one), not a read.
 #
 # SAFETY (R6): a materialized path is never clobbered. A dirty checkout is left
 # alone; a checkout that has commits the recorded gitlink does not contain is left
@@ -62,8 +62,8 @@
 # MODES:
 #   (default)     materialize the derived working set
 #   --list        print the set that would be materialized; change nothing
-#   --all         materialize EVERY declared submodule path (a pin wave needs the
-#                 full set: `charly task sync` fails loud on an uninitialized path)
+#   --all         materialize EVERY declared submodule path (a pin wave needs NO
+#                 full set: the bump advances an unmaterialized pin in the index)
 #   --paths a,b   materialize the named paths, given as ONE comma-separated string
 #   <path>...     materialize the named paths, as separate arguments
 #   --self-test   exercise the whole thing on a temp fixture

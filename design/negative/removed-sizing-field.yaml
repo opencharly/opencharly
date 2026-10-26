@@ -1,0 +1,7 @@
+# rule: D-DEP-7
+# expect: node.x.vm.cpu: conflicting values 2
+x:
+  vm:
+    description: A VM sized by a removed field.
+    from: b
+    cpu: 2

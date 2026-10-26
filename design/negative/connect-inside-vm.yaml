@@ -1,4 +1,4 @@
-# rule: D-NEST-7
+# rule: D-NEST-6
 # expect: inner."x.k".kubernetes.connect: field not allowed
 x:
   vm:

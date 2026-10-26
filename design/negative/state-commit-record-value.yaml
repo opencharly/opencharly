@@ -1,0 +1,8 @@
+# rule: D-PROTO-13
+# expect: record.0.data: field not allowed
+# def: #StateCommitInput
+identity: pod.web
+revision: "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+record:
+  - name: lease
+    data: aGVsbG8=

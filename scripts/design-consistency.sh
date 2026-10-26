@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # design-consistency.sh — check that DESIGN.md and DESIGN.cue say the same thing
-# (DESIGN.md Appendix A). CUE v0.17.1 only; no other toolchain.
+# (DESIGN.md Appendix A). CUE v0.18.0-rc.1 only; no other toolchain.
 #
 #   1 tables   every table under <!-- schema: <source>… [col=N] --> lists exactly the names of
 #              its sources, in both directions. A source is
@@ -14,9 +14,9 @@
 #              design/example/rules.cue,
 #              and the two verb tables #FactVerb and #ProtocolVerb share no word (D-VERB-6)
 #   3 rules    every `// D-…` tag in DESIGN.cue names a requirement of DESIGN.md and has a
-#              negative case; every negative names a tag or a §5.4 rule; rules.cue emits exactly
-#              the §5.4 rules marked `rules.cue`, each with a negative; every §5.4 owner is an
-#              owner in the §7.1 ownership table
+#              negative case; every negative names a tag or a §12.4 rule; rules.cue emits exactly
+#              the §12.4 rules marked `rules.cue`, each with a negative; every §12.4 owner is an
+#              owner in the §3.1 ownership table
 #   4 ids      requirement IDs are unique and numbered 1..n per area in order of appearance;
 #              every ID (ranges D-X-a..b included) in DESIGN.md, TODO.md, DESIGN.cue, the design/
 #              files and the parity ledger resolves, and every § reference in DESIGN.md, TODO.md,
@@ -24,20 +24,24 @@
 #              workflow or authoring (§1.1)
 #   5 words    no "Not" term of the §2 registry (or its plural) appears outside §2; every key in DESIGN.cue is
 #              singular (keys ending in `s` must be listed in D-NAME-1); every S<n> pattern
-#              reference is defined in §3.1 and a range S1–S<n> ends at the last; a backticked
+#              reference is defined in §10.1 and a range S1–S<n> ends at the last; a backticked
 #              protocol method is spelled as its word list spells it; kind words,
 #              directives and the field names of node-bearing bodies are disjoint (D-SCH-6); every
 #              backticked `#…`/`_…` name in DESIGN.md prose is a definition of DESIGN.cue
-#   6 patterns DESIGN.cue uses only §3.1's constructs (D-PAT-1): no close(), no matchN, no
+#   6 patterns DESIGN.cue uses only §10.1's constructs (D-PAT-1): no close(), no matchN, no
 #              forbidden field ?: _|_, exactly one open struct {...} (#Opaque), and every other use of
 #              #Opaque marks itself `// S10` — no first-party word is left untyped (D-KIND-5)
 #   7 shape    every table row of DESIGN.md and TODO.md has its header's cell count and ends with |
+#   8 grammar  DESIGN.cue vets as a package; every list comprehension is one of the derivation forms
+#              D1–D6 (D-GEN-8); no word beside a word union, and a default word is a row of its table;
+#              no inline enum of 3+ words, no @go(, no retired suffix; every table has an @vocab owner;
+#              schema words are snake_case; no inline struct with named fields besides its S4 tag, at
+#              any depth (C1); no row writes an inline struct into a shape slot (S11)
 #
-# Usage: scripts/design-consistency.sh [root]
-# Self-test: scripts/design-selftest.sh scripts/design-consistency.sh design/consistency/selftest.tsv
+# Usage: bash scripts/design-consistency.sh   (run in the repository root)
 set -euo pipefail
 
-root="$(cd "${1:-$(dirname "$0")/..}" && pwd)"
+root="$PWD" # the repository root it runs in
 cue="$(bash "$root/scripts/design-cue.sh")"
 
 md="$root/DESIGN.md"
@@ -49,13 +53,13 @@ bad() { echo "FAIL $*"; fail=1; }
 # g: grep for listings. "No match" (exit 1) is an empty result, not a failure; a real error
 # (exit 2) still fails. Under `set -e -o pipefail` a bare grep would end the script silently.
 # g is for listings only: it maps "no match" to success, so a presence TEST is `grep -q`, never
-# `g -q` — `g -q … || bad` can never fail (self-tests open-struct-not-opaque, prose-stale-definition).
+# `g -q` — `g -q … || bad` can never fail.
 g() { grep "$@" || (($? == 1)); }
 
 # ── sources ────────────────────────────────────────────────────────────────────
 mkdir -p "$work/gen/cue.mod"
 cp "$schema" "$work/gen/"
-printf 'module: "opencharly.dev/design"\nlanguage: version: "v0.17.1"\n' > "$work/gen/cue.mod/module.cue"
+printf 'module: "opencharly.dev/design"\nlanguage: version: "v0.18.0"\n' > "$work/gen/cue.mod/module.cue"
 (cd "$work/gen" && "$cue" exp gengotypes . >/dev/null) || { echo "FAIL gengotypes on DESIGN.cue"; exit 1; }
 gotypes="$work/gen/cue_types_gen.go"
 
@@ -168,7 +172,7 @@ done < "$work/unmarked"
 # ── 2 word lists that mirror definitions ─────────────────────────────────────────
 LIST_PAIRS=(
 	"_candyField=#Candy #BoxFields"
-	"_deployField=#DeploymentFields #Pod #Vm #TopLocal #AndroidFields keys(#AndroidAlt) keys(#KubernetesAlt)"
+	"_deployField=#DeploymentFields #ContentFields _placementWord #MachineFields #KubernetesFields #AndroidFields #LocalFields #AgentFields"
 	"_directiveWord=#Document"
 )
 for pair in "${LIST_PAIRS[@]}"; do
@@ -242,48 +246,48 @@ extra="$(setdiff "$work/wantkinds" "$work/refkinds" | tr '\n' ' ')"
 [[ -z "$extra" ]] || bad "design/example/rules.cue: want: lists that match no @ref attribute of DESIGN.cue: $extra"
 
 # the two verb tables share no word (D-VERB-6): a verb is a fact verb or a protocol verb, never both
-words "keys(#FactVerb)" | sort -u > "$work/factverb"
-words "keys(#ProtocolVerb)" | sort -u > "$work/protoverb"
+words "keys(#FactVerbAlt)" | sort -u > "$work/factverb"
+words "keys(#ProtocolVerbAlt)" | sort -u > "$work/protoverb"
 both="$(comm -12 "$work/factverb" "$work/protoverb" | tr '\n' ' ')"
-[[ -z "$both" ]] || bad "DESIGN.cue: words in both verb tables (#FactVerb, #ProtocolVerb): $both"
+[[ -z "$both" ]] || bad "DESIGN.cue: words in both verb tables (#FactVerbAlt, #ProtocolVerbAlt): $both"
 
 # ── 3 rules ─────────────────────────────────────────────────────────────────────
 g -no '// D-[A-Z]*-[0-9]*\(, D-[A-Z]*-[0-9]*\)*' "$schema" | sed 's|// ||' |
 	while IFS=: read -r ln tags; do tr ',' '\n' <<<"$tags" | tr -d ' ' | sed "s/^/$ln:/"; done > "$work/tags"
 sed -n 's/^# rule: //p' "$root"/design/negative/*.yaml | sort -u > "$work/negrules"
-# §5.4 rules whose "Design check" column is `rules.cue` must have a negative case
+# §12.4 rules whose "Design check" column is `rules.cue` must have a negative case
 g '^| D-VAL-[0-9]* |' "$md" | awk -F'|' '$(NF-1) ~ /rules\.cue/ { gsub(/ /, "", $2); print $2 }' | sort -u > "$work/valrules"
 while IFS=: read -r ln tag; do
 	grep -qx "$tag" "$work/negrules" || bad "DESIGN.cue:$ln: $tag is enforced here but no design/negative case tests it"
 done < "$work/tags"
 while read -r r; do
-	grep -qx "$r" "$work/negrules" || bad "DESIGN.md: §5.4 rule $r is checked by rules.cue but has no design/negative case"
+	grep -qx "$r" "$work/negrules" || bad "DESIGN.md: §12.4 rule $r is checked by rules.cue but has no design/negative case"
 done < "$work/valrules"
-# the rules rules.cue emits are exactly the §5.4 rules marked `rules.cue`
+# the rules rules.cue emits are exactly the §12.4 rules marked `rules.cue`
 g -o 'rule: "D-VAL-[0-9]*"' "$root/design/example/rules.cue" | sed 's/rule: "//; s/"//' | sort -u > "$work/emitted"
 missing="$(setdiff "$work/valrules" "$work/emitted" | tr '\n' ' ')"
 extra="$(setdiff "$work/emitted" "$work/valrules" | tr '\n' ' ')"
-[[ -z "$missing" ]] || bad "design/example/rules.cue: emits no violation for the §5.4 rules marked rules.cue: $missing"
-[[ -z "$extra" ]] || bad "design/example/rules.cue: emits rules §5.4 does not mark rules.cue: $extra"
+[[ -z "$missing" ]] || bad "design/example/rules.cue: emits no violation for the §12.4 rules marked rules.cue: $missing"
+[[ -z "$extra" ]] || bad "design/example/rules.cue: emits rules §12.4 does not mark rules.cue: $extra"
 cut -d: -f2 "$work/tags" | cat - "$work/valrules" | sort -u > "$work/testable"
 while read -r r; do
-	grep -qx "$r" "$work/testable" || bad "design/negative: '# rule: $r' is neither a DESIGN.cue tag nor a §5.4 rule"
+	grep -qx "$r" "$work/testable" || bad "design/negative: '# rule: $r' is neither a DESIGN.cue tag nor a §12.4 rule"
 done < "$work/negrules"
-# owners: the §7.1 ownership table's owner column
-awk '/^### 7\.1 /{s=1} s && /^## 8\./{s=0} s && /^\| / && !/^\| Concept/ && !/^\|---/ { n=split($0, c, "|"); print c[n-1] }' "$md" |
+# owners: the §3.1 ownership table's owner column
+awk '/^### [0-9.]+ Ownership$/{s=1; next} s && /^#{2,3} /{s=0} s && /^\| / && !/^\| Concept/ && !/^\|---/ { n=split($0, c, "|"); print c[n-1] }' "$md" |
 	sed 's/^ *//; s/ *$//' | sort -u > "$work/owners"
 g '^| D-VAL-[0-9]* |' "$md" | while IFS= read -r row; do
 	id="$(cut -d'|' -f2 <<<"$row" | tr -d ' ')"
 	owner="$(awk -F'|' '{ print $(NF-2) }' <<<"$row" | sed 's/^ *//; s/ *$//')"
 	tr ',' '\n' <<<"$owner" | sed 's/^ *//; s/ *$//' | while read -r o; do
-		grep -qxF "$o" "$work/owners" || echo "FAIL DESIGN.md: $id names owner '$o', which is not an owner in §7.1"
+		grep -qxF "$o" "$work/owners" || echo "FAIL DESIGN.md: $id names owner '$o', which is not an owner in §3.1"
 	done
 done > "$work/own"
 if [[ -s "$work/own" ]]; then cat "$work/own"; fail=1; fi
 
 # ── 5 words ─────────────────────────────────────────────────────────────────────
 # the §2 registry: | **term** | meaning | Not |
-awk '/^## 2\. /{s=1} /^### 2\.1 /{s=0} s && /^\| \*\*/ { n=split($0, c, "|"); print c[n-1] }' "$md" |
+awk '/^## [0-9]+\. Vocabulary /{s=1} s && /^#{2,3} [0-9.]+ Naming rules$/{s=0} s && /^\| \*\*/ { n=split($0, c, "|"); print c[n-1] }' "$md" |
 	sed 's/([^)]*)//g' > "$work/notcells"
 # a banned term is a comma-separated bare word OR a `backticked phrase` — the latter is how a MULTI-WORD
 # ban is written, and a comma split alone can never express one.
@@ -291,7 +295,7 @@ awk '/^## 2\. /{s=1} /^### 2\.1 /{s=0} s && /^\| \*\*/ { n=split($0, c, "|"); pr
   g -o '`[^`]*`' "$work/notcells" | tr -d '`'
 } | tr -d '`' | sed 's/^ *//; s/ *$//' | g -v '^—\?$' | g -v '^$' | sort -u > "$work/banned"
 # the prose outside §2, as "<line>:<text>" — the file name is never part of the matched text
-awk '/^## 2\. /{s=1} /^### 2\.1 /{s=0} { if (!s) print FNR ":" $0 }' "$md" > "$work/prose"
+awk '/^## [0-9]+\. Vocabulary /{s=1} s && /^#{2,3} [0-9.]+ Naming rules$/{s=0} { if (!s) print FNR ":" $0 }' "$md" > "$work/prose"
 awk '{ print FNR ":" $0 }' "$schema" > "$work/schema-lines"
 while read -r term; do
 	pat="(^|[^[:alnum:]_-])$(sed 's/[][\.*^$]/\\&/g' <<<"$term")(s|es)?([^[:alnum:]_-]|$)"
@@ -320,22 +324,22 @@ if [[ -s "$work/plural" ]]; then cat "$work/plural"; fail=1; fi
 for w in $(words _methodWord; words _hostMethodWord; words _pluginMethodWord); do
 	cap="$(tr '[:lower:]' '[:upper:]' <<<"${w:0:1}")${w:1}"
 	g -n "\`$cap\`" "$md" | cut -d: -f1 | while read -r ln; do
-		echo "FAIL DESIGN.md:$ln: \`$cap\` — the method is spelled \`$w\` (§8.2)"
+		echo "FAIL DESIGN.md:$ln: \`$cap\` — the method is spelled \`$w\` (§4.2)"
 	done
 done > "$work/spelling"
 if [[ -s "$work/spelling" ]]; then cat "$work/spelling"; fail=1; fi
 
-# schema-pattern references: every S<n> is a pattern §3.1 defines; a range S1–S<n> ends at the last
-awk '/^### 3\.1 /{s=1} /^### 3\.2 /{s=0} s && /^\| S[0-9]+ \|/ { sub(/^\| S/, ""); sub(/ \|.*/, ""); print }' "$md" | sort -n > "$work/patterns"
+# schema-pattern references: every S<n> is a pattern §10.1 defines; a range S1–S<n> ends at the last
+awk '/^### [0-9.]+ The schema patterns$/{s=1; next} s && /^#{2,3} /{s=0} s && /^\| S[0-9]+ \|/ { sub(/^\| S/, ""); sub(/ \|.*/, ""); print }' "$md" | sort -n > "$work/patterns"
 last="$(tail -1 "$work/patterns")"
 for f in "$md" "$schema" "$root/TODO.md"; do
 	[[ -f "$f" ]] || continue
 	g -no 'S[0-9][0-9]*\(–S[0-9][0-9]*\)\?' "$f" | while IFS=: read -r ln ref; do
 		for n in $(sed 's/S//g; s/–/ /' <<<"$ref"); do
-			grep -qx "$n" "$work/patterns" || echo "FAIL ${f#"$root"/}:$ln: S$n is not a schema pattern of §3.1"
+			grep -qx "$n" "$work/patterns" || echo "FAIL ${f#"$root"/}:$ln: S$n is not a schema pattern of §10.1"
 		done
 		if [[ "$ref" == *–* && "${ref##*S}" != "$last" ]]; then
-			echo "FAIL ${f#"$root"/}:$ln: $ref — the pattern range ends at S$last (§3.1)"
+			echo "FAIL ${f#"$root"/}:$ln: $ref — the pattern range ends at S$last (§10.1)"
 		fi
 	done
 done > "$work/patref"
@@ -359,7 +363,7 @@ if [[ -s "$work/defnames" ]]; then cat "$work/defnames"; fail=1; fi
 
 # ── 6 patterns (D-PAT-1) ─────────────────────────────────────────────────────────
 g -n 'close(\|matchN\|?: *_|_' "$schema" | g -v '^[0-9]*:[[:space:]]*//' | while IFS=: read -r ln _; do
-	echo "FAIL DESIGN.cue:$ln: a construct §3.1 rules out (close(), matchN or a forbidden field ?: _|_)"
+	echo "FAIL DESIGN.cue:$ln: a construct §10.1 rules out (close(), matchN or a forbidden field ?: _|_)"
 done > "$work/patterns-out"
 open="$(g -c '{\.\.\.}' "$schema")"
 [[ "$open" == 1 ]] || echo "FAIL DESIGN.cue: $open open structs {...}; exactly one (#Opaque) is allowed" >> "$work/patterns-out"
@@ -371,7 +375,7 @@ if [[ -s "$work/patterns-out" ]]; then cat "$work/patterns-out"; fail=1; fi
 
 # ── 7 table shape ───────────────────────────────────────────────────────────────
 # Every row of a markdown table carries its header's cell count and ends with `|`. A stray cell
-# silently misaligns a NORMATIVE table and no other check sees it: a §5.4 rule row once shipped with a
+# silently misaligns a NORMATIVE table and no other check sees it: a §12.4 rule row once shipped with a
 # fifth cell because a split-proof note was appended instead of folded into its `Design check` cell.
 shape() {
 	awk '
@@ -400,5 +404,103 @@ shape() {
 shape "$md" "$root/TODO.md" > "$work/shape"
 if [[ -s "$work/shape" ]]; then cat "$work/shape"; fail=1; fi
 
+# ── 8 grammar (§10.1, §13) ─────────────────────────────────────────────────────────
+# Every shape is spelled one way, so the generator maps each to one Go shape (D-GEN-8, D-NAME-2).
+# The schema itself evaluates: a package-level vet checks the invariants of its own tables (one
+# default driver per subsystem, D-DRV-1), which a document vet does not reach.
+"$cue" vet "$schema" > "$work/pkgvet" 2>&1 || { sed -n '1,5s/^/FAIL DESIGN.cue: /p' "$work/pkgvet"; fail=1; }
+# the S10 marker lines and comments are not code
+g -n '' "$schema" | sed 's|//.*$||' > "$work/code"
+{
+	# a word list is derived from its table, never written out (S3)
+	g '^[0-9]*:_[a-zA-Z]*Word: \[' "$work/code" | g -v '\[for ' |
+		while IFS=: read -r ln _; do echo "FAIL DESIGN.cue:$ln: a hand-written word list; derive it from its table: [for w, _ in _x {w}] (S3)"; done
+	# every list comprehension is one of the derivation forms D1–D6 (D-GEN-8): strip each form where
+	# it may stand, and whatever comprehension is left is spelled some other way
+	sed -E \
+		-e 's/^([0-9]+):_[a-zA-Z]+Word: \[for w, _ in [_#][a-zA-Z]+ \{w\}\][[:space:]]*$/\1:D1/' \
+		-e 's/^([0-9]+):_[a-zA-Z]+Word: \[for w, r in _[a-zA-Z]+ if [^][{}]+ \{w\}\][[:space:]]*$/\1:D2/' \
+		-e 's/^([0-9]+):_[a-zA-Z]+: \{for k, _ in _[a-zA-Z]+ \{\(k\): \[for w, r in _[a-zA-Z]+ if [^][{}]+ \{w\}\]( & [^{}]+)?\}\}[[:space:]]*$/\1:D3/' \
+		-e 's/or\(\[for _, a in #[A-Za-z]+Alt \{a\}\]\)/D4/g' \
+		-e 's/or\(\[for ([a-z]) in r\.[a-z_]+ \{[_#A-Za-z]+(\[[a-z]\])?\[\1\]\}\]\)/D6/g' \
+		"$work/code" | g -E '\[(for|if) ' |
+		while IFS=: read -r ln _; do echo "FAIL DESIGN.cue:$ln: a list comprehension outside the derivation forms D1–D6; name the filter as a D2 or D3 word list (D-GEN-8)"; done
+	# a word union admits only its table's words: no word written beside it, and a default is a row (S3)
+	g -nE '(^|[^*])"[a-z_]+" *\| *or\(_|or\(_[^)]*\) *\| *"' "$work/code" |
+		while IFS=: read -r ln _; do echo "FAIL DESIGN.cue:$ln: a word written beside a word union; make it a row of the table (S3)"; done
+	g -oE '^[0-9]+:.*\*"[a-z_]+" *\| *or\(_[a-zA-Z]+Word\)' "$work/code" |
+		sed -E 's/^([0-9]+):.*\*"([a-z_]+)" *\| *or\((_[a-zA-Z]+Word)\)$/\1 \2 \3/' |
+		while read -r ln w list; do
+			words "$list" | grep -qxF "$w" || echo "FAIL DESIGN.cue:$ln: the default \"$w\" is not a row of the table of $list (S3)"
+		done
+	# no inline enum of three or more words: a closed set of words is a table (S3)
+	g -n '"[a-z_]*" *| *"[a-z_]*" *| *"' "$schema" | g -v '^[0-9]*:[[:space:]]*//' |
+		while IFS=: read -r ln _; do echo "FAIL DESIGN.cue:$ln: an inline enum of three or more words; make it a vocabulary table (S3)"; done
+	# no Go annotation: Go names and types derive from the shapes (§13, C1–C7)
+	g -n '@go(' "$schema" | while IFS=: read -r ln _; do echo "FAIL DESIGN.cue:$ln: an @go attribute; Go names and types derive from the shapes (§13)"; done
+	# a definition's name ends in a suffix of the closed set (D-NAME-4)
+	g -no '^#[A-Za-z0-9]\+\(Body\|Only\|Type\|IO\|Entry\|Attr\|Reply\|Info\|Spec\):' "$schema" |
+		while IFS=: read -r ln name; do echo "FAIL DESIGN.cue:$ln: $name ends in a retired suffix; name it by its shape (D-NAME-4)"; done
+} > "$work/grammar"
+# every vocabulary table names its owner with @vocab, and the owner is core, registry, spec or a §3.1 plugin
+sed -n 's/^\([a-z]*\) plugin$/\1/p' "$work/owners" | cat - <(printf 'core\nregistry\nspec\n') | sort -u > "$work/vocabowners"
+g -o '^_[a-zA-Z]*Word: \[for w, _ in _[a-zA-Z]* {w}\]' "$schema" | sed 's/.* in \(_[a-zA-Z]*\) .*/\1/' | sort -u |
+	while read -r t; do
+		line="$(g -n "^$t: {.*@vocab(\|^$t: {" "$schema" | tail -1)"
+		# the table's own text: its one line, or its block up to the closing `}` at column 0
+		blk="$(awk -v t="$t" '$0 ~ "^"t": \\{" { on = 1; print; if ($0 !~ /\{[ \t]*$/) exit; next } on { print } on && /^}/ { exit }' "$schema" | g -m1 -o '@vocab([a-z]*)')"
+		ln="${line%%:*}"
+		if [[ -z "$blk" ]]; then echo "FAIL DESIGN.cue:$ln: the table $t names no @vocab owner (S3)"; continue; fi
+		owner="${blk#@vocab(}"; owner="${owner%)}"
+		grep -qxF "$owner" "$work/vocabowners" || echo "FAIL DESIGN.cue:$ln: @vocab($owner) of $t is not core, registry, spec or a §3.1 plugin"
+	done >> "$work/grammar"
+# every schema word is snake_case: field names, tag-table keys and the word lists (D-NAME-2)
+{
+	g -o 'json:"[^",]*' "$gotypes" | sed 's/json:"//'
+	for alt in $(g -o '^#[A-Za-z]*Alt:' "$schema" | tr -d ':#'); do words "keys(#$alt)"; done
+	for w in $(g -o '^_[a-zA-Z]*Word:' "$schema" | tr -d ':'); do words "$w"; done
+} | g -v '^!' | sort -u | g -vE '^[a-z][a-z0-9]*(_[a-z0-9]+)*$' |
+	while read -r w; do echo "FAIL DESIGN.cue: '$w' is not a snake_case schema word (D-NAME-2)"; done >> "$work/grammar"
+# an inline struct declares at most one named field, its S4 tag (S1, C1), at any depth; tables and
+# derived definitions (lines under `_…`) are data, and a definition's own one-line body is the
+# definition, while a struct nested inside it is not
+awk '
+	function scan(text, skipfirst,   i, c, d, st, n, depth, fields, seg, j, first) {
+		d = 0; first = 1
+		for (i = 1; i <= length(text); i++) {
+			c = substr(text, i, 1)
+			if (c == "{") { d++; st[d] = i; nf[d] = 0; seen[d] = "" }
+			else if (c == "}" && d > 0) {
+				if (!(skipfirst && first && d == 1) && nf[d] > 1) printf "FAIL DESIGN.cue:%d: an inline struct with %d named fields; name it as a definition (S1, §13 C1)\n", NR, nf[d]
+				if (d == 1) first = 0
+				d--
+			}
+			else if (d > 0 && c == ":" && substr(text, i + 1, 1) != "=") {
+				seg = substr(text, st[d] + 1, i - st[d] - 1)
+				sub(/.*[{,][ \t]*/, "", seg); sub(/^[ \t]*/, "", seg)
+				if (seg ~ /^"?[a-z_][a-z0-9_]*"?[!?]?$/) nf[d]++
+			}
+		}
+	}
+	/^[ \t]*\/\// { next }
+	{ sub(/[ \t]*\/\/.*$/, "") }
+	/^_/ { data = ($0 ~ /\{[ \t]*$/ || $0 ~ /[{(][ \t]*$/); if (!data) next; next }
+	data && /^}/ { data = 0; next }
+	data { next }
+	/^#[A-Za-z0-9]*: / { scan($0, 1); next }
+	{ scan($0, 0) }
+' "$schema" >> "$work/grammar"
+# a row of a typed row table is data: a shape slot (a field its #XRow types `_`) holds a named
+# definition, a scalar, a word union or {}, never an inline struct with fields (S11)
+awk '/^#[A-Za-z]*Row: \{/ { on = 1 } on { print } on && /}[ \t]*$/ && (/^}/ || /^#[A-Za-z]*Row: \{.*}[ \t]*$/) { on = 0 }' "$schema" |
+	g -oE '[a-z_]+[!?]?: +_([,} ]|$)' | sed -E 's/[!?]?:.*//' | sort -u > "$work/slots"
+awk '/^_[a-zA-Z]+: \{/ { on = 1 } on { print NR ": " $0 } on && /^}/ { on = 0 } on && /^_[a-zA-Z]+: \{.*}[ \t]*(@[a-z]+\([a-z]*\))?[ \t]*$/ { on = 0 }' "$schema" |
+	sed 's|//.*$||' > "$work/rows"
+while read -r slot; do
+	g -E "[{ ,]$slot: *\{ *[^} ]" "$work/rows" |
+		while IFS=: read -r ln _; do echo "FAIL DESIGN.cue:$ln: the row writes an inline struct into its shape slot '$slot'; name it as a definition (S11)"; done
+done < "$work/slots" >> "$work/grammar"
+if [[ -s "$work/grammar" ]]; then cat "$work/grammar"; fail=1; fi
+
 if ((fail)); then exit 1; fi
-echo "consistency: tables, table shape, word lists, rule tags, ids and § references, vocabulary — all agree"
+echo "consistency: tables, table shape, word lists, rule tags, ids and § references, vocabulary, grammar — all agree"

@@ -1,0 +1,12 @@
+# rule: D-VERB-7
+# expect: node.x.step.0.phase: field not allowed
+x:
+  description: A candy.
+  package: {curl: {}}
+  step:
+    - run: install the tool
+      command: "true"
+      guard: {creates: /usr/bin/tool}
+      phase: artifact
+    - check: it runs
+      command: "true"

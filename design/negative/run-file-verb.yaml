@@ -1,5 +1,5 @@
 # rule: D-VERB-1
-# expect: a run step carries only `command`
+# expect: the run step carries no verb
 x:
   description: A candy.
   step:

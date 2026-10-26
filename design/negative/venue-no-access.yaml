@@ -1,4 +1,4 @@
 # rule: D-VENUE-2
-# expect: operation: field is required but not present
+# expect: access: field is required but not present
 # def: #VenueOutput
 container: {driver: containerd, name: web}

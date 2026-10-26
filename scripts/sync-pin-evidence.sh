@@ -17,16 +17,24 @@
 # Modes:
 #   (default) <root> <pin-check-log>   read MOVED (one path per line) from stdin; print
 #                                     the evidence section (table + coverage framing).
-#   --self-test                       exercise pin_row + coverage_note on fixtures.
+#   --self-test                       exercise pin_row + the coverage DECISION on fixtures.
+#
+# The coverage decision — "is the pin check this diff's coverage?" — is the shared
+# rule (scripts/pin-contract-inputs.sh), the same one the commit gate's change class
+# reads: the check reads the index's gitlinks, the manifest that declares the pin
+# contract (charly.yml) and the declared path set (.gitmodules), so a diff that
+# touches none of them cannot violate it.
 #
 # SIZE BOUND (a GitHub platform limit, not a preference). A sync PR body is capped by
 # GitHub at 65536 characters; a sync that moves hundreds of pins overflows it and
 # `gh pr create` fails with "Body is too long". The per-pin evidence table is the
 # largest section. It is emitted in the COMPACT format above (≈50 bytes/row, vs ≈115
 # for the retired `staged-gitlink=… remote-HEAD=… [kind, eq]` row) so the FULL table —
-# every changed path, no elision — fits the body with headroom at fleet scale
-# (measured: 424 rows render COMPLETE at ≈21 KB of table; the whole body is ≈39 KB,
-# well under 65536). SYNC_EVIDENCE_MAX_BYTES (default 50000) is now a FALLBACK
+# every changed path, no elision — fits the body with headroom at fleet scale. The
+# fleet scale is the LIVE one: `sync-pr-body.sh`'s self-test builds its synthetic moved
+# set from the umbrella's own `.gitmodules`, so the bound is re-proved on every run at
+# the real submodule count instead of by a figure recorded once — and it fails loud when
+# the count outgrows the budget. SYNC_EVIDENCE_MAX_BYTES (default 50000) is now a FALLBACK
 # guard only: it does not fire at fleet scale, and if a far larger sync ever
 # tripped it the elision notice names shown/total AND the evidence file holding the
 # rest. The BODY always carries the complete table; SYNC_EVIDENCE_OUT additionally
@@ -36,14 +44,67 @@
 # promise, not pasted output, which is exactly what the validator BLOCKed.
 
 SYNC_EVIDENCE_MAX_BYTES="${SYNC_EVIDENCE_MAX_BYTES:-50000}"
+
 set -euo pipefail
+
+# scratch — create a temporary path and register it for removal on EVERY exit
+# path of the calling shell.
+#
+# WHY ONE HELPER. `fail` EXITS: a removal that only runs at the end of a block is
+# SKIPPED on every failure, so the scratch leaks. The leak is not cosmetic — one
+# of the ways this script fails is a full filesystem, so a leaked scratch
+# amplifies the very condition it reports. Measured on 2026-10-24: the host's
+# /tmp (a tmpfs with nr_inodes=1048576) ran out of inodes while this script's
+# own arm was running; the arm's positive control failed with "No space left on
+# device", the arm reported it, and the arm's OWN scratch was left behind — the
+# leak this helper removes.
+#
+# ONE trap removes EVERY registered path, so registering a second scratch never
+# unregisters the first.
+#
+# Usage:  scratch <varname> [dir|file]
+SCRATCH_PATHS=()
+scratch() {
+  local name="$1" kind="${2:-dir}" path
+  if [ "$kind" = dir ]; then
+    path="$(mktemp -d)"
+  else
+    path="$(mktemp)"
+  fi
+  printf -v "$name" '%s' "$path"
+  SCRATCH_PATHS+=("$path")
+  trap 'rm -rf -- ${SCRATCH_PATHS[@]+"${SCRATCH_PATHS[@]}"}' EXIT
+}
+
+# The pin contract's commit-carried inputs — ONE definition, shared with the commit
+# gate's change class (hooks/pre-commit-gate.sh). Both ask the same question — can
+# this diff violate the pin check? — so both read the same answer. Sourced from this
+# script's own directory, so it travels with it.
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# A MISSING shared file must fail LOUD, and the guard comes BEFORE the source, so a
+# reader cannot mistake a failed source for a decision. The coverage decision below
+# is DEFINED in that file: without it this body cannot tell whether the pin check
+# covers the diff, and the fail-open it would take — an undefined
+# `pin_contract_touches_input` answering "no" — reports "the pin check is NOT this
+# diff's coverage" as a FACT, on a body whose whole job is to state what covers the
+# diff. A body that cannot decide must not claim it does not. The commit gate
+# carries the same guard for the same reason (hooks/pre-commit-gate.sh).
+if [ ! -f "$SCRIPT_DIR/pin-contract-inputs.sh" ]; then
+  echo "sync-pin-evidence: no scripts/pin-contract-inputs.sh in THIS tree, and the pin" >&2
+  echo "  check's coverage decision is DEFINED there, so this body cannot decide" >&2
+  echo "  whether the check covers this diff — and a body that cannot decide must not" >&2
+  echo "  claim it does not." >&2
+  exit 1
+fi
+# shellcheck source=scripts/pin-contract-inputs.sh
+. "$SCRIPT_DIR/pin-contract-inputs.sh"
 
 # pin_row <path> <staged_gitlink> <remote_head> — ONE evidence row, in the COMPACT
 # format the body-size budget is measured against: `  <path>  <staged12>  <remote12>
 # <flag>`. The kind (`distro-*` edge-pinned vs default-branch HEAD) is derivable
 # from the path prefix and stated ONCE in the section legend, so the row carries no
-# verbose `[kind, eq]` suffix — that suffix is what pushed a 402-pin table past the
-# body budget and forced the artifact elision the validator rejects. `flag` is `=`
+# verbose `[kind, eq]` suffix — that suffix is what pushed a fleet-scale table past
+# the body budget and forced the artifact elision the validator rejects. `flag` is `=`
 # when the staged gitlink equals the remote default-branch HEAD, else `!` (a real
 # finding for a non-`distro-*` row, never silently elided). ONE implementation the
 # live path and the self-test both call.
@@ -78,11 +139,21 @@ file_row() {
   printf '  %s  %.12s  (file)\n' "$1" "$2"
 }
 
-# coverage_note <distro_moved_count> — the pin check asserts only `distro-*` gitlinks, so it
-# is this diff's coverage ONLY when at least one `distro-*` pin moved. ONE decision,
-# shared by the live path and the self-test.
+# coverage_note <touched> — is the pin check this diff's coverage? The ANSWER comes
+# from the shared definition (scripts/pin-contract-inputs.sh): the check reads the
+# index's gitlinks, the manifest that declares the pin contract (charly.yml) and the
+# declared path set (.gitmodules), so a diff that touches none of them cannot violate
+# it — and a diff that touches one of them CAN.
+#
+# The old rule was "a `distro-*` pin moved", which was NARROWER than the truth on two
+# counts: a diff that moves charly's OWN gitlink moves the edge's `want` side (charly's
+# `box/*` twins), and a diff that edits the manifest changes what the check compares.
+# Both are commit-carried inputs of the check, and the commit gate now watches the same
+# set — so a narrower rule here would make this body under-claim what the gate proves.
+#
+# ONE decision, shared by the live path and the self-test.
 coverage_note() {
-  if [ "${1:-0}" -gt 0 ]; then
+  if [ "${1:-0}" -ne 0 ]; then
     echo "PIN_CHECK_IS_COVERAGE"
   else
     echo "PIN_CHECK_NOT_COVERAGE"
@@ -205,8 +276,92 @@ if [ "${1:-}" = "--self-test" ]; then
     || fail "row shape must be <path> <staged> <remote> <flag> regardless of path length"
 
   # coverage_note: both directions.
-  [ "$(coverage_note 0)" = "PIN_CHECK_NOT_COVERAGE" ] || fail "0 distro moved should NOT offer the pin check"
-  [ "$(coverage_note 2)" = "PIN_CHECK_IS_COVERAGE" ] || fail ">0 distro moved should offer the pin check"
+  [ "$(coverage_note 0)" = "PIN_CHECK_NOT_COVERAGE" ] || fail "0 touched inputs should NOT offer the pin check"
+  [ "$(coverage_note 1)" = "PIN_CHECK_IS_COVERAGE" ] || fail "1 touched input should offer the pin check"
+
+  # The COVERAGE DECISION itself — the shared rule (scripts/pin-contract-inputs.sh).
+  # Every arm names a real input of the check, and the arms are the ones that make
+  # the decision falsifiable: a manifest edit, a path-set edit, and ANY moved gitlink
+  # (not only a `distro-*` one — moving charly's own gitlink moves the edge's `want`
+  # side) all make the check applicable, and a plain file does not.
+  pin_contract_touches_input "charly.yml" "" || fail "a manifest edit must touch a commit-carried input"
+  pin_contract_touches_input ".gitmodules" "" || fail "a path-set edit must touch a commit-carried input"
+  pin_contract_touches_input "charly" "charly" || fail "ANY moved gitlink must touch a commit-carried input"
+  pin_contract_touches_input "plugin-vm" "plugin-vm" || fail "a moved non-distro gitlink must touch a commit-carried input"
+  if pin_contract_touches_input "README.md" ""; then fail "a plain file must NOT touch a commit-carried input"; fi
+  pin_contract_touches_input "README.md
+charly.yml" "" || fail "a manifest edit among plain files must still touch an input"
+  if pin_contract_touches_input "README.md" "distro-arch"; then fail "a gitlink that was NOT changed must not touch an input"; fi
+
+  # The MISSING-SHARED-FILE GUARD. The coverage decision is DEFINED in
+  # scripts/pin-contract-inputs.sh, so a body that cannot read that file cannot
+  # decide whether the pin check covers the diff. It must FAIL LOUD and name the
+  # missing file.
+  #
+  # The arm runs a COPY of this script in a directory that has NO shared file, so
+  # the copy takes the copy's own SCRIPT_DIR and finds nothing to source. It runs
+  # the copy in BODY mode with empty stdin (never --self-test: the copy's own
+  # self-test would re-enter this arm, and a self-referential arm is a hang, not a
+  # test), so the copy reaches the coverage decision — which is where the fail-open
+  # lived.
+  #
+  # The discriminator is the fail-open SIGNATURE, not merely a non-zero exit. The
+  # broken tree sourced a missing file under a `set -e` that was not yet in force,
+  # so the failure was a "command not found" and the body then reported "the pin
+  # check is NOT this diff's coverage" as a FACT and exited 0. An exit-code-only
+  # assertion would not separate the two trees, so the arm asserts the fail-open
+  # text is ABSENT and the guard's own text is PRESENT.
+  # The scratch is registered through the helper, so it is removed on EVERY exit
+  # path — including the ones this arm takes when it FAILS (`fail` exits). The
+  # explicit removal at the end of the arm is the tidy path; the registration is
+  # what makes the failure path safe.
+  scratch guard_dir
+  cp "$SCRIPT_DIR/sync-pin-evidence.sh" "$guard_dir/sync-pin-evidence.sh"
+  : > "$guard_dir/pin-check.log"
+  if ( cd "$guard_dir" && bash "$guard_dir/sync-pin-evidence.sh" "$guard_dir" "$guard_dir/pin-check.log" ) \
+       >"$guard_dir/out.txt" 2>"$guard_dir/err.txt" </dev/null; then
+    guard_rc=0
+  else
+    guard_rc=$?
+  fi
+  [ "$guard_rc" -ne 0 ] \
+    || fail "a copy with NO shared definition must fail loud, not exit 0 (out: $(head -c 200 "$guard_dir/out.txt"))"
+  grep -q 'cannot decide' "$guard_dir/err.txt" \
+    || fail "the loud failure must say the body cannot decide (err: $(head -c 200 "$guard_dir/err.txt"))"
+  grep -q 'command not found' "$guard_dir/err.txt" \
+    && fail "the fail-open signature ('command not found') must be ABSENT — the guard must fire BEFORE the source"
+  grep -q 'NOT offered as this diff' "$guard_dir/out.txt" \
+    && fail "the fail-open CLAIM ('NOT offered as this diff') must be ABSENT — a body that cannot decide must not claim it does not"
+  # The positive control: with the shared file PRESENT the same copy must NOT trip
+  # the guard, so the arm cannot pass by failing everything. It runs to completion
+  # and REPORTS a coverage decision (empty stdin = no moved path = not coverage).
+  cp "$SCRIPT_DIR/pin-contract-inputs.sh" "$guard_dir/pin-contract-inputs.sh"
+  if ( cd "$guard_dir" && bash "$guard_dir/sync-pin-evidence.sh" "$guard_dir" "$guard_dir/pin-check.log" ) \
+       >"$guard_dir/out2.txt" 2>"$guard_dir/err2.txt" </dev/null; then
+    guard_rc2=0
+  else
+    guard_rc2=$?
+  fi
+  [ "$guard_rc2" -eq 0 ] \
+    || fail "with the shared definition PRESENT the copy must run clean (err: $(tail -c 300 "$guard_dir/err2.txt"))"
+  grep -q 'NOT offered as this diff' "$guard_dir/out2.txt" \
+    || fail "with the shared definition PRESENT the copy must reach the coverage decision"
+  rm -rf "$guard_dir"
+
+  # The removal must hold on the FAILURE path — the path `fail` takes. This arm
+  # registers a scratch through the SAME helper the arm above uses, in a
+  # subshell that exits non-zero, and asserts the scratch is gone afterwards:
+  # remove the helper's trap and this arm goes RED, because the arm above would
+  # then leak its scratch on every failure too.
+  probe_leaked="$(
+    scratch probe_scratch
+    printf '%s\n' "$probe_scratch"
+    exit 1
+  )" || true
+  [ -n "$probe_leaked" ] \
+    || fail "the scratch probe must record the scratch it created"
+  [ ! -e "$probe_leaked" ] \
+    || fail "a registered scratch must be removed even when the shell exits non-zero (leaked: $probe_leaked)"
 
   # bounded_rows: the 65536-char body-cap guard. A generous budget emits every row and
   # NO elision notice; a tiny budget emits at least ONE row plus an elision naming
@@ -234,7 +389,7 @@ if [ "${1:-}" = "--self-test" ]; then
   # …` here would write into the CALLING repo (measured: it set core.bare=true,
   # user.*, and a stray `sub` gitlink in the umbrella). Run the fixture ops in a
   # subshell with those variables scrubbed, so the fixture is fully isolated.
-  tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
+  scratch tmp
   fixture() (
     unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES
     cd "$tmp"
@@ -318,17 +473,15 @@ cd "$ROOT"
 
 MOVED="$(cat)"
 MOVED_COUNT=$(printf '%s\n' "$MOVED" | grep -c . || true); MOVED_COUNT=${MOVED_COUNT:-0}
-# Count distro-* over ALL moved paths (path prefix only — no network), so the pin-check
-# coverage is decided from the full diff, never from the truncated emission window.
-DISTRO_MOVED=$(printf '%s\n' "$MOVED" | grep -c '^distro-' || true); DISTRO_MOVED=${DISTRO_MOVED:-0}
 
 evidence_legend
 # Render every row to a temp file, THEN bound — never pipe the producer into the bounder.
 # This environment ignores SIGPIPE, so an early-exiting bounder would leave the producer
 # writing to a closed pipe; under `set -o pipefail` those failed writes would abort the
 # script. A file sidesteps that entirely (only a few hundred rows).
-ROWS_FILE="$(mktemp)"; trap 'rm -f "$ROWS_FILE"' EXIT
+scratch ROWS_FILE file
 GITLINK_COUNT=0; FILE_COUNT=0
+GITLINK_PATHS=""
 while IFS= read -r p; do
   [ -n "$p" ] || continue
   if is_gitlink_path "$ROOT" "$p"; then
@@ -336,6 +489,7 @@ while IFS= read -r p; do
       "$(git ls-remote "$(git config -f .gitmodules --get "submodule.$p.url" 2>/dev/null || echo '')" HEAD 2>/dev/null | awk '{print $1}' || echo '')" \
       >> "$ROWS_FILE"
     GITLINK_COUNT=$((GITLINK_COUNT + 1))
+    GITLINK_PATHS="${GITLINK_PATHS}${p}"$'\n'
   else
     # A non-gitlink changed path (a hand-edit beside the pins): its staged blob, no flag.
     file_row "$p" "$(staged_gitlink "$ROOT" "$p")" >> "$ROWS_FILE"
@@ -361,23 +515,47 @@ if [ -n "${SYNC_EVIDENCE_OUT:-}" ]; then
   } >> "$SYNC_EVIDENCE_OUT"
 fi
 echo
-if [ "$(coverage_note "$DISTRO_MOVED")" = "PIN_CHECK_IS_COVERAGE" ]; then
-  echo "**The pin check — the assertion this diff CAN violate** (\`${DISTRO_MOVED}\`"
-  echo "\`distro-*\` pin(s) moved). \`charly task pin-check\` reads charly's own"
+# The pin contract's commit-carried inputs THIS diff touches — named, because a body
+# that says "the check covers this diff" without saying WHICH input changed is a claim
+# a reader cannot check.
+TOUCHED_INPUTS=""
+TOUCHED_COUNT=0
+while IFS= read -r p; do
+  [ -n "$p" ] || continue
+  if pin_contract_is_declaration_input "$p" || printf '%s\n' "$GITLINK_PATHS" | grep -qxF -- "$p"; then
+    TOUCHED_COUNT=$((TOUCHED_COUNT + 1))
+    TOUCHED_INPUTS="${TOUCHED_INPUTS}${TOUCHED_INPUTS:+, }${p}"
+  fi
+done <<< "$MOVED"
+
+# The DECISION — the shared rule (scripts/pin-contract-inputs.sh), the same one the
+# commit gate's change class reads. Both ask the same question: can this diff violate
+# the pin check?
+if pin_contract_touches_input "$MOVED" "$GITLINK_PATHS"; then
+  COVERED=1
+else
+  COVERED=0
+fi
+
+if [ "$(coverage_note "$COVERED")" = "PIN_CHECK_IS_COVERAGE" ]; then
+  echo "**The pin check — the gate that judges this diff's pin-contract inputs**"
+  echo "(\`charly task pin-check\`). It reads the index's gitlinks, the manifest that"
+  echo "declares the pin contract (\`charly.yml\`) and the declared path set"
+  echo "(\`.gitmodules\`), and **this diff changes ${TOUCHED_COUNT} of them**"
+  echo "(${TOUCHED_INPUTS}), so that gate CAN fail on it. The check reads charly's own"
   echo "gitlinks with \`git ls-tree\` (tree objects — present in a shallow clone;"
   echo "charly's NESTED submodules need not be initialised) and asserts every umbrella"
-  echo "\`distro-*\` gitlink equals it, pasted verbatim from this run:"
+  echo "\`distro-*\` gitlink equals it, then audits every submodule's checkout against its"
+  echo "recorded gitlink, pasted verbatim from this run:"
   echo
   echo '```'
   cat "$PIN_CHECK_LOG"
   echo '```'
 else
-  echo "**The pin check is NOT offered as this diff's coverage:** it asserts the umbrella"
-  echo "\`distro-*\` gitlinks equal charly's own, and **this diff moved zero \`distro-*\`"
-  echo "pins**, so that gate cannot fail on this diff. The coverage for the pins that"
-  echo "DID move is the per-pin \`git ls-remote\` default-branch evidence above (and, for"
-  echo "\`charly\`, its own default-branch HEAD). For transparency the pin-check gate still"
-  echo "ran and passed:"
+  echo "**The pin check is NOT offered as this diff's coverage:** **this diff changes NONE"
+  echo "of the pin contract's commit-carried inputs** (no gitlink, the manifest"
+  echo "\`charly.yml\`, the declared path set \`.gitmodules\`), so that gate cannot fail on"
+  echo "this diff. For transparency the pin-check gate still ran and passed:"
   echo
   echo '```'
   cat "$PIN_CHECK_LOG"

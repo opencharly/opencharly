@@ -1,0 +1,4 @@
+# rule: D-PROTO-13
+# expect: config: field not allowed
+# def: #PutInput
+config: {endpoint: "unix:///run/podman/podman.sock"}

@@ -3,7 +3,7 @@
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/opencharly/opencharly)
 
 **One clone of the whole org — and the place all charly development happens.**
-`opencharly/opencharly` is an org-level umbrella repo: every OpenCharly repo (429 today)
+`opencharly/opencharly` is an org-level umbrella repo: every OpenCharly repo (411 today)
 is pinned here as a git submodule ("gitlink", in the org's vocabulary), flat at the
 root — submodule path == repo name for all but one alias (`.github`, pinned at the
 `dotgithub/` path).
@@ -96,11 +96,11 @@ So a band a reading has outgrown is a **failed check** against the run that prod
 the reading — the run stamps the day it was taken (`MEASURED=`), and the comparison
 holds that day to the span this table states.
 
-The last of those four sources is what keeps the light tree honest. Two of the
-umbrella's gate scripts compare a surface that lives in a submodule — the committed
-rulebook in `action-review/` and the authored coordination grammar in
-`layer-charly-internals/` — and a gate **skips** a comparison whose surface is not
-checked out, so it still exits 0. Measured on a light clone, 2026-10-22: `charly task
+The last of those four sources is what keeps the light tree honest. The umbrella's
+gate scripts compare surfaces that live in submodules — the committed rulebook in
+`action-review/charly.yml` and the coordination shell in `marketplace/scripts/coord.sh`
+— and a gate **skips** a comparison whose surface is not checked out, so it still
+exits 0. Measured on a light clone, 2026-10-22: `charly task
 verify` reported 26/26 steps passed while six cross-repo comparisons never ran. The
 working set therefore includes the repos the gates read, so a light tree's gate
 covers what the full tree's covers — and the light tree now reports **every step
@@ -206,7 +206,7 @@ installed-binary form — `charly task …`, the same shape a packaged `charly` 
 | `charly task hooks` | install `hooks/pre-commit` for this clone (once) |
 | `charly task org-map` | verify the README org-map tables against the repo and `.gitmodules` |
 | `charly task skills` | splice the generated R0 dispatcher from the pinned marketplace into AGENTS.md |
-| `charly task pin-check` | assert the pin contract's cheap half — every `distro-*` gitlink equals charly's own `box/*` gitlink |
+| `charly task pin-check` | assert the pin contract's consistency half — the EDGE (every `pin_map` entry equals its twin in the `pinned_from` checkout) and the CHECKOUT AUDIT (every declared path clean and at its recorded gitlink). It READS the index's gitlinks, the MANIFEST `charly.yml`'s `pins:` block and the DECLARED PATH SET `.gitmodules`, so a commit can violate it by moving a gitlink **or** by editing the manifest **or** by editing the declared path set — a commit that moves NO gitlink can still violate it. It is the half of `verify` that needs no remote (the per-submodule `git ls-remote` default-branch audit is the rest), and it is what `hooks/pre-commit` runs. Checkout DRIFT on its own — a checkout dirty or at another commit, caused by NO commit — stays with `charly task verify` |
 | `charly task pins` | the pin-contract pin operation over the `distro-*` set (mode via param) |
 | `charly task self-test` | self-test the committed CI body/pin-evidence builders + the dispatcher splice + the submodule initializer |
 | `charly task prune` | reap merged-upstream session worktrees + branches (MODE=report is a dry run) |
@@ -328,28 +328,12 @@ six vendored OpenClaw upstream forks.
 
 ### Charly candy layers
 
-19 repos — the charly meta/skill candy layers.
+3 repos — the charly meta/skill candy layers.
 
 | path | repo | role |
 |---|---|---|
 | `layer-charly-check/` | [opencharly/layer-charly-check](https://github.com/opencharly/layer-charly-check) | The charly-check candy — 14 check skills (extracted from charly/candy) |
-| `layer-charly-coder/` | [opencharly/layer-charly-coder](https://github.com/opencharly/layer-charly-coder) | image layer / candy |
-| `layer-charly-comfyui/` | [opencharly/layer-charly-comfyui](https://github.com/opencharly/layer-charly-comfyui) | image layer / candy |
-| `layer-charly-distros/` | [opencharly/layer-charly-distros](https://github.com/opencharly/layer-charly-distros) | image layer / candy |
-| `layer-charly-filebrowser/` | [opencharly/layer-charly-filebrowser](https://github.com/opencharly/layer-charly-filebrowser) | image layer / candy |
-| `layer-charly-hermes/` | [opencharly/layer-charly-hermes](https://github.com/opencharly/layer-charly-hermes) | image layer / candy |
-| `layer-charly-image/` | [opencharly/layer-charly-image](https://github.com/opencharly/layer-charly-image) | The charly-image candy — 2 image skills (extracted from charly/candy) |
-| `layer-charly-immich/` | [opencharly/layer-charly-immich](https://github.com/opencharly/layer-charly-immich) | The charly-immich candy — 2 immich skills (extracted from charly/candy) |
-| `layer-charly-infrastructure/` | [opencharly/layer-charly-infrastructure](https://github.com/opencharly/layer-charly-infrastructure) | image layer / candy |
-| `layer-charly-internals/` | [opencharly/layer-charly-internals](https://github.com/opencharly/layer-charly-internals) | The charly-internals concept candy — contributor skills (go, plugin, agents, install-plan, cutover-policy, …)… |
 | `layer-charly-internals-extra/` | [opencharly/layer-charly-internals-extra](https://github.com/opencharly/layer-charly-internals-extra) | The charly-internals-extra candy — 2 internals skills (extracted from charly/candy) |
-| `layer-charly-jupyter/` | [opencharly/layer-charly-jupyter](https://github.com/opencharly/layer-charly-jupyter) | image layer / candy |
-| `layer-charly-kubernetes/` | [opencharly/layer-charly-kubernetes](https://github.com/opencharly/layer-charly-kubernetes) | The charly-kubernetes candy — 3 kubernetes skills (extracted from charly/candy) |
-| `layer-charly-languages/` | [opencharly/layer-charly-languages](https://github.com/opencharly/layer-charly-languages) | image layer / candy |
-| `layer-charly-local/` | [opencharly/layer-charly-local](https://github.com/opencharly/layer-charly-local) | image layer / candy |
-| `layer-charly-openwebui/` | [opencharly/layer-charly-openwebui](https://github.com/opencharly/layer-charly-openwebui) | image layer / candy |
-| `layer-charly-pod/` | [opencharly/layer-charly-pod](https://github.com/opencharly/layer-charly-pod) | image layer / candy |
-| `layer-charly-selkies/` | [opencharly/layer-charly-selkies](https://github.com/opencharly/layer-charly-selkies) | image layer / candy |
 | `layer-charly-tools/` | [opencharly/layer-charly-tools](https://github.com/opencharly/layer-charly-tools) | image layer / candy |
 
 
@@ -486,7 +470,7 @@ six vendored OpenClaw upstream forks.
 | `layer-maplibre-versatiles-styler/` | [opencharly/layer-maplibre-versatiles-styler](https://github.com/opencharly/layer-maplibre-versatiles-styler) | image layer / candy |
 | `layer-mcporter/` | [opencharly/layer-mcporter](https://github.com/opencharly/layer-mcporter) | image layer / candy |
 | `layer-nano-pdf/` | [opencharly/layer-nano-pdf](https://github.com/opencharly/layer-nano-pdf) | image layer / candy |
-| `layer-nerdctl/` | [opencharly/layer-nerdctl](https://github.com/opencharly/layer-nerdctl) | image layer / candy: the nerdctl engine stack |
+| `layer-nerdctl/` | [opencharly/layer-nerdctl](https://github.com/opencharly/layer-nerdctl) | image layer / candy: the containerd engine stack (nerdctl CLI + buildkit + CNI) |
 | `layer-nodejs/` | [opencharly/layer-nodejs](https://github.com/opencharly/layer-nodejs) | charly candy: layer-nodejs (standalone repo of the candy de-submodule cutover) |
 | `layer-notebook-finetuning/` | [opencharly/layer-notebook-finetuning](https://github.com/opencharly/layer-notebook-finetuning) | image layer / candy |
 | `layer-notebook-graph/` | [opencharly/layer-notebook-graph](https://github.com/opencharly/layer-notebook-graph) | image layer / candy |
@@ -649,7 +633,7 @@ agent runtimes and terminals charly speaks.
 | `plugin-migrate/` | [opencharly/plugin-migrate](https://github.com/opencharly/plugin-migrate) | charly plugin |
 | `plugin-mise/` | [opencharly/plugin-mise](https://github.com/opencharly/plugin-mise) | charly plugin: builder:mise + verb:mise — full mise (jdx/mise) support |
 | `plugin-mount/` | [opencharly/plugin-mount](https://github.com/opencharly/plugin-mount) | charly plugin |
-| `plugin-nerdctl/` | [opencharly/plugin-nerdctl](https://github.com/opencharly/plugin-nerdctl) | charly plugin: engine:nerdctl — the nerdctl container engine provider |
+| `plugin-nerdctl/` | [opencharly/plugin-nerdctl](https://github.com/opencharly/plugin-nerdctl) | charly plugin: engine:containerd — the containerd engine provider (the nerdctl CLI drives it) |
 | `plugin-oci/` | [opencharly/plugin-oci](https://github.com/opencharly/plugin-oci) | charly plugin |
 | `plugin-ollama/` | [opencharly/plugin-ollama](https://github.com/opencharly/plugin-ollama) | charly plugin |
 | `plugin-omarchy/` | [opencharly/plugin-omarchy](https://github.com/opencharly/plugin-omarchy) | charly plugin: the omarchy CLI surface as a check verb |
@@ -691,7 +675,7 @@ agent runtimes and terminals charly speaks.
 
 ### Pods
 
-74 repos — pod/deployment bundles.
+73 repos — pod/deployment bundles.
 
 | path | repo | role |
 |---|---|---|
@@ -706,7 +690,6 @@ agent runtimes and terminals charly speaks.
 | `pod-android-emulator-layer/` | [opencharly/pod-android-emulator-layer](https://github.com/opencharly/pod-android-emulator-layer) | pod / deployment bundle |
 | `pod-appium-server/` | [opencharly/pod-appium-server](https://github.com/opencharly/pod-appium-server) | pod / deployment bundle |
 | `pod-charly-automation/` | [opencharly/pod-charly-automation](https://github.com/opencharly/pod-charly-automation) | pod / deployment bundle |
-| `pod-charly-core/` | [opencharly/pod-charly-core](https://github.com/opencharly/pod-charly-core) | pod / deployment bundle |
 | `pod-charly-hooks/` | [opencharly/pod-charly-hooks](https://github.com/opencharly/pod-charly-hooks) | pod / deployment bundle |
 | `pod-charly-mcp/` | [opencharly/pod-charly-mcp](https://github.com/opencharly/pod-charly-mcp) | The charly-mcp candy — the charly MCP gateway pod (extracted from charly/candy) |
 | `pod-charly-versa/` | [opencharly/pod-charly-versa](https://github.com/opencharly/pod-charly-versa) | pod / deployment bundle |
@@ -773,11 +756,10 @@ agent runtimes and terminals charly speaks.
 
 ### VMs
 
-3 repos.
+2 repos.
 
 | path | repo | role |
 |---|---|---|
-| `vm-charly-vm/` | [opencharly/vm-charly-vm](https://github.com/opencharly/vm-charly-vm) | VM image definition |
 | `vm-k3s-agent/` | [opencharly/vm-k3s-agent](https://github.com/opencharly/vm-k3s-agent) | VM image definition |
 | `vm-k3s-server/` | [opencharly/vm-k3s-server](https://github.com/opencharly/vm-k3s-server) | VM image definition |
 
@@ -825,15 +807,25 @@ that disagree, fails it.
 **The sanctioned catch-up** is one sequence, and it is the only one that moves a pin:
 
 ```sh
-CHARLY_INIT_MODE=all charly task init   # the bump fails loud on a path with no checkout
-charly task sync                        # the pin-contract bump — a preview; it commits nothing
+charly task sync                        # the pin-contract bump — it advances the pins IN THE INDEX; it commits nothing
+charly task init                        # materialize the paths the wave advanced, AT their new pins
+charly task verify                      # judge the tree against the pins it records
 # …then land the pin wave as a PR through the org's validation chain
 ```
 
-`CHARLY_INIT_MODE=all` is in that sequence for a reason: the bump **fails loud** on an
-uninitialized path — a sync over a tree it could not fully advance must never report
-success. The daily tree stays light; a pin wave is the maintenance act that needs the
-full set. A repo you merely want to *work on* is one
+On a tree that was **never materialized**, the materialization comes first — the project
+cannot load before its `import:` paths exist, so the wave's own first verb would not run.
+`bash scripts/init-submodules.sh` is that step (see *Start developing*); the sequence above
+follows it unchanged.
+
+A wave needs **no full set**: the bump advances a path with no checkout **in the index**
+— a leaf to the tip its remote serves for its `branch=`, an edge to the twin the source's
+tree records — and a path *with* a checkout is still rolled in that checkout, so the two
+keep agreeing. It still **fails loud** for every path it *cannot* advance: a sync over a
+tree it could not fully advance must never report success. That is why the order is
+**sync → init → verify** — the sync writes the pins, the init materializes the checkouts
+*at* those pins, and the verify judges them. The daily tree stays light, and so does a
+wave. A repo you merely want to *work on* is one
 `CHARLY_INIT_PATHS=<repo> charly task init` away.
 
 **Never catch up by hand.** A pin is advanced by `charly task sync` and lands as a PR.

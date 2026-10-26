@@ -53,9 +53,11 @@ defaults:
 # owned elsewhere. It ships NO image and composes NO box — its only candy is the
 # `opencharly-guidance` CONCEPT candy below, which exists to OWN the org's
 # general-guidance skills (Part II #5: a skill with no code, plugin, or config
-# behind it belongs here, the one repo every consumer shares). Everything else on
-# this manifest is the maintenance TASK surface (`charly task <name>`), which
-# replaced the former Taskfile.yml + the human-facing scripts/*.sh.
+# behind it belongs here, the one repo every consumer shares — and, by the same
+# rule's measured exception, a skill whose config repo cannot author skills; the
+# block below names both cases). Everything else on this manifest is the
+# maintenance TASK surface (`charly task <name>`), which replaced the former
+# Taskfile.yml + the human-facing scripts/*.sh.
 #
 # Run `charly task list` for the surface. The binary comes from the `charly/`
 # submodule: build it ONCE per clone with `./charly/scripts/bootstrap-charly.sh`
@@ -95,10 +97,16 @@ defaults:
 #
 # A skill with no code, plugin, or config behind it belongs here, because the
 # umbrella is the one repo every consumer shares and guidance with no home repo
-# has nowhere else a consumer can reach it from. Every OTHER skill lives in the
-# repo of the code, plugin, or config it describes — the destination map for a
-# relocation is measured, never read off prose (opencharly/opencharly#606), and
-# this family's own re-derivation is opencharly/opencharly#611.
+# has nowhere else a consumer can reach it from. A skill whose described config
+# DOES have a home repo that cannot AUTHOR skills — no `charly.yml`, no
+# `.agents/` tree, so it can be neither a skill host nor a corpus source —
+# belongs here for the same reason, as a deliberate exception: `git-workflow`
+# and `repo-setup` describe `opencharly/.github`'s ruleset and workflows, and
+# that repo can host neither (opencharly/opencharly#611). Every OTHER skill
+# lives in the repo of the code, plugin, or config it describes — the
+# destination map for a relocation is measured, never read off prose
+# (opencharly/opencharly#606), and this family's own re-derivation is
+# opencharly/opencharly#611.
 #
 # `opencharly-guidance` is a CONCEPT candy: it ships no install content, composes
 # no box, and appears in no image — so these `skill:` nodes add nothing to any
@@ -112,8 +120,9 @@ opencharly-guidance:
     candy:
         description: |-
             Concept candy owning the umbrella's general-guidance skills — the ones with no code,
-            plugin, or config behind them (AGENTS.md Part II #5). It ships no install content and
-            composes no image; it carries the family's `skill:` routing nodes, and the prose lives
+            plugin, or config behind them — and the exception of AGENTS.md Part II #5: the two skills
+            whose config home, opencharly/.github, cannot author skills. It ships no install content
+            and composes no image; it carries the family's `skill:` routing nodes, and the prose lives
             in `.agents/skills/<name>/SKILL.md` at this repo's root.
         plan:
             - run: this documentation-only candy ships no install content (it carries the org's general-guidance skill entities); validate-satisfying no-op
@@ -148,6 +157,21 @@ root-cause-analyzer-skill:
         name: root-cause-analyzer
         family: internals
         owner: opencharly-guidance
+git-workflow-skill:
+    skill:
+        name: git-workflow
+        family: internals
+        owner: opencharly-guidance
+        triggers:
+            - "Git/`gh` workflow \u2014 `feat/` branch, commit, PR-only landing (NO direct push to main), branch protection, the `pr-validator` fresh-evaluator gate, native auto-merge + tag-on-merge CalVer-at-merge, worktree, sync-to-upstream, branch/worktree prune, cross-repo R10 landing"
+repo-setup-skill:
+    skill:
+        name: repo-setup
+        family: internals
+        owner: opencharly-guidance
+        triggers:
+            - "Set up a new repository in the opencharly org (required workflows, ruleset, auto-merge, CalVer tags)"
+            - "How the org ruleset / dotgithub workflows / native auto-merge / tag-on-merge CalVer work"
 strict-policy-skill:
     skill:
         name: strict-policy
@@ -171,7 +195,9 @@ map:
       # re-implemented that table (R2 duplication) AND its `command` stdout was
       # discarded by the task reporter (the `command` verb's pass path returns only
       # `exit=N`), so `map` printed no map at all. Composition makes the verb's
-      # table the step's Result.Message, which plugin-task v0.2026268.1402 renders.
+      # table the step's Result.Message, which plugin-task v0.2026297.2108 renders —
+      # the version the umbrella's PINNED charly compiles, re-derived from that pin by
+      # scripts/check-cited-plugin-task-version.mjs.
       # A `task:` verb wrapper is deliberately NOT used: verb:task returns only a
       # one-line summary, which would discard the table again.
       - run: print the submodule map
@@ -195,9 +221,10 @@ pins:
     plan:
       - run: run git-submodules in the selected mode
         # The runner's per-attempt never-hang floor is 90s, and this verb's cost
-        # scales with the ORG: MODE=currency asks all 430 remotes what they serve
-        # (measured: 3m40s) and MODE=bump rolls the 424 leaf submodules to their
-        # remote HEAD and re-pins the 6 edge ones (distro-*) to their source's twin.
+        # scales with the ORG: MODE=currency asks every remote what they serve
+        # (measured 4m00s–5m15s on 2026-10-23, umbrella trees f2c7db1 and 4f0777a)
+        # and MODE=bump rolls every leaf submodule to its remote HEAD and re-pins
+        # the edge ones (distro-*) to their source's twin.
         # A step the floor cuts short is KILLED mid-run, so the ceiling is declared
         # here — the mechanism's own parameter, not a sleep and not a retry.
         timeout: 30m
@@ -215,11 +242,15 @@ pins:
         context: [runtime]
 
 # -----------------------------------------------------------------------------
-# pin-check — the cheap, commit-violable half of the pin contract (the pre-commit gate).
+# pin-check — the pin contract AS THE COMMIT GATE RUNS IT (the pre-commit gate's
+# charly-backed leg). It is the WHOLE verb — `mode: verify` runs the EDGE and the
+# CHECKOUT AUDIT in one call — because the gate's change class is derived from what
+# the verb READS (opencharly/opencharly#661), and the checkout audit is one of the
+# things it reads.
 # -----------------------------------------------------------------------------
 pin-check:
   task:
-    description: Assert the pin contract's cheap half — every distro-* gitlink equals charly's own box/* gitlink (the EDGE mechanism)
+    description: assert the pin contract's consistency half — the EDGE (every `pin_map` entry equals its twin in the `pinned_from` checkout) and the CHECKOUT AUDIT (every declared path clean and at its recorded gitlink). It READS the index's gitlinks, the MANIFEST `charly.yml`'s `pins:` block and the DECLARED PATH SET `.gitmodules`, so a commit can violate it by moving a gitlink **or** by editing the manifest **or** by editing the declared path set — a commit that moves NO gitlink can still violate it. It is the half of `verify` that needs no remote (the per-submodule `git ls-remote` default-branch audit is the rest), and it is what `hooks/pre-commit` runs. Checkout DRIFT on its own — a checkout dirty or at another commit, caused by NO commit — stays with `charly task verify`
     dir: .
     plan:
       - check: the pin check holds
@@ -239,14 +270,11 @@ self-test:
     description: Self-test the committed CI body/pin-evidence builders + the dispatcher splice + the submodule initializer + the measurement's clone path
     dir: .
     plan:
+      # The SET is owned by scripts/self-test.sh, so the commit gate can reach it
+      # without the charly binary (opencharly/opencharly#498) and the two callers
+      # cannot drift (R2).
       - run: self-test sync-pin-evidence + sync-pr-body + sync-dispatcher + init-submodules + measure-clone
-        command: |
-          set -eu
-          bash scripts/sync-pin-evidence.sh --self-test
-          bash scripts/sync-pr-body.sh --self-test
-          bash scripts/sync-dispatcher.sh --self-test
-          bash scripts/init-submodules.sh --self-test
-          bash scripts/measure-clone.sh --self-test
+        command: bash scripts/self-test.sh
         context: [runtime]
 
 # -----------------------------------------------------------------------------
@@ -279,9 +307,16 @@ hooks:
 #   CHARLY_INIT_MODE=list   charly task init                  print it, change nothing
 #   CHARLY_INIT_PATHS=a,b   charly task init                  the named paths
 #
-# MODE=all is what a PIN WAVE needs: the pin verb fails loud on an uninitialized
-# path, by design (a sync over a tree it could not fully advance must never
-# report success). The daily tree is light; the maintenance acts are not.
+# MODE=all is for a FULL tree, not for a wave: the bump advances an unmaterialized
+# pin IN THE INDEX (so a wave needs no full set), and it still fails loud, by
+# design, for every path it CANNOT advance (a sync over a tree it could not fully
+# advance must never report success). The daily tree is light, and so is a wave.
+#
+# THIS TASK IS NOT THE FIRST STEP on a fresh clone: the project cannot load
+# before its import: paths exist, so the binary that runs this task does not
+# exist yet either. `bash scripts/init-submodules.sh` is the pre-bootstrap path
+# (it materializes `charly` itself), and this task is the SAME operation through
+# the binary.
 # -----------------------------------------------------------------------------
 init:
   task:
@@ -337,10 +372,14 @@ init:
 # default-branch HEAD FIRST, and distro-* are then pinned from charly's NEW
 # gitlinks (the verb's phase order).
 #
-# A WAVE NEEDS THE FULL SET: the pin verb fails loud on an uninitialized path
-# (a sync over a tree it could not fully advance must never report success), so
-# run `CHARLY_INIT_MODE=all charly task init` before a wave. The daily tree
-# stays light; the maintenance acts do not.
+# A WAVE NEEDS NO FULL SET: the bump advances a path with no checkout IN THE
+# INDEX (a leaf to the tip its remote serves for its `branch=`, an edge to the
+# twin the source's tree records), and a path WITH a checkout is still rolled in
+# that checkout, so the two keep agreeing. It still fails loud for every path it
+# CANNOT advance (a sync over a tree it could not fully advance must never
+# report success). A wave's order is SYNC → INIT → VERIFY: the sync writes the
+# pins, the init materializes the checkouts AT those pins, and the verify
+# judges them. The daily tree stays light, and so does a wave.
 # -----------------------------------------------------------------------------
 sync:
   task:
@@ -348,8 +387,8 @@ sync:
     dir: .
     plan:
       - run: bump the pins (charly rolls first, then distro-* from its new gitlinks)
-        # The bump rolls the 424 leaf submodules to their remote HEAD and re-pins the
-        # 6 edge ones (distro-*) to their source's twin, so the hop's own attempt
+        # The bump rolls every leaf submodule to its remote HEAD and re-pins the
+        # edge ones (distro-*) to their source's twin, so the hop's own attempt
         # carries a declared ceiling above the runner's 90s floor — a hop the floor
         # cuts short leaves the wave HALF done and still reporting success.
         timeout: 30m
@@ -396,7 +435,7 @@ verify:
       # is fixed AT ITS OWNER, and this task still re-composes nothing — one verb, one
       # composition, which is what produced the contradictory counts.
       - check: the pin contract holds — every distro-* gitlink equals charly's own box/* gitlink (the EDGE), and every submodule is clean and checked out at its recorded gitlink (the CHECKOUT AUDIT), composed ONCE through `pins`
-        # The composed run walks all 430 checkouts, so the hop's own attempt carries a
+        # The composed run walks every checkout, so the hop's own attempt carries a
         # declared ceiling above the runner's 90s floor: a hop the floor cuts short
         # would leave THIS gate — the one that says the tree agrees with itself —
         # reporting success over a half-finished audit.
@@ -419,8 +458,9 @@ verify:
       # failure — a pin the workflow cannot judge, or two sides that disagree — is still a
       # FAIL, and that is the point of the step.
       - check: each pin's CURRENCY — the pin is at the ref its intent names (the question the consistency half above does not answer)
-        # CURRENCY asks all 430 remotes what they serve: measured at 3m40s, so the
-        # hop's attempt carries a declared ceiling above the runner's 90s floor.
+        # CURRENCY asks every remote what they serve: measured 4m00s–5m15s on
+        # 2026-10-23, umbrella trees f2c7db1 and 4f0777a, so the hop's attempt
+        # carries a declared ceiling above the runner's 90s floor.
         timeout: 15m
         task:
           task: pins
@@ -519,14 +559,35 @@ verify:
       - check: the command-text gate discriminates — each mutation turns it RED (fixtures)
         command: node scripts/check-task-command-vars.mjs --self-test
         context: [runtime]
-      - check: the README's MEASURED figures agree with each other — the table, the prose that quotes it, and the date every dated figure carries (fixtures)
+      - check: the README's MEASURED figures agree with each other — the table, the prose that quotes it, and the date every dated figure carries — and every count of a collection that GROWS is derived from that collection or dated (fixtures)
         command: node scripts/check-readme-measurements.mjs
         context: [runtime]
-      - check: the measurement gate discriminates — each mutation turns it RED (fixtures)
+      - check: the measurement gate discriminates — each mutation turns it RED, the figures and the shape counts alike (fixtures)
         command: node scripts/check-readme-measurements.mjs --self-test
         context: [runtime]
-      - check: the body/diff reconciliation gate discriminates — a file table that omits a changed file, one that lists an unchanged file, and a pasted `git rev-parse HEAD` that is not the head, each turn it RED (fixtures)
+      # The prose-vs-tree gate for a TRANSCRIBED version. A version written into a
+      # comment is a copy of a fact whose owner (the charly pin) moves on every
+      # release, so nothing but a gate that re-derives it from the pin can see the
+      # copy go stale (opencharly/opencharly#689). The version is derived from the
+      # PINNED charly's own go.mod, so a pin bump turns this RED at the moment the
+      # citations beside it must be re-read.
+      - check: every plugin-task version this repo's OWN prose cites equals the version the PINNED charly compiles — the version is DERIVED from the pin, and the scan is derived from the tracked file set (fixtures)
+        command: node scripts/check-cited-plugin-task-version.mjs
+        context: [runtime]
+      - check: the cited-version gate discriminates — a stale citation, an advanced pin and a moved owner each turn it RED, a version naming another module stays GREEN, a broken pin is RED, an unmaterialized checkout is a visible SKIP, and a tracked set over the old 1 MiB default is judged rather than fatal (fixtures)
+        command: node scripts/check-cited-plugin-task-version.mjs --self-test
+        context: [runtime]
+      - check: the body/diff reconciliation gate discriminates — a file table that omits a changed file, one that lists an unchanged file, a pasted `git rev-parse HEAD` that is not the head, a stale count of the diff's new files, and a pasted evidence line that does not resolve in the tree being pushed, each turn it RED (fixtures)
         command: node scripts/check-pr-body-diff.mjs --self-test
+        context: [runtime]
+      - check: the umbrella's own committed builders pass their self-tests — the set the commit gate runs, owned by scripts/self-test.sh
+        command: bash scripts/self-test.sh
+        context: [runtime]
+      - check: the commit gate decides by CHANGE CLASS and runs each leg EXACTLY ONCE — the pin check only when the diff touches one of the pin contract's commit-carried inputs (a gitlink, the manifest charly.yml, the declared path set .gitmodules), the skip visible, the missing binary loud, and the index the commit carries read (fixtures)
+        command: node scripts/check-pre-commit-gate.mjs
+        context: [runtime]
+      - check: the commit-gate gate discriminates — each mutation turns it RED (fixtures)
+        command: node scripts/check-pre-commit-gate.mjs --self-test
         context: [runtime]
       - check: every step of every task in this file declares a `context:` the plan runner activates — a set disjoint from [build, runtime] (the `[deploy]` this file used to carry) is a no-op in EVERY mode (fixtures)
         command: node scripts/check-task-contexts.mjs

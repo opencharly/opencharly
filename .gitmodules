@@ -237,34 +237,9 @@
 	url = https://github.com/opencharly/layer-camsnap.git
 	branch = main
 
-[submodule "pod-charly-core"]
-	path = pod-charly-core
-	url = https://github.com/opencharly/pod-charly-core.git
-	branch = main
-
-[submodule "layer-charly-distros"]
-	path = layer-charly-distros
-	url = https://github.com/opencharly/layer-charly-distros.git
-	branch = main
-
 [submodule "pod-charly-hooks"]
 	path = pod-charly-hooks
 	url = https://github.com/opencharly/pod-charly-hooks.git
-	branch = main
-
-[submodule "layer-charly-languages"]
-	path = layer-charly-languages
-	url = https://github.com/opencharly/layer-charly-languages.git
-	branch = main
-
-[submodule "layer-charly-local"]
-	path = layer-charly-local
-	url = https://github.com/opencharly/layer-charly-local.git
-	branch = main
-
-[submodule "layer-charly-pod"]
-	path = layer-charly-pod
-	url = https://github.com/opencharly/layer-charly-pod.git
 	branch = main
 
 [submodule "layer-charly-tools"]
@@ -275,11 +250,6 @@
 [submodule "pod-charly-versa"]
 	path = pod-charly-versa
 	url = https://github.com/opencharly/pod-charly-versa.git
-	branch = main
-
-[submodule "vm-charly-vm"]
-	path = vm-charly-vm
-	url = https://github.com/opencharly/vm-charly-vm.git
 	branch = main
 
 [submodule "layer-check-base-layer"]
@@ -928,14 +898,6 @@
 	path = layer-cachyos-extras
 	url = https://github.com/opencharly/layer-cachyos-extras.git
 	branch = main
-[submodule "layer-charly-comfyui"]
-	path = layer-charly-comfyui
-	url = https://github.com/opencharly/layer-charly-comfyui.git
-	branch = main
-[submodule "layer-charly-infrastructure"]
-	path = layer-charly-infrastructure
-	url = https://github.com/opencharly/layer-charly-infrastructure.git
-	branch = main
 [submodule "pod-check-redis-init-layer"]
 	path = pod-check-redis-init-layer
 	url = https://github.com/opencharly/pod-check-redis-init-layer.git
@@ -1016,10 +978,6 @@
 	path = pod-appium-server
 	url = https://github.com/opencharly/pod-appium-server.git
 	branch = main
-[submodule "layer-charly-filebrowser"]
-	path = layer-charly-filebrowser
-	url = https://github.com/opencharly/layer-charly-filebrowser.git
-	branch = main
 [submodule "layer-helm-chart"]
 	path = layer-helm-chart
 	url = https://github.com/opencharly/layer-helm-chart.git
@@ -1060,14 +1018,6 @@
 	path = pod-android-emulator-layer
 	url = https://github.com/opencharly/pod-android-emulator-layer.git
 	branch = main
-[submodule "layer-charly-openwebui"]
-	path = layer-charly-openwebui
-	url = https://github.com/opencharly/layer-charly-openwebui.git
-	branch = main
-[submodule "layer-charly-selkies"]
-	path = layer-charly-selkies
-	url = https://github.com/opencharly/layer-charly-selkies.git
-	branch = main
 [submodule "layer-container-nesting"]
 	path = layer-container-nesting
 	url = https://github.com/opencharly/layer-container-nesting.git
@@ -1084,14 +1034,6 @@
 	path = layer-notebook-ollama
 	url = https://github.com/opencharly/layer-notebook-ollama.git
 	branch = main
-[submodule "layer-charly-coder"]
-	path = layer-charly-coder
-	url = https://github.com/opencharly/layer-charly-coder.git
-	branch = main
-[submodule "layer-charly-hermes"]
-	path = layer-charly-hermes
-	url = https://github.com/opencharly/layer-charly-hermes.git
-	branch = main
 [submodule "pod-github-runner"]
 	path = pod-github-runner
 	url = https://github.com/opencharly/pod-github-runner.git
@@ -1103,10 +1045,6 @@
 [submodule "layer-notebook-openrouter"]
 	path = layer-notebook-openrouter
 	url = https://github.com/opencharly/layer-notebook-openrouter.git
-	branch = main
-[submodule "layer-charly-jupyter"]
-	path = layer-charly-jupyter
-	url = https://github.com/opencharly/layer-charly-jupyter.git
 	branch = main
 [submodule "layer-heroic"]
 	path = layer-heroic
@@ -1564,25 +1502,9 @@
 	path = layer-charly-check
 	url = https://github.com/opencharly/layer-charly-check.git
 	branch = main
-[submodule "layer-charly-image"]
-	path = layer-charly-image
-	url = https://github.com/opencharly/layer-charly-image.git
-	branch = main
-[submodule "layer-charly-immich"]
-	path = layer-charly-immich
-	url = https://github.com/opencharly/layer-charly-immich.git
-	branch = main
-[submodule "layer-charly-internals"]
-	path = layer-charly-internals
-	url = https://github.com/opencharly/layer-charly-internals.git
-	branch = main
 [submodule "layer-charly-internals-extra"]
 	path = layer-charly-internals-extra
 	url = https://github.com/opencharly/layer-charly-internals-extra.git
-	branch = main
-[submodule "layer-charly-kubernetes"]
-	path = layer-charly-kubernetes
-	url = https://github.com/opencharly/layer-charly-kubernetes.git
 	branch = main
 [submodule "layer-check-local-layer"]
 	path = layer-check-local-layer

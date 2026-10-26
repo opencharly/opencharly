@@ -1,0 +1,7 @@
+# rule: D-SCH-5
+# expect: node.x.pod.parallel: conflicting values true
+x:
+  pod:
+    description: A pod with a removed field.
+    from: b
+    parallel: true

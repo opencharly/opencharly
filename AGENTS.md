@@ -103,7 +103,10 @@ the violation and rerun the gate, or stop and ask the operator. *Detail:*
   shared install. *Detail:* `charly/AGENTS.md`.
 - **R10 — Fresh disposable proof.** Run the gate that `/charly-check:check` selects for the
   change class, on the committed tree you will push. Runtime changes need a fresh rebuild
-  and a live run on every affected `disposable: true` target. No change class is exempt: a
+  and a live run on every affected `disposable: true` target. The live run is a **check
+  bed**: a `disposable: true` deployment driven by `charly check run`, which builds it, passes
+  its artifact checks, realizes it, passes its deployment checks, rebuilds it fresh with
+  `charly update`, passes them again, and removes it. No change class is exempt: a
   plugin-library or schema change runs the full assembled bed.
 
 *Old citations.* Rule references written before 2026-10-09 use the old numbering. Old
@@ -480,6 +483,12 @@ none; a model-free CI body uses the `<Harness> <Runtime>` form. A local commit m
 honest tier; **the tier on a pushed commit is the tier it earned**. *Detail:*
 `/charly-internals:git-workflow`.
 
+**A merge commit is judged by its message, not by its content.** It brings upstream's
+commits in and adds no content of its own — those commits keep their own trailers — but its
+own message is the agent's authorship, so a merge the agent writes ends with the trailer
+like any other commit. A merge whose message the agent did **not** write — the one
+`gh pr update-branch` writes on GitHub's behalf — carries no trailer and owes none.
+
 | Confidence | Required proof |
 |---|---|
 | `fully tested and validated` | The change-class gate passed on the final tree (every affected fresh-rebuild R10 target for runtime changes); changed paths executed live. |
@@ -610,10 +619,27 @@ Before declaring completion, answer every applicable item YES. There is one line
    a branch checkout — and ask **`currency`**, not consistency, when the question is whether
    this repo is CURRENT. **A pin is the INDEX entry; the checkout follows it.** An
    unmaterialized path is not a broken pin: its pin is still audited from the index and
-   reported as *uninitialized (pin audited, no checkout)* — a notice, not a failure. A
-   **pin wave**, though, needs the full set (`CHARLY_INIT_MODE=all charly task init` first),
-   because the bump fails loud on a path it could not advance — a sync over a tree it
-   could not fully advance must never report success. *Detail:*
+   reported as *uninitialized (pin audited, no checkout)* — a notice, not a failure.
+   **A pin wave needs no full set**: the bump advances a path with no checkout IN THE
+   INDEX — a leaf to the tip its remote serves for its `branch=`, an edge to the twin the
+   source's tree records — and a path WITH a checkout is still rolled in that checkout, so
+   the two keep agreeing. It still fails loud, BY NAME, for every path it cannot advance:
+   a sync over a tree it could not fully advance must never report success. A wave's order
+   is **sync → init → verify**: the sync writes the pins, the init materializes the
+   checkouts at those pins, and the verify judges them — and on a tree that was never
+   materialized the materialization comes FIRST (Part II #2), because the project cannot
+   load before its `import:` paths exist, so the wave's own first verb would not run.
+   **And a wave holds this worktree's index for the minutes it rolls the
+   submodules**: the wave stages each advanced path with a
+   `git add` in the superproject, and that `git add` takes this worktree's index lock — a
+   concurrent `git status` in the SAME worktree takes the same lock for an instant, so the
+   wave's own `git add` can lose the race. The wave names every path it could not STAGE, and
+   whether that cost a PIN VALUE is a second question: the path may have been at the ref it
+   already serves. So while a wave runs, run no other git command in this worktree; and after
+   it, ask the currency question — `charly task verify` carries it (`charly task pins --param
+   MODE=currency`) — which names every pin that is not at the ref its intent names. Measured on
+   2026-10-23, during an umbrella wave, a wave's staging lost the index lock to a concurrent
+   `git status` in its own worktree. *Detail:*
    `/charly-internals:git-workflow` (pinning).
 
 4. **Read the subrepo's own rulebook first.** *(R0)* Its `AGENTS.md` adds repo-specific
@@ -631,7 +657,15 @@ Before declaring completion, answer every applicable item YES. There is one line
      somewhere, the skill goes there.
    - **A general-guidance skill — one with no code, plugin, or config behind it — belongs in this
      umbrella**, because the umbrella is the only repo every consumer shares and guidance with no
-     home repo has no other place a consumer can reach it from.
+     home repo has no other place a consumer can reach it from. **The same holds for a skill whose
+     described config does have a home repo, when that repo cannot AUTHOR skills** — no project
+     manifest and no `.agents/` tree, so it can be neither a skill host nor a corpus source — and
+     once again the umbrella is the only place a consumer can reach the skill from. That is a
+     **deliberate policy exception, not an oversight**: `opencharly/.github` owns the org ruleset
+     and the required `charly-pr-validator` workflow, and measured it holds neither a `charly.yml`
+     nor an `.agents/` tree, so `git-workflow` and `repo-setup` are authored here while the config
+     they describe stays there (opencharly/opencharly#611). The exception is bounded by its own
+     reason: a repo that CAN author skills is still the right home, and this never widens it.
    - **A repo whose only content is skills is not a valid class**, and neither is a `*-skills`
      carrier that exists only to own prose. The class rule that retires them is
      [Repo classes and naming](#repo-classes-and-naming).

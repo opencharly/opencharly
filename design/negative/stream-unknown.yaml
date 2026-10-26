@@ -1,5 +1,5 @@
 # rule: D-PROTO-10
 # expect: "stdlog"
-# def: #Stream
+# def: #StreamAlt.chunk
 call_id: 0123456789abcdef0123456789abcdef
 chunk: {stream: stdlog, data: aGk=}

@@ -1,0 +1,176 @@
+---
+name: repo-setup
+description: |-
+  How the opencharly GitHub org and opencharly/.github (dotgithub) configuration and workflows drive every repository — the ONE org ruleset, the org-required `charly/pr-validator` workflow, native auto-merge, tag-on-merge CalVer, and the per-repo settings. Use when setting up a NEW repository, adding or explaining landing/CI workflows, or distinguishing what the org configures automatically from what a repo must add.
+---
+
+# repo-setup — the opencharly org, dotgithub config, and new-repo setup
+
+This skill is the companion to `/charly-internals:git-workflow`: git-workflow
+owns the AUTHOR's branch/PR discipline; repo-setup owns the ORG-LEVEL
+configuration that discipline relies on and the checklist for standing up a
+NEW repository.
+
+## The org model (verified against the live settings)
+
+- The `opencharly` org is on GitHub **Team**, so org **rulesets** and the
+  `workflows` rule ("Require workflows to pass") are available.
+- ONE organization branch ruleset named
+  `org-wide required workflow & main protection` is the single source of main
+  protection and the required workflow. It targets `~ALL` repositories MINUS an
+  explicit exclude set, on `refs/heads/main`, and carries:
+  * `workflows` — requires
+    `opencharly/.github/.github/workflows/org-wide-pr-validator-required.yml@refs/heads/main`
+    (read from the `.github` repo at the pinned ref);
+  * `required_status_checks` — `strict: true`, exactly ONE context
+    `validate / validate`;
+  * `non_fast_forward`, `deletion`, `creation`.
+  The ONLY bypass actor is the `charly-auto-merge` GitHub App (its protected-main
+  CHANGELOG writes must land). There is NO human bypass and NO `pull_request`
+  review rule — the validator IS the gate.
+- Owner script: `opencharly/.github/scripts/org-ruleset.sh` (`apply` / `verify`).
+  It creates/updates the ruleset, deletes redundant per-repo rulesets and any
+  surviving legacy branch protection, and enforces the two settings that have NO
+  org-level default: `allow_auto_merge=true` and `delete_branch_on_merge=true`.
+- The target set is `discover_repos` in `scripts/lib-org.sh`: **active,
+  non-fork, default branch `main`**. Everything else is `discover_excludes`
+  (forks, archived, non-`main` defaults). Exclusion is about the ORG-WIDE
+  AUTOMATIC coverage ONLY: the org does not attach the required
+  `validate / validate` workflow to the repo and does not mint its CalVer tag.
+  **It is not a prohibition, and a fork is not a defect.** A fork is a
+  legitimate, actively developed repo here, and it runs its own checks:
+  * `openclaw-enterprise` (fork of `openclaw/openclaw-enterprise`) has ZERO
+    branch rules, so no branch check is ENFORCED; its PRs run its own
+    `.github/workflows/ci.yml` and merge on that CI signal — its PR #2 merged
+    2026-10-13 with `CI Required`, `CodeQL` and `QA advisory`, and no
+    `validate / validate`;
+  * `crabbox` (fork of `openclaw/crabbox`) is excluded from the org-wide
+    ruleset but carries its OWN repo-scoped ruleset requiring the SAME
+    `org-wide-pr-validator-required.yml`, so its PRs get the org gate through
+    that repo's ruleset;
+  * `gst-wayland-display` (fork, default `stable`) carries its own rules on
+    `stable` (including `validate / validate`) and CalVer tags minted
+    out-of-band.
+  For a LIVE repo, an exclusion never means "cannot land" or "is junk" — the
+  non-landing categories are named below. What DOES still hold: a NEW repo is
+  created non-fork so it inherits the org gate, and an excluded repo is not
+  tagged or gated by the org automatically.
+
+## What happens automatically on every PR (the landing chain)
+
+1. A PR is opened/updated → the org ruleset runs
+   `org-wide-pr-validator-required.yml` in the TARGET repo's context (definition
+   from `opencharly/.github` at the pinned ref) → it calls the reusable
+   `pr-validator.yml` → the single required check `validate / validate`.
+2. On a PASS verdict the validator enables GitHub **native auto-merge (squash)**
+   inline — there is NO separate auto-merge workflow. `main` is squash-only.
+3. After the merge, the PER-REPO caller `.github/workflows/tag-on-merge.yml`
+   fires (on `workflow_run` of `charly/pr-validator` + `push` to main) → calls the
+   org reusable `tag-on-merge.yml`, which mints the CalVer tag
+   `v<YYYY>.<DDD>.<HHMM>` at the merge commit and writes `CHANGELOG/<CalVer>.md`
+   from the merged PR body (the body IS the changelog). Proxy-consumed root
+   modules (`sdk`, `spec`, `plugin-gh`) get the Go-module `v0.<YYYYDDD>.<HHMM>`
+   form instead.
+
+   **A landing in one of those repos is not tagged at the merge instant.** The org sweep that mints the tag
+   runs on `workflow_run` of `charly/pr-validator` and scans the last 24h of merged PRs, so a native-auto-merge
+   squash - which GitHub Actions creates ZERO runs for - is tagged when the NEXT validator completes in that
+   repo, not when it merges. Measured and diagnosed on `sdk`'s own `.github/workflows/tag-on-merge.yml`, whose
+   header RCA states it: do not read a missing tag minutes after a merge in `sdk`, `spec` or `plugin-gh` as a
+   defect.
+4. A body-only fix after the head was pushed needs NO empty commit: re-run the
+   failed run MANUALLY with `gh api -X POST repos/<owner>/<repo>/actions/runs/<run-id>/rerun`
+   (not `gh run rerun`, which 404s on the org-required workflow; the re-run's newer
+   check run supersedes the failure). The org-wide `rerun` label sweep was RETIRED.
+
+## Step 0 — choose the class and the name (do this BEFORE step 1)
+
+The repo name is not a free choice: it carries the **class**, and the class
+decides what the repo may hold. Settle the class first, then the name, then run
+the checklist below.
+
+1. **What is the entity?** A candy or image, a VM, a plugin, a service bundle, a
+   packaging repo, a distro family, or a whole product family — the KIND axis.
+2. **Which family does it belong to** (`openclaw`, `selkies`, `agentteams`, …)?
+   The family word is also the skill namespace (`/charly-<family>:<skill>`) and
+   the corpus directory.
+3. **Which repo owns it?** One canonical owner per behaviour (the rulebook's R2);
+   every other repo *references* it by `@github.com/<owner>/<repo>:<vX.Y.Z>` or a
+   namespace import.
+4. **Name it by its class.** Bare names are for core/contract (`charly`, `sdk`,
+   `spec`, `marketplace`, `docs`) and appliances **only**. Everything else carries
+   its prefix — `distro-`, `charly-`/`pkg-`, `layer-`, `plugin-`, `pod-`, `vm-` —
+   and a **product family is a `layer-<family>` repo** (`layer-agentteams` is the
+   canonical example, `layer-openclaw` follows it). A family is never a bare name.
+
+The full class → name → "may hold" mapping is the umbrella `README.md`
+("The org map"), verified by `charly task org-map`; the rule itself
+is in the umbrella `AGENTS.md` ("Repo classes and naming"). Do not copy either
+table into this skill: they are the canonical surfaces, and a copy drifts.
+
+Worked counter-example, because it happened: a product family was created as a
+bare `openclaw`. It held a box, a candy, a disposable bed and two skills — a
+`layer-<family>` shape — so the name did not fit its class and the repo was
+renamed to `layer-openclaw`. A bare name holding anything beyond core/contract or
+an appliance is the defect this step exists to catch.
+
+## Setting up a NEW repository (checklist)
+
+1. Create `opencharly/<name>` (non-fork; it must end up on default branch `main`).
+   The org ruleset then covers it automatically — no per-repo branch rules.
+   **Adopting an existing upstream is an explicit choice, not a defect:** either
+   land it NON-FORK (it gains the org gate and CalVer tags) or keep it a fork and
+   accept that it lands on its own CI (as `openclaw-enterprise` does) or its own
+   repo-scoped ruleset (as `crabbox` does), with no CalVer tag minted by the org.
+2. Add the per-repo `.github/workflows/tag-on-merge.yml` caller — REQUIRED for
+   CalVer tags and the CHANGELOG — plus the appropriate `deploy.yml`. The
+   org-required validator needs NO per-repo file (the old `pr-validator.yml`
+   dispatcher is retired by `retire-per-repo-dispatchers.yml`).
+3. The org owner applies the ONE org ruleset (the `org-ruleset.sh` owner script
+   in `opencharly/.github`, `apply` mode — an operator/CI action, not a charly
+   user command) so `allow_auto_merge` and `delete_branch_on_merge` are enforced
+   for the new repo.
+4. Land the first commit via a PR — never a direct push to `main`.
+5. Add it to the umbrella as a submodule and advance the pin via
+   `charly task sync` + PR (see `/charly-internals:git-workflow` B8).
+
+## The measured gap this checklist prevents
+
+A repo created WITHOUT the `tag-on-merge.yml` caller still MERGES (the org
+workflow validates it) but NEVER gets a CalVer tag: measured on
+`layer-nerdctl` and `plugin-nerdctl` (no `.github` directory at all; their two
+`v2026.266.*` tags were minted manually).
+
+Four DIFFERENT things sit outside `discover_repos`, and they are not one
+category:
+
+- **A fork under development** — `gst-wayland-display` (fork of
+  `games-on-whales/gst-wayland-display`, default `stable`), `crabbox` (fork of
+  `openclaw/crabbox`), and `openclaw-enterprise` (fork of
+  `openclaw/openclaw-enterprise`). Real repos, real PRs, own CI or own ruleset;
+  only the org-wide automatic coverage is absent.
+- **A vendored upstream on a non-`main` default** — `pixelflux` (default
+  `av1`): consumed as a pin, not a landing target.
+- **An artifact-branch sink** — `omarchy-eval-artifacts` (default `runs`): a
+  branch that receives published output, not a landing target.
+- **An archived repo** — `pi-review-action`: read-only, so GitHub rejects
+  pushes and new PRs.
+
+"No tag expected" is true only of the AUTOMATIC tag: the org mints none for
+these repos, so a CalVer tag you find there was minted out-of-band (measured:
+`gst-wayland-display` carries three).
+
+## Cross-References
+
+- `/charly-internals:git-workflow` — the author's branch/PR/landing discipline and
+  the after-merge close-out checklist (B8).
+- `opencharly/.github` — `scripts/org-ruleset.sh`, `scripts/lib-org.sh`,
+  `scripts/retire-per-repo-dispatchers.sh`, and the workflows
+  `org-wide-pr-validator-required.yml`, `pr-validator.yml`, `tag-on-merge.yml`,
+  `tag-on-merge-dispatcher.yml`, `bootstrap-repo-main.yml`.
+
+## When to Use This Skill
+
+Invoke when creating or onboarding a repository in the opencharly org, when adding
+or changing CI/landing workflows, or when explaining what the org ruleset and
+dotgithub workflows do automatically versus what each repo must configure.

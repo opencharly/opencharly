@@ -1,0 +1,14 @@
+# rule: D-NEST-2
+# expect: agent.inside: field not allowed
+x:
+  pod:
+    description: A pod.
+    from: b
+    helper:
+      agent:
+        description: An agent in the pod.
+        from: b
+        inside:
+          pod:
+            description: A pod written inside the agent.
+            from: b
