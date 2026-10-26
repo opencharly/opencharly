@@ -48,6 +48,19 @@
 # alone and reported. Only a checkout that is a strict ANCESTOR of the recorded
 # gitlink is advanced (the pin-wave case: the index moved, the checkout follows).
 #
+# THE NESTED LEVEL IS PART OF THE PATH. A path's own submodules are recorded in
+# the path's OWN tree, so they only mean anything at that path's recorded
+# gitlink. git's `--recursive` brings them in ONLY when the very call that
+# materializes the path is the one that recurses — a path that was materialized
+# EARLIER, and is therefore already at its recorded gitlink, never reaches that
+# call, so its nested level stays ABSENT. The umbrella's currency report then
+# cannot JUDGE an edge whose source is a nested pin: it prints `differs (no
+# checkout of box/cachyos to judge ancestry)`, which the pin contract calls a
+# FAILURE. The nested level is therefore materialized by the SAME script,
+# re-rooted at the path's own root: ONE implementation of the path lifecycle at
+# every level (R2), and the R6 policy — never clobber a checkout that carries
+# work — holds at every level too. (opencharly/opencharly#647)
+#
 # A CHECKOUT THAT NEVER LANDED IS A STATE, NOT A SUCCESS. git clones a
 # submodule with `--no-checkout` and writes the worktree in a LATER, SERIAL pass
 # (git's `run_update_procedure` -> `git checkout -q -f <oid>`, one path at a
@@ -187,7 +200,17 @@ else
 fi
 
 SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
-[ -n "$ROOT" ] || ROOT="$(cd "$(dirname "$SCRIPT")/.." && pwd)"
+# The root is resolved to an ABSOLUTE path, ONCE. Every path below it is built
+# by appending to it, and `git -C` CHANGES the working directory — so a
+# relative root would make the nested read (`git -C <root>/<path> config -f
+# <root>/<path>/.gitmodules`) look for the file INSIDE the directory it just
+# entered, and find nothing. A root that cannot be entered is named, never
+# silently carried.
+_root_arg="${ROOT:-$(dirname "$SCRIPT")/..}"
+if ! ROOT="$(cd "$_root_arg" 2>/dev/null && pwd)"; then
+  echo "init: FAIL — the root '$_root_arg' is not a directory" >&2
+  exit 1
+fi
 
 # REQUIREMENTS, checked and NAMED. `git` is the substrate; `python3` reads the
 # committed sources (charly.yml, reasonix.toml) and scans the gate scripts for
@@ -383,8 +406,14 @@ PY
 }
 
 # ── the declared set ────────────────────────────────────────────────────────────
+# The declared submodule paths of a root. The root is a PARAMETER because the
+# NESTED level of a path is declared by the path's OWN .gitmodules: the same
+# read, one implementation, at every level (R2). The status is git's own —
+# 0 when the set is non-empty, 1 when it is empty (no .gitmodules at all, or
+# one that declares nothing), and non-zero for a read that broke.
 declared_submodules() {
-  git -C "$ROOT" config -f "$ROOT/.gitmodules" --get-regexp '^submodule\..*\.path$' 2>/dev/null \
+  local root="${1:-$ROOT}"
+  git -C "$root" config -f "$root/.gitmodules" --get-regexp '^submodule\..*\.path$' 2>/dev/null \
     | awk '{print $2}' | sort
 }
 
@@ -513,6 +542,15 @@ land_pin() {
 # filter and parallel fetches. `protocol.version=2` is explicit because the local
 # transport defaults to v0, and only v2 advertises the `filter` capability — a
 # v0 server silently IGNORES the filter and the clone comes out full.
+#
+# The `--recursive` stays on THIS call, and this is the only call that carries
+# it: a path that is not initialized has no subtree at all, so nothing under it
+# can be clobbered. An ADVANCE (below) touches a path that EXISTS, and git's
+# recursion there force-checks a nested checkout out to the recorded gitlink and
+# SILENTLY DISCARDS its local commits (measured 2026-10-26: rc=0, no warning,
+# the nested checkout's own commit dropped from its HEAD) — so the advance does
+# not recurse, and the script's own recursion owns the nested level, under the
+# R6 policy, at every level.
 materialize_uninitialized() {
   local -a todo=()
   local path
@@ -541,7 +579,14 @@ advance_path() {
     return 0
   fi
   if [ -n "$(git -C "$ROOT/$path" status --porcelain 2>/dev/null || true)" ]; then
-    echo "init: notice — $path has UNCOMMITTED changes; left untouched" >&2
+    # The work tree of a path is not clean, and there are TWO reasons for that:
+    # the path's OWN uncommitted work, or a NESTED path that does not match the
+    # gitlink this path records for it — git reports the nested one in the SAME
+    # porcelain view. The message names both, because a path whose own tree is
+    # clean but whose nested path diverges does NOT have uncommitted changes,
+    # and saying so would be false. (The nested level's own divergence is
+    # reported by the nested pass, at the nested level.)
+    echo "init: notice — $path is not at its recorded gitlink and its work tree is not clean (its own uncommitted work, or a nested path that does not match the gitlink it records for it); left untouched" >&2
     return 1
   fi
   # The recorded gitlink may not be in the local object store yet (the pin moved
@@ -553,11 +598,78 @@ advance_path() {
   if git -C "$ROOT/$path" merge-base --is-ancestor "$head" "$recorded" 2>/dev/null; then
     # `--init` is REQUIRED alongside `--filter` (git rejects the combination
     # without it), and it is a no-op for a path that is already initialized.
-    git -C "$ROOT" -c protocol.version=2 submodule update --init --recursive --filter=blob:none -- "$path"
+    #
+    # NOT `--recursive`: git's recursion force-checks a nested submodule out to
+    # the recorded gitlink and SILENTLY DISCARDS the local commits there
+    # (measured 2026-10-26: rc=0, no warning, the nested checkout's own commit
+    # dropped from its HEAD). The nested level is the SCRIPT's business —
+    # `materialize_nested_level` applies the same policy (clean + strict
+    # ancestor) to every nested path, so a nested checkout that carries work is
+    # REPORTED and left alone instead of being overwritten.
+    git -C "$ROOT" -c protocol.version=2 submodule update --init --filter=blob:none -- "$path"
     return 0
   fi
   echo "init: FAIL — $path is at $head, which is NOT an ancestor of its recorded gitlink $recorded; left untouched (its own commits are not the umbrella's to discard)" >&2
   return 1
+}
+
+# The NESTED level of a path: the path's OWN declared submodules, materialized at
+# the gitlinks the path's CURRENT tree records.
+#
+# WHY (opencharly/opencharly#647): `git submodule update --recursive` brings a
+# path's nested submodules in ONLY when that very call materializes the path. A
+# path that is already at its recorded gitlink never reaches it, so its nested
+# level stays absent — and the umbrella's own currency report cannot then JUDGE
+# an edge whose source is a nested pin: it prints `differs (no checkout of
+# box/cachyos to judge ancestry)`, which the pin contract calls a FAILURE. The
+# twins can be not merely absent but STALE (measured on the wave-8 tree:
+# `charly`'s own tree named `1893455d3a` while its twins sat at `42a3f078ac`),
+# so the post-condition is the DEEP one — the nested level is materialized AT
+# the gitlinks the path's current tree records.
+#
+# It is the SAME script, re-rooted at the path's own root, so the nested level
+# is materialized under the SAME policy as the top level: a twin behind its
+# record is advanced, a twin that carries work is reported and left alone, a
+# twin already at its record is left where it is. One implementation of the path
+# lifecycle, applied at every level (R2).
+#
+# The nested gitlinks live in the path's OWN tree, so they are only meaningful
+# at the path's recorded gitlink: a path that is not there has a nested level
+# that would be materialized for the WRONG commit, and it is left alone.
+materialize_nested_level() {
+  local path="$1" head recorded
+  head="$(git -C "$ROOT/$path" rev-parse HEAD 2>/dev/null || true)"
+  recorded="$(recorded_gitlink "$path")"
+  if [ -z "$recorded" ] || [ "$head" != "$recorded" ]; then
+    return 0
+  fi
+  local nested_set nested_rc=0
+  nested_set="$(declared_submodules "$ROOT/$path")" || nested_rc=$?
+  # git exits 1 when the set is EMPTY (no .gitmodules of its own, or one that
+  # declares nothing) — that is the normal case for most paths, not a failure.
+  if [ "$nested_rc" -ne 0 ] && [ "$nested_rc" -ne 1 ]; then
+    echo "init: FAIL — the declared submodule set of $path could not be read from $ROOT/$path/.gitmodules" >&2
+    return 1
+  fi
+  [ -n "$nested_set" ] || return 0
+  local -a nested=()
+  mapfile -t nested <<<"$nested_set"
+  # The child's stdout is dropped: its own verdict line would otherwise read as
+  # this run's. Its stderr carries the lines that name the offending nested
+  # path, and those must reach the operator.
+  #
+  # The child inherits this process's ENVIRONMENT, and two of the variables in it
+  # could in principle turn the child into a listing (`CHARLY_INIT_MODE=list`
+  # sets ACTION=list, and `CHARLY_INIT_PATHS` competes for the set). Neither can
+  # reach the child: the parent's own ACTION is `materialize` here — a parent in
+  # list mode returns BEFORE this pass — so `CHARLY_INIT_MODE` is not `list` and
+  # the command line's paths win over `CHARLY_INIT_PATHS` by the documented
+  # precedence. The child therefore materializes exactly the nested paths.
+  if ! bash "$SCRIPT" --root "$ROOT/$path" -- "${nested[@]}" >/dev/null; then
+    echo "init: FAIL — the nested level of $path did not materialize (the nested paths are named above)" >&2
+    return 1
+  fi
+  return 0
 }
 
 # The REPAIR pass: land the pin in every requested path whose checkout never
@@ -682,7 +794,11 @@ run_live() {
       "-") echo "init: FAIL — $path did not materialize" >&2; bad_state=1; continue ;;
       "U") echo "init: FAIL — $path is unmerged" >&2; bad_state=1; continue ;;
     esac
-    advance_path "$path" || bad_state=1
+    advance_path "$path" || { bad_state=1; continue; }
+    # The path now sits at its recorded gitlink, so its OWN tree names the
+    # nested gitlinks: materialize that level too, or an edge whose source is a
+    # nested pin stays unjudgeable (opencharly/opencharly#647).
+    materialize_nested_level "$path" || bad_state=1
   done
   [ "$bad_state" -eq 0 ] || return 1
 
@@ -1180,6 +1296,169 @@ other"
     echo "  PASS  a direct --land on a dirty checkout is refused and the work survives"
   else
     echo "  FAIL  a direct --land clobbered a dirty checkout (rc=$land_rc, file='$land_file', HEAD $land_head != $head_sha): $land_out" >&2
+    fails=$((fails + 1))
+  fi
+
+  # ── the NESTED fixture ─────────────────────────────────────────────────────
+  # A SEPARATE superproject, because the defect is about the ORDER: a path
+  # materialized EARLIER, and never touched again, keeps its nested level
+  # absent. `git submodule add` clones the path and checks IT out, but it does
+  # not recurse — so the nested level is absent from the start, which is
+  # exactly the state the defect lives in.
+  local n_root="$BASE/nested" n_mid="$BASE/nested-mid" n_mid_git="$BASE/nested-mid.git"
+  git init -q "$n_mid"
+  (
+    cd "$n_mid"
+    git submodule add "file://$remote" inner
+    # TWO commits: the first names the OLDER twin ($pinned_sha) and the second
+    # the NEWER one ($head_sha). That is the STALE-TWIN shape #647 is about —
+    # a parent's own tree moved on while the twin it names sat behind.
+    git -C inner checkout -q "$pinned_sha"
+    git add inner
+    git commit -qm "the nested level, at the older twin"
+    git -C inner checkout -q "$head_sha"
+    git add inner
+    git commit -qm "the nested level, at the newer twin"
+  ) >/dev/null 2>&1
+  local n_mid_old n_mid_new
+  n_mid_old="$(git -C "$n_mid" rev-parse HEAD~1)"
+  n_mid_new="$(git -C "$n_mid" rev-parse HEAD)"
+  git clone -q --bare "$n_mid" "$n_mid_git"
+  # The fixture's server advertises the filter, the way GitHub does.
+  git -C "$n_mid_git" config uploadpack.allowFilter true
+  git init -q "$n_root"
+  (
+    cd "$n_root"
+    git submodule add "file://$n_mid_git" core
+    git submodule add "file://$n_mid_git" core3
+    git submodule add "file://$n_mid_git" core4
+    git commit -qm "the nested path"
+  ) >/dev/null 2>&1
+  # `core` is AT its recorded gitlink and its nested level is ABSENT: the state
+  # the defect lives in. `core3` is BEHIND its recorded gitlink, so a run must
+  # advance it AND bring its nested level to the gitlink the ADVANCED tree
+  # records — the deep post-condition in its other shape.
+  git -C "$n_root/core3" checkout -q "$n_mid_old"
+  # `core4` is BEHIND its recorded gitlink and its nested twin CARRIES a local
+  # commit — and the path's own config IGNORES the nested path's state, so the
+  # path's work tree LOOKS clean to git. That is the shape in which git's own
+  # recursion on the advance would force-check the twin out and DISCARD its
+  # commits: the guard cannot see what the config hides.
+  git -C "$n_root/core4" checkout -q "$n_mid_old"
+  git -C "$n_root/core4" -c protocol.version=2 submodule update --init --filter=blob:none -- inner >/dev/null 2>&1
+  git -C "$n_root/core4/inner" commit -q --allow-empty -m "local work"
+  git -C "$n_root/core4" config submodule.inner.ignore all
+
+  # ── claim 19: a MATERIALIZED path's NESTED level is materialized too ──────
+  # The state the defect lives in: `core` is AT its recorded gitlink and its
+  # own nested level (`inner`) is ABSENT. The run must bring the nested level
+  # in, at the gitlink `core`'s CURRENT tree records — the DEEP post-condition,
+  # because a twin that is materialized but a revision behind the parent's
+  # record is still a stale twin.
+  #
+  # The root is passed RELATIVE, on purpose: `git -C` changes the working
+  # directory, so a relative `-f` path is read from INSIDE it. A relative root
+  # must therefore be resolved to an absolute one before any path is built from
+  # it, or the nested read looks for the .gitmodules inside the path it just
+  # entered and finds nothing.
+  local nested_before nested_after nested_sha nested_want
+  nested_before="$(git -C "$n_root/core" submodule status -- inner 2>/dev/null | cut -c1)"
+  out="$(cd "$BASE" && bash "$SCRIPT" --root nested --paths core 2>&1)" && out_rc=0 || out_rc=$?
+  nested_after="$(git -C "$n_root/core" submodule status -- inner 2>/dev/null | cut -c1)"
+  # The nested checkout's HEAD is read through its OWN `.git`: an
+  # un-materialized nested path is an empty directory, not a repository, and
+  # `git -C` there walks UP into the parent and answers with the parent's HEAD.
+  nested_sha=""
+  if [ -e "$n_root/core/inner/.git" ]; then
+    nested_sha="$(git -C "$n_root/core/inner" rev-parse HEAD 2>/dev/null || true)"
+  fi
+  nested_want="$(git -C "$n_root/core" ls-files -s -- inner | awk '{print $2}')"
+  if [ "$nested_before" = "-" ] && [ "$out_rc" -eq 0 ] && [ "$nested_after" = " " ] \
+    && [ -n "$nested_sha" ] && [ "$nested_sha" = "$nested_want" ]; then
+    echo "  PASS  a materialized path's nested level is materialized at the gitlink its current tree records"
+  else
+    echo "  FAIL  the nested level of a materialized path was not materialized (before='$nested_before' after='$nested_after' HEAD '$nested_sha' != $nested_want rc=$out_rc): $out" >&2
+    fails=$((fails + 1))
+  fi
+
+  # ── claim 20: a NESTED checkout with its OWN commits is REPORTED, not
+  # ──          clobbered (the R6 half of the nested level) ─────────────────
+  # git's own recursion force-checks a nested checkout out to the recorded
+  # gitlink and SILENTLY DISCARDS its local commits (measured 2026-10-26: rc=0,
+  # no warning, the nested checkout's own commit dropped from its HEAD). The
+  # nested level is therefore materialized under the SAME policy as the top
+  # level: a nested checkout that carries work is reported and left alone.
+  #
+  # The nested checkout is materialized HERE, by git, so the claim does not
+  # depend on the claim above having run first — and so the commit below lands
+  # in the NESTED repository rather than in its parent's.
+  git -C "$n_root/core" -c protocol.version=2 submodule update --init --filter=blob:none -- inner >/dev/null 2>&1
+  git -C "$n_root/core/inner" commit -q --allow-empty -m "local work"
+  local nested_local nested_now
+  nested_local="$(git -C "$n_root/core/inner" rev-parse HEAD)"
+  out="$(bash "$SCRIPT" --root "$n_root" --paths core 2>&1)" && out_rc=0 || out_rc=$?
+  nested_now="$(git -C "$n_root/core/inner" rev-parse HEAD 2>/dev/null || true)"
+  if [ "$out_rc" -ne 0 ] && [ "$nested_now" = "$nested_local" ] && grep -q 'inner' <<<"$out"; then
+    echo "  PASS  a nested checkout with its own commits is reported, not clobbered"
+  else
+    # Every condition is named, and none of them is asserted by a comparison
+    # that could be true while the claim is false.
+    echo "  FAIL  a diverged nested checkout was not left alone (the run must report it and leave it alone: rc=$out_rc [must be non-zero], the nested HEAD '$nested_now' [must be $nested_local], the report must name the nested path [$(grep -q 'inner' <<<"$out" && echo yes || echo no)]): $out" >&2
+    fails=$((fails + 1))
+  fi
+
+  # ── claim 21: a path BEHIND its record advances, and its nested level ─────
+  # ──          follows to the gitlink the ADVANCED tree records ────────────
+  # The deep post-condition in its second shape. `core3` sits BEHIND the
+  # gitlink its parent records, so a run must advance it — and the nested
+  # level must then follow to the gitlink the ADVANCED tree records, not to
+  # the one the stale tree recorded. This is the shape the removal of git's
+  # `--recursive` from the advance has to be proven against: the nested level
+  # used to be brought in by that recursion, and it is now brought in by the
+  # script's own pass.
+  local c3_head c3_after_head c3_nested_before c3_nested_after c3_nested_sha c3_nested_want
+  c3_head="$(git -C "$n_root/core3" rev-parse HEAD 2>/dev/null || true)"
+  c3_nested_before="$(git -C "$n_root/core3" submodule status -- inner 2>/dev/null | cut -c1)"
+  out="$(bash "$SCRIPT" --root "$n_root" --paths core3 2>&1)" && out_rc=0 || out_rc=$?
+  c3_after_head="$(git -C "$n_root/core3" rev-parse HEAD 2>/dev/null || true)"
+  c3_nested_after="$(git -C "$n_root/core3" submodule status -- inner 2>/dev/null | cut -c1)"
+  c3_nested_sha=""
+  if [ -e "$n_root/core3/inner/.git" ]; then
+    c3_nested_sha="$(git -C "$n_root/core3/inner" rev-parse HEAD 2>/dev/null || true)"
+  fi
+  # The gitlink the ADVANCED tree records: the path's own index, after the
+  # advance, is the tree the path now sits at.
+  c3_nested_want="$(git -C "$n_root/core3" ls-files -s -- inner | awk '{print $2}')"
+  if [ "$c3_head" = "$n_mid_old" ] && [ "$c3_after_head" = "$n_mid_new" ] \
+    && [ "$c3_nested_before" = "-" ] \
+    && [ "$out_rc" -eq 0 ] && [ "$c3_nested_after" = " " ] \
+    && [ -n "$c3_nested_sha" ] && [ "$c3_nested_sha" = "$c3_nested_want" ] \
+    && [ "$c3_nested_sha" = "$head_sha" ]; then
+    echo "  PASS  a path behind its record advances and its nested level follows to the gitlink the advanced tree records"
+  else
+    echo "  FAIL  a path behind its record did not carry its nested level with it (the path was at '$c3_head' [must be $n_mid_old] and is now '$c3_after_head' [must be $n_mid_new], the nested level was '$c3_nested_before' [must be -] and is now '$c3_nested_after' [must be ' '] at '$c3_nested_sha' [must be $c3_nested_want = $head_sha], rc=$out_rc): $out" >&2
+    fails=$((fails + 1))
+  fi
+
+  # ── claim 22: a divergent nested twin is reported even when the path's ────
+  # ──          OWN config hides it from git's status view ─────────────────
+  # The guard that keeps an advance from clobbering work reads the path's work
+  # tree with git. git's view of a nested path is CONFIGURABLE
+  # (`submodule.<name>.ignore`), so a path whose config ignores its nested
+  # paths LOOKS clean while a nested twin carries a local commit — and git's
+  # own recursion on the advance would then force-check that twin out and
+  # discard its commits, silently. The nested level is therefore materialized
+  # by the SCRIPT, which asks the twin itself, and never by git's recursion.
+  local c4_status c4_local c4_now
+  c4_status="$(git -C "$n_root/core4" status --porcelain 2>/dev/null || true)"
+  c4_local="$(git -C "$n_root/core4/inner" rev-parse HEAD 2>/dev/null || true)"
+  out="$(bash "$SCRIPT" --root "$n_root" --paths core4 2>&1)" && out_rc=0 || out_rc=$?
+  c4_now="$(git -C "$n_root/core4/inner" rev-parse HEAD 2>/dev/null || true)"
+  if [ -z "$c4_status" ] && [ "$out_rc" -ne 0 ] && [ "$c4_now" = "$c4_local" ] \
+    && [ -n "$c4_local" ] && grep -q 'inner' <<<"$out"; then
+    echo "  PASS  a divergent nested twin is reported, not clobbered, even when the path's own config hides it from git's status"
+  else
+    echo "  FAIL  a divergent nested twin was not left alone (the path's status must LOOK clean [$c4_status], the run must report it [rc=$out_rc, must be non-zero], the twin's HEAD '$c4_now' [must be $c4_local], the report must name the nested path [$(grep -q 'inner' <<<"$out" && echo yes || echo no)]): $out" >&2
     fails=$((fails + 1))
   fi
 
