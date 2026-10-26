@@ -35,7 +35,7 @@ private COPY of the immutable half. MEASURED on this clone (2026-10-06, umbrella
 | `git submodule update --init --recursive` (the former default) | **~0.86 s per module → ~6 min · 376 MB** of worktree-PRIVATE module objects, plus ~230 MB of checkouts |
 | `submodule update --init --reference .git/modules/<path> <path>` (the default now) | **0.5–0.8 s per module · 1 MB**, borrowed through an `alternates` file |
 | the NESTED level of a materialized module (`charly`'s six `box/*` twins) | **9.0 MB** — 5.2 MB of working trees plus 3.8 MB of blobless object stores, MEASURED in a real .pi worktree (2026-10-26); the post-condition the umbrella's own gate asserts (opencharly/opencharly#710); the whole graph is still never cloned |
-| the per-worktree binary (`charly/scripts/bootstrap-charly.sh`) | ~1m20s · 51 MB — required and never shared (R9, plus concurrent sessions) |
+| the per-worktree binary (`charly/scripts/bootstrap-charly.sh`) | ~1m20s · **54 MB** (size MEASURED 2026-10-26 in a real .pi worktree; the table's other rows are measured on 2026-10-06, when the `charly` pin was `c5ea6c91` — the pin has since advanced to `f1f85d19` and the binary tracks the pin, so its size moves with it) — required and never shared (R9, plus concurrent sessions) |
 
 So `charly_worktree_create` materializes **only `charly` and `marketplace`** — the modules the
 harness's own tools and gates read — and any other module is named explicitly through the tool's

@@ -45,6 +45,18 @@
 // block BEGINS. The class's own wrapped wording is one of the class's INSTANCES, so the
 // self-test proves the wrap-tolerant form is EFFECTIVE, and not merely present.
 //
+// A BLOCK IS A BOUNDARY, NOT AN EXCLUSION (opencharly/opencharly#710, review round 4 —
+// the second missed control, and its root fix): a markdown block start — a heading, a
+// list item, a table row, a quote — used to be DROPPED from the claim stream, text and
+// all. So a claim a reader sees in a list item was invisible to the scan, and the
+// umbrella's own rulebook is written as list items: the shape the claims live in was
+// the shape the gate could not see. MEASURED on this PR's own body, whose R1 findings
+// are list items: the scan reported ONE hit where the prose carried TWO. So a block
+// start's TEXT is a claim and enters the stream, with the block MARKER stripped
+// (the marker is syntax; the text is what a reader sees), and a list item CONTINUES on
+// the lines indented to its content column, because a claim that wraps inside a list
+// item is one claim.
+//
 // WHAT IS ASSERTED (--self-test must see each one go RED):
 //   R. No tracked file, except CHANGELOG/ (the record of what happened, not a current
 //      claim), contains any retired claim form. Every hit is a file and a line, and the
@@ -52,6 +64,9 @@
 //   K. Every pattern is EFFECTIVE: each of its INSTANCES — the concrete wordings that
 //      class has actually been written in — turns the scan RED when injected into a
 //      COPY of a tracked file. A pattern that cannot be made to fail proves nothing.
+//   L. Every pattern is EFFECTIVE in the LIST shape: injected as a markdown list item,
+//      it turns the scan RED. A shape the self-test never exercises is a shape the
+//      scan never proved, and the shape the rulebook is written in is a list item.
 //   S. Every pattern is SOUND: each of its COUNTER-INSTANCES — the qualified, TRUE
 //      wordings that look like the class and are not it — leaves the scan GREEN. A
 //      pattern that cries wolf is a gate that gets disabled, and a disabled gate is this
@@ -268,6 +283,16 @@ function readText(abs) {
 const CODE_COMMENT = /^\s*(?:\/\/|#|\*|<!--)/;
 // A markdown block start: a heading, a list item, a table row, a quote or a fence.
 const MD_BLOCK_START = /^\s*(?:#{1,6}\s|[-*+]\s|\d+[.)]\s|>|\||```|~~~)/;
+// The block starts whose own TEXT is a claim, and the one whose text is not.
+//
+// A block start is a BOUNDARY — a claim cannot straddle two blocks — and it is NEVER an
+// EXCLUSION: the block's text is what a reader sees, and the umbrella's own rulebook is
+// written as LIST ITEMS, so a scan that cannot see a list item cannot see the rulebook.
+// The one text that is not a claim is a FENCE MARKER: the marker is syntax, and the
+// block's CONTENT is the prose it wraps.
+const MD_FENCE = /^\s*(?:```|~~~)/;
+const MD_QUOTE = /^\s*>/;
+const MD_LIST_ITEM = /^\s*(?:[-*+]|\d+[.)])\s+/;
 // A code line that CONTINUES the previous one — the only code lines the stream joins.
 const CODE_CONTINUES = /(?:\\|&&|\|\||\+|,|\()\s*$/;
 
@@ -275,6 +300,27 @@ const CODE_CONTINUES = /(?:\\|&&|\|\||\+|,|\()\s*$/;
 function endsSentence(text) {
   const t = text.replace(/[)"'\]’”*`]+$/u, "").trimEnd();
   return t.length > 0 && /[.!?]$/u.test(t);
+}
+
+/** The CLAIM a markdown block start carries: its text, with the block marker stripped. */
+function mdClaimText(raw) {
+  const t = raw.trim();
+  if (/^#{1,6}\s+/.test(t)) return t.replace(/^#{1,6}\s+/, "").trim();
+  if (MD_LIST_ITEM.test(t)) return t.replace(MD_LIST_ITEM, "").trim();
+  if (MD_QUOTE.test(t)) return t.replace(/^>\s?/, "").trim();
+  if (/^\|/.test(t)) return t.replace(/^\|/, "").trim();
+  return t;
+}
+
+/** The column a markdown line's text starts at. */
+function mdIndent(raw) {
+  return raw.match(/^\s*/)[0].length;
+}
+
+/** The column a list item's text starts at — where its CONTINUATION lines are indented. */
+function mdContentCol(raw) {
+  const marker = raw.trim().match(MD_LIST_ITEM);
+  return mdIndent(raw) + (marker ? marker[0].length : 0);
 }
 
 /**
@@ -289,25 +335,59 @@ function endsSentence(text) {
  *     or a block;
  *   - in a code file, two CODE lines join only when the first ends with a continuation
  *     operator, so a statement boundary is never mistaken for a wrap.
+ *   - in a MARKDOWN file, a block start is a boundary AND a claim: the block's own text
+ *     enters the stream, and the marker that made it a block is stripped, because the
+ *     marker is syntax and the text is what a reader sees. A list item CONTINUES on the
+ *     lines indented to its content column — those lines are the same claim — and a
+ *     quote continues on the next quote line. A fence marker enters no stream at all:
+ *     it is a marker, and the block's CONTENT is the prose it wraps.
  */
 function claimStream(text, isMarkdown) {
   const lines = text.split("\n");
   const segs = []; // {text, line} — the text, and the source line it came from
   let prevKind = null;
   let prevBody = "";
+  // The content column a list item's CONTINUATION lines are indented to, or null. A
+  // claim that WRAPS inside a list item is one claim, so those lines join it.
+  let contCol = null;
+  // The previous markdown line was a QUOTE, so the next quote line CONTINUES it.
+  let prevQuote = false;
   for (let i = 0; i < lines.length; i++) {
     const raw = lines[i];
     if (raw.trim() === "") {
       segs.push({ text: "\n", line: i + 1 });
       prevKind = null;
+      prevBody = "";
+      contCol = null;
+      prevQuote = false;
       continue;
     }
     let kind;
     let body;
     if (isMarkdown) {
       if (MD_BLOCK_START.test(raw)) {
-        segs.push({ text: "\n", line: i + 1 });
-        prevKind = null;
+        if (MD_FENCE.test(raw)) {
+          // A fence marker is SYNTAX: it enters no stream, and the block's content is
+          // the prose it wraps.
+          segs.push({ text: "\n", line: i + 1 });
+          prevKind = null;
+          prevBody = "";
+          contCol = null;
+          prevQuote = false;
+          continue;
+        }
+        const claim = mdClaimText(raw);
+        if (MD_QUOTE.test(raw) && prevQuote) {
+          // A quote's next line CONTINUES the quote: one claim, joined.
+          segs.push({ text: " ", line: i + 1 });
+        } else {
+          segs.push({ text: "\n", line: i + 1 });
+        }
+        segs.push({ text: claim, line: i + 1 });
+        prevKind = "prose";
+        prevBody = claim;
+        prevQuote = MD_QUOTE.test(raw);
+        contCol = MD_LIST_ITEM.test(raw) ? mdContentCol(raw) : null;
         continue;
       }
       kind = "prose";
@@ -325,9 +405,15 @@ function claimStream(text, isMarkdown) {
     const joins =
       prevKind === kind &&
       !endsSentence(prevBody) &&
-      (kind !== "code" || CODE_CONTINUES.test(prevBody));
+      (kind !== "code" || CODE_CONTINUES.test(prevBody)) &&
+      // Inside a list item, only the lines indented to its content column CONTINUE it.
+      (contCol === null || mdIndent(raw) >= contCol);
     segs.push({ text: joins ? " " : "\n", line: i + 1 });
     segs.push({ text: body, line: i + 1 });
+    if (!joins) {
+      contCol = null;
+      prevQuote = false;
+    }
     prevKind = kind;
     prevBody = body;
   }
@@ -413,10 +499,10 @@ function fixture(scratch) {
 }
 
 /** Inject an instance into ONE carrier and scan the fixture. */
-function injectAndScan(scratch, carrierRel, instance) {
+function injectAndScan(scratch, carrierRel, instance, prefix = "") {
   const { dir, git } = fixture(scratch);
   const dest = join(dir, carrierRel);
-  writeFileSync(dest, `${readFileSync(dest, "utf8")}\n${instance}\n`);
+  writeFileSync(dest, `${readFileSync(dest, "utf8")}\n${prefix}${instance}\n`);
   git("add", "-A");
   git("commit", "-qm", "injected");
   return scan(dir);
@@ -472,10 +558,32 @@ function selfTest() {
             fail(`the pattern is INEFFECTIVE about SHAPE — a comment-shaped claim was read as prose in ${c.rel}: ${instance}`);
             return;
           }
-          ok(`the pattern reads the shape: the comment-shaped instance stays GREEN in ${c.rel} (where the marker is not a comment)`);
+          ok(`the pattern reads the shape: the comment-shaped instance stays GREEN in ${c.rel} (a markdown heading is not a comment, and a claim cannot straddle two of them)`);
         }
         checked += 1;
       }
+    }
+
+    // Every CLASS must also be effective in the LIST shape: a claim a reader sees in a
+    // markdown list item is a claim, and the umbrella's own rulebook is written as list
+    // items — so a scan that cannot see a list item cannot see the rulebook. This case
+    // is what makes the shape a PROVEN thing: without it, the list shape is an
+    // assumption the scan never tests, and a claim in a list item is invisible.
+    let shaped = 0;
+    for (const { pattern, instances, why } of PATTERNS) {
+      const instance = instances.find((x) => !isCodeShape(x));
+      if (instance === undefined) continue;
+      const hits = injectAndScan(scratch, "README.md", instance, "- ");
+      if (!hits.some((h) => h.pattern === pattern)) {
+        fail(
+          `the pattern is INEFFECTIVE in the LIST shape — the instance was not caught in a markdown list item: ${instance} (${why})`,
+        );
+        return;
+      }
+      ok(
+        `the pattern is effective in the LIST shape: the instance turns the scan RED in README.md (- ${instance.slice(0, 46).replace(/\n/g, "⏎")}${instance.length > 46 ? "…" : ""})`,
+      );
+      shaped += 1;
     }
 
     // Every counter-instance must be SOUND: injected the same way, it leaves the scan
@@ -495,7 +603,7 @@ function selfTest() {
       }
     }
     console.log(
-      `check-retired-claims --self-test: OK (${checked} instance(s) and ${sounded} counter-instance(s) across ${PATTERNS.length} pattern(s))`,
+      `check-retired-claims --self-test: OK (${checked} instance(s) and ${sounded} counter-instance(s) across ${PATTERNS.length} pattern(s), and ${shaped} list-shape case(s))`,
     );
   } finally {
     rmSync(scratch, { recursive: true, force: true });

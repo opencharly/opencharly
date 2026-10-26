@@ -628,7 +628,11 @@ advance_path() {
 # the ANCESTRY of an edge whose source is a nested pin: while the twin's remote
 # has not moved the twin reads `cur` and the absence is invisible to the report;
 # once it has moved, the report prints `differs (no checkout of box/cachyos to
-# judge ancestry)` — the twin's class left UNDETERMINED — without the checkout the report cannot say whether the difference is `behind`, `unmerged` or `not-on-the-served-line`, and its own state names the reason it cannot; at the VERDICT level the twin counts as not-current, exactly as a real divergence does. The twins can be not merely
+# judge ancestry)` — the twin's class left UNDETERMINED — without the checkout
+# the report cannot say whether the difference is `behind`, `unmerged` or
+# `not-on-the-served-line`, and its own state names the reason it cannot; at
+# the VERDICT level the twin counts as not-current, exactly as a real
+# divergence does. The twins can be not merely
 # absent but STALE (measured on the wave-8 tree:
 # `charly`'s own tree named `1893455d3a` while its twins sat at `42a3f078ac`),
 # so the post-condition is the DEEP one — the nested level is materialized AT
