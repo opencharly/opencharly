@@ -50,6 +50,18 @@
 //      because a stale paste is well-formed. It is scoped to FENCED blocks (pasted
 //      output) and never to prose: prose may quote a line that has since moved, and
 //      that is a judgement, not a mechanical fact.
+//   D. Every CLOSING DIRECTIVE the body opens with — `Closes #N`, `Fixes #N`,
+//      `Resolves #N` — must name something the directive CAN close. GitHub's `Closes`
+//      closes an ISSUE; a merged pull request cannot be closed, so a directive naming
+//      one closes nothing, while the same body usually states, a few lines down, that
+//      the number "is already merged". The tree can decide what KIND of thing the
+//      number is: GitHub's squash subject is `title (#closed-issue) (#pr)`, so the LAST
+//      parenthesised number in a merged commit's subject is the pull request. This arm
+//      exists because the `charly/pr-validator` found a body whose `Closes #696` named
+//      a MERGED PULL REQUEST (2026-10-26, opencharly/opencharly#697) — the directive
+//      closed nothing and the body contradicted itself. It reads only lines that OPEN
+//      with the keyword, and never a fenced block: a body that PASTES a directive as
+//      evidence is not making one.
 //   C. Every claim a CHANGED RECORD states is VISIBLE IN THE BODY. A file under
 //      `CHANGELOG/` is a record of what happened; a correction PR rewrites one. The
 //      record's own claims must be reproducible from the body that publishes the
@@ -363,6 +375,95 @@ function checkEvidence(body) {
 }
 
 /**
+ * The body's lines that are NOT inside a fenced block, with their line numbers. A body
+ * that PASTES a closing directive as evidence is not making one, and the gate must not
+ * trip on its own quote — the same distinction the evidence arm draws, in the other
+ * direction.
+ */
+function proseLines(body) {
+  const out = [];
+  let inFence = false;
+  const lines = body.split("\n");
+  for (let i = 0; i < lines.length; i += 1) {
+    if (/^\s*(?:```|~~~)/.test(lines[i])) {
+      inFence = !inFence;
+      continue;
+    }
+    if (!inFence) out.push({ n: i + 1, text: lines[i] });
+  }
+  return out;
+}
+
+/**
+ * The body's CLOSING DIRECTIVES: a line that OPENS with `Closes`/`Fixes`/`Resolves`
+ * followed by a bare `#N`. The line must open with the keyword — that is the directive
+ * form, and a file's prose may quote a directive without making one — and the reference
+ * must be bare, because `owner/repo#N` names another repository's issue, which this
+ * repo's history cannot judge.
+ */
+function closingDirectives(body) {
+  const out = [];
+  for (const l of proseLines(body)) {
+    const m = /^\s*(?:[-*+]\s+)?(Closes|Fixes|Resolves)\s+#(\d+)\b/.exec(l.text);
+    if (m) out.push({ line: l.n, keyword: m[1], n: m[2] });
+  }
+  return out;
+}
+
+/**
+ * The numbers this repo has merged as PULL REQUESTS, read from the base ref's history.
+ *
+ * GitHub's squash subject is `title (#closed-issue) (#pr)`, so the LAST parenthesised
+ * number in a merged commit's subject is the pull request and the earlier one is the
+ * issue it closed; a merge commit's subject names the pull request outright. Measured
+ * against the API, this signal reproduces the merged-pull-request set exactly (446 of
+ * 446 in this repo), while the naive "any `(#N)`" reading yields seven candidates, six
+ * of which are issues.
+ */
+function mergedPullRequests(baseRef) {
+  const log = git("log", "--format=%s", baseRef);
+  if (log === null) return null;
+  const set = new Set();
+  for (const line of log.split("\n")) {
+    const squash = /\(#(\d+)\)\s*$/.exec(line);
+    const merge = /^Merge pull request #(\d+)\b/.exec(line);
+    if (squash) set.add(squash[1]);
+    else if (merge) set.add(merge[1]);
+  }
+  return set;
+}
+
+/**
+ * D. Every closing directive names something the directive CAN close.
+ */
+function checkClosingDirectives(body, baseRef) {
+  const directives = closingDirectives(body);
+  if (directives.length === 0) {
+    notice("the body carries no closing directive — the directive rule is inapplicable");
+    return;
+  }
+  const merged = mergedPullRequests(baseRef);
+  if (merged === null) {
+    notice(`the base ref ${baseRef} could not be read — the closing directives are not reconciled`);
+    return;
+  }
+  let bad = 0;
+  for (const d of directives) {
+    if (!merged.has(d.n)) continue;
+    bad += 1;
+    fail(
+      `the body opens ${d.keyword} #${d.n} (line ${d.line}), and #${d.n} is a merged PULL REQUEST in this repo — ` +
+        `GitHub closes issues, not pull requests, so the directive closes nothing; write \`Refs #${d.n}\``,
+    );
+  }
+  if (bad === 0)
+    ok(
+      `every closing directive names a number this repo has not merged as a pull request ` +
+        `(${directives.length} directive(s)) — a directive naming an OPEN pull request is not decidable from the tree`,
+    );
+}
+
+/**
  * A path-like token: a slash and an extension (`dir/file.ext`). A record names a file;
  * the body must show the same name, so a reader can find the evidence behind it.
  */
@@ -484,6 +585,11 @@ function check() {
   // carries no table still pastes evidence, and the tree can judge it either way.
   checkEvidence(body);
 
+  // ── D. the closing directives' targets ────────────────────────────────────────────
+  // It runs for the same reason: a body's closing directive is a claim about what the
+  // change discharges, and the tree can say what KIND of thing the number names.
+  checkClosingDirectives(body, baseRef);
+
   // ── T + N. the diff the body is published with ────────────────────────────────────
   const table = fileTable(body);
   if (!git("rev-parse", "--verify", `${baseRef}^{commit}`)) {
@@ -544,7 +650,11 @@ if (argv.includes("--self-test")) {
     // discriminator for that off-by-one.
     writeFileSync(join(repo, "scripts/blank.sh"), "\n#!/bin/sh\n");
     g("add", "-A");
-    writeFileSync(join(scratch, "msg.txt"), "base\n");
+    // The BASE commit's subject carries a pull-request number in GitHub's own squash
+    // shape — `title (#closed-issue) (#pr)`, here with the issue part absent — so the
+    // fixture repo has a number it has merged AS A PULL REQUEST. The directive arm needs
+    // one to be caught against, and #3 stays free to stand for an ISSUE.
+    writeFileSync(join(scratch, "msg.txt"), "base (#7)\n");
     g("commit", "-q", "-F", join(scratch, "msg.txt"));
     g("checkout", "-q", "-b", "feat");
     writeFileSync(join(repo, "a.txt"), "a2\n");
@@ -558,6 +668,7 @@ if (argv.includes("--self-test")) {
       "## Summary\n\nThe gate script `scripts/one.sh` grew by 2 lines.\n",
     );
     g("add", "-A");
+    writeFileSync(join(scratch, "msg.txt"), "feat\n");
     g("commit", "-q", "-F", join(scratch, "msg.txt"));
     const head = g("rev-parse", "HEAD").stdout.trim();
 
@@ -569,13 +680,16 @@ if (argv.includes("--self-test")) {
     // record's file from the evidence, and a command that named that file would keep
     // the body naming it, so the mutation would not fire.
 
+    const DEFAULT_EVIDENCE =
+      "scripts/blank.sh:2:#!/bin/sh\nscripts/one.sh:1:#!/bin/sh\nscripts/two.sh:1:#!/bin/sh";
     const body = (
       tableRows,
       pastedSha,
       claim = "",
-      evidence =
-        "scripts/blank.sh:2:#!/bin/sh\nscripts/one.sh:1:#!/bin/sh\nscripts/two.sh:1:#!/bin/sh",
-    ) => `## Summary
+      evidence = DEFAULT_EVIDENCE,
+      directive = "",
+    ) => `${directive}
+## Summary
 
 A fixture body.
 
@@ -697,6 +811,42 @@ ${claim || "Test fixture, not a real change."}
         ),
         "the body's pasted output does not show it",
       ],
+      [
+        "the body closes a number this repo merged as a pull request",
+        body(
+          "| `a.txt` | a change |\n| `c.txt` | a change |\n| `scripts/two.sh` | a change |",
+          head,
+          "",
+          DEFAULT_EVIDENCE,
+          "Closes #7",
+        ),
+        "is a merged PULL REQUEST",
+      ],
+    ];
+    // The cases that must STAY GREEN: the arm is narrow on purpose, and a gate that
+    // fires on a quoted directive or on an issue would be a gate nobody could push
+    // through.
+    const greenArms = [
+      [
+        "a closing directive inside a fenced block is evidence, not a directive",
+        body(
+          "| `a.txt` | a change |\n| `c.txt` | a change |\n| `scripts/two.sh` | a change |",
+          head,
+          "",
+          DEFAULT_EVIDENCE,
+          "```\nCloses #7\n```",
+        ),
+      ],
+      [
+        "a closing directive naming an issue is left alone",
+        body(
+          "| `a.txt` | a change |\n| `c.txt` | a change |\n| `scripts/two.sh` | a change |",
+          head,
+          "",
+          DEFAULT_EVIDENCE,
+          "Closes #3",
+        ),
+      ],
     ];
     for (const [name, text, expect] of arms) {
       stLive += 1;
@@ -710,6 +860,17 @@ ${claim || "Test fixture, not a real change."}
         console.error(`  FAIL  mutation '${name}' went red with the WRONG finding (expected '${expect}'):\n${r.out}`);
       } else {
         console.log(`  PASS  mutation '${name}' is caught (gate red)`);
+      }
+    }
+    for (const [name, text] of greenArms) {
+      stLive += 1;
+      writeFileSync(bodyFile, text, "utf8");
+      const r = runGate();
+      if (r.code !== 0) {
+        stFails += 1;
+        console.error(`  FAIL  case '${name}' went RED but must stay GREEN:\n${r.out}`);
+      } else {
+        console.log(`  PASS  case '${name}' stays green`);
       }
     }
     // The unmutated body is GREEN — and it states a count, so the green run also
