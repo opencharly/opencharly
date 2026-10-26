@@ -744,6 +744,14 @@ if (argv.includes("--self-test")) {
 
     const DEFAULT_EVIDENCE =
       "scripts/blank.sh:2:#!/bin/sh\nscripts/one.sh:1:#!/bin/sh\nscripts/two.sh:1:#!/bin/sh";
+    // The fixture's evidence block is a BACKTICK fence by default. One arm renders it
+    // with TILDES, because the OLD reader's `fencedBlocks` recognised only backtick
+    // fences — so a tilde-fenced evidence block was invisible to the evidence arm, and
+    // a body could paste stale evidence in one and the gate never saw it. The fence
+    // CHARACTER is a parameter so the arm that needs a tilde block can have one,
+    // instead of a tilde block pasted somewhere the arm's name does not describe.
+    const BACKTICK_FENCE = "`".repeat(3);
+    const TILDE_FENCE = "~".repeat(3);
     // The file table the fixture's diff actually has — the three files it changes. It
     // is named once and used by every arm, so no arm can spell it differently from
     // another and the table stays a fixture of the gate, not a copy per arm.
@@ -755,6 +763,7 @@ if (argv.includes("--self-test")) {
       claim = "",
       evidence = DEFAULT_EVIDENCE,
       directive = "",
+      fence = BACKTICK_FENCE,
     ) => `${directive}
 ## Summary
 
@@ -772,10 +781,10 @@ $ git rev-parse HEAD
 ${pastedSha}
 \`\`\`
 
-\`\`\`
+${fence}
 $ grep -n 'sh' scripts/*.sh | sort
 ${evidence}
-\`\`\`
+${fence}
 
 ## Rulebook compliance
 - **R0 — skills first:** fixture.
@@ -924,9 +933,32 @@ ${claim || "Test fixture, not a real change."}
         body(FULL_TABLE, head, "", DEFAULT_EVIDENCE, "````\n```\n````\nCloses #7"),
         "is a merged PULL REQUEST",
       ],
+      // Two placements, because the OLD reader was blind to a tilde fence in BOTH:
+      // `fencedBlocks` recognised only backtick fences, so a tilde-fenced line was
+      // no evidence ref at all — wherever the fence sat.
+      //
+      // In the PROSE (the Change classification section), the OLD reader's `proseLines`
+      // DID treat the tilde run as a fence, so the line was invisible to every arm:
+      // the body was green. That is the discrimination this arm carries.
+      [
+        "the body pastes a stale evidence line inside a TILDE fence in the prose",
+        body(FULL_TABLE, head, "~~~\nscripts/one.sh:1:echo something else\n~~~"),
+        "the evidence was taken on another tree",
+      ],
+      // As the EVIDENCE BLOCK — the shape a real body has. The OLD reader does not
+      // see the block's content either, so it reports a DIFFERENT finding (the record
+      // arm, which cannot see the pasted output); what it never reports is the
+      // evidence finding. The arm below is about the EVIDENCE arm firing.
       [
         "the body pastes evidence in a TILDE fence the tree does not hold",
-        body(FULL_TABLE, head, "~~~\nscripts/one.sh:1:echo something else\n~~~"),
+        body(
+          FULL_TABLE,
+          head,
+          "",
+          "scripts/one.sh:1:echo something else",
+          "",
+          TILDE_FENCE,
+        ),
         "the evidence was taken on another tree",
       ],
     ];
@@ -942,6 +974,20 @@ ${claim || "Test fixture, not a real change."}
           "",
           DEFAULT_EVIDENCE,
           "```\nCloses #7\n```",
+        ),
+      ],
+      // The same rule for the OTHER fence character: a tilde fence is a fence, so a
+      // directive inside one is the body's own quote and not a directive. The OLD
+      // reader already treated a tilde fence as a fence here — it was the evidence
+      // reader that did not — and this arm holds that half in place.
+      [
+        "a closing directive inside a TILDE fence is evidence, not a directive",
+        body(
+          FULL_TABLE,
+          head,
+          "",
+          DEFAULT_EVIDENCE,
+          "~~~\nCloses #7\n~~~",
         ),
       ],
       [
