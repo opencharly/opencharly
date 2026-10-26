@@ -1,0 +1,20 @@
+# pr-body-cap — the ONE cap on a PR body's size, in BYTES.
+#
+# GitHub's limit for an issue or pull-request body is 65536 characters. BOTH readers
+# of this cap count BYTES — the way `wc -c` does — and the number below is the ONE
+# value either of them uses.
+#
+# It is read from here by BOTH readers of a body's size:
+#   - `scripts/sync-pr-body.sh`         — the sync PR's own guard;
+#   - `scripts/check-pr-body-diff.mjs`  — the gate the pre-push hook runs on EVERY body.
+# One definition, two readers: the cap cannot drift between them (R2). A second copy
+# of the number in either reader is a second cap, and the two would disagree the
+# first time one of them is changed.
+#
+# The environment variable `GITHUB_BODY_MAX` overrides the number in BOTH readers —
+# for a tighter local policy, or for a self-test that wants a small body.
+#
+# The readers take the first line that is neither blank nor a comment, and require it
+# to be a positive integer: a cap that cannot be read must fail LOUD, never be
+# silently replaced by a default that is not this number.
+65536

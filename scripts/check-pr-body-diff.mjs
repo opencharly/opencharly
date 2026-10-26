@@ -17,9 +17,29 @@
 // tree and its own base branch, and because a rule that can only be armed after a
 // submodule pin bump cannot guard the push that follows the bump. It deliberately
 // implements NO rule the linter already owns: it reads the body and the git tree, and
-// asks two questions the linter does not ask.
+// asks the questions the linter does not ask.
 //
 // ASSERTED — each proven LIVE by --self-test against a mutation of a fixture body:
+//   Z. The body's SIZE is within GitHub's cap for an issue or pull-request body. The
+//      cap is ONE number, read from `scripts/lib/pr-body-cap` — the same place
+//      `scripts/sync-pr-body.sh` reads it, so the two guards cannot drift (R2). An
+//      over-cap body is refused by the API with a 422 AFTER the push has already
+//      succeeded, so the branch is pushed and the pull request keeps a STALE body,
+//      and the operator finally sees a validator BLOCK about the body instead of
+//      about its size (opencharly/opencharly#716).
+//   F. The body's FENCES PAIR. The reader answers "where does a fence end", and it
+//      answers that well; it was never asked "do the fences pair". A body with one
+//      fence too few shifts every later pair by one, so each block's closing fence
+//      is consumed as the next block's opening fence — and from that point the arms
+//      below read the body's evidence as prose and the body's prose as evidence,
+//      each reporting "inapplicable" while the gate says OK (opencharly/opencharly#717,
+//      measured on this repo's own published pull request). An unpaired fence is a
+//      hard failure naming the line, and the arms that read the body's blocks are
+//      SKIPPED: on a mis-paired body every one of them reads the body wrong.
+//   S. The sections the body must carry are PROSE. A `## Summary` inside a fenced
+//      block renders as CODE, and the org's linter reads the body's LINES, so it
+//      counts such a heading as a present section (opencharly/opencharly#717). A
+//      section the body hides in a fence is a hard failure naming its line.
 //   T. The body's FILE TABLE lists exactly the files the diff changes, against the base
 //      ref. A file the diff changes and the table omits is a finding; a file the table
 //      lists and the diff does not change is a finding. A body with no file table has
@@ -127,6 +147,44 @@ const fail = (m) => {
 };
 const ok = (m) => console.log(`  PASS  ${m}`);
 const notice = (m) => console.log(`  NOTE  ${m}`);
+
+/**
+ * The ONE cap on a PR body's size, in BYTES — GitHub's limit for an issue or
+ * pull-request body. It is read from `scripts/lib/pr-body-cap`, the SAME place
+ * `scripts/sync-pr-body.sh` reads it, so the two guards cannot drift (R2): one
+ * definition, two readers.
+ *
+ * The environment variable `GITHUB_BODY_MAX` overrides the number, in BOTH readers,
+ * for a tighter local policy or for a self-test that wants a small body. A cap that
+ * cannot be read is a hard failure: it is never replaced by a default that is not
+ * this number, because a default that is not this number is a SECOND cap, and the
+ * two would disagree the first time one of them is changed.
+ */
+const CAP_FILE = join(here, "lib", "pr-body-cap");
+
+function readCapBytes() {
+  const override = (process.env.GITHUB_BODY_MAX ?? "").trim();
+  if (override !== "") {
+    if (!/^\d+$/.test(override) || Number(override) <= 0) {
+      fail(`GITHUB_BODY_MAX is not a positive integer (${override}) — the body's size cap cannot be read`);
+      return null;
+    }
+    return Number(override);
+  }
+  let text;
+  try {
+    text = readFileSync(CAP_FILE, "utf8");
+  } catch {
+    fail(`the body's size cap cannot be read from ${CAP_FILE} — the ONE cap is missing`);
+    return null;
+  }
+  const value = text.replace(/#.*$/gm, "").replace(/\s+/g, "");
+  if (!/^\d+$/.test(value) || Number(value) <= 0) {
+    fail(`the body's size cap in ${CAP_FILE} is not a positive integer (${value})`);
+    return null;
+  }
+  return Number(value);
+}
 
 /** Run a git command in the repo and return its trimmed stdout, or null on failure. */
 const git = (...a) => {
@@ -301,11 +359,18 @@ function checkCounts(body, table, statuses) {
  *     fence is still open — and the directive inside it is read as a directive.
  * One scanner, so the two readers of a fence — the evidence arm and the directive arm
  * — can never disagree about where a fence ends.
+ *
+ * The BALANCE question is a different one, and the SAME scanner answers it: a fence
+ * that opens a block and is never closed leaves the reader with one block running to
+ * the end of the body. Every fence the reader acted on is either an opening or a
+ * closing one, so an ODD number of acted-on fences is exactly an unpaired fence, and
+ * the line that opens it is the line the finding names.
  */
-function fenceSpans(body) {
+function scanFences(body) {
   const spans = [];
   const lines = body.split("\n");
   let open = null;
+  let acted = 0;
   for (let i = 0; i < lines.length; i += 1) {
     const m = /^\s*(`{3,}|~{3,})(.*)$/.exec(lines[i]);
     if (!m) continue;
@@ -313,15 +378,23 @@ function fenceSpans(body) {
     const rest = m[2];
     if (!open) {
       open = { char: marker[0], len: marker.length, from: i + 1 };
+      acted += 1;
       continue;
     }
     if (marker[0] === open.char && marker.length >= open.len && /^\s*$/.test(rest)) {
       spans.push({ from: open.from, to: i + 1 });
       open = null;
+      acted += 1;
     }
   }
+  const unpaired = open ? { line: open.from, char: open.char, len: open.len } : null;
   if (open) spans.push({ from: open.from, to: lines.length });
-  return spans;
+  return { spans, unpaired, acted };
+}
+
+/** The fence spans — the reader's ONE view of where a fence ends. */
+function fenceSpans(body) {
+  return scanFences(body).spans;
 }
 
 /**
@@ -613,17 +686,138 @@ function checkRecordClaims(body, baseRef, statuses) {
     );
 }
 
+/**
+ * Z. The body's size is within GitHub's cap for an issue or pull-request body.
+ *
+ * The cap is ONE number, read from `scripts/lib/pr-body-cap` — the same place
+ * `scripts/sync-pr-body.sh` reads it (R2). The count is BYTES, the way `wc -c`
+ * counts, and the message is that guard's message: the offending size, the cap,
+ * and which section to bound.
+ */
+function checkBodySize(bytes) {
+  const cap = readCapBytes();
+  if (cap === null) return;
+  if (bytes > cap) {
+    fail(`the PR body is ${bytes} bytes (> ${cap} GitHub cap) — bound the section that grew`);
+    return;
+  }
+  ok(`the PR body is ${bytes} bytes (within the ${cap}-byte GitHub cap)`);
+}
+
+/**
+ * F. The body's fences pair.
+ *
+ * The reader answers "where does a fence end"; this asks it the OTHER question —
+ * "do the fences pair" — and an unpaired fence is a hard failure naming the line
+ * that opens it. It is not a NOTE: a NOTE is how the arms below reported a body
+ * whose blocks they could not read, while the gate said OK.
+ */
+function checkFenceBalance(body) {
+  const { unpaired, acted } = scanFences(body);
+  if (!unpaired) {
+    ok(`the body's fences pair (${acted} fence(s) the reader acted on)`);
+    return true;
+  }
+  fail(
+    `the body's fences do not pair: the fence at line ${unpaired.line} is never closed ` +
+      `(${acted} fence(s) the reader acted on, and an odd count of fences is an unpaired fence)`,
+  );
+  return false;
+}
+
+/**
+ * S. The sections the body must carry are PROSE.
+ *
+ * A `## Summary` inside a fenced block renders as CODE, and the org's linter reads
+ * the body's LINES, so it counts such a heading as a present section — the body
+ * passes the linter and shows no section at all (opencharly/opencharly#717).
+ *
+ * A section the body carries in prose AND quotes inside a fence is NOT a finding:
+ * the body shows the section, and the fence is a quote of something else. Only a
+ * section the body hides — no prose heading for it anywhere — is a failure.
+ *
+ * A section the body does not carry AT ALL is not this arm's business: the org's
+ * linter owns the presence of the four required sections, and this gate implements
+ * no rule the linter already owns.
+ */
+const REQUIRED_SECTIONS = [
+  "Summary",
+  "How tested",
+  "Rulebook compliance",
+  "Change classification",
+  "Filed issues",
+];
+
+function checkSectionVisibility(body) {
+  const spans = fenceSpans(body);
+  const lines = body.split("\n");
+  const inFence = (n) => spans.some((s) => n >= s.from && n <= s.to);
+  const prose = new Set();
+  const fenced = new Map();
+  for (let i = 0; i < lines.length; i += 1) {
+    const m = /^## +(.+?)\s*$/.exec(lines[i]);
+    if (!m) continue;
+    const name = m[1];
+    if (!REQUIRED_SECTIONS.includes(name)) continue;
+    const n = i + 1;
+    if (inFence(n)) {
+      if (!fenced.has(name)) fenced.set(name, n);
+    } else {
+      prose.add(name);
+    }
+  }
+  let bad = 0;
+  for (const name of REQUIRED_SECTIONS) {
+    if (prose.has(name)) continue;
+    const line = fenced.get(name);
+    if (line === undefined) continue;
+    bad += 1;
+    fail(
+      `the body's \`## ${name}\` heading is inside a fenced block (line ${line}), and the body ` +
+        `carries no \`## ${name}\` in prose — it renders as code, not as a section`,
+    );
+  }
+  if (bad > 0) return;
+  if (prose.size === 0) {
+    notice("the body carries none of the required section headings — the section-visibility rule is inapplicable");
+    return;
+  }
+  ok(`every required section the body carries is prose (${prose.size} section(s))`);
+}
+
 function check() {
   if (!existsSync(bodyPath)) {
     notice(`no body at ${bodyPath} — nothing to reconcile`);
     return;
   }
-  const body = readFileSync(bodyPath, "utf8");
+  const raw = readFileSync(bodyPath);
+  const body = raw.toString("utf8");
   const head = git("rev-parse", "HEAD");
   if (!head) {
     notice(`${root} is not a git repository — the diff cannot be read, so nothing is reconciled`);
     return;
   }
+
+  // ── Z. the body's size ───────────────────────────────────────────────────────────
+  // It runs first: an over-cap body is refused by the API AFTER the push has
+  // succeeded, so what the operator finally sees is a stale body and a validator
+  // BLOCK about it — far from the cause.
+  checkBodySize(raw.length);
+
+  // ── F. the fences pair ──────────────────────────────────────────────────────────
+  // It runs before every other arm, and when it fails the arms that read the body's
+  // blocks are SKIPPED rather than run on a body they mis-read: on a mis-paired
+  // body each of them reads the evidence as prose and the prose as evidence.
+  if (!checkFenceBalance(body)) {
+    notice(
+      "the body's fences do not pair — the arms that read the body's blocks are skipped, " +
+        "because on a mis-paired body each of them reads the evidence as prose and the prose as evidence",
+    );
+    return;
+  }
+
+  // ── S. the required sections are prose ───────────────────────────────────────────
+  checkSectionVisibility(body);
 
   // ── H. the pasted head evidence ───────────────────────────────────────────────────
   const heads = pastedHeads(body);
@@ -757,6 +951,10 @@ if (argv.includes("--self-test")) {
     // another and the table stays a fixture of the gate, not a copy per arm.
     const FULL_TABLE =
       "| `a.txt` | a change |\n| `c.txt` | a change |\n| `scripts/two.sh` | a change |";
+    // The `mutate` parameter is the LAST one and takes the finished body, so an arm
+    // that needs a shape the template cannot express — an unpaired fence, a section
+    // hidden in a fence, a body of an exact byte size — states that shape on the
+    // finished text instead of forking the template per arm.
     const body = (
       tableRows,
       pastedSha,
@@ -764,7 +962,8 @@ if (argv.includes("--self-test")) {
       evidence = DEFAULT_EVIDENCE,
       directive = "",
       fence = BACKTICK_FENCE,
-    ) => `${directive}
+      mutate = (t) => t,
+    ) => mutate(`${directive}
 ## Summary
 
 A fixture body.
@@ -803,12 +1002,32 @@ ${fence}
 ${claim || "Test fixture, not a real change."}
 
 *Assisted-by: DeepSeek Harness ollama-cloud/deepseek-v4.1-flash (documentation reviewed)*
-`;
+`);
+    // The cap the size arm reads, and the padding that puts a body at an EXACT byte
+    // size. The padding is a run of a word with no digit and no slash, so it cannot be
+    // read as a count claim, a path or an evidence line — the size arm is the only
+    // thing the padded bodies are for.
+    const capBytes = readCapBytes();
+    if (capBytes === null) {
+      throw new Error("the body's size cap could not be read — the size arm cannot be self-tested");
+    }
+    const sized = (text, target) => {
+      const pad = target - Buffer.byteLength(text) - 1;
+      if (pad < 0) {
+        throw new Error(
+          `the fixture body is already ${Buffer.byteLength(text)} bytes, past the ${target}-byte target`,
+        );
+      }
+      const filler = "filler".repeat(Math.ceil(pad / 6)).slice(0, pad);
+      return text.replace("## Rulebook compliance", () => `${filler}\n## Rulebook compliance`);
+    };
     const runGate = () => {
       const r = spawnSync(
         process.execPath,
         [fileURLToPath(import.meta.url), "--body", bodyFile, "--repo", repo, "--base", "main"],
-        { encoding: "utf8" },
+        // The cap travels with the child, so the size arm judges the SAME number in
+        // the fixture as in the self-test, whatever the ambient environment carries.
+        { encoding: "utf8", env: { ...process.env, GITHUB_BODY_MAX: String(capBytes) } },
       );
       return { code: r.status, out: `${r.stdout ?? ""}${r.stderr ?? ""}` };
     };
@@ -961,6 +1180,34 @@ ${claim || "Test fixture, not a real change."}
         ),
         "the evidence was taken on another tree",
       ],
+      // F. The fences pair. A body whose last fence is never closed hides every
+      // block after it: the reader reads the rest of the body as evidence, and the
+      // evidence arm then judges prose against the tree.
+      [
+        "the body leaves a fence open",
+        body(FULL_TABLE, head, "", DEFAULT_EVIDENCE, "", BACKTICK_FENCE, (t) =>
+          t.replace(
+            "\n## Rulebook compliance",
+            "\n```\n$ a block that is never closed\n\n## Rulebook compliance",
+          ),
+        ),
+        "the body's fences do not pair",
+      ],
+      // S. The required sections are prose. The linter reads the body's LINES, so a
+      // heading inside a fence counts as a present section and the body shows none.
+      [
+        "the body hides a required section inside a fenced block",
+        body(FULL_TABLE, head, "", DEFAULT_EVIDENCE, "", BACKTICK_FENCE, (t) =>
+          t.replace("## Rulebook compliance", () => "```\n## Rulebook compliance\n```"),
+        ),
+        "renders as code, not as a section",
+      ],
+      // Z. The body's size. One byte over the cap is over the cap.
+      [
+        "the body is over GitHub's cap",
+        sized(body(FULL_TABLE, head, "This change adds one new script."), capBytes + 1),
+        "GitHub cap",
+      ],
     ];
     // The cases that must STAY GREEN: the arm is narrow on purpose, and a gate that
     // fires on a quoted directive or on an issue would be a gate nobody could push
@@ -1043,6 +1290,21 @@ ${claim || "Test fixture, not a real change."}
           DEFAULT_EVIDENCE,
           "```sh\necho hi\n```still inside\nCloses #7\n```",
         ),
+      ],
+      // S. A body that SHOWS a section in prose and quotes the same heading inside a
+      // fence is not hiding anything: the section is there, and the fence is a quote.
+      // The arm is about a section with NO prose heading, so this stays green.
+      [
+        "a body that quotes a section heading inside a fence is not hiding a section",
+        body(FULL_TABLE, head, "", DEFAULT_EVIDENCE, "", BACKTICK_FENCE, (t) =>
+          t.replace("## How tested", () => "```\n## Summary\n```\n\n## How tested"),
+        ),
+      ],
+      // Z. One byte under the cap is under the cap. The padded body is the same body
+      // the red case uses, so the size arm is the ONLY thing that differs.
+      [
+        "a body just under GitHub's cap stays green",
+        sized(body(FULL_TABLE, head, "This change adds one new script."), capBytes - 1),
       ],
     ];
     for (const [name, text, expect] of arms) {
