@@ -526,25 +526,38 @@ verify:
           [ "$rc" -eq 0 ] || fail "the branch audit failed for one or more submodules (each one is named above)"
           echo "verify: OK — $count submodule(s): branch == remote default for every one"
         context: [runtime]
-      - check: charly's own nested submodules are at their gitlinks — KEPT INLINE, because the verb has no recursive-nested clause
+      - check: charly's own nested submodules are at their gitlinks — a MATERIALIZED charly must carry its nested level (KEPT INLINE, because the verb has no recursive-nested clause)
         command: |
           set -eu
           fail() { echo "FAIL: $*" >&2; exit 1; }
-          # `+` (drifted off charly's gitlink) and `U` (unmerged) are failures;
-          # `-` (declared, not initialized) is not a violation, only reported.
+          # `+` (drifted off charly's gitlink) and `U` (unmerged) are failures.
+          # `-` (declared, not initialized) is a failure TOO, when charly itself is
+          # materialized: `charly task init` makes the nested level a post-condition of
+          # every materialized path (opencharly/opencharly#647), and an ABSENT nested
+          # level is INVISIBLE to the currency report — it judges a twin's currency from
+          # the twin's REMOTE alone, so while that remote has not moved the twin reads
+          # `cur` and the report exits 0. A charly that is NOT materialized at all is a
+          # light tree, and stays a notice.
           if [ -e charly/.git ]; then
-            nested="$(git -C charly submodule status --recursive || true)"
+            # An UNREADABLE status is not an EMPTY one. `git` failing here would leave
+            # the two checks below looking at nothing, and the OK line would claim the
+            # nested submodules are at their gitlinks without anything having been
+            # checked (opencharly/opencharly#710).
+            if ! nested="$(git -C charly submodule status --recursive)"; then
+              fail "charly's nested submodule status could not be READ — the check would be EMPTY, and an empty check must not claim the nested submodules are at their gitlinks"
+            fi
             drift="$(printf '%s\n' "$nested" | grep -E '^[+U]' || true)"
             [ -z "$drift" ] || fail "charly nested submodules not at their gitlinks:
           $drift"
-            notinit="$(printf '%s\n' "$nested" | grep -cE '^-' || true)"
-            [ "$notinit" = "0" ] || echo "verify: notice — $notinit of charly's nested submodules are NOT INITIALIZED (no checkout); a + or U drift would still FAIL."
+            absent="$(printf '%s\n' "$nested" | grep -E '^-' || true)"
+            [ -z "$absent" ] || fail "charly's nested submodules are NOT INITIALIZED (no checkout) — the absent nested level is INVISIBLE to the currency report, which judges a twin's currency from the twin's REMOTE alone; materialize the nested level with: charly task init
+          $absent"
+            echo "verify: OK — charly's nested submodules are at their gitlinks, none drifted"
           else
             echo "verify: notice — charly/ is NOT INITIALIZED: its nested-submodule check is EMPTY (git submodule update --init charly)."
           fi
-          echo "verify: OK — charly's nested submodules are at their gitlinks, none drifted"
         context: [runtime]
-      - check: the nested-submodule step above — an uninitialized nested path is a NOTICE, a `+`/`U` drift still FAILS (fixtures)
+      - check: the nested-submodule step above — a MATERIALIZED charly without its nested level FAILS, an uninitialized charly is a NOTICE, a `+`/`U` drift still FAILS, an UNREADABLE nested status FAILS (fixtures)
         command: node scripts/check-verify-submodules.mjs
         context: [runtime]
       - check: the branch-audit step above — every branch= is compared against the remote default, and EVERY mismatch is named (fixtures)
@@ -610,8 +623,29 @@ verify:
       - check: the harness-config gate discriminates — each mutation turns it RED (fixtures)
         command: node scripts/check-harness-config.mjs --self-test
         context: [runtime]
-      - check: the pi gate extension fails CLOSED, uses the rule-2 worktree path, and wires both gate scripts
+      - check: the pi gate extension fails CLOSED, uses the rule-2 worktree path, wires both gate scripts, and materializes each materialized module's own nested level (FIRED against a fixture umbrella, and fail-closed)
         command: node scripts/check-pi-gates.mjs
+        context: [runtime]
+      # The umbrella's own prose is a CLAIM, and a claim that is retired must not survive in
+      # the tree. A sweep written in a PR body is not a control: nothing in the repository runs
+      # it, so the next claim class is missed the same way, by the same mechanism
+      # (opencharly/opencharly#710, review round 2 — the same overstatement survived in four
+      # surfaces after one of them had been corrected). So the KEY SET is COMMITTED here, and
+      # the self-test proves every key is EFFECTIVE: a key that matches nothing is vacuous.
+      #
+      # The scan's UNIT is the CLAIM, not the LINE, because a claim WRAPS: the prose in a
+      # comment or a paragraph is wrapped at the column, and the wrap can fall between the
+      # two words of one phrase. MEASURED on the class's own TWO sites in origin/main: the
+      # LATER of them (:622) splits the phrase across a comment marker, so a line-oriented
+      # scan sees ONE of that class's TWO sites, and the wrapped one is the very site this
+      # PR's first push had already retired. So the scan joins a wrap and keeps a sentence
+      # boundary hard, and the self-test proves the wrapped form is EFFECTIVE — and that
+      # every key is SOUND, because a key that cries wolf is a gate that gets switched off.
+      - check: the umbrella's own tracked tree carries no RETIRED claim form — the key set is COMMITTED, not written in a PR body, and the scan's unit is the CLAIM, which WRAPS (CHANGELOG/ is history, not a current claim)
+        command: node scripts/check-retired-claims.mjs
+        context: [runtime]
+      - check: the retired-claim gate discriminates — every key turns the scan RED when injected into a COPY of a tracked file, and every qualified wording leaves it GREEN (fixtures)
+        command: node scripts/check-retired-claims.mjs --self-test
         context: [runtime]
       - check: the validator enforces only what the rulebook states — rulebook check ids == the AGENTS.md "What the validator checks" table, every cited skill resolves, and the committed rulebook == the live AI_REVIEW_PROMPT (opencharly/opencharly#446)
         command: node scripts/check-validator-rule-map.mjs

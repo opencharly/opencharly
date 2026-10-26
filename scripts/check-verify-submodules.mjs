@@ -12,9 +12,15 @@
 // Why the nested half exists (opencharly/opencharly#337): charly's nested `box/*` audit
 // carried the same bug the module loop did, in its `grep -E '^[+-]'` — git's `-` marker
 // means NOT INITIALIZED, not drifted, so the audit reported the ordinary state of a
-// session worktree as a FAIL. The inline step now greps only `^[+U]` (`+` = drifted off
-// charly's gitlink, `U` = unmerged) and REPORTS the `-` count as a notice, because an
-// uninitialized nested submodule is not a violation. The module-loop half of #337 — the
+// session worktree as a FAIL. The inline step greps only `^[+U]` (`+` = drifted off
+// charly's gitlink, `U` = unmerged) for the DRIFT half. The `-` half moved with
+// opencharly/opencharly#647: `charly task init` now materializes a MATERIALIZED path's
+// OWN nested level, so a nested path that is absent under a materialized charly is no
+// longer the ordinary state of a session worktree — it is a tree whose ABSENT nested
+// level is INVISIBLE to the currency report, which judges a twin's currency from the
+// twin's REMOTE alone — and the step FAILS it, naming the path and the remedy. A charly
+// that is not materialized at all is a light tree, and stays a notice. The module-loop
+// half of #337 — the
 // `[ -d "$path" ]` dead guard, the `git -C` directory walk-up, and the dirty/gitlink
 // teeth — is no longer implemented in this repo: it is owned by `verb:git-submodules
 // {mode: verify}`, which `charly.yml` composes, and is therefore not fixture-tested here.
@@ -23,9 +29,14 @@
 // exercises the shipped text and the two cannot drift (R2).
 //
 // Asserted — each proven LIVE by --self-test against a mutation of the step:
-//   A. a nested submodule left UNINITIALIZED (`-`) is GREEN and REPORTED, not drift (the fix)
-//   H. charly/ itself NOT INITIALIZED gets a NOTICE and is GREEN, never a silent pass
+//   A. a MATERIALIZED charly whose nested submodule is left UNINITIALIZED (`-`) FAILS,
+//      naming the path and the remedy (opencharly/opencharly#710)
+//   H. charly/ itself NOT INITIALIZED gets a NOTICE and is GREEN, never a silent pass,
+//      and never a claim that the nested submodules are at their gitlinks
 //   F. a nested submodule DRIFTED off charly's gitlink (`+`) still FAILS           (teeth kept)
+//   G. a MATERIALIZED charly whose nested level IS at its gitlink is GREEN          (the pass shape)
+//   I. a MATERIALIZED charly whose nested status CANNOT BE READ (git itself errors) FAILS,
+//      never an empty check that claims the nested submodules are at their gitlinks
 //
 // Usage: node scripts/check-verify-submodules.mjs [--root <dir>] [--self-test]
 // exit 0 clean · 1 finding
@@ -128,9 +139,16 @@ function extractStepCommand(yamlPath) {
  *   default        — charly is a REAL initialized submodule; `box/arch` is declared and
  *                    gitlinked but left UNINITIALIZED (exactly what `git submodule
  *                    update --init charly` leaves behind in a session worktree).
+ *   nestedInit     — charly is a REAL initialized submodule and `box/arch` is
+ *                    materialized AT the gitlink charly records (the shape a tree has
+ *                    after `charly task init`).
  *   charlyUninit   — charly is DECLARED in the super's `.gitmodules` AND gitlinked in its
  *                    index, but never initialized: the path is a bare directory with no
  *                    `.git`.
+ *   charlyBroken   — charly IS materialized — its `.git` exists — but the gitfile points
+ *                    at an object store that is not there, so `git -C charly submodule
+ *                    status` ITSELF errors. The step must FAIL on that, never print the
+ *                    OK line over an EMPTY check.
  *   nestedDrift    — `box/arch` is initialized, its remote moved forward, and the local
  *                    checkout advanced onto the new tip, so it drifts off the gitlink
  *                    charly records. charly is configured to ignore its own nested
@@ -169,6 +187,24 @@ function buildFixture(script, opts = {}) {
     git(["commit", "-qm", "charly"], superDir);
   }
 
+  if (opts.nestedInit) {
+    // `box/arch` is materialized AT the gitlink charly records — the shape `charly task
+    // init` leaves behind (opencharly/opencharly#647), and the shape that must stay GREEN.
+    git(["submodule", "update", "--init", "box/arch"], join(superDir, "charly"));
+  }
+
+  if (opts.charlyBroken) {
+    // charly is materialized, but its gitfile points at an object store that is not
+    // there: `git -C charly submodule status` exits 128 with a fatal on stderr. The
+    // step's `[ -e charly/.git ]` guard still passes — the file IS there — so the
+    // command's own failure is the only thing that can catch it.
+    writeFileSync(
+      join(superDir, "charly", ".git"),
+      "gitdir: ../.git/modules/charly-gone\n",
+      "utf8",
+    );
+  }
+
   if (opts.nestedDrift) {
     writeFileSync(join(nested.seed, "f.txt"), "moved\n");
     git(["commit", "-qam", "moved"], nested.seed);
@@ -195,6 +231,8 @@ function runCases(script) {
     A: buildFixture(script),
     H: buildFixture(script, { charlyUninit: true }),
     F: buildFixture(script, { nestedDrift: true }),
+    G: buildFixture(script, { nestedInit: true }),
+    I: buildFixture(script, { charlyBroken: true }),
   };
 }
 
@@ -206,13 +244,20 @@ function judge(cases) {
   };
   const tail = (c) => c.stderr.trim().split("\n").pop();
 
-  need("A", cases.A.status === 0, `an uninitialized nested submodule must be GREEN (exit ${cases.A.status}): ${tail(cases.A)}`);
-  need("A", /charly's nested submodules are NOT INITIALIZED/.test(cases.A.stdout), "the nested `-` (uninitialized) must be REPORTED, never counted as drift and never a silent pass");
-  need("A", /nested submodules are at their gitlinks, none drifted/.test(cases.A.stdout), "the step must report the OK line");
+  need("A", cases.A.status !== 0, `a MATERIALIZED charly without its nested level must FAIL (exit ${cases.A.status}): ${tail(cases.A)}`);
+  need("A", /charly's nested submodules are NOT INITIALIZED/.test(cases.A.stderr), "the absent nested level must be NAMED on stderr, never counted as drift and never a silent pass");
+  need("A", /charly task init/.test(cases.A.stderr), "the failure must name the remedy that materializes the nested level");
+  need("A", /box\/arch/.test(cases.A.stderr), "the failure must name the absent path");
   need("H", cases.H.status === 0, `an uninitialized charly must be GREEN (exit ${cases.H.status}): ${tail(cases.H)}`);
   need("H", /charly\/ is NOT INITIALIZED: its nested-submodule check is EMPTY/.test(cases.H.stdout), "the step must say charly/ is not initialized rather than checking nothing silently");
+  need("H", !/none drifted/.test(cases.H.stdout), "the step must NOT claim the nested submodules are at their gitlinks when it checked nothing");
   need("F", cases.F.status !== 0, "a nested `box/*` drifted off charly's gitlink must FAIL (teeth)");
   need("F", /charly nested submodules not at their gitlinks/.test(cases.F.stderr), "the nested drift failure must be reported");
+  need("G", cases.G.status === 0, `a materialized charly whose nested level is at its gitlink must be GREEN (exit ${cases.G.status}): ${tail(cases.G)}`);
+  need("G", /nested submodules are at their gitlinks, none drifted/.test(cases.G.stdout), "the step must report the OK line");
+  need("I", cases.I.status !== 0, `a charly whose nested status CANNOT BE READ must FAIL, not print the OK line over an empty check (exit ${cases.I.status}): ${tail(cases.I)}`);
+  need("I", /could not be READ/.test(cases.I.stderr), "the unreadable nested status must be NAMED on stderr");
+  need("I", !/none drifted/.test(cases.I.stdout), "the step must NOT claim the nested submodules are at their gitlinks when it read nothing");
   return found;
 }
 
@@ -224,9 +269,9 @@ function check() {
     return;
   }
   if (!/NOT INITIALIZED/.test(script))
-    fail("the step reports an uninitialized path (charly/ or a nested one) — never a silent pass");
+    fail("the step NAMES an uninitialized path (charly/ or a nested one) — never a silent pass");
   for (const f of judge(runCases(script))) fail(f);
-  if (failures === 0) ok(`${yamlRel}: the nested-submodule step reports uninitialized paths and keeps its drift tooth`);
+  if (failures === 0) ok(`${yamlRel}: the nested-submodule step fails a materialized charly without its nested level, fails an UNREADABLE nested status, and keeps its drift tooth`);
 }
 
 // ── --self-test: prove each assertion goes RED on a mutation of the step ─────────────
@@ -254,6 +299,19 @@ if (argv.includes("--self-test")) {
     // Replace the notice with a no-op so the else branch stays VALID — the plausible
     // defect is a silently removed notice, not a script that no longer parses.
     ["no notice for an uninitialized charly", (s) => s.replace(/[ \t]*echo "verify: notice — charly\/ is NOT INITIALIZED[^\n]*\n/, "  :\n"), "H"],
+    // The opencharly/opencharly#710 defect, reintroduced: the absent nested level is a
+    // NOTICE again, so a materialized charly without its nested level passes the gate.
+    ["the absent nested level is only a NOTICE (the #710 defect)", (s) => s.replace(/[ \t]*\[ -z "\$absent" \][\s\S]*?\$absent"\n/, "  echo \"verify: notice — charly's nested submodules are NOT INITIALIZED (no checkout).\"\n"), "A"],
+    // The overstatement, reintroduced: the OK line is printed even on a tree where the
+    // nested-submodule check was EMPTY (charly not materialized).
+    ["the OK line is printed even when nothing was checked", (s) => s + "echo \"verify: OK — charly's nested submodules are at their gitlinks, none drifted\"\n", "H"],
+    // The silent pass, reintroduced: `|| true` swallows git's OWN failure, so a status
+    // that could not be READ becomes an EMPTY check — and the OK line claims the nested
+    // submodules are at their gitlinks without anything having been checked.
+    ["the unreadable nested status is swallowed (`|| true`)", (s) => s.replace("git -C charly submodule status --recursive)\"; then", "git -C charly submodule status --recursive || true)\"; then"), "I"],
+    // The at-gitlink state is rejected: `git submodule status` prints a LEADING SPACE for
+    // a submodule that is at its gitlink, so this mutation turns the healthy tree red.
+    ["the at-gitlink nested level is rejected", (s) => s.replace("grep -E '^[+U]'", "grep -E '^[+U ]'"), "G"],
   ];
   let stFails = 0;
   for (const [name, mutate, mustCatch] of mutations) {

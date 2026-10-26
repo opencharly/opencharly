@@ -48,9 +48,15 @@ const INVARIANTS = [
   },
   {
     id: 'nested',
-    invariant: "charly's nested submodules not drifted off their gitlinks",
+    invariant: "charly's nested submodules are MATERIALIZED and at their gitlinks",
     cmd: 'git -C charly submodule status --recursive',
-    proves: '+/U prefixes (moved / unmerged) FAIL; `-` (uninitialized) is a notice (#337)',
+    proves:
+      '+/U prefixes (moved / unmerged) FAIL; a `-` prefix (uninitialized) FAILS under a MATERIALIZED ' +
+      'charly — the nested post-condition the umbrella gate asserts (opencharly/opencharly#710), ' +
+      'because the currency report cannot see an absent twin: it judges the CURRENCY of a twin from ' +
+      'the REMOTE alone and never asks whether the checkout EXISTS, so it can classify the ANCESTRY ' +
+      'of a moved twin only with that checkout in hand; an uninitialized ' +
+      'charly/ itself is a NOTICE (#337)',
   },
 ]
 

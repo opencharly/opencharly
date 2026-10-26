@@ -34,15 +34,28 @@ private COPY of the immutable half. MEASURED on this clone (2026-10-06, umbrella
 | `git worktree add`, nothing materialized | **0.019 s · 3.8 MB** — the superproject's objects are shared (`commondir: ../..`), metadata is 5 files |
 | `git submodule update --init --recursive` (the former default) | **~0.86 s per module → ~6 min · 376 MB** of worktree-PRIVATE module objects, plus ~230 MB of checkouts |
 | `submodule update --init --reference .git/modules/<path> <path>` (the default now) | **0.5–0.8 s per module · 1 MB**, borrowed through an `alternates` file |
-| the per-worktree binary (`charly/scripts/bootstrap-charly.sh`) | ~1m20s · 51 MB — required and never shared (R9, plus concurrent sessions) |
+| the NESTED level of a materialized module (`charly`'s six `box/*` twins) | **9.0 MB** — 5.2 MB of working trees plus 3.8 MB of blobless object stores, MEASURED in a real .pi worktree (2026-10-26); the post-condition the umbrella's own gate asserts (opencharly/opencharly#710); the whole graph is still never cloned |
+| the per-worktree binary (`charly/scripts/bootstrap-charly.sh`) | ~1m20s · **54 MB** (size MEASURED 2026-10-26 in a real .pi worktree; the table's other rows are measured on 2026-10-06, when the `charly` pin was `c5ea6c91` — the pin has since advanced to `f1f85d19` and the binary tracks the pin, so its size moves with it) — required and never shared (R9, plus concurrent sessions) |
 
 So `charly_worktree_create` materializes **only `charly` and `marketplace`** — the modules the
 harness's own tools and gates read — and any other module is named explicitly through the tool's
 `modules` argument, which **adds** to that set. `charly` can never be dropped from it: the build
-step runs `charly/scripts/bootstrap-charly.sh`. This is not a weakening: the repo's
-own pin gate (`scripts/check-verify-submodules.mjs`) treats an uninitialized module as a NOTICE
-and keeps its drift teeth — a nested submodule left uninitialized is reported, not failed — and
-every commit-time gate here passes with the rest of the graph left unmaterialized —
+step runs `charly/scripts/bootstrap-charly.sh`. A materialized module also carries its **own
+nested level** — `charly`'s six `box/*` twins — materialized by the umbrella's own initializer
+(`scripts/init-submodules.sh`, re-rooted at the module), because the umbrella's gate now ASSERTS
+that post-condition (opencharly/opencharly#710). The currency report cannot SEE the absence: a
+twin's currency is judged from the twin's REMOTE alone and the report never asks whether the
+checkout EXISTS, so while that remote has not moved the twin reads `cur` and the report exits 0
+— MEASURED in the reproduced defect state (2026-10-26), `0 of 411 pin(s) NOT current [411 cur]`,
+the same verdict the healthy tree prints. The checkout is needed only to CLASSIFY a twin whose remote HAS
+moved, and only then does the report print
+`differs (no checkout of box/cachyos to judge ancestry)` — the twin's class left UNDETERMINED,
+because without the checkout the report cannot say whether the difference is `behind`, `unmerged`
+or `not-on-the-served-line`; the state itself names the reason it cannot, and at the VERDICT
+level the twin counts as not-current, exactly as a real divergence does. The gate asserts the
+post-condition itself, precisely because the report cannot. An
+UNINITIALIZED module at the umbrella level stays a NOTICE — its pin is still audited from the
+index — and every commit-time gate here passes with the rest of the graph left unmaterialized:
 `hooks/pre-commit`, `charly task pin-check`, `charly task self-test`, and every
 `scripts/check-*.mjs` gate.
 

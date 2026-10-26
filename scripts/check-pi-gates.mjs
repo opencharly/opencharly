@@ -29,6 +29,19 @@
 //      `exec → execCommand` resolves in every branch), so the shipped `catch`-gated `--force`
 //      retry was unreachable dead code and a REFUSED removal printed success. A regex gate
 //      cannot see that — only firing can.
+//   7. THE NESTED POST-CONDITION — a MATERIALIZED module carries its OWN nested level
+//      (opencharly/opencharly#710), delegated to the umbrella's own initializer and
+//      fail-closed. Without it the ABSENT nested level is INVISIBLE to the currency
+//      report — it judges a twin's CURRENCY from the twin's REMOTE alone and never asks
+//      whether the checkout EXISTS, so while that remote has not moved the twin reads
+//      `cur` and the report exits 0; the checkout is needed only to CLASSIFY a twin
+//      whose remote HAS moved. Asserted TWICE: by the shipped TEXT (the call shape, the
+//      `--root`/`--all` re-rooting, the fail-closed read of the exit code) and by FIRING
+//      `charly_worktree_create` against a fixture umbrella whose `charly` module DECLARES a
+//      nested submodule (F6: the nested level really materializes) and against one whose
+//      nested submodule cannot be cloned (F7: the tool FAILS, never reports a ready
+//      worktree). A text assertion cannot see either: the call shape is text, the EFFECT
+//      is a materialized tree.
 //
 // Usage: node scripts/check-pi-gates.mjs [--root <dir>] [--self-test]
 // exit 0 clean · 1 finding
@@ -61,6 +74,92 @@ function stripComments(src) {
     .split("\n")
     .map((l) => l.replace(/(^|[^:"'`])\/\/.*$/, "$1"))
     .join("\n");
+}
+
+/**
+ * git's environment-config channel. The FIXTURE's remotes are local paths, and git refuses
+ * a submodule clone over the `file` transport unless it is allowed. The allowance is set in
+ * the PROCESS environment, so the extension's own commands inherit it exactly as a session's
+ * would — the real `pi.exec` inherits the environment too. The org's real remotes are
+ * https, so this is a property of the FIXTURE, never of the shipped code.
+ *
+ * The entries are APPENDED at the first free slot: an environment that already carries
+ * `GIT_CONFIG_COUNT` keeps its own entries, and git reads the highest priority last.
+ */
+function allowFileTransportInEnv() {
+  const count = Number(process.env.GIT_CONFIG_COUNT ?? "0") || 0;
+  const entries = [
+    ["protocol.file.allow", "always"],
+    ["init.defaultBranch", "main"],
+  ];
+  entries.forEach(([key, value], i) => {
+    process.env[`GIT_CONFIG_KEY_${count + i}`] = key;
+    process.env[`GIT_CONFIG_VALUE_${count + i}`] = value;
+  });
+  process.env.GIT_CONFIG_COUNT = String(count + entries.length);
+}
+
+/**
+ * A fixture umbrella for the FIRED create cases: an "origin" that carries the REAL
+ * `scripts/init-submodules.sh`, a `charly` module that DECLARES a nested submodule
+ * (`box/cachyos`) and a `marketplace` module that declares none.
+ *
+ * `nestedBroken` points the nested submodule's URL at a remote that cannot be cloned —
+ * the fail-closed arm (F7). The nested twin carries ONE file, so a materialized nested
+ * level is observably NOT empty: a cloned-but-empty path reads as at-the-pin, which is
+ * exactly the defect class this post-condition exists to end.
+ */
+function buildUmbrellaFixture(base, { nestedBroken = false, scriptPath } = {}) {
+  const git = (cwd, ...a) => {
+    const r = spawnSync("git", a, { cwd, encoding: "utf8" });
+    if (r.status !== 0) throw new Error(`git ${a.join(" ")} in ${cwd} failed: ${(r.stderr || "").trim()}`);
+    return r.stdout;
+  };
+  const seed = (name) => {
+    const dir = join(base, name);
+    mkdirSync(dir, { recursive: true });
+    git(dir, "init", "-q", "-b", "main");
+    git(dir, "config", "user.email", "gate@gate");
+    git(dir, "config", "user.name", "gate");
+    // The local transport can serve a partial clone when the serving side allows it, so the
+    // fixture's own clones carry no "filtering not recognized" warning.
+    git(dir, "config", "uploadpack.allowFilter", "true");
+    return dir;
+  };
+  const commit = (dir, msg) => {
+    git(dir, "add", "-A");
+    git(dir, "commit", "-qm", msg);
+  };
+
+  const box = seed("box");
+  writeFileSync(join(box, "marker.txt"), "the nested twin\n");
+  commit(box, "the nested twin");
+
+  const charly = seed("charly");
+  mkdirSync(join(charly, "scripts"), { recursive: true });
+  writeFileSync(join(charly, "scripts", "bootstrap-charly.sh"), "#!/usr/bin/env bash\nexit 0\n");
+  git(charly, "submodule", "add", "-q", box, "box/cachyos");
+  if (nestedBroken) {
+    const gm = readFileSync(join(charly, ".gitmodules"), "utf8");
+    writeFileSync(join(charly, ".gitmodules"), gm.split(box).join(join(base, "no-such-remote")));
+  }
+  commit(charly, "the charly module");
+
+  const marketplace = seed("marketplace");
+  writeFileSync(join(marketplace, "corpus.md"), "the corpus\n");
+  commit(marketplace, "the marketplace module");
+
+  const origin = seed("origin");
+  mkdirSync(join(origin, "scripts"), { recursive: true });
+  cpSync(scriptPath, join(origin, "scripts", "init-submodules.sh"));
+  git(origin, "submodule", "add", "-q", charly, "charly");
+  git(origin, "submodule", "add", "-q", marketplace, "marketplace");
+  commit(origin, "the umbrella");
+
+  const umbrella = join(base, "umbrella");
+  const clone = spawnSync("git", ["clone", "-q", origin, umbrella], { encoding: "utf8" });
+  if (clone.status !== 0) throw new Error(`cloning the fixture origin failed: ${(clone.stderr || "").trim()}`);
+  return { umbrella };
 }
 
 function check() {
@@ -125,10 +224,34 @@ function check() {
     fail(`builds the materialized set as a UNION with the required modules (an extra module must never drop charly)`);
   if (!/modules:\s*Type\.Optional/.test(code)) fail(`exposes a \`modules\` argument for the modules a cutover actually needs`);
 
+  // 7. THE NESTED POST-CONDITION (opencharly/opencharly#710). A MATERIALIZED module must
+  //    carry its OWN nested level: the post-condition `charly task init` guarantees
+  //    (opencharly/opencharly#647) and the umbrella's gate ASSERTS. Without it the
+  //    umbrella's currency report cannot SEE the absence at all: a twin's currency is
+  //    judged from the twin's REMOTE alone and the report never asks whether the
+  //    checkout EXISTS, so while that remote has not moved the twin reads `cur` and the
+  //    report exits 0 — the checkout is needed only to CLASSIFY a twin whose remote HAS
+  //    moved, and only then does the report print
+  //    `differs (no checkout of box/cachyos to judge ancestry)`.
+  //
+  //    The extension DELEGATES it to the umbrella's own initializer, re-rooted at the
+  //    module — ONE lifecycle implementation at every level (R2), never a hand-rolled
+  //    second materializer — and it FAILS CLOSED: `pi.exec` RESOLVES on a non-zero exit
+  //    (the #410 lesson), so the exit code is read, never assumed.
+  if (!/init-submodules\.sh/.test(code))
+    fail(`materializes a module's nested level through the umbrella's OWN initializer (scripts/init-submodules.sh)`);
+  if (!/["'`]--root["'`]\s*,\s*moduleRoot/.test(code))
+    fail(`re-roots that initializer at the MODULE (--root <module>), so it materializes the module's own nested level`);
+  if (!/(["'`]--all["'`])|(["'`]--nested["'`])/.test(code))
+    fail(`asks the initializer for the module's OWN declared set (--all at the module's root)`);
+  if (!/res\.code !== 0/.test(code))
+    fail(`fails CLOSED when the nested level does not materialize (pi.exec RESOLVES on a non-zero exit)`);
+
   if (failures === 0)
     ok(
       `${rel}: fails closed, rule-2 paths, gate wiring + SOUL injection present, ` +
-        `and the worktree materializes a scoped module set from the shared object cache`,
+        `and the worktree materializes a scoped module set from the shared object cache, ` +
+        `with each materialized module's own nested level`,
     );
 }
 
@@ -331,6 +454,46 @@ export default { Type };
       existsSync(w5) && r5.isError === true && r5.details?.removed === false,
       `charly_worktree_remove FIRED: reports the OBSERVED effect (a surviving directory is removed=false)`,
     );
+
+    // ── F6/F7 — the NESTED POST-CONDITION, FIRED ─────────────────────────────────────
+    // The create tool is fired against a FIXTURE umbrella: an origin that carries the REAL
+    // `scripts/init-submodules.sh`, a `charly` module that DECLARES a nested submodule and
+    // a `marketplace` module that declares none. Static assertion 7 reads the TEXT of step
+    // 3b; these two fire the tool, because the post-condition is an EFFECT — a materialized
+    // nested level in the worktree — and an EFFECT is not in the text.
+    allowFileTransportInEnv();
+    const create = tools.get("charly_worktree_create");
+    if (!create) {
+      fail(`${rel} registers charly_worktree_create (loaded and fired)`);
+      return;
+    }
+    const scriptPath = join(root, "scripts", "init-submodules.sh");
+    const fireCreate = async (base, opts) => {
+      const fx = buildUmbrellaFixture(base, { ...opts, scriptPath });
+      const res = await create.execute("gate", { slug: opts.slug }, undefined, undefined, { cwd: fx.umbrella });
+      return { res, worktree: join(fx.umbrella, ".worktrees", opts.slug) };
+    };
+
+    // F6 — the ordinary case: the module materializes AND its OWN nested level materializes
+    //      with it, at the gitlink the module's tree records.
+    const good = await fireCreate(join(scratch, "fx-nested"), { slug: "fired-nested" });
+    expect(
+      good.res.details?.error === undefined &&
+        existsSync(join(good.worktree, "charly", "box", "cachyos", "marker.txt")) &&
+        /Nested levels materialized: charly/.test(good.res.content?.[0]?.text ?? ""),
+      `charly_worktree_create FIRED: a materialized module carries its OWN nested level (the #710 post-condition, materialized by the umbrella's initializer)`,
+    );
+
+    // F7 — the fail-closed arm: the nested level cannot materialize. `pi.exec` RESOLVES on a
+    //      non-zero exit, so the tool must READ the exit code and FAIL — never report a
+    //      ready worktree whose nested level is missing.
+    const broken = await fireCreate(join(scratch, "fx-broken"), { slug: "fired-broken", nestedBroken: true });
+    expect(
+      typeof broken.res.details?.error === "string" &&
+        /did not materialize/.test(broken.res.details.error) &&
+        !existsSync(join(broken.worktree, "charly", "box", "cachyos", "marker.txt")),
+      `charly_worktree_create FIRED: a nested level that cannot materialize FAILS the tool (never a ready worktree)`,
+    );
   } catch (err) {
     fail(`loading and firing ${rel} (${err instanceof Error ? err.message : String(err)})`);
   } finally {
@@ -354,6 +517,14 @@ if (argv.includes("--self-test")) {
   if (existsSync(join(root, ".claude/hooks"))) cpSync(join(root, ".claude/hooks"), join(tmp, ".claude/hooks"), { recursive: true });
   if (existsSync(join(root, "SOUL.md"))) cpSync(join(root, "SOUL.md"), join(tmp, "SOUL.md"));
   if (existsSync(join(root, "AGENTS.md"))) cpSync(join(root, "AGENTS.md"), join(tmp, "AGENTS.md"));
+  // The FIRED create case materializes the fixture's nested level with the REAL initializer,
+  // so the scratch root carries it too: without it every mutation would look "caught" for the
+  // wrong reason (the fixture would fail to build), and the unmutated-copy check below is what
+  // keeps that honest.
+  if (existsSync(join(root, "scripts", "init-submodules.sh"))) {
+    mkdirSync(join(tmp, "scripts"), { recursive: true });
+    cpSync(join(root, "scripts", "init-submodules.sh"), join(tmp, "scripts", "init-submodules.sh"));
+  }
   const runGate = () => {
     const r = spawnSync(process.execPath, [fileURLToPath(import.meta.url), "--root", tmp], {
       encoding: "utf8",
@@ -392,6 +563,19 @@ if (argv.includes("--self-test")) {
       "no modules argument",
       (s) => s.replace(/modules:\s*Type\.Optional\(/, "scopeIgnored: Type.Optional("),
       `modules`,
+    ],
+    // The nested post-condition (opencharly/opencharly#710): the two ways a worktree can
+    // be created WITHOUT the nested level its currency report needs — never initializing
+    // it at all, and initializing it without reading the exit code.
+    [
+      "the nested level is never materialized",
+      (s) => s.replace(/"scripts", "init-submodules\.sh"/, '"scripts", "materialize.sh"'),
+      `own initializer`,
+    ],
+    [
+      "the nested materialization is not fail-closed",
+      (s) => s.replace(/if \(res\.code !== 0\) \{/, "if (false) {"),
+      `fails CLOSED when the nested level`,
     ],
     // The three mutations below restore opencharly/opencharly#410 verbatim: the dead
     // `catch`-gated retry, the failure swallowed into a success, and the ancestry test that
@@ -440,6 +624,22 @@ if (argv.includes("--self-test")) {
       // anchored to the INJECTED_SECTIONS entry line — the doc comment names the same string
       (s) => s.replace(/^  "Commit, push, land",$/m, '  "Commit, push, landing",'),
       `READ from AGENTS.md`,
+    ],
+    // These two keep EVERY static assertion green and are caught ONLY by FIRING the create
+    // tool: the nested post-condition is an EFFECT — a materialized nested level in the
+    // worktree — and an EFFECT is not in the text. The first breaks the ROOT the initializer
+    // is re-rooted at (the call still names `--root … moduleRoot`, so the text reads right);
+    // the second swallows the initializer's non-zero exit while the text still reads
+    // `res.code !== 0`.
+    [
+      "the nested level is materialized at a root that is not the module (static checks stay green)",
+      (s) => s.replace(/const moduleRoot = join\(worktreePath, modulePath\);/, 'const moduleRoot = join(worktreePath, "not-a-module");'),
+      `carries its OWN nested level`,
+    ],
+    [
+      "the nested failure is swallowed (static checks stay green)",
+      (s) => s.replace(/if \(res\.code !== 0\) \{/, "if (res.code !== 0 && false) {"),
+      `FAILS the tool`,
     ],
   ];
   let stFails = 0;
