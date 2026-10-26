@@ -41,7 +41,12 @@
 //      git-workflow skill is NOT flagged.
 //   P. The pinned charly's go.mod is the OWNER of the version. If the checkout is not
 //      here, the version cannot be derived and the gate SKIPS VISIBLY (R8: live or
-//      skip, never fake) — it never judges against a version it made up.
+//      skip, never fake) — it never judges against a version it made up. The
+//      --self-test SKIPS VISIBLY in the same tree, for the same reason: its mutations
+//      are built FROM that version, so a tree that cannot derive it cannot run them,
+//      and a self-test that failed there would turn every such tree's verify red
+//      over a check that cannot run. Both skips print the one command that
+//      materializes the checkout — a skip that is not visible is a silent pass.
 //   T. WHICH TREE IS JUDGED: a commit ships the INDEX, not the worktree, so the gate
 //      judges the INDEX's copy of every file where the worktree and the index
 //      disagree, and the worktree's copy where they are identical (where the
@@ -70,6 +75,19 @@ const selfTest = argv.includes("--self-test");
 /** A file larger than this is not prose, and is not read. */
 const MAX_BYTES = 1_000_000;
 
+/** The ceiling on any git output this gate reads. Node's default maxBuffer is
+ *  1 MiB, and the tracked set's own `git ls-files -s -z` grows with the repo:
+ *  MEASURED on this repo, 1458 entries cost 108,140 bytes — 74.2 per entry —
+ *  so ~14,137 files cross the default. A gate that throws ENOBUFS on a large
+ *  tree is a gate that stops judging, on exactly the trees it exists to judge,
+ *  so the ceiling is raised and every call inherits it. */
+const MAX_EXEC_BYTES = 64 * 1024 * 1024;
+
+/** Every git call goes through here, so the ceiling above is raised ONCE. */
+function gitOut(args, opts = {}) {
+  return execFileSync("git", args, { maxBuffer: MAX_EXEC_BYTES, ...opts });
+}
+
 /** The module-version literal shape the org's CalVer module tags use. */
 const RE_VERSION = /v0\.\d{7}\.\d{4}/g;
 
@@ -93,7 +111,7 @@ function citationsIn(text) {
 /** The tracked REGULAR files of this repo — derived from the index, never hand-kept.
  *  A gitlink is another repo's content, and is skipped. */
 function trackedFiles(rootDir) {
-  const raw = execFileSync("git", ["ls-files", "-s", "-z"], { cwd: rootDir, encoding: "utf8" });
+  const raw = gitOut(["ls-files", "-s", "-z"], { cwd: rootDir, encoding: "utf8" });
   const out = [];
   for (const rec of raw.split("\0")) {
     if (!rec) continue;
@@ -111,7 +129,7 @@ function trackedFiles(rootDir) {
 function differingFiles(rootDir) {
   let raw;
   try {
-    raw = execFileSync("git", ["diff", "--name-only", "-z"], { cwd: rootDir, encoding: "utf8" });
+    raw = gitOut(["diff", "--name-only", "-z"], { cwd: rootDir, encoding: "utf8" });
   } catch {
     return new Set();
   }
@@ -122,7 +140,7 @@ function differingFiles(rootDir) {
 function indexEntry(rootDir, rel) {
   let ls;
   try {
-    ls = execFileSync("git", ["ls-files", "-s", "--", rel], { cwd: rootDir, encoding: "utf8" }).trim();
+    ls = gitOut(["ls-files", "-s", "--", rel], { cwd: rootDir, encoding: "utf8" }).trim();
   } catch {
     return { error: "unreadable" };
   }
@@ -137,9 +155,8 @@ function indexContent(rootDir, rel) {
   if (entry.error) return null;
   let buf;
   try {
-    buf = execFileSync("git", ["cat-file", "blob", entry.sha], {
+    buf = gitOut(["cat-file", "blob", entry.sha], {
       cwd: rootDir,
-      maxBuffer: 64 * 1024 * 1024,
     });
   } catch {
     return null;
@@ -229,7 +246,7 @@ function readPinned(rootDir, gomodOverride = null) {
   const repo = join(rootDir, path);
   let tree;
   try {
-    tree = execFileSync("git", ["-C", repo, "ls-tree", "-r", "--name-only", sha], { encoding: "utf8" });
+    tree = gitOut(["-C", repo, "ls-tree", "-r", "--name-only", sha], { encoding: "utf8" });
   } catch {
     return { notice: `the pinned charly (${sha.slice(0, 7)}) has no checkout here, so its go.mod cannot be read` };
   }
@@ -238,7 +255,7 @@ function readPinned(rootDir, gomodOverride = null) {
     let text = gomodOverride;
     if (text === null) {
       try {
-        text = execFileSync("git", ["-C", repo, "show", `${sha}:${mod}`], { encoding: "utf8" });
+        text = gitOut(["-C", repo, "show", `${sha}:${mod}`], { encoding: "utf8" });
       } catch {
         continue;
       }
@@ -302,11 +319,11 @@ function indexFixtureCitations(staleVersion, goodVersion) {
   const dir = mkdtempSync(join(tmpdir(), "cited-version-fixture-"));
   try {
     const git = (...a) =>
-      execFileSync("git", ["-C", dir, ...a], {
+      gitOut(["-C", dir, ...a], {
         encoding: "utf8",
         stdio: ["ignore", "pipe", "ignore"],
       });
-    execFileSync("git", ["init", "-q", dir], { stdio: ["ignore", "pipe", "ignore"] });
+    gitOut(["init", "-q", dir], { stdio: ["ignore", "pipe", "ignore"] });
     const rel = "prose.md";
     writeFileSync(join(dir, rel), `# a citation of plugin-task\nplugin-task ${staleVersion}\n`);
     git("add", rel);
@@ -339,8 +356,15 @@ if (selfTest) {
   let stFails = 0;
 
   if (!pinned.version) {
-    console.error(`  FAIL  the pinned charly's version could not be derived: ${pinned.notice}`);
-    process.exit(1);
+    // LIVE-OR-SKIP, never a silent pass (R8): the mutations below are built FROM
+    // the pinned version, so a tree whose pinned charly has no checkout cannot
+    // derive it and cannot run them. Failing there would turn every such tree's
+    // verify red over a check that cannot run — the fail-closed-infrastructure
+    // class the sibling gates refuse — so the self-test SKIPS VISIBLY, names the
+    // one command that materializes the checkout, and exits 0.
+    console.log(`  SKIP  the self-test cannot run: the pinned charly's version could not be derived: ${pinned.notice}`);
+    console.log("  SKIP  materialize the pinned charly with: bash scripts/init-submodules.sh  (the working set includes charly)");
+    process.exit(0);
   }
 
   const baseline = findings(shipped, pinned);

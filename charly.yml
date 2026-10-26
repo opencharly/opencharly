@@ -565,7 +565,7 @@ verify:
       - check: every plugin-task version this repo's OWN prose cites equals the version the PINNED charly compiles — the version is DERIVED from the pin, and the scan is derived from the tracked file set (fixtures)
         command: node scripts/check-cited-plugin-task-version.mjs
         context: [runtime]
-      - check: the cited-version gate discriminates — a stale citation, an advanced pin and a moved owner each turn it RED, and a version naming another module stays GREEN (fixtures)
+      - check: the cited-version gate discriminates — a stale citation, an advanced pin and a moved owner each turn it RED, and a version naming another module stays GREEN (fixtures) — and SKIPS visibly where the pinned charly's checkout is absent
         command: node scripts/check-cited-plugin-task-version.mjs --self-test
         context: [runtime]
       - check: the body/diff reconciliation gate discriminates — a file table that omits a changed file, one that lists an unchanged file, a pasted `git rev-parse HEAD` that is not the head, a stale count of the diff's new files, and a pasted evidence line that does not resolve in the tree being pushed, each turn it RED (fixtures)
