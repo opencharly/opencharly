@@ -570,6 +570,42 @@ materialize_uninitialized() {
     --filter=blob:none --jobs "$JOBS" -- "${todo[@]}"
 }
 
+# The path's OWN work: the porcelain view with the path's DECLARED nested paths
+# EXCLUDED.
+#
+# WHY THE NESTED PATHS ARE EXCLUDED (opencharly/opencharly#711): git reports a
+# nested path's state in the PARENT's porcelain view, so a nested path that
+# diverges from the gitlink the parent records for it makes the parent's view
+# non-empty — and a guard that reads that view then refuses to advance a path
+# whose OWN work tree is clean. The advance is NOT recursive: it moves the
+# parent's own checkout and nothing under it, so a descendant's state cannot
+# hold the parent back. The nested level is the script's own pass's business,
+# at the nested level, under the SAME policy one level down.
+#
+# The exclusion is by PATHSPEC, so the parent's own uncommitted work — tracked,
+# staged or untracked — is still reported: only the DECLARED nested paths leave
+# the view. The declared set is the same one the nested pass reads, and an
+# unreadable one FAILS LOUD rather than silently widening the view.
+own_work_status() {
+  local path="$1" nested_set nested_rc=0
+  nested_set="$(declared_submodules "$ROOT/$path")" || nested_rc=$?
+  if [ "$nested_rc" -ne 0 ] && [ "$nested_rc" -ne 1 ]; then
+    echo "init: FAIL — the declared submodule set of $path could not be read from $ROOT/$path/.gitmodules" >&2
+    return 2
+  fi
+  if [ -z "$nested_set" ]; then
+    git -C "$ROOT/$path" status --porcelain 2>/dev/null || true
+    return 0
+  fi
+  local -a nested_paths=() exclude=()
+  mapfile -t nested_paths <<<"$nested_set"
+  local p
+  for p in "${nested_paths[@]}"; do
+    exclude+=(":(exclude,literal)$p")
+  done
+  git -C "$ROOT/$path" status --porcelain -- . "${exclude[@]}" 2>/dev/null || true
+}
+
 # Advance ONE already-materialized path to the recorded gitlink, or leave it
 # alone and report why. Never clobbers (R6).
 advance_path() {
@@ -583,15 +619,17 @@ advance_path() {
   if [ "$head" = "$recorded" ]; then
     return 0
   fi
-  if [ -n "$(git -C "$ROOT/$path" status --porcelain 2>/dev/null || true)" ]; then
-    # The work tree of a path is not clean, and there are TWO reasons for that:
-    # the path's OWN uncommitted work, or a NESTED path that does not match the
-    # gitlink this path records for it — git reports the nested one in the SAME
-    # porcelain view. The message names both, because a path whose own tree is
-    # clean but whose nested path diverges does NOT have uncommitted changes,
-    # and saying so would be false. (The nested level's own divergence is
-    # reported by the nested pass, at the nested level.)
-    echo "init: notice — $path is not at its recorded gitlink and its work tree is not clean (its own uncommitted work, or a nested path that does not match the gitlink it records for it); left untouched" >&2
+  local own_status own_rc=0
+  own_status="$(own_work_status "$path")" || own_rc=$?
+  if [ "$own_rc" -ne 0 ]; then
+    return 1
+  fi
+  if [ -n "$own_status" ]; then
+    # The path's OWN work tree is not clean — its own uncommitted work. A NESTED
+    # path's divergence is NOT in this view any more: it is reported by the
+    # nested pass, at the nested level, and it does not hold the parent back
+    # (opencharly/opencharly#711).
+    echo "init: notice — $path is not at its recorded gitlink and its OWN work tree is not clean (its own uncommitted work); left untouched" >&2
     return 1
   fi
   # The recorded gitlink may not be in the local object store yet (the pin moved
@@ -1343,6 +1381,7 @@ other"
     git submodule add "file://$n_mid_git" core
     git submodule add "file://$n_mid_git" core3
     git submodule add "file://$n_mid_git" core4
+    git submodule add "file://$n_mid_git" core5
     git commit -qm "the nested path"
   ) >/dev/null 2>&1
   # `core` is AT its recorded gitlink and its nested level is ABSENT: the state
@@ -1359,6 +1398,13 @@ other"
   git -C "$n_root/core4" -c protocol.version=2 submodule update --init --filter=blob:none -- inner >/dev/null 2>&1
   git -C "$n_root/core4/inner" commit -q --allow-empty -m "local work"
   git -C "$n_root/core4" config submodule.inner.ignore all
+  # `core5` is BEHIND its recorded gitlink and its nested twin CARRIES a local
+  # commit — and the path's own config does NOT hide the nested path, so git's
+  # porcelain view DOES see the divergence. That is the shape in which a
+  # DESCENDANT's state held the parent back (opencharly/opencharly#711).
+  git -C "$n_root/core5" checkout -q "$n_mid_old"
+  git -C "$n_root/core5" -c protocol.version=2 submodule update --init --filter=blob:none -- inner >/dev/null 2>&1
+  git -C "$n_root/core5/inner" commit -q --allow-empty -m "local work"
 
   # ── claim 19: a MATERIALIZED path's NESTED level is materialized too ──────
   # The state the defect lives in: `core` is AT its recorded gitlink and its
@@ -1470,6 +1516,34 @@ other"
     echo "  PASS  a divergent nested twin is reported, not clobbered, even when the path's own config hides it from git's status"
   else
     echo "  FAIL  a divergent nested twin was not left alone (the path's status must LOOK clean [$c4_status], the run must report it [rc=$out_rc, must be non-zero], the twin's HEAD '$c4_now' [must be $c4_local], the report must name the nested path [$(grep -q 'inner' <<<"$out" && echo yes || echo no)]): $out" >&2
+    fails=$((fails + 1))
+  fi
+
+  # ── claim 23: a NESTED path's divergence does NOT hold the PARENT back ─────
+  # The shape opencharly/opencharly#711 is about: a path BEHIND its recorded
+  # gitlink whose NESTED twin carries a local commit, with the path's own config
+  # NOT hiding the nested path — so git's porcelain view sees the divergence.
+  # The parent is judged by the parent's OWN work: the advance moves the
+  # parent's own checkout and nothing under it, so a descendant's state cannot
+  # hold it back. The nested divergence is reported at the NESTED level, and the
+  # nested work survives.
+  #
+  # The claim is DISCRIMINATING: before the fix the parent was refused, it
+  # stayed at its old commit, and the run's own notice named the parent — so
+  # every condition below fails on the unfixed script.
+  local c5_head c5_after c5_local c5_now
+  c5_head="$(git -C "$n_root/core5" rev-parse HEAD 2>/dev/null || true)"
+  c5_local="$(git -C "$n_root/core5/inner" rev-parse HEAD 2>/dev/null || true)"
+  out="$(bash "$SCRIPT" --root "$n_root" --paths core5 2>&1)" && out_rc=0 || out_rc=$?
+  c5_after="$(git -C "$n_root/core5" rev-parse HEAD 2>/dev/null || true)"
+  c5_now="$(git -C "$n_root/core5/inner" rev-parse HEAD 2>/dev/null || true)"
+  if [ "$c5_head" = "$n_mid_old" ] && [ "$c5_after" = "$n_mid_new" ] \
+    && [ -n "$c5_local" ] && [ "$c5_now" = "$c5_local" ] \
+    && [ "$out_rc" -ne 0 ] && grep -q 'inner' <<<"$out" \
+    && ! grep -q 'core5 is not at its recorded gitlink' <<<"$out"; then
+    echo "  PASS  a nested path's divergence does not hold the parent back: the parent advances and the nested work survives"
+  else
+    echo "  FAIL  a nested path's divergence held the parent back (the parent was at '$c5_head' [must be $n_mid_old] and is now '$c5_after' [must be $n_mid_new], the nested twin's HEAD '$c5_now' [must be $c5_local], rc=$out_rc [must be non-zero: the nested divergence is reported], the report must name the nested path [$(grep -q 'inner' <<<"$out" && echo yes || echo no)], and the parent's own notice must NOT appear [$(grep -q 'core5 is not at its recorded gitlink' <<<"$out" && echo yes || echo no)]): $out" >&2
     fails=$((fails + 1))
   fi
 

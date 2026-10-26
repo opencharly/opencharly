@@ -80,7 +80,11 @@ const GATE_SCRIPTS = [
  * has not moved the twin reads `cur` and the report exits 0 (MEASURED in the
  * reproduced defect state: `0 of 411 pin(s) NOT current [411 cur]`). The checkout is
  * needed only to CLASSIFY a twin whose remote HAS moved, and only then does the report
- * print `differs (no checkout of box/cachyos to judge ancestry)` — the twin's class left UNDETERMINED — without the checkout the report cannot say whether the difference is `behind`, `unmerged` or `not-on-the-served-line`, and its own state names the reason it cannot; at the VERDICT level the twin counts as not-current, exactly as a real divergence does.
+ * print `differs (no checkout of box/cachyos to judge ancestry)` — the twin's class
+ * left UNDETERMINED — without the checkout the report cannot say whether the
+ * difference is `behind`, `unmerged` or `not-on-the-served-line`, and its own state
+ * names the reason it cannot; at the VERDICT level the twin counts as not-current,
+ * exactly as a real divergence does.
  * The gate asserts the post-condition itself, precisely because the report cannot. An
  * UNINITIALIZED module at the umbrella level stays a NOTICE — its pin is still audited
  * from the index — but a MATERIALIZED module's nested level is not optional.
@@ -446,7 +450,11 @@ export default function (pi: ExtensionAPI) {
         // moved the twin reads `cur` and the report exits 0 (MEASURED in the reproduced
         // defect state: `0 of 411 pin(s) NOT current [411 cur]`). The checkout is needed
         // only to CLASSIFY a twin whose remote HAS moved, and only then does the report
-        // print `differs (no checkout of box/cachyos to judge ancestry)` — the twin's class left UNDETERMINED — without the checkout the report cannot say whether the difference is `behind`, `unmerged` or `not-on-the-served-line`, and its own state names the reason it cannot; at the VERDICT level the twin counts as not-current, exactly as a real divergence does.
+        // print `differs (no checkout of box/cachyos to judge ancestry)` — the twin's
+        // class left UNDETERMINED — without the checkout the report cannot say whether
+        // the difference is `behind`, `unmerged` or `not-on-the-served-line`, and its own
+        // state names the reason it cannot; at the VERDICT level the twin counts as
+        // not-current, exactly as a real divergence does.
         // The gate asserts the post-condition itself, precisely because the report cannot.
         //
         // The umbrella's OWN initializer does it, re-rooted at the module: ONE lifecycle
