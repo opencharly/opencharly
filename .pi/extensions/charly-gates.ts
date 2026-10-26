@@ -445,9 +445,11 @@ export default function (pi: ExtensionAPI) {
         // implementation at every level (R2). At a module's root, `--all` IS that module's
         // nested level — every submodule path the module's own `.gitmodules` declares —
         // and the whole graph is still never cloned. MEASURED in a real .pi worktree
-        // (2026-10-26): charly's six `box/*` twins cost 9.0 MB of the 9.5 GB the whole
-        // graph would cost — 5.2 MB of working trees plus 3.8 MB of blobless object
-        // stores.
+        // (2026-10-26): charly's six `box/*` twins cost 9.0 MB — 5.2 MB of working trees
+        // plus 3.8 MB of blobless object stores — against the ~606 MB (376 MB of
+        // worktree-private module objects plus ~230 MB of checkouts) that a FULL
+        // RECURSIVE materialization of this graph costs, the figure `.pi/README.md`'s own
+        // cost table measures (2026-10-06).
         const nested: string[] = [];
         for (const modulePath of modules) {
           const moduleRoot = join(worktreePath, modulePath);

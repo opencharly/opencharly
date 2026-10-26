@@ -53,11 +53,15 @@
 # gitlink. git's `--recursive` brings them in ONLY when the very call that
 # materializes the path is the one that recurses — a path that was materialized
 # EARLIER, and is therefore already at its recorded gitlink, never reaches that
-# call, so its nested level stays ABSENT. The umbrella's currency report then
-# cannot JUDGE an edge whose source is a nested pin: it prints `differs (no
-# checkout of box/cachyos to judge ancestry)` — the twin's class left
-# UNDETERMINED, and the pin's state becomes a `blocked-by` that names the
-# producer. The nested level is therefore materialized by the SAME script,
+# call, so its nested level stays ABSENT. The umbrella's currency report judges a
+# nested twin's CURRENCY from the twin's REMOTE alone, so while that remote has
+# not moved the twin reads `cur` and the absent nested level is INVISIBLE to the
+# report — MEASURED in the reproduced defect state, it printed `0 of 411 pin(s)
+# NOT current [411 cur]`. The report needs the twin's CHECKOUT to judge its
+# ANCESTRY, and asks for it only once the twin's remote HAS moved: then it
+# prints `differs (no checkout of box/cachyos to judge ancestry)` — the twin's
+# class left UNDETERMINED, and the pin's state becomes a `blocked-by` that names
+# the producer. The nested level is therefore materialized by the SAME script,
 # re-rooted at the path's own root: ONE implementation of the path lifecycle at
 # every level (R2), and the R6 policy — never clobber a checkout that carries
 # work — holds at every level too. (opencharly/opencharly#647)
@@ -621,9 +625,11 @@ advance_path() {
 # path's nested submodules in ONLY when that very call materializes the path. A
 # path that is already at its recorded gitlink never reaches it, so its nested
 # level stays absent — and the umbrella's own currency report cannot then JUDGE
-# an edge whose source is a nested pin: it prints `differs (no checkout of
-# box/cachyos to judge ancestry)` — the twin's class left UNDETERMINED, which a
-# reader cannot tell apart from a real divergence. The twins can be not merely
+# the ANCESTRY of an edge whose source is a nested pin: while the twin's remote
+# has not moved the twin reads `cur` and the absence is invisible to the report;
+# once it has moved, the report prints `differs (no checkout of box/cachyos to
+# judge ancestry)` — the twin's class left UNDETERMINED, which a reader cannot
+# tell apart from a real divergence. The twins can be not merely
 # absent but STALE (measured on the wave-8 tree:
 # `charly`'s own tree named `1893455d3a` while its twins sat at `42a3f078ac`),
 # so the post-condition is the DEEP one — the nested level is materialized AT

@@ -538,7 +538,13 @@ verify:
           # pin. A charly that is NOT materialized at all is a light tree, and stays a
           # notice.
           if [ -e charly/.git ]; then
-            nested="$(git -C charly submodule status --recursive || true)"
+            # An UNREADABLE status is not an EMPTY one. `git` failing here would leave
+            # the two checks below looking at nothing, and the OK line would claim the
+            # nested submodules are at their gitlinks without anything having been
+            # checked (opencharly/opencharly#710).
+            if ! nested="$(git -C charly submodule status --recursive)"; then
+              fail "charly's nested submodule status could not be READ — the check would be EMPTY, and an empty check must not claim the nested submodules are at their gitlinks"
+            fi
             drift="$(printf '%s\n' "$nested" | grep -E '^[+U]' || true)"
             [ -z "$drift" ] || fail "charly nested submodules not at their gitlinks:
           $drift"
@@ -550,7 +556,7 @@ verify:
             echo "verify: notice — charly/ is NOT INITIALIZED: its nested-submodule check is EMPTY (git submodule update --init charly)."
           fi
         context: [runtime]
-      - check: the nested-submodule step above — a MATERIALIZED charly without its nested level FAILS, an uninitialized charly is a NOTICE, a `+`/`U` drift still FAILS (fixtures)
+      - check: the nested-submodule step above — a MATERIALIZED charly without its nested level FAILS, an uninitialized charly is a NOTICE, a `+`/`U` drift still FAILS, an UNREADABLE nested status FAILS (fixtures)
         command: node scripts/check-verify-submodules.mjs
         context: [runtime]
       - check: the branch-audit step above — every branch= is compared against the remote default, and EVERY mismatch is named (fixtures)
