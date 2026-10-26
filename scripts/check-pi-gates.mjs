@@ -29,6 +29,11 @@
 //      `exec → execCommand` resolves in every branch), so the shipped `catch`-gated `--force`
 //      retry was unreachable dead code and a REFUSED removal printed success. A regex gate
 //      cannot see that — only firing can.
+//   7. THE NESTED POST-CONDITION — a MATERIALIZED module carries its OWN nested level
+//      (opencharly/opencharly#710), delegated to the umbrella's own initializer and
+//      fail-closed. Without it the currency report cannot judge an edge whose twin is a
+//      nested pin, and it prints a false `differs (no checkout of box/cachyos ...)` while
+//      the gate stays green.
 //
 // Usage: node scripts/check-pi-gates.mjs [--root <dir>] [--self-test]
 // exit 0 clean · 1 finding
@@ -125,10 +130,31 @@ function check() {
     fail(`builds the materialized set as a UNION with the required modules (an extra module must never drop charly)`);
   if (!/modules:\s*Type\.Optional/.test(code)) fail(`exposes a \`modules\` argument for the modules a cutover actually needs`);
 
+  // 7. THE NESTED POST-CONDITION (opencharly/opencharly#710). A MATERIALIZED module must
+  //    carry its OWN nested level: the post-condition `charly task init` guarantees
+  //    (opencharly/opencharly#647) and the umbrella's gate ASSERTS. Without it the
+  //    umbrella's currency report cannot JUDGE an edge whose twin is a nested pin, and it
+  //    prints a false `differs (no checkout of box/cachyos to judge ancestry)` while the
+  //    gate stays green.
+  //
+  //    The extension DELEGATES it to the umbrella's own initializer, re-rooted at the
+  //    module — ONE lifecycle implementation at every level (R2), never a hand-rolled
+  //    second materializer — and it FAILS CLOSED: `pi.exec` RESOLVES on a non-zero exit
+  //    (the #410 lesson), so the exit code is read, never assumed.
+  if (!/init-submodules\.sh/.test(code))
+    fail(`materializes a module's nested level through the umbrella's OWN initializer (scripts/init-submodules.sh)`);
+  if (!/["'`]--root["'`]\s*,\s*moduleRoot/.test(code))
+    fail(`re-roots that initializer at the MODULE (--root <module>), so it materializes the module's own nested level`);
+  if (!/(["'`]--all["'`])|(["'`]--nested["'`])/.test(code))
+    fail(`asks the initializer for the module's OWN declared set (--all at the module's root)`);
+  if (!/res\.code !== 0/.test(code))
+    fail(`fails CLOSED when the nested level does not materialize (pi.exec RESOLVES on a non-zero exit)`);
+
   if (failures === 0)
     ok(
       `${rel}: fails closed, rule-2 paths, gate wiring + SOUL injection present, ` +
-        `and the worktree materializes a scoped module set from the shared object cache`,
+        `and the worktree materializes a scoped module set from the shared object cache, ` +
+        `with each materialized module's own nested level`,
     );
 }
 
@@ -392,6 +418,19 @@ if (argv.includes("--self-test")) {
       "no modules argument",
       (s) => s.replace(/modules:\s*Type\.Optional\(/, "scopeIgnored: Type.Optional("),
       `modules`,
+    ],
+    // The nested post-condition (opencharly/opencharly#710): the two ways a worktree can
+    // be created WITHOUT the nested level its currency report needs — never initializing
+    // it at all, and initializing it without reading the exit code.
+    [
+      "the nested level is never materialized",
+      (s) => s.replace(/"scripts", "init-submodules\.sh"/, '"scripts", "materialize.sh"'),
+      `own initializer`,
+    ],
+    [
+      "the nested materialization is not fail-closed",
+      (s) => s.replace(/if \(res\.code !== 0\) \{/, "if (false) {"),
+      `fails CLOSED when the nested level`,
     ],
     // The three mutations below restore opencharly/opencharly#410 verbatim: the dead
     // `catch`-gated retry, the failure swallowed into a success, and the ancestry test that

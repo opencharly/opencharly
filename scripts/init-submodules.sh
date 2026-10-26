@@ -55,8 +55,9 @@
 # EARLIER, and is therefore already at its recorded gitlink, never reaches that
 # call, so its nested level stays ABSENT. The umbrella's currency report then
 # cannot JUDGE an edge whose source is a nested pin: it prints `differs (no
-# checkout of box/cachyos to judge ancestry)`, which the pin contract calls a
-# FAILURE. The nested level is therefore materialized by the SAME script,
+# checkout of box/cachyos to judge ancestry)` — the twin's class left
+# UNDETERMINED, and the pin's state becomes a `blocked-by` that names the
+# producer. The nested level is therefore materialized by the SAME script,
 # re-rooted at the path's own root: ONE implementation of the path lifecycle at
 # every level (R2), and the R6 policy — never clobber a checkout that carries
 # work — holds at every level too. (opencharly/opencharly#647)
@@ -621,8 +622,9 @@ advance_path() {
 # path that is already at its recorded gitlink never reaches it, so its nested
 # level stays absent — and the umbrella's own currency report cannot then JUDGE
 # an edge whose source is a nested pin: it prints `differs (no checkout of
-# box/cachyos to judge ancestry)`, which the pin contract calls a FAILURE. The
-# twins can be not merely absent but STALE (measured on the wave-8 tree:
+# box/cachyos to judge ancestry)` — the twin's class left UNDETERMINED, which a
+# reader cannot tell apart from a real divergence. The twins can be not merely
+# absent but STALE (measured on the wave-8 tree:
 # `charly`'s own tree named `1893455d3a` while its twins sat at `42a3f078ac`),
 # so the post-condition is the DEEP one — the nested level is materialized AT
 # the gitlinks the path's current tree records.

@@ -69,10 +69,17 @@ const GATE_SCRIPTS = [
  * reads or edits it, and is named through the tool's `modules` argument, which ADDS to this set.
  * MEASURED (2026-10-06, umbrella tree `9501fb0`): an eager `--init --recursive` over the whole
  * submodule graph costs 376 MB of worktree-PRIVATE module objects and ~0.86 s per module, while
- * this scoped set costs 1 MB and ~1.4 s — and the repo's own pin gate
- * (`scripts/check-verify-submodules.mjs`) treats an uninitialized module as a NOTICE and keeps
- * its drift teeth. `charly` can never be dropped: step 4 builds the worktree binary
- * from `charly/scripts/bootstrap-charly.sh`.
+ * this scoped set costs 1 MB and ~1.4 s. `charly` can never be dropped: step 4 builds the
+ * worktree binary from `charly/scripts/bootstrap-charly.sh`.
+ *
+ * A materialized module also carries its OWN nested level (step 3b). That is the
+ * post-condition `charly task init` guarantees (opencharly/opencharly#647) and the
+ * umbrella's gate now ASSERTS (opencharly/opencharly#710): without the nested level the
+ * umbrella's currency report cannot JUDGE an edge whose twin is a nested pin, and it
+ * prints `differs (no checkout of box/cachyos to judge ancestry)` — the twin's class
+ * left UNDETERMINED, which a reader cannot tell apart from a real divergence. An
+ * UNINITIALIZED module at the umbrella level stays a NOTICE — its pin is still audited
+ * from the index — but a MATERIALIZED module's nested level is not optional.
  */
 const REQUIRED_WORKTREE_MODULES = ["charly", "marketplace"];
 
@@ -424,6 +431,44 @@ export default function (pi: ExtensionAPI) {
           await pi.exec("git", args, { cwd: worktreePath });
         }
 
+        // Step 3b: the NESTED level of every materialized module.
+        //
+        // A module's OWN declared submodules, materialized at the gitlinks the module's
+        // current tree records — the post-condition `charly task init` guarantees
+        // (opencharly/opencharly#647) and the umbrella's gate now ASSERTS
+        // (opencharly/opencharly#710). Without it the umbrella's currency report cannot
+        // JUDGE an edge whose twin is a nested pin: it prints `differs (no checkout of
+        // box/cachyos to judge ancestry)` — the twin's class left UNDETERMINED, which a
+        // reader cannot tell apart from a real divergence — while the gate stays green.
+        //
+        // The umbrella's OWN initializer does it, re-rooted at the module: ONE lifecycle
+        // implementation at every level (R2). At a module's root, `--all` IS that module's
+        // nested level — every submodule path the module's own `.gitmodules` declares —
+        // and the whole graph is still never cloned. MEASURED in a real .pi worktree
+        // (2026-10-26): charly's six `box/*` twins cost 9.0 MB of the 9.5 GB the whole
+        // graph would cost — 5.2 MB of working trees plus 3.8 MB of blobless object
+        // stores.
+        const nested: string[] = [];
+        for (const modulePath of modules) {
+          const moduleRoot = join(worktreePath, modulePath);
+          // A module with no `.gitmodules` of its own declares no nested level — nothing
+          // to materialize, and nothing for the gate to assert.
+          if (!existsSync(join(moduleRoot, ".gitmodules"))) continue;
+          const res = await pi.exec(
+            "bash",
+            [join(worktreePath, "scripts", "init-submodules.sh"), "--root", moduleRoot, "--all"],
+            { cwd: worktreePath },
+          );
+          // FAIL CLOSED (property 1): `pi.exec` RESOLVES on a non-zero exit, so the code
+          // is read here — a worktree whose nested level is missing is a worktree whose
+          // currency report cannot judge an edge, and it must never be reported as ready.
+          if (res.code !== 0) {
+            const why = (res.stderr || res.stdout || "").trim() || `exit ${res.code}`;
+            throw new Error(`the nested level of ${modulePath} did not materialize: ${why}`);
+          }
+          nested.push(modulePath);
+        }
+
         // Step 4: Build the worktree-local binary (the ONE non-charly entrypoint).
         await pi.exec("bash", ["charly/scripts/bootstrap-charly.sh"], { cwd: worktreePath });
 
@@ -438,6 +483,7 @@ export default function (pi: ExtensionAPI) {
                 `Worktree created at ${worktreePath} on branch ${branch}.\n` +
                 `- Binary built at ${worktreePath}/charly/bin/charly\n` +
                 `- Modules materialized: ${modules.join(", ")} (${borrowed}/${modules.length} borrowing the main checkout's objects)\n` +
+                `- Nested levels materialized: ${nested.length ? nested.join(", ") : "none (no materialized module declares one)"}\n` +
                 `- The other submodules stay unmaterialized. Read one of them with:\n` +
                 `    git -C ${worktreePath} submodule update --init --reference ${join(ctx.cwd, ".git", "modules")}/<path> <path>\n` +
                 `- Use \`cd ${worktreePath}\` to work in this branch\n` +

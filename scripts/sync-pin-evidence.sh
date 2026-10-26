@@ -543,8 +543,8 @@ if [ "$(coverage_note "$COVERED")" = "PIN_CHECK_IS_COVERAGE" ]; then
   echo "declares the pin contract (\`charly.yml\`) and the declared path set"
   echo "(\`.gitmodules\`), and **this diff changes ${TOUCHED_COUNT} of them**"
   echo "(${TOUCHED_INPUTS}), so that gate CAN fail on it. The check reads charly's own"
-  echo "gitlinks with \`git ls-tree\` (tree objects — present in a shallow clone;"
-  echo "charly's NESTED submodules need not be initialised) and asserts every umbrella"
+  echo "gitlinks with \`git ls-tree\` (tree objects — present in a shallow clone; this"
+  echo "half reads charly's own tree, NOT its nested checkouts) and asserts every umbrella"
   echo "\`distro-*\` gitlink equals it, then audits every submodule's checkout against its"
   echo "recorded gitlink, pasted verbatim from this run:"
   echo

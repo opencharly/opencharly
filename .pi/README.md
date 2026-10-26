@@ -34,15 +34,21 @@ private COPY of the immutable half. MEASURED on this clone (2026-10-06, umbrella
 | `git worktree add`, nothing materialized | **0.019 s · 3.8 MB** — the superproject's objects are shared (`commondir: ../..`), metadata is 5 files |
 | `git submodule update --init --recursive` (the former default) | **~0.86 s per module → ~6 min · 376 MB** of worktree-PRIVATE module objects, plus ~230 MB of checkouts |
 | `submodule update --init --reference .git/modules/<path> <path>` (the default now) | **0.5–0.8 s per module · 1 MB**, borrowed through an `alternates` file |
+| the NESTED level of a materialized module (`charly`'s six `box/*` twins) | **9.0 MB** — 5.2 MB of working trees plus 3.8 MB of blobless object stores, MEASURED in a real .pi worktree (2026-10-26); the post-condition the umbrella's own gate asserts (opencharly/opencharly#710); the whole graph is still never cloned |
 | the per-worktree binary (`charly/scripts/bootstrap-charly.sh`) | ~1m20s · 51 MB — required and never shared (R9, plus concurrent sessions) |
 
 So `charly_worktree_create` materializes **only `charly` and `marketplace`** — the modules the
 harness's own tools and gates read — and any other module is named explicitly through the tool's
 `modules` argument, which **adds** to that set. `charly` can never be dropped from it: the build
-step runs `charly/scripts/bootstrap-charly.sh`. This is not a weakening: the repo's
-own pin gate (`scripts/check-verify-submodules.mjs`) treats an uninitialized module as a NOTICE
-and keeps its drift teeth — a nested submodule left uninitialized is reported, not failed — and
-every commit-time gate here passes with the rest of the graph left unmaterialized —
+step runs `charly/scripts/bootstrap-charly.sh`. A materialized module also carries its **own
+nested level** — `charly`'s six `box/*` twins — materialized by the umbrella's own initializer
+(`scripts/init-submodules.sh`, re-rooted at the module), because the umbrella's gate now ASSERTS
+that post-condition (opencharly/opencharly#710): without the nested level the currency report
+cannot JUDGE an edge whose twin is a nested pin — it prints
+`differs (no checkout of box/cachyos to judge ancestry)`, the twin's class left UNDETERMINED and
+indistinguishable from a real divergence — while the gate stays green. An
+UNINITIALIZED module at the umbrella level stays a NOTICE — its pin is still audited from the
+index — and every commit-time gate here passes with the rest of the graph left unmaterialized:
 `hooks/pre-commit`, `charly task pin-check`, `charly task self-test`, and every
 `scripts/check-*.mjs` gate.
 

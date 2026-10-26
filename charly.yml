@@ -526,25 +526,31 @@ verify:
           [ "$rc" -eq 0 ] || fail "the branch audit failed for one or more submodules (each one is named above)"
           echo "verify: OK — $count submodule(s): branch == remote default for every one"
         context: [runtime]
-      - check: charly's own nested submodules are at their gitlinks — KEPT INLINE, because the verb has no recursive-nested clause
+      - check: charly's own nested submodules are at their gitlinks — a MATERIALIZED charly must carry its nested level (KEPT INLINE, because the verb has no recursive-nested clause)
         command: |
           set -eu
           fail() { echo "FAIL: $*" >&2; exit 1; }
-          # `+` (drifted off charly's gitlink) and `U` (unmerged) are failures;
-          # `-` (declared, not initialized) is not a violation, only reported.
+          # `+` (drifted off charly's gitlink) and `U` (unmerged) are failures.
+          # `-` (declared, not initialized) is a failure TOO, when charly itself is
+          # materialized: `charly task init` makes the nested level a post-condition of
+          # every materialized path (opencharly/opencharly#647), and a tree that lacks
+          # it cannot have the currency report judge an edge whose source is a nested
+          # pin. A charly that is NOT materialized at all is a light tree, and stays a
+          # notice.
           if [ -e charly/.git ]; then
             nested="$(git -C charly submodule status --recursive || true)"
             drift="$(printf '%s\n' "$nested" | grep -E '^[+U]' || true)"
             [ -z "$drift" ] || fail "charly nested submodules not at their gitlinks:
           $drift"
-            notinit="$(printf '%s\n' "$nested" | grep -cE '^-' || true)"
-            [ "$notinit" = "0" ] || echo "verify: notice — $notinit of charly's nested submodules are NOT INITIALIZED (no checkout); a + or U drift would still FAIL."
+            absent="$(printf '%s\n' "$nested" | grep -E '^-' || true)"
+            [ -z "$absent" ] || fail "charly's nested submodules are NOT INITIALIZED (no checkout) — the currency report cannot judge an edge whose source is one of them; materialize the nested level with: charly task init
+          $absent"
+            echo "verify: OK — charly's nested submodules are at their gitlinks, none drifted"
           else
             echo "verify: notice — charly/ is NOT INITIALIZED: its nested-submodule check is EMPTY (git submodule update --init charly)."
           fi
-          echo "verify: OK — charly's nested submodules are at their gitlinks, none drifted"
         context: [runtime]
-      - check: the nested-submodule step above — an uninitialized nested path is a NOTICE, a `+`/`U` drift still FAILS (fixtures)
+      - check: the nested-submodule step above — a MATERIALIZED charly without its nested level FAILS, an uninitialized charly is a NOTICE, a `+`/`U` drift still FAILS (fixtures)
         command: node scripts/check-verify-submodules.mjs
         context: [runtime]
       - check: the branch-audit step above — every branch= is compared against the remote default, and EVERY mismatch is named (fixtures)
@@ -610,7 +616,7 @@ verify:
       - check: the harness-config gate discriminates — each mutation turns it RED (fixtures)
         command: node scripts/check-harness-config.mjs --self-test
         context: [runtime]
-      - check: the pi gate extension fails CLOSED, uses the rule-2 worktree path, and wires both gate scripts
+      - check: the pi gate extension fails CLOSED, uses the rule-2 worktree path, wires both gate scripts, and materializes each materialized module's own nested level
         command: node scripts/check-pi-gates.mjs
         context: [runtime]
       - check: the validator enforces only what the rulebook states — rulebook check ids == the AGENTS.md "What the validator checks" table, every cited skill resolves, and the committed rulebook == the live AI_REVIEW_PROMPT (opencharly/opencharly#446)
