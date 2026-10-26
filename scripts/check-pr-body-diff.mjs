@@ -50,18 +50,27 @@
 //      because a stale paste is well-formed. It is scoped to FENCED blocks (pasted
 //      output) and never to prose: prose may quote a line that has since moved, and
 //      that is a judgement, not a mechanical fact.
-//   D. Every CLOSING DIRECTIVE the body opens with — `Closes #N`, `Fixes #N`,
-//      `Resolves #N` — must name something the directive CAN close. GitHub's `Closes`
-//      closes an ISSUE; a merged pull request cannot be closed, so a directive naming
-//      one closes nothing, while the same body usually states, a few lines down, that
-//      the number "is already merged". The tree can decide what KIND of thing the
-//      number is: GitHub's squash subject is `title (#closed-issue) (#pr)`, so the LAST
-//      parenthesised number in a merged commit's subject is the pull request. This arm
-//      exists because the `charly/pr-validator` found a body whose `Closes #696` named
-//      a MERGED PULL REQUEST (2026-10-26, opencharly/opencharly#697) — the directive
-//      closed nothing and the body contradicted itself. It reads only lines that OPEN
-//      with the keyword, and never a fenced block: a body that PASTES a directive as
-//      evidence is not making one.
+//   D. Every CLOSING DIRECTIVE the body opens with — `Closes #N`, `Fixed #N`,
+//      `Resolves #N`, and every other form GitHub accepts — must name something the
+//      directive CAN close. GitHub's `Closes` closes an ISSUE; a merged pull request
+//      cannot be closed, so a directive naming one closes nothing, while the same body
+//      usually states, a few lines down, that the number "is already merged". The tree
+//      can decide what KIND of thing the number is: GitHub's squash subject is
+//      `title (#closed-issue) (#pr)`, so the LAST parenthesised number in a merged
+//      commit's subject is the pull request. This arm exists because the
+//      `charly/pr-validator` found a body whose `Closes #696` named a MERGED PULL
+//      REQUEST (2026-10-26, opencharly/opencharly#697) — the directive closed nothing
+//      and the body contradicted itself.
+//      The KEYWORD SET is GitHub's own, in full — `close`, `closes`, `closed`, `fix`,
+//      `fixes`, `fixed`, `resolve`, `resolves`, `resolved`, matched case-
+//      insensitively and with the optional colon GitHub allows — because a directive
+//      the arm cannot read is a directive the arm cannot judge. The line must still
+//      OPEN with the keyword, and the reference must still be bare: `owner/repo#N`
+//      names another repository's issue, which this repo's history cannot judge.
+//      A FENCED block is never read, and the fence reader follows CommonMark's fence
+//      rules — the length rule, and the closing fence's rule that only whitespace may
+//      follow it — so a body that PASTES a directive as evidence is not making one, and
+//      a directive after a nested fence is still caught.
 //   C. Every claim a CHANGED RECORD states is VISIBLE IN THE BODY. A file under
 //      `CHANGELOG/` is a record of what happened; a correction PR rewrites one. The
 //      record's own claims must be reproducible from the body that publishes the
@@ -268,27 +277,65 @@ function checkCounts(body, table, statuses) {
 }
 
 /**
+ * The body's FENCE SPANS — the line ranges a fenced block covers, with the fence's
+ * opening and closing lines INCLUDED.
+ *
+ * A fence OPENS with a run of three or more backticks or tildes, and CLOSES with a run
+ * of the same character at least as long whose line carries nothing but whitespace
+ * after it (CommonMark's closing-fence rule: an info string belongs to the OPENING
+ * fence alone). A shorter run — a run of the other character — or a run followed by
+ * text is CONTENT inside the open fence, not a fence of its own.
+ *
+ * Leading whitespace is tolerated on both, because a fence inside a list item is
+ * indented and is still a fence.
+ *
+ * The naive toggle — any ``` line opens, the next ``` line closes — gets that wrong
+ * in BOTH directions, and each error is a real body (measured on this repo's merged
+ * pull requests, 2026-10-26):
+ *   - it CLOSES a four-backtick fence at the three-backtick line inside it, so the rest
+ *     of the fence reads as PROSE — and a directive pasted inside that fence trips the
+ *     directive arm on the body's own quote;
+ *   - it OPENS a fence at a three-backtick line inside a four-backtick one, so a
+ *     directive AFTER that line reads as fenced — and a real directive escapes the arm;
+ *   - it CLOSES a fence on a run that is followed by text, where CommonMark says the
+ *     fence is still open — and the directive inside it is read as a directive.
+ * One scanner, so the two readers of a fence — the evidence arm and the directive arm
+ * — can never disagree about where a fence ends.
+ */
+function fenceSpans(body) {
+  const spans = [];
+  const lines = body.split("\n");
+  let open = null;
+  for (let i = 0; i < lines.length; i += 1) {
+    const m = /^\s*(`{3,}|~{3,})(.*)$/.exec(lines[i]);
+    if (!m) continue;
+    const marker = m[1];
+    const rest = m[2];
+    if (!open) {
+      open = { char: marker[0], len: marker.length, from: i + 1 };
+      continue;
+    }
+    if (marker[0] === open.char && marker.length >= open.len && /^\s*$/.test(rest)) {
+      spans.push({ from: open.from, to: i + 1 });
+      open = null;
+    }
+  }
+  if (open) spans.push({ from: open.from, to: lines.length });
+  return spans;
+}
+
+/**
  * The body's FENCED blocks — the pasted output. A block is a set of lines between
- * ``` fences, with the line each line sits on in the body.
+ * fences, with the line each line sits on in the body.
  */
 function fencedBlocks(body) {
   const blocks = [];
-  let cur = null;
   const lines = body.split("\n");
-  for (let i = 0; i < lines.length; i += 1) {
-    const line = lines[i];
-    if (/^\s*```/.test(line)) {
-      if (cur) {
-        blocks.push(cur);
-        cur = null;
-      } else {
-        cur = { lines: [] };
-      }
-      continue;
-    }
-    if (cur) cur.lines.push({ n: i + 1, text: line });
+  for (const span of fenceSpans(body)) {
+    const inner = [];
+    for (let n = span.from + 1; n < span.to; n += 1) inner.push({ n, text: lines[n - 1] });
+    blocks.push({ lines: inner });
   }
-  if (cur) blocks.push(cur);
   return blocks;
 }
 
@@ -382,30 +429,45 @@ function checkEvidence(body) {
  */
 function proseLines(body) {
   const out = [];
-  let inFence = false;
+  const spans = fenceSpans(body);
   const lines = body.split("\n");
+  let s = 0;
   for (let i = 0; i < lines.length; i += 1) {
-    if (/^\s*(?:```|~~~)/.test(lines[i])) {
-      inFence = !inFence;
-      continue;
-    }
-    if (!inFence) out.push({ n: i + 1, text: lines[i] });
+    const n = i + 1;
+    while (s < spans.length && n > spans[s].to) s += 1;
+    if (s < spans.length && n >= spans[s].from && n <= spans[s].to) continue;
+    out.push({ n, text: lines[i] });
   }
   return out;
 }
 
 /**
- * The body's CLOSING DIRECTIVES: a line that OPENS with `Closes`/`Fixes`/`Resolves`
- * followed by a bare `#N`. The line must open with the keyword — that is the directive
- * form, and a file's prose may quote a directive without making one — and the reference
- * must be bare, because `owner/repo#N` names another repository's issue, which this
- * repo's history cannot judge.
+ * The body's CLOSING DIRECTIVES: a line that OPENS with a closing keyword followed by
+ * a bare `#N`.
+ *
+ * The keyword set is GitHub's own, in full: `close`, `closes`, `closed`, `fix`,
+ * `fixes`, `fixed`, `resolve`, `resolves`, `resolved` — and GitHub matches them
+ * case-insensitively and accepts a colon after them ("The keywords can be followed by
+ * colons or in uppercase", GitHub's "Linking a pull request to an issue"). Reading
+ * only the three plural forms, case-sensitively, meant a body whose directive said
+ * `closes #7` or `Fixed #7` was not read at all — and GitHub reads those, so the arm's
+ * claim ("every closing directive names something the directive CAN close") was false
+ * for them.
+ *
+ * The line must OPEN with the keyword — that is the directive form, and a file's prose
+ * may quote a directive without making one — and the reference must be bare, because
+ * `owner/repo#N` names another repository's issue, which this repo's history cannot
+ * judge. GitHub also honours a keyword WITHIN a line, and a second reference on the
+ * same line; those are not read here, and the boundary is measured and filed as
+ * opencharly/opencharly#701.
  */
 function closingDirectives(body) {
   const out = [];
   for (const l of proseLines(body)) {
-    const m = /^\s*(?:[-*+]\s+)?(Closes|Fixes|Resolves)\s+#(\d+)\b/.exec(l.text);
-    if (m) out.push({ line: l.n, keyword: m[1], n: m[2] });
+    const m = /^\s*(?:[-*+]\s+)?(close[sd]?|fix(?:es|ed)?|resolve[sd]?)\b([ \t]*:?[ \t]*)(#\d+)\b/i.exec(
+      l.text,
+    );
+    if (m) out.push({ line: l.n, keyword: m[1], n: m[3].slice(1), text: `${m[1]}${m[2]}${m[3]}` });
   }
   return out;
 }
@@ -452,7 +514,7 @@ function checkClosingDirectives(body, baseRef) {
     if (!merged.has(d.n)) continue;
     bad += 1;
     fail(
-      `the body opens ${d.keyword} #${d.n} (line ${d.line}), and #${d.n} is a merged PULL REQUEST in this repo — ` +
+      `the body opens ${d.text} (line ${d.line}), and #${d.n} is a merged PULL REQUEST in this repo — ` +
         `GitHub closes issues, not pull requests, so the directive closes nothing; write \`Refs #${d.n}\``,
     );
   }
@@ -682,6 +744,11 @@ if (argv.includes("--self-test")) {
 
     const DEFAULT_EVIDENCE =
       "scripts/blank.sh:2:#!/bin/sh\nscripts/one.sh:1:#!/bin/sh\nscripts/two.sh:1:#!/bin/sh";
+    // The file table the fixture's diff actually has — the three files it changes. It
+    // is named once and used by every arm, so no arm can spell it differently from
+    // another and the table stays a fixture of the gate, not a copy per arm.
+    const FULL_TABLE =
+      "| `a.txt` | a change |\n| `c.txt` | a change |\n| `scripts/two.sh` | a change |";
     const body = (
       tableRows,
       pastedSha,
@@ -755,7 +822,7 @@ ${claim || "Test fixture, not a real change."}
       [
         "the prose states a stale count of the diff's new files",
         body(
-          "| `a.txt` | a change |\n| `c.txt` | a change |\n| `scripts/two.sh` | a change |",
+          FULL_TABLE,
           head,
           "This change adds two new scripts.",
         ),
@@ -764,7 +831,7 @@ ${claim || "Test fixture, not a real change."}
       [
         "the body pastes an evidence line the tree does not have",
         body(
-          "| `a.txt` | a change |\n| `c.txt` | a change |\n| `scripts/two.sh` | a change |",
+          FULL_TABLE,
           head,
           "",
           "scripts/one.sh:7:#!/bin/sh",
@@ -774,7 +841,7 @@ ${claim || "Test fixture, not a real change."}
       [
         "the body pastes an evidence line whose text is not the tree's",
         body(
-          "| `a.txt` | a change |\n| `c.txt` | a change |\n| `scripts/two.sh` | a change |",
+          FULL_TABLE,
           head,
           "",
           "scripts/one.sh:1:echo something else",
@@ -784,7 +851,7 @@ ${claim || "Test fixture, not a real change."}
       [
         "the body pastes text against a blank line of the tree",
         body(
-          "| `a.txt` | a change |\n| `c.txt` | a change |\n| `scripts/two.sh` | a change |",
+          FULL_TABLE,
           head,
           "",
           "scripts/blank.sh:1:#!/bin/sh",
@@ -794,7 +861,7 @@ ${claim || "Test fixture, not a real change."}
       [
         "the record names a file the body does not name",
         body(
-          "| `a.txt` | a change |\n| `c.txt` | a change |\n| `scripts/two.sh` | a change |",
+          FULL_TABLE,
           head,
           "",
           "scripts/blank.sh:2:#!/bin/sh",
@@ -804,7 +871,7 @@ ${claim || "Test fixture, not a real change."}
       [
         "the record states a number the body's pasted output does not show",
         body(
-          "| `a.txt` | a change |\n| `c.txt` | a change |\n| `scripts/two.sh` | a change |",
+          FULL_TABLE,
           head,
           "",
           "scripts/one.sh:1:#!/bin/sh",
@@ -814,13 +881,53 @@ ${claim || "Test fixture, not a real change."}
       [
         "the body closes a number this repo merged as a pull request",
         body(
-          "| `a.txt` | a change |\n| `c.txt` | a change |\n| `scripts/two.sh` | a change |",
+          FULL_TABLE,
           head,
           "",
           DEFAULT_EVIDENCE,
           "Closes #7",
         ),
         "is a merged PULL REQUEST",
+      ],
+      // Every closing keyword GitHub accepts, in the form GitHub accepts it. The arm
+      // read THREE of the NINE, capitalised — so a body whose directive said `closed
+      // #7` was green, and GitHub reads `closed`. Each form gets its own arm, or the
+      // arm's claim — "every closing directive names something the directive CAN
+      // close" — is false for every form no arm names.
+      ...[
+        "close",
+        "closes",
+        "closed",
+        "fix",
+        "fixes",
+        "fixed",
+        "resolve",
+        "resolves",
+        "resolved",
+      ].map((kw) => [
+        `the body closes a merged pull request with the keyword '${kw}'`,
+        body(FULL_TABLE, head, "", DEFAULT_EVIDENCE, `${kw} #7`),
+        "is a merged PULL REQUEST",
+      ]),
+      [
+        "the body closes a merged pull request in UPPERCASE",
+        body(FULL_TABLE, head, "", DEFAULT_EVIDENCE, "CLOSES #7"),
+        "is a merged PULL REQUEST",
+      ],
+      [
+        "the body closes a merged pull request with a COLON",
+        body(FULL_TABLE, head, "", DEFAULT_EVIDENCE, "Closes: #7"),
+        "is a merged PULL REQUEST",
+      ],
+      [
+        "the body closes a merged pull request AFTER a nested fence",
+        body(FULL_TABLE, head, "", DEFAULT_EVIDENCE, "````\n```\n````\nCloses #7"),
+        "is a merged PULL REQUEST",
+      ],
+      [
+        "the body pastes evidence in a TILDE fence the tree does not hold",
+        body(FULL_TABLE, head, "~~~\nscripts/one.sh:1:echo something else\n~~~"),
+        "the evidence was taken on another tree",
       ],
     ];
     // The cases that must STAY GREEN: the arm is narrow on purpose, and a gate that
@@ -830,7 +937,7 @@ ${claim || "Test fixture, not a real change."}
       [
         "a closing directive inside a fenced block is evidence, not a directive",
         body(
-          "| `a.txt` | a change |\n| `c.txt` | a change |\n| `scripts/two.sh` | a change |",
+          FULL_TABLE,
           head,
           "",
           DEFAULT_EVIDENCE,
@@ -840,11 +947,55 @@ ${claim || "Test fixture, not a real change."}
       [
         "a closing directive naming an issue is left alone",
         body(
-          "| `a.txt` | a change |\n| `c.txt` | a change |\n| `scripts/two.sh` | a change |",
+          FULL_TABLE,
           head,
           "",
           DEFAULT_EVIDENCE,
           "Closes #3",
+        ),
+      ],
+      [
+        "a closing directive naming an issue is left alone in a form the arm newly reads",
+        body(
+          FULL_TABLE,
+          head,
+          "",
+          DEFAULT_EVIDENCE,
+          "closed #3",
+        ),
+      ],
+      [
+        "a closing directive inside a NESTED fence is evidence, not a directive",
+        body(
+          FULL_TABLE,
+          head,
+          "",
+          DEFAULT_EVIDENCE,
+          "````\n```\nCloses #7\n```\n````",
+        ),
+      ],
+      [
+        "a closing directive in the MIDDLE of a line is not a directive",
+        body(
+          FULL_TABLE,
+          head,
+          "",
+          DEFAULT_EVIDENCE,
+          "This PR closes #7 in prose.",
+        ),
+      ],
+      // The CLOSING fence carries nothing but whitespace after the run: a run followed
+      // by text is CONTENT inside the open fence, so the directive below it is inside
+      // the fence too. The naive toggle closed the fence at that line, and the
+      // directive escaped onto the prose — a finding on the body's own quote.
+      [
+        "a fence whose closing line carries text does not close the fence",
+        body(
+          FULL_TABLE,
+          head,
+          "",
+          DEFAULT_EVIDENCE,
+          "```sh\necho hi\n```still inside\nCloses #7\n```",
         ),
       ],
     ];
@@ -879,7 +1030,7 @@ ${claim || "Test fixture, not a real change."}
     writeFileSync(
       bodyFile,
       body(
-        "| `a.txt` | a change |\n| `c.txt` | a change |\n| `scripts/two.sh` | a change |",
+        FULL_TABLE,
         head,
         "This change adds one new script.",
       ),
