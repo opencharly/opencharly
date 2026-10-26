@@ -47,6 +47,22 @@
 //      and a self-test that failed there would turn every such tree's verify red
 //      over a check that cannot run. Both skips print the one command that
 //      materializes the checkout — a skip that is not visible is a silent pass.
+//      BUT a tree that cannot derive the version is not one thing: the REASON is
+//      classified, because a check that cannot RUN and a tree that is BROKEN are
+//      not the same defect. "the checkout is not materialized" (or the index could
+//      not be read) is ABSENT — a visible SKIP. "the manifest names no charly path",
+//      "the index records no gitlink", "the pinned charly's go.mod requires no
+//      plugin-task" is BROKEN — the tree is inconsistent with what the check needs,
+//      the citations cannot be judged against anything, and a control that SKIPS a
+//      broken pin reports SUCCESS over a pin it cannot judge. So a broken pin is
+//      RED, in the plain gate and in the --self-test alike.
+//   B. ONE buffer ceiling. The tracked set's own `git ls-files -s -z` grows with the
+//      repo (MEASURED: 74.2 bytes per entry, so ~14,137 files cross Node's 1 MiB
+//      default), and a gate that dies with ENOBUFS on a large tree is a gate that
+//      stops judging on exactly the trees it exists to judge. Every git call
+//      therefore goes through ONE helper that raises the ceiling, and the ceiling
+//      is applied AFTER the caller's own options: the gate has one ceiling, and no
+//      call may set another (R2 — one canonical implementation per behaviour).
 //   T. WHICH TREE IS JUDGED: a commit ships the INDEX, not the worktree, so the gate
 //      judges the INDEX's copy of every file where the worktree and the index
 //      disagree, and the worktree's copy where they are identical (where the
@@ -60,8 +76,8 @@
 // Usage: node scripts/check-cited-plugin-task-version.mjs [--root <dir>] [--self-test]
 // exit 0 clean · 1 finding
 
-import { readFileSync, statSync, writeFileSync, mkdtempSync, rmSync } from "node:fs";
-import { execFileSync } from "node:child_process";
+import { readFileSync, statSync, writeFileSync, mkdtempSync, mkdirSync, rmSync } from "node:fs";
+import { execFileSync, spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -83,9 +99,14 @@ const MAX_BYTES = 1_000_000;
  *  so the ceiling is raised and every call inherits it. */
 const MAX_EXEC_BYTES = 64 * 1024 * 1024;
 
-/** Every git call goes through here, so the ceiling above is raised ONCE. */
+/** Every git call goes through here, so the ceiling above is raised ONCE. The
+ *  ceiling is placed AFTER the spread, so a caller's own `maxBuffer` cannot
+ *  replace it: the gate has ONE buffer ceiling and no call may set another
+ *  (R2 — one canonical implementation per behaviour; R5 — no second copy of a
+ *  rule). With the spread last, a future call that passed `maxBuffer` would
+ *  restore the exact defect this ceiling exists to remove. */
 function gitOut(args, opts = {}) {
-  return execFileSync("git", args, { maxBuffer: MAX_EXEC_BYTES, ...opts });
+  return execFileSync("git", args, { ...opts, maxBuffer: MAX_EXEC_BYTES });
 }
 
 /** The module-version literal shape the org's CalVer module tags use. */
@@ -229,16 +250,41 @@ function charlyPath(rootDir) {
 }
 
 /** The version the PINNED charly compiles, read from the pinned commit's own go.mod.
- *  `gomodOverride` replaces the module's text (the self-test's mutation). */
+ *  `gomodOverride` replaces the module's text (the self-test's mutation).
+ *
+ *  WHEN the version cannot be derived, the REASON is classified, because the two
+ *  classes are not the same defect and must not be reported the same way:
+ *    absent — this TREE cannot run the check: the checkout is not materialized, or
+ *             the index could not be read. A visible SKIP (R8): a check that cannot
+ *             run says so and names the one command that fixes it, the shape the
+ *             sibling gates use.
+ *    broken — the tree is INCONSISTENT with what the check needs: the manifest
+ *             names no charly path, the index records no gitlink, or the pinned
+ *             charly's own go.mod requires no plugin-task version. That is a
+ *             DEFECT in the tree, and a control that SKIPS a broken pin reports
+ *             success over a pin it cannot judge — the citations it exists to
+ *             police are compared against nothing. So it is a FAIL. */
 function readPinned(rootDir, gomodOverride = null) {
   const path = charlyPath(rootDir);
-  if (!path) return { notice: "the manifest's import: block names no `charly` path" };
+  if (!path) {
+    return {
+      kind: "broken",
+      notice:
+        "the manifest's import: block names no `charly` path — the tree is BROKEN: " +
+        "the check has no pin to judge this repo's citations against",
+    };
+  }
   const entry = indexEntry(rootDir, path);
   if (entry.error === "unreadable") {
-    return { notice: `the index could not be read for ${path}` };
+    return { kind: "absent", notice: `the index could not be read for ${path}` };
   }
   if (entry.error === "absent") {
-    return { notice: `the index records no gitlink for ${path}` };
+    return {
+      kind: "broken",
+      notice:
+        `the index records no gitlink for ${path} — the tree is BROKEN: ` +
+        "the check has no pin to judge this repo's citations against",
+    };
   }
   const sha = entry.sha;
   // NOTE: the gitlink is the INDEX's entry, so the version below is read from the
@@ -248,7 +294,10 @@ function readPinned(rootDir, gomodOverride = null) {
   try {
     tree = gitOut(["-C", repo, "ls-tree", "-r", "--name-only", sha], { encoding: "utf8" });
   } catch {
-    return { notice: `the pinned charly (${sha.slice(0, 7)}) has no checkout here, so its go.mod cannot be read` };
+    return {
+      kind: "absent",
+      notice: `the pinned charly (${sha.slice(0, 7)}) has no checkout here, so its go.mod cannot be read`,
+    };
   }
   const mods = tree.split("\n").filter((l) => l.endsWith("go.mod"));
   for (const mod of mods) {
@@ -263,7 +312,12 @@ function readPinned(rootDir, gomodOverride = null) {
     const req = text.match(RE_REQUIREMENT);
     if (req) return { version: req[1], sha, path, mod };
   }
-  return { notice: `the pinned charly (${sha.slice(0, 7)}) requires no plugin-task version` };
+  return {
+    kind: "broken",
+    notice:
+      `the pinned charly (${sha.slice(0, 7)}) requires no plugin-task version — the tree is ` +
+      "BROKEN: the owner of the pin carries no plugin-task, so this repo's citations cannot be judged",
+  };
 }
 
 /** The contract, in one place, so the gate and --self-test assert the SAME thing. */
@@ -311,19 +365,26 @@ function otherVersion(pinnedVersion, salt) {
   return m[1] + bumped;
 }
 
+/** A FIXTURE repo with a REAL index. `prefix` names the fixture; the caller owns the
+ *  cleanup. The returned `git` closure runs git IN the fixture. */
+function fixtureRepo(prefix) {
+  const dir = mkdtempSync(join(tmpdir(), `cited-version-${prefix}-`));
+  const git = (...args) =>
+    gitOut(["-C", dir, ...args], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    });
+  gitOut(["init", "-q", dir], { stdio: ["ignore", "pipe", "ignore"] });
+  return { dir, git };
+}
+
 /** A FIXTURE repo with a REAL index: one file is committed carrying a stale citation,
  *  and then the WORKING TREE copy is fixed — so the index and the worktree disagree
  *  and the tree a commit ships still carries the stale citation. Returns what the
  *  scan finds there, so the self-test can prove the INDEX is the tree judged. */
 function indexFixtureCitations(staleVersion, goodVersion) {
-  const dir = mkdtempSync(join(tmpdir(), "cited-version-fixture-"));
+  const { dir, git } = fixtureRepo("index");
   try {
-    const git = (...a) =>
-      gitOut(["-C", dir, ...a], {
-        encoding: "utf8",
-        stdio: ["ignore", "pipe", "ignore"],
-      });
-    gitOut(["init", "-q", dir], { stdio: ["ignore", "pipe", "ignore"] });
     const rel = "prose.md";
     writeFileSync(join(dir, rel), `# a citation of plugin-task\nplugin-task ${staleVersion}\n`);
     git("add", rel);
@@ -349,6 +410,86 @@ function indexFixtureCitations(staleVersion, goodVersion) {
   }
 }
 
+/** A fixture repo whose OWNER of the pin is MATERIALIZED and carries NO plugin-task
+ *  requirement: the pin is BROKEN, and a control that skips it reports success over
+ *  a pin it cannot judge. */
+function brokenPinFixture() {
+  const { dir, git } = fixtureRepo("broken-pin");
+  const owner = join(dir, "charly");
+  mkdirSync(owner, { recursive: true });
+  const ownerGit = (...args) =>
+    gitOut(["-C", owner, ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+  gitOut(["init", "-q", owner], { stdio: ["ignore", "pipe", "ignore"] });
+  writeFileSync(join(owner, "go.mod"), "module example.invalid/charly\n\ngo 1.22\n");
+  ownerGit("add", "go.mod");
+  ownerGit(
+    "-c",
+    "user.email=fixture@example.invalid",
+    "-c",
+    "user.name=Fixture",
+    "-c",
+    "core.hooksPath=/dev/null",
+    "-c",
+    "commit.gpgsign=false",
+    "commit",
+    "-q",
+    "-m",
+    "an owner that carries no plugin-task",
+  );
+  const ownerSha = ownerGit("rev-parse", "HEAD").trim();
+  writeFileSync(join(dir, "charly.yml"), "import:\n  - charly: ./charly\n");
+  git("add", "charly.yml");
+  git("update-index", "--add", "--cacheinfo", `160000,${ownerSha},charly`);
+  return dir;
+}
+
+/** The pin in the INDEX, with no checkout beside it: the shape of a session
+ *  worktree that has not materialized the pinned repo. A pin lives in the index,
+ *  so the gate can read the pin even when the checkout is absent. */
+function pinWithoutCheckout(git, dir) {
+  writeFileSync(join(dir, "charly.yml"), "import:\n  - charly: ./charly\n");
+  git("add", "charly.yml");
+  git("update-index", "--add", "--cacheinfo", `160000,${"a".repeat(40)},charly`);
+}
+
+/** A fixture repo whose pinned charly is NOT materialized: the shape a session
+ *  worktree that has not run `charly task init` has. The PIN lives in the index
+ *  and the CHECKOUT is absent — so the check cannot run here, and it says so
+ *  visibly rather than failing closed on the infrastructure the sibling gates
+ *  refuse to fail closed on. */
+function absentCheckoutFixture() {
+  const { dir, git } = fixtureRepo("absent-checkout");
+  pinWithoutCheckout(git, dir);
+  return dir;
+}
+
+/** A fixture repo whose TRACKED SET is larger than the 1 MiB default Node's
+ *  execFileSync imposes: MEASURED, 5,000 files with 200-char names cost
+ *  1,305,000 bytes of `git ls-files -s -z`. The files are REAL and EMPTY — so the
+ *  fixture is a clean tree the gate reads from the worktree — and the whole set is
+ *  added with ONE git call, not one per file. */
+function bigTrackedSetFixture() {
+  const { dir, git } = fixtureRepo("big-tracked-set");
+  const name = "y".repeat(200);
+  for (let i = 0; i < 5000; i++) {
+    const d = join(dir, `d${String(Math.floor(i / 1000)).padStart(2, "0")}`);
+    mkdirSync(d, { recursive: true });
+    writeFileSync(join(d, `${name}.${String(i).padStart(5, "0")}`), "");
+  }
+  git("add", "-A");
+  pinWithoutCheckout(git, dir);
+  return dir;
+}
+
+/** The gate's own exit code and output on a fixture tree, run as a SUBPROCESS so the
+ *  whole gate is exercised the way the verify task runs it. */
+function gateOn(rootDir) {
+  const r = spawnSync(process.execPath, [fileURLToPath(import.meta.url), "--root", rootDir], {
+    encoding: "utf8",
+  });
+  return { code: r.status, out: `${r.stdout || ""}${r.stderr || ""}` };
+}
+
 // ── --self-test: prove each assertion goes RED on a mutation of the shipped inputs ───
 if (selfTest) {
   const shipped = scanCitations(root);
@@ -356,15 +497,24 @@ if (selfTest) {
   let stFails = 0;
 
   if (!pinned.version) {
-    // LIVE-OR-SKIP, never a silent pass (R8): the mutations below are built FROM
-    // the pinned version, so a tree whose pinned charly has no checkout cannot
-    // derive it and cannot run them. Failing there would turn every such tree's
-    // verify red over a check that cannot run — the fail-closed-infrastructure
-    // class the sibling gates refuse — so the self-test SKIPS VISIBLY, names the
-    // one command that materializes the checkout, and exits 0.
-    console.log(`  SKIP  the self-test cannot run: the pinned charly's version could not be derived: ${pinned.notice}`);
-    console.log("  SKIP  materialize the pinned charly with: bash scripts/init-submodules.sh  (the working set includes charly)");
-    process.exit(0);
+    if (pinned.kind === "absent") {
+      // LIVE-OR-SKIP, never a silent pass (R8): the mutations below are built FROM
+      // the pinned version, so a tree whose pinned charly has no checkout cannot
+      // derive it and cannot run them. Failing there would turn every such tree's
+      // verify red over a check that cannot run — the fail-closed-infrastructure
+      // class the sibling gates refuse — so the self-test SKIPS VISIBLY, names the
+      // one command that materializes the checkout, and exits 0.
+      console.log(`  SKIP  the self-test cannot run: the pinned charly's version could not be derived: ${pinned.notice}`);
+      console.log("  SKIP  materialize the pinned charly with: bash scripts/init-submodules.sh  (the working set includes charly)");
+      process.exit(0);
+    }
+    // A BROKEN pin is a defect in the tree, not a check that cannot run: the
+    // mutations below would be built from a version the tree cannot supply, and
+    // a self-test that SKIPS a broken pin reports success over a pin it cannot
+    // judge. So it is RED, and it names what is broken.
+    console.error(`  FAIL  the pinned charly's version could not be derived: ${pinned.notice}`);
+    console.error("check-cited-plugin-task-version --self-test: FAIL (the tree is broken — fix the pin, then re-run)");
+    process.exit(1);
   }
 
   const baseline = findings(shipped, pinned);
@@ -499,6 +649,85 @@ if (selfTest) {
     console.error("  FAIL  the gate did not judge the INDEX where the worktree and the index disagree");
   }
 
+  // A. The BUFFER CEILING — a tracked set over the 1 MiB default must be JUDGED, not
+  //    fatal. The pre-fix gate died with ENOBUFS on exactly this tree.
+  const big = bigTrackedSetFixture();
+  try {
+    let size = 0;
+    try {
+      size = gitOut(["-C", big, "ls-files", "-s", "-z"]).length;
+    } catch {
+      size = 0; // the read itself blew the ceiling: that IS the failure this case hunts
+    }
+    const judged = gateOn(big);
+    if (size > 1024 * 1024 && judged.code === 0 && /SKIP/.test(judged.out)) {
+      console.log(
+        `  PASS  the gate JUDGES a tracked set over the old 1 MiB default — ${size} bytes of ls-files output, exit ${judged.code}`,
+      );
+    } else {
+      stFails += 1;
+      console.error(
+        `  FAIL  the gate did not judge a tracked set over the old 1 MiB default (${size} bytes, exit ${judged.code})`,
+      );
+    }
+
+    // B. The ONE ceiling cannot be overridden by a call: a caller that asks for a
+    //    SMALLER buffer still gets the gate's one ceiling, because the ceiling is
+    //    applied AFTER the caller's options. With the spread last, this call
+    //    restored the exact defect the ceiling exists to remove.
+    let kept = false;
+    try {
+      kept = gitOut(["-C", big, "ls-files", "-s", "-z"], { maxBuffer: 1024 }).length > 1024;
+    } catch {
+      kept = false;
+    }
+    if (kept) {
+      console.log(
+        "  PASS  the one buffer ceiling cannot be overridden by a call — a caller's own maxBuffer does not replace it",
+      );
+    } else {
+      stFails += 1;
+      console.error("  FAIL  a caller's own maxBuffer replaced the gate's one buffer ceiling");
+    }
+  } finally {
+    rmSync(big, { recursive: true, force: true });
+  }
+
+  // C. A BROKEN pin is RED, not skipped: the pinned charly is materialized and its
+  //    go.mod requires no plugin-task, so this repo's citations cannot be judged
+  //    against it. The pre-fix gate SKIPPED it and exited 0.
+  const broken = brokenPinFixture();
+  try {
+    const judged = gateOn(broken);
+    if (judged.code === 1 && /requires no plugin-task version/.test(judged.out) && !/SKIP/.test(judged.out)) {
+      console.log(
+        "  PASS  a pin whose owner carries NO plugin-task version is RED — the check does not skip a broken pin",
+      );
+    } else {
+      stFails += 1;
+      console.error(`  FAIL  a broken pin was not RED (exit ${judged.code})`);
+    }
+  } finally {
+    rmSync(broken, { recursive: true, force: true });
+  }
+
+  // D. An ABSENT checkout is still a visible SKIP: the classification must not fail
+  //    closed on the infrastructure the sibling gates refuse to fail closed on.
+  const absent = absentCheckoutFixture();
+  try {
+    const judged = gateOn(absent);
+    if (judged.code === 0 && /SKIP/.test(judged.out)) {
+      console.log(
+        "  PASS  a pin whose checkout is not materialized is still a visible SKIP — the check does not fail closed on it",
+      );
+    } else {
+      stFails += 1;
+      console.error(`  FAIL  a pin with no checkout was not a visible SKIP (exit ${judged.code})`);
+    }
+  } finally {
+    rmSync(absent, { recursive: true, force: true });
+  }
+
   if (stFails) {
     console.error(`check-cited-plugin-task-version --self-test: FAIL (${stFails})`);
     process.exit(1);
@@ -509,7 +738,7 @@ if (selfTest) {
 
 const cites = scanCitations(root);
 const pinned = readPinned(root);
-if (!pinned.version) {
+if (!pinned.version && pinned.kind === "absent") {
   console.log(`check-cited-plugin-task-version: SKIP — ${pinned.notice}; the version cannot be derived, so no citation is judged`);
   process.exit(0);
 }
