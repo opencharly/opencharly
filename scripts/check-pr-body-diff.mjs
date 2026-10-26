@@ -50,13 +50,35 @@
 //      because a stale paste is well-formed. It is scoped to FENCED blocks (pasted
 //      output) and never to prose: prose may quote a line that has since moved, and
 //      that is a judgement, not a mechanical fact.
+//   C. Every claim a CHANGED RECORD states is VISIBLE IN THE BODY. A file under
+//      `CHANGELOG/` is a record of what happened; a correction PR rewrites one. The
+//      record's own claims must be reproducible from the body that publishes the
+//      correction, and the BODY is that reproduction:
+//        C1. every PATH the record's added prose names must be named in the body — a
+//            record that names a file and a body that never shows it is a record whose
+//            classification the reader cannot check;
+//        C2. every bare NUMBER the record's added prose states must appear in the
+//            body's PASTED OUTPUT — a quantity is a measurement, and a measurement is
+//            shown by a command's output, not asserted in prose.
+//      This arm exists because the `charly/pr-validator` BLOCKed a correction PR
+//      (2026-10-26, opencharly/opencharly#696) whose record stated "8 commits behind
+//      the corpus's main" and classified two corpus CHANGELOG files as the surviving
+//      hits — and whose body ran no command for the first and showed no sweep for the
+//      second. T, H, N and E all accepted it: the record's two claims were TRUE, and
+//      nothing in them was mechanically FALSE. The defect was REPRODUCIBILITY, and the
+//      record's own evidence — the corpus sweep it classified — was in the record while
+//      the body carried a different, thinner set. The arm is scoped to files under
+//      `CHANGELOG/` and to the diff's ADDED lines: the normal flow never adds one (the
+//      merge writes the record FROM the body), so the arm is live only for a
+//      correction, which is exactly where the class lives.
 //
 // NOT asserted, and why: whether the body's prose about a file is TRUE. A row that says
 // the README carries a change the README does not carry is a judgement, and judgement is
 // the validator's job — this gate removes only the class that needs none. A COUNT is not
 // that class: it is the diff's own arithmetic, so the diff can decide it. A pasted
 // OUTPUT LINE is the same class as a count: it is the tree's own text, and the tree can
-// decide it.
+// decide it. A QUANTITATIVE CLAIM in a record is the same class again: the number is
+// the command's own output, and the body can decide whether it shows.
 //
 // Usage: node scripts/check-pr-body-diff.mjs [--body <path>] [--repo <dir>] [--base <ref>] [--self-test]
 // exit 0 clean · 1 finding · 2 usage
@@ -340,6 +362,94 @@ function checkEvidence(body) {
     ok(`every pasted evidence line resolves in the tree being pushed (${refs.length} reference(s))`);
 }
 
+/**
+ * A path-like token: a slash and an extension (`dir/file.ext`). A record names a file;
+ * the body must show the same name, so a reader can find the evidence behind it.
+ */
+function pathTokens(text) {
+  const out = new Set();
+  for (const m of text.matchAll(/[A-Za-z0-9_.\-]*\/[A-Za-z0-9_.\-]*\.[A-Za-z0-9_]+/g)) {
+    const t = m[0].replace(/[.,;:)]+$/, "");
+    if (t.length > 3 && !t.includes("..")) out.add(t);
+  }
+  return out;
+}
+
+/**
+ * The bare NUMBERS a text states: integers that are not part of a version-like token
+ * (`2026.299.0132`), not part of a letter-adjacent token (`d0d55ccc`, `9540ca5371` —
+ * their digits never sit on a word boundary), and not an issue or PR reference
+ * (`#185`).
+ */
+function numberTokens(text) {
+  const masked = text.replace(/\b\d+(?:\.\d+)+\b/g, " ").replace(/#\d+\b/g, " ");
+  const out = new Set();
+  for (const m of masked.matchAll(/\b\d+\b/g)) out.add(m[0]);
+  return out;
+}
+
+/**
+ * The ADDED lines of every changed file under `CHANGELOG/` — the records this diff
+ * rewrites. A record is written by the merge FROM a body, so a diff that adds one is
+ * a correction: the body publishing the correction must carry the record's claims.
+ */
+function recordAdditions(baseRef, statuses) {
+  const out = [];
+  for (const [, file] of statuses) {
+    if (!file.startsWith("CHANGELOG/")) continue;
+    const diff = gitRaw("diff", `${baseRef}...HEAD`, "--", file);
+    if (diff === null) continue;
+    const added = diff
+      .split("\n")
+      .filter((l) => l.startsWith("+") && !l.startsWith("+++"))
+      .join("\n");
+    if (added.trim() === "") continue;
+    out.push({ file, added });
+  }
+  return out;
+}
+
+/**
+ * C. Every claim a changed record states is visible in the body.
+ */
+function checkRecordClaims(body, baseRef, statuses) {
+  const records = recordAdditions(baseRef, statuses);
+  if (records.length === 0) {
+    notice("the diff rewrites no CHANGELOG record — the record-claim rule is inapplicable");
+    return;
+  }
+  const bodyPaths = pathTokens(body);
+  const bodyNumbers = numberTokens(
+    fencedBlocks(body)
+      .map((b) => b.lines.map((l) => l.text).join("\n"))
+      .join("\n"),
+  );
+  let bad = 0;
+  for (const r of records) {
+    for (const p of pathTokens(r.added)) {
+      if (bodyPaths.has(p)) continue;
+      bad += 1;
+      fail(
+        `the record ${r.file} names "${p}", and the body does not name it — the record's evidence ` +
+          `is not in the body, so the claim it makes is not reproducible from the PR`,
+      );
+    }
+    for (const n of numberTokens(r.added)) {
+      if (bodyNumbers.has(n)) continue;
+      bad += 1;
+      fail(
+        `the record ${r.file} states the number ${n}, and the body's pasted output does not show it — ` +
+          `a quantity is a measurement, and a measurement is shown by a command's output`,
+      );
+    }
+  }
+  if (bad === 0)
+    ok(
+      `every claim the ${records.length} rewritten record(s) state is visible in the body ` +
+        `(paths and numbers)`,
+    );
+}
+
 function check() {
   if (!existsSync(bodyPath)) {
     notice(`no body at ${bodyPath} — nothing to reconcile`);
@@ -393,6 +503,11 @@ function check() {
   // file table, so it runs whether or not the body carries one.
   checkCounts(body, table, statuses);
 
+  // C. the record's claims, against the body that publishes the correction. It runs
+  // before the table arm and independently of it: a body that carries no table still
+  // has to show what a rewritten record claims.
+  checkRecordClaims(body, baseRef, statuses);
+
   // T. the file table.
   if (table === null) {
     notice("the body carries no file table — the table rule is inapplicable");
@@ -435,6 +550,13 @@ if (argv.includes("--self-test")) {
     writeFileSync(join(repo, "a.txt"), "a2\n");
     writeFileSync(join(repo, "c.txt"), "c\n");
     writeFileSync(join(repo, "scripts/two.sh"), "#!/bin/sh\n");
+    // A RECORD the correction rewrites: it names a file (`scripts/one.sh`) and states a
+    // number (2 lines), and both must be visible in the body that publishes it.
+    mkdirSync(join(repo, "CHANGELOG"), { recursive: true });
+    writeFileSync(
+      join(repo, "CHANGELOG/2026.001.0001.md"),
+      "## Summary\n\nThe gate script `scripts/one.sh` grew by 2 lines.\n",
+    );
     g("add", "-A");
     g("commit", "-q", "-F", join(scratch, "msg.txt"));
     const head = g("rev-parse", "HEAD").stdout.trim();
@@ -451,6 +573,7 @@ A fixture body.
 | file | what it carries |
 |---|---|
 ${tableRows}
+| \`CHANGELOG/2026.001.0001.md\` | a record |
 
 ## How tested
 
@@ -460,7 +583,7 @@ ${pastedSha}
 \`\`\`
 
 \`\`\`
-$ grep -n one scripts/one.sh
+$ grep -n one scripts/two.sh
 ${evidence}
 \`\`\`
 
@@ -544,6 +667,26 @@ ${claim || "Test fixture, not a real change."}
           "scripts/blank.sh:1:#!/bin/sh",
         ),
         "the evidence was taken on another tree",
+      ],
+      [
+        "the record names a file the body does not name",
+        body(
+          "| `a.txt` | a change |\n| `c.txt` | a change |\n| `scripts/two.sh` | a change |",
+          head,
+          "",
+          "scripts/blank.sh:2:#!/bin/sh",
+        ),
+        "the body does not name it",
+      ],
+      [
+        "the record states a number the body's pasted output does not show",
+        body(
+          "| `a.txt` | a change |\n| `c.txt` | a change |\n| `scripts/two.sh` | a change |",
+          head,
+          "",
+          "scripts/one.sh:1:#!/bin/sh",
+        ),
+        "the body's pasted output does not show it",
       ],
     ];
     for (const [name, text, expect] of arms) {
