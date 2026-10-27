@@ -699,7 +699,7 @@ verify:
       - check: the cross-surface governance claims reconcile in the STRONG form — every surface this checkout carries is asserted, and a surface whose owner repo is present but whose file is ABSENT is a STALE POINTER and FAILS (not a skip)
         command: node scripts/check-governance-reconcile.mjs
         context: [runtime]
-      - check: the governance-reconcile gate discriminates — a reconcile that fails turns the gate RED, a passing one turns it GREEN, and a checkout that does not carry the reconcile is a visible SKIP (fixtures)
+      - check: the governance-reconcile gate discriminates — a reconcile that fails turns the gate RED, a passing one turns it GREEN, a checkout that does not carry the reconcile is a visible SKIP, and the strong form is invoked with --root <the checkout> (fixtures)
         command: node scripts/check-governance-reconcile.mjs --self-test
         context: [runtime]
 
