@@ -59,6 +59,22 @@ const SKIP_MARK = "governance-reconcile: SKIP";
 // parent reads it, so the skip is a MARK the parent can see — not a behaviour
 // the parent has to infer from the absence of a failure.
 const NESTED_SKIP_MARK = "SKIP  mutation '";
+// The line the two status mutations below break, spelled ONCE (R2). The two
+// entries break the SAME line in DIFFERENT ways — one swallows the reconcile's
+// exit status, one turns a PASSING reconcile red — so they share ONE target,
+// and the two cannot drift apart.
+const STATUS_TARGET = /const status = res\.code;/;
+
+/**
+ * A spawn result, as the gate reads it: the exit status and the output.
+ *
+ * A child killed by a signal leaves `status` null — that is a FAILURE, not a
+ * success — so a null status is 1. The rule and the stdout+stderr join are
+ * spelled ONCE here, and every spawn in this harness reads them from here.
+ */
+function spawnResult(r) {
+  return { code: r.status === null ? 1 : r.status, out: `${r.stdout ?? ""}${r.stderr ?? ""}` };
+}
 
 /**
  * How many times `target` occurs in `source`.
@@ -86,9 +102,11 @@ function runGate(rootDir) {
   if (r.error) {
     return { code: 1, out: `governance-reconcile: FAIL — the reconcile could not be run: ${r.error.message}` };
   }
-  const out = `${r.stdout ?? ""}${r.stderr ?? ""}`.trimEnd();
-  const status = r.status === null ? 1 : r.status;
-  return { code: status, out };
+  const res = spawnResult(r);
+  // `status` is its own line on purpose: it is the HANDLE the status mutations
+  // break, so a mutation reaches THIS call site and not the harness's others.
+  const status = res.code;
+  return { code: status, out: res.out.trimEnd() };
 }
 
 /** The gate's own verdict, printed as the gate prints it. */
@@ -166,7 +184,7 @@ function makeFixture(source, { withReconcile, exitCode, marker }) {
 /** Run the gate copy inside a fixture checkout. */
 function runFixture(dir) {
   const r = spawnSync("node", [join(dir, "scripts", "check-governance-reconcile.mjs")], { encoding: "utf8" });
-  return { code: r.status === null ? 1 : r.status, out: `${r.stdout ?? ""}${r.stderr ?? ""}` };
+  return spawnResult(r);
 }
 
 /**
@@ -224,7 +242,7 @@ function runSelfTest(dir) {
     // "self" mutation is SKIPPED there (visibly, below).
     env: { ...process.env, GOVREC_SELFTEST_NESTED: "1" },
   });
-  return { code: r.status === null ? 1 : r.status, out: `${r.stdout ?? ""}${r.stderr ?? ""}` };
+  return spawnResult(r);
 }
 
 function selfTest() {
@@ -270,11 +288,13 @@ function selfTest() {
   // ordering from the unguarded one (opencharly/opencharly#727). A regex's own
   // source is not the text it matches, so every target below occurs EXACTLY
   // ONCE in this file — and the harness PROVES that, per mutation, before it
-  // applies one.
+  // applies one. Two of the five entries break the SAME line in DIFFERENT
+  // ways, and they share ONE target (STATUS_TARGET), so the two cannot drift
+  // apart (R2).
   const mutations = [
     [
       "the gate stops propagating the reconcile's exit status",
-      /const status = r\.status === null \? 1 : r\.status;/,
+      STATUS_TARGET,
       "const status = 0;",
       "B",
       "gate",
@@ -295,8 +315,8 @@ function selfTest() {
     ],
     [
       "the gate turns a passing reconcile red",
-      /const status = r\.status === null \? 1 : r\.status;/,
-      "const status = r.status === 0 ? 1 : r.status;",
+      STATUS_TARGET,
+      "const status = res.code === 0 ? 1 : res.code;",
       "A",
       "gate",
     ],
@@ -341,6 +361,10 @@ function selfTest() {
       // That refusal is what makes the guard's POSITION observable: with the
       // guard moved back, the nested run reports two failures instead of one,
       // and the parent turns RED.
+      // `failures.length === 1` is checked FIRST, so `failures[0]` is read only
+      // when the nested run reported EXACTLY ONE failure: it is the ONLY
+      // failure, not the first of several. The assertion under test need not be
+      // the FIRST `FAIL` line — it need only be the only one.
       const failures = [...after.out.matchAll(/^ {2}FAIL {2}(.*)$/gm)].map((m) => m[1]);
       const caught = after.code !== 0 && failures.length === 1 && failures[0].startsWith(`${mustBreak}:`);
       const skipped = after.out.includes(NESTED_SKIP_MARK);
