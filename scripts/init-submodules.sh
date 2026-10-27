@@ -584,7 +584,20 @@ materialize_uninitialized() {
 #
 # The exclusion is by PATHSPEC, so the parent's own uncommitted work — tracked,
 # staged or untracked — is still reported: only the DECLARED nested paths leave
-# the view. The declared set is the same one the nested pass reads, and an
+# the view. One case sits AT that boundary, and it is measured (2026-10-27): a
+# STAGED change to a declared nested path's OWN gitlink IS the parent's own
+# uncommitted work, and the parent's WHOLE view reports it (as `M <nested>`) —
+# but it sits AT the excluded path, so the GUARD's view does not carry it, and
+# the guard sees a clean path. The advance then reaches git's own checkout, and
+# git decides, measured BOTH ways: when the recorded gitlink's tree records a
+# DIFFERENT commit for that nested path, git REFUSES ("Your local changes to
+# the following files would be overwritten by checkout") and the run fails loud
+# with the path's HEAD unmoved and the staged change intact; when it records
+# the commit the current tree already records, the checkout does not touch that
+# entry, the advance SUCCEEDS, and the staged change survives, still staged.
+# Neither way is the staged change LOST — the decision is git's, not this
+# guard's own notice, and that qualification is what this comment carries.
+# The declared set is the same one the nested pass reads, and an
 # unreadable one FAILS LOUD rather than silently widening the view.
 own_work_status() {
   local path="$1" nested_set nested_rc=0

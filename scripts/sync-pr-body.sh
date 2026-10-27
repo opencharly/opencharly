@@ -2,13 +2,13 @@
 set -euo pipefail
 
 # sync-pr-body.sh — build the sync PR's body + the evidence file, so the
-# 65536-char body cap is enforced by TESTED code, not by an untestable inline workflow
+# body's size cap is enforced by TESTED code, not by an untestable inline workflow
 # block.
 #
 # WHY THIS IS ITS OWN SCRIPT: the sync PR's body was once built inline in the (since
 # removed) `.github/workflows/sync.yml` as a large `printf`/`echo` block. That block had a
 # real defect (measured 2026-09-22): the org-wide ruleset cutover advanced 393 pins in one
-# sync, the body exceeded GitHub's 65536-char limit, and `gh pr create` failed "Body is
+# sync, the body exceeded GitHub's body limit, and `gh pr create` failed "Body is
 # too long". Extracting the builder here makes the bounding + the hard guard + the
 # evidence-file assembly exerciseable in-tree (`--self-test`), exactly as
 # `sync-pin-evidence.sh` is.
@@ -29,8 +29,10 @@ set -euo pipefail
 #
 # Bounds (all overridable): PRODUCER_MAX (default 200), SYNC_EVIDENCE_MAX_BYTES
 # (default 50000, passed to sync-pin-evidence.sh for the per-pin table — a fallback
-# guard only; the FULL table renders at fleet scale). GITHUB_BODY_MAX (default 65536)
-# is the platform cap the hard guard enforces.
+# guard only; the FULL table renders at fleet scale). GITHUB_BODY_MAX overrides the
+# platform cap the hard guard enforces; the cap ITSELF is the ONE number in
+# `scripts/lib/pr-body-cap` — the same file the umbrella's body/diff gate reads
+# (R2), so the two cannot drift apart.
 #
 # NO separate moved-path list is emitted: the per-pin evidence table names every moved
 # path AND carries its proof, so a second list is redundant bytes. The table is inlined
@@ -38,8 +40,32 @@ set -euo pipefail
 # output (the validator BLOCKed exactly that).
 
 PRODUCER_MAX="${PRODUCER_MAX:-200}"
-GITHUB_BODY_MAX="${GITHUB_BODY_MAX:-65536}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PR_BODY_CAP_FILE="$SCRIPT_DIR/lib/pr-body-cap"
+
+# The ONE cap. It is read from the file, never written here: a second copy of the
+# number in this script is a second cap, and the two would disagree the first time
+# one of them is changed. The reader takes the first line that is neither blank nor
+# a comment and REQUIRES a positive integer — a cap that cannot be read fails loud,
+# because a silently substituted default is a cap nobody chose.
+PR_BODY_CAP_BYTES=""
+if [ -r "$PR_BODY_CAP_FILE" ]; then
+  PR_BODY_CAP_BYTES="$(awk '/^[[:space:]]*#/ { next } NF { gsub(/[[:space:]]/, ""); print; exit }' \
+    "$PR_BODY_CAP_FILE" 2>/dev/null || true)"
+fi
+case "$PR_BODY_CAP_BYTES" in
+  '' | *[!0-9]*)
+    echo "::error::the PR body's size cap cannot be read from ${PR_BODY_CAP_FILE} — the ONE cap is missing or is not a number ('${PR_BODY_CAP_BYTES}')" >&2
+    exit 1
+    ;;
+esac
+if [ "$PR_BODY_CAP_BYTES" -le 0 ]; then
+  echo "::error::the PR body's size cap in ${PR_BODY_CAP_FILE} is not a positive integer (${PR_BODY_CAP_BYTES})" >&2
+  exit 1
+fi
+# The EFFECTIVE cap: the platform's, unless the caller overrides it for a tighter
+# local policy or a fixture.
+GITHUB_BODY_MAX="${GITHUB_BODY_MAX:-$PR_BODY_CAP_BYTES}"
 
 # producer_log_excerpt <max-lines> reads the producer log on stdin and prints at
 # most <max-lines> lines VERBATIM. It deliberately parses NOTHING: the retired
@@ -292,6 +318,11 @@ if [ "${1:-}" = "--self-test" ]; then
   # Rule 7's `Agent:` line, caller-supplied the same way, so the ordering + tracking arms
   # below can name a value the fixture actually set rather than one that merely looks right.
   export SYNC_AGENT='`self-test-slug` · session `00000000-0000-0000-0000-000000000000`'
+  # The cap the fixtures build under is the ONE cap, pinned: an ambient
+  # GITHUB_BODY_MAX in the caller's shell must not decide whether the fleet-scale
+  # fixture fits, so the self-test states the platform's cap itself. The arm that
+  # needs a smaller cap sets its own, in a subshell.
+  export GITHUB_BODY_MAX="$PR_BODY_CAP_BYTES"
   # Make the fixture a real git repo: sync-pin-evidence.sh's staged_gitlink()/`git config`
   # run under `set -e`, and a non-repo would spew `fatal: not a git repository` per row.
   git -C "$tmp" init -q
@@ -354,8 +385,8 @@ if [ "${1:-}" = "--self-test" ]; then
   build_body "$tmp" "$moved" "$producer" "$pinlog" "$tmp/body" "$tmp/ev" \
     || fail "fleet-scale (${FLEET}-pin) input must build under the cap, not trip the guard"
   bytes=$(wc -c < "$tmp/body")
-  [ "$bytes" -lt 65536 ] || fail "fleet-scale body is ${bytes} bytes (>= 65536)"
-  echo "sync-pr-body self-test: fleet-scale (${FLEET}-pin) rendered body = ${bytes} bytes (< 65536)"
+  [ "$bytes" -lt "$PR_BODY_CAP_BYTES" ] || fail "fleet-scale body is ${bytes} bytes (>= ${PR_BODY_CAP_BYTES})"
+  echo "sync-pr-body self-test: fleet-scale (${FLEET}-pin) rendered body = ${bytes} bytes (< ${PR_BODY_CAP_BYTES})"
   grep -q "^\*\*${FLEET}\*\* gitlink(s) moved\." "$tmp/body" || fail "body must name the TRUE total (${FLEET})"
   grep -q 'legend: <path>  <staged-gitlink>  <remote-HEAD>  <flag>' "$tmp/body" || fail "body must carry the compact-table legend"
   # THE FIX: the BODY carries the COMPLETE table — no elision, every row full width.
@@ -555,9 +586,12 @@ if [ "${1:-}" = "--self-test" ]; then
     || fail "the tier line must track the trailer's tier, not a fixed literal"
 
   # The HARD GUARD: a body over the cap must FAIL LOUD (never silently pass).
-  GITHUB_BODY_MAX=100 build_body "$tmp" "$moved" "$producer" "$pinlog" "$tmp/body3" "$tmp/ev3" 2>"$tmp/err" \
+  # The smaller cap lives in a SUBSHELL: a variable assignment in front of a shell
+  # FUNCTION outlives the call in bash, and a cap of 100 that leaked into the
+  # fixtures below would decide their fate instead of the platform's cap.
+  ( GITHUB_BODY_MAX=100 build_body "$tmp" "$moved" "$producer" "$pinlog" "$tmp/body3" "$tmp/ev3" 2>"$tmp/err" ) \
     && fail "over-cap body must trip the hard guard (non-zero)"
-  grep -q '65536\|100' "$tmp/err" || fail "guard must name the offending size/cap on stderr"
+  grep -q '> 100 GitHub cap' "$tmp/err" || fail "guard must name the offending size/cap on stderr"
 
   # A FAILING evidence builder must fail the build LOUD. This arm is the one that makes
   # the guard above a claim rather than a hope: the self-test calls `build_body … ||
@@ -588,7 +622,7 @@ if [ "${1:-}" = "--self-test" ]; then
   grep -q 'below the fleet-scale floor' "$tmp/err-fleet" \
     || fail "the floor guard must name the floor, on stderr"
 
-  echo "sync-pr-body: self-test OK (fleet-scale BODY — the umbrella's live submodule count, read from .gitmodules — carries the COMPLETE compact evidence table — every path named, no elision — and stays under the 65536 cap; the caller's evidence file keeps a convenience copy; neither names a CI run artifact; small input names its paths with no elision; the producer excerpt is verbatim for BOTH the historical per-pin form and the CURRENT summary shape (pinned N pin_map entr(y|ies) … in the index); the body carries the four required sections, the Change classification's change class + verification gate + attribution tier, and rule 7's two-line footer — the Agent: line directly above the italic Assisted-by trailer as the FINAL line, and exactly ONE literal 'Assisted-by:' in the body so squash_body.py's prose contract holds; an unset SYNC_AGENT fails loud, and the Agent: line is shown to TRACK its variable rather than a literal; a trailer with no (tier) fails loud; over-cap trips the hard guard; a .gitmodules with no submodule entry counts as 0 and reaches the floor guard's own message instead of aborting on grep's exit status)"
+  echo "sync-pr-body: self-test OK (fleet-scale BODY — the umbrella's live submodule count, read from .gitmodules — carries the COMPLETE compact evidence table — every path named, no elision — and stays under the ${PR_BODY_CAP_BYTES}-byte cap; the caller's evidence file keeps a convenience copy; neither names a CI run artifact; small input names its paths with no elision; the producer excerpt is verbatim for BOTH the historical per-pin form and the CURRENT summary shape (pinned N pin_map entr(y|ies) … in the index); the body carries the four required sections, the Change classification's change class + verification gate + attribution tier, and rule 7's two-line footer — the Agent: line directly above the italic Assisted-by trailer as the FINAL line, and exactly ONE literal 'Assisted-by:' in the body so squash_body.py's prose contract holds; an unset SYNC_AGENT fails loud, and the Agent: line is shown to TRACK its variable rather than a literal; a trailer with no (tier) fails loud; over-cap trips the hard guard; a .gitmodules with no submodule entry counts as 0 and reaches the floor guard's own message instead of aborting on grep's exit status)"
   exit 0
 fi
 

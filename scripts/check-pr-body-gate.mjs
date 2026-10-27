@@ -208,6 +208,12 @@ async function fire() {
     }
     mkdirSync(join(repo, "scripts"), { recursive: true });
     cpSync(reconciler, join(repo, "scripts/check-pr-body-diff.mjs"));
+    // The reconciler reads the ONE cap from `scripts/lib/pr-body-cap`, beside itself.
+    // The copy travels with it, for the same reason the reconciler does: the hook runs
+    // the COPY, and a copy without its cap file would read no cap and fail loud — a
+    // finding about the fixture, not about the body.
+    mkdirSync(join(repo, "scripts/lib"), { recursive: true });
+    cpSync(join(root, "scripts/lib/pr-body-cap"), join(repo, "scripts/lib/pr-body-cap"));
 
     // The linter as the hook finds it: <repo>/marketplace/scripts/pr_body_lint.py — and it
     // imports a SIBLING module (`squash_body.py`), so the directory is copied WHOLE. A
@@ -298,6 +304,27 @@ async function fire() {
       staleHead.code === 1 && /does not describe the diff/.test(staleHead.out),
       `hooks/pre-push FIRED: a body whose pasted \`git rev-parse HEAD\` is not the head being pushed is BLOCKED at the push`,
     );
+
+    // F8 — a body whose fences DO NOT PAIR is BLOCKED. The org linter reads the body's
+    //      LINES, so a heading inside an unpaired fence counts as a present section and
+    //      the body shows none; the reconciler is the arm that sees it.
+    writeFileSync(defaultBody, GOOD_BODY.replace("```\n$ true\n```", "```\n$ true"));
+    const unpaired = run();
+    expect(
+      unpaired.code === 1 && /fences do not pair/.test(unpaired.out),
+      `hooks/pre-push FIRED: a body whose fences do not pair is BLOCKED at the push, and the finding names the fences`,
+    );
+
+    // F9 — a body OVER the cap is BLOCKED, and the finding names the cap. The cap is
+    //      the ONE number, overridden here to a small one so the fixture body is over
+    //      it without a 64 KiB fixture: the override is the same knob the cap file
+    //      documents, and both readers honour it.
+    writeFileSync(defaultBody, GOOD_BODY);
+    const overCap = run({ GITHUB_BODY_MAX: "100" });
+    expect(
+      overCap.code === 1 && /GitHub cap/.test(overCap.out),
+      `hooks/pre-push FIRED: a body over the size cap is BLOCKED at the push, and the finding names the cap`,
+    );
   } catch (err) {
     fail(`firing ${rel} (${err instanceof Error ? err.message : String(err)})`);
   } finally {
@@ -318,6 +345,10 @@ if (argv.includes("--self-test")) {
   // reconciler — a stub would prove nothing about the thing the hook runs.
   mkdirSync(join(tmp, "scripts"), { recursive: true });
   cpSync(join(root, "scripts/check-pr-body-diff.mjs"), join(tmp, "scripts/check-pr-body-diff.mjs"));
+  // The reconciler reads the ONE cap from `scripts/lib/pr-body-cap`, beside itself —
+  // so the copy of the reconciler travels with the copy of the cap.
+  mkdirSync(join(tmp, "scripts/lib"), { recursive: true });
+  cpSync(join(root, "scripts/lib/pr-body-cap"), join(tmp, "scripts/lib/pr-body-cap"));
   // `fire()` needs the REAL linter — and the linter imports a sibling module, so the whole
   // scripts directory travels with it. When the submodule is absent this root carries no
   // marketplace at all, the fired assertions skip, and the mutations that depend on them are
