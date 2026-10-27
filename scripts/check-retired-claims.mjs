@@ -279,6 +279,45 @@ const PATTERNS = [
     ],
     why: "the retired MECHANISM claim — that the staged gitlink is read out of the index with `git rev-parse --verify`. The index entry is read with `git ls-files -s` (opencharly/opencharly#666)",
   },
+  {
+    // THE CLASS: a claim that the umbrella records a path's gitlink with a BARE
+    // `git ls-tree HEAD --` pathspec. The truth: the read is LITERAL, because git
+    // reads a path argument as a PATHSPEC and a name that BEGINS WITH `:` is
+    // pathspec MAGIC — the plain form then matches NOTHING, silently, with exit 0
+    // and no error (opencharly/opencharly#740).
+    //
+    // WHY THIS CLASS WAS WORTH KEYING, and not just corrected in one PR: the header
+    // that carried the retired wording states how the record is OBTAINED, so a reader
+    // is told how the value was read. A header that names a read the code no longer
+    // performs is a false claim about the product, and it is the kind that comes BACK
+    // — a header is prose, and prose gets copied forward.
+    //
+    // The shape is the PLACEHOLDER: a legend that names the read generically writes
+    // the argument as `<path>`. A claim that names a CONCRETE argument is a different
+    // thing, and the code's own measured note quotes concrete arguments ON PURPOSE
+    // (`'a*b'`, `':colonpath'`) to show the two behaviours apart — so the pattern keys
+    // the placeholder, and the counter-instances below are those concrete wordings,
+    // which must stay GREEN. A key that matched the bare command would fire on the
+    // note that explains why the bare command is wrong, and the gate would be
+    // switched off.
+    pattern: "ls-tree HEAD -- <",
+    instances: [
+      // the retired header wording — the umbrella's evidence builder's own header,
+      // which stated how the recorded gitlink is obtained
+      "the umbrella records (`git ls-tree HEAD -- <path>`); a submodule that is uninitialised or sitting on another commit must not turn a correct pin into a false `not-equal`.",
+    ],
+    counterInstances: [
+      // TRUE: the read is LITERAL — the header's own wording today
+      "the umbrella records (`git ls-tree HEAD -- ':(literal)<path>'`); a submodule that is uninitialised or sitting on another commit must not turn a correct pin into a false `not-equal`.",
+      // TRUE: the code's own form
+      "git -C \"$root\" ls-tree HEAD -- \":(literal)$p\" 2>/dev/null | awk 'NR==1{print $1\" \"$3}'",
+      // TRUE: the measured note names a CONCRETE argument, to show the two behaviours apart
+      "`ls-tree` does NOT glob: `ls-tree HEAD -- 'a*b'` already returns only the",
+      // TRUE: the other measured counter-example — the plain form matches nothing
+      "silently, exit 0, no output and no error (measured: `ls-tree HEAD -- ':colonpath'`",
+    ],
+    why: "the retired MECHANISM claim — that the umbrella records a path's gitlink with a BARE `git ls-tree HEAD --` pathspec. Git reads a path argument as a PATHSPEC, and a name that BEGINS WITH `:` is pathspec MAGIC: the plain form matches NOTHING, silently. The read is `git ls-tree HEAD -- ':(literal)<path>'` (opencharly/opencharly#740)",
+  },
 ];
 
 const fail = (m) => {

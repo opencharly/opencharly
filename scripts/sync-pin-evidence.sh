@@ -10,9 +10,11 @@
 # by the pre-commit gate), not a string nobody can exercise.
 #
 # The STAGED GITLINK — never the submodule's working-tree HEAD — is the pinned commit
-# the umbrella records (`git ls-tree HEAD -- <path>`); a submodule that is
+# the umbrella records (`git ls-tree HEAD -- ':(literal)<path>'`); a submodule that is
 # uninitialised or sitting on another commit must not turn a correct pin into a false
-# `not-equal`.
+# `not-equal`. The literal pathspec is not optional: git reads a path argument as a
+# PATHSPEC, and a name that BEGINS WITH `:` is pathspec MAGIC, which the plain form
+# matches silently and wrongly (see the measured note on head_entry below).
 #
 # Modes:
 #   (default) <root> <pin-check-log>   read MOVED (one path per line) from stdin; print
@@ -120,7 +122,10 @@ pin_row() {
 # disagree. git's hook-exported repo vars are scrubbed so `-C "$root"` truly targets $root
 # (measured: an unsanitized `-C` wrote into the CALLING repo). `ls-files -s` prints
 # "<mode> <sha> <stage>", so the sha is the SECOND field. The pathspec is `:(literal)` so
-# a path whose NAME carries a glob character is read as itself.
+# a path whose NAME carries a glob character is read as itself, and so a path whose NAME
+# BEGINS WITH `:` is read as itself rather than as pathspec MAGIC. `head_entry` states
+# the measurement, and the two readers take the SAME pathspec so they read the same path
+# set — the pair's whole reason to exist.
 index_entry() {
   local root="$1" p="$2"
   unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES
@@ -130,10 +135,31 @@ index_entry() {
 # head_entry <root> <path> — HEAD's record for <path>: "<mode> <sha>", or EMPTY when HEAD
 # does not record it either. `ls-tree` prints "<mode> <type> <sha>", so the sha is the
 # THIRD field — the one place the two readers' field layouts are normalized.
+#
+# The pathspec is `:(literal)`, so this reader reads the SAME path set as its sibling
+# `index_entry` — and that is the whole point of the pair: a changed path's
+# classification must be ONE measurement of the index and HEAD, not two reads that can
+# disagree.
+#
+# WHY `:(literal)` — measured (git 2.56.0, 2026-10-27). The two git commands need it for
+# DIFFERENT reasons, and the difference is easy to get backwards:
+#
+#   - `ls-files` GLOBS a pathspec: `ls-files -s -- 'a*b'` returns BOTH `a*b` AND a
+#     sibling `a!b` (and `a!b` sorts FIRST, so a reader that takes the first record
+#     returns a DIFFERENT path's record). `:(literal)` returns `a*b` alone. That is why
+#     `index_entry` needs it.
+#   - `ls-tree` does NOT glob: `ls-tree HEAD -- 'a*b'` already returns only the
+#     literally-named `a*b`. It needs `:(literal)` for the OTHER case — a path whose
+#     NAME BEGINS WITH `:` is PATHSPEC MAGIC, and the plain form then matches NOTHING:
+#     silently, exit 0, no output and no error (measured: `ls-tree HEAD -- ':colonpath'`
+#     is empty; `ls-tree HEAD -- ':(literal):colonpath'` is the record). A reader that
+#     is silently wrong is indistinguishable from a reader that is right, so the
+#     disagreement this caused was invisible: the body classified a path this diff
+#     DELETES as a carried file (opencharly/opencharly#740).
 head_entry() {
   local root="$1" p="$2"
   unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES
-  git -C "$root" ls-tree HEAD -- "$p" 2>/dev/null | awk 'NR==1{print $1" "$3}'
+  git -C "$root" ls-tree HEAD -- ":(literal)$p" 2>/dev/null | awk 'NR==1{print $1" "$3}'
 }
 
 # is_gitlink_path <root> <path> — true when the RECORDED entry for <path> is a submodule
@@ -491,6 +517,87 @@ charly.yml" "" || fail "a manifest edit among plain files must still touch an in
     && fail "is_removed_path must be FALSE for a path the index records"
   is_removed_path "$tmp" absent-path \
     && fail "is_removed_path must be FALSE for a path neither the index nor HEAD records"
+
+  # THE READERS MUST READ THE SAME PATH SET (opencharly/opencharly#740).
+  #
+  # The pair `index_entry`/`head_entry` exists so a changed path's classification is ONE
+  # measurement of the index and HEAD, not two reads that can disagree. They COULD
+  # disagree: `index_entry` took a `:(literal)` pathspec and `head_entry` did not, and a
+  # path whose NAME BEGINS WITH `:` is PATHSPEC MAGIC in git — the plain form matches
+  # NOTHING, silently (exit 0, no output, no error), so `head_entry` could not see a path
+  # `HEAD` records. The body then classified a path this diff DELETES as a carried file
+  # (measured 2026-10-27 on the pre-fix tree: `  :colonpath    (file)`).
+  #
+  # The producer names such paths VERBATIM — `git diff --cached --name-only` does not
+  # quote them (measured: `:colonpath` and `a*b` come through as themselves) — so the
+  # list that reaches this script CAN carry them. These arms drive both readers with a
+  # path whose NAME git may reinterpret.
+  scratch tmp2
+  fixture3() (
+    unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES
+    cd "$tmp2"
+    git init -q
+    git config user.email t@t; git config user.name t
+    # A path whose NAME BEGINS WITH `:` — PATHSPEC MAGIC, and a legal git path.
+    printf 'one\n' > ':colonpath'
+    # A path whose NAME carries a glob character, and a SIBLING the same pathspec also
+    # matches. `a!b` sorts BEFORE `a*b`, so a GLOBBING reader takes the sibling's record
+    # first — and the files carry DIFFERENT content, so a wrong record shows up as a
+    # DIFFERENT sha rather than as an absence.
+    printf 'two\n' > 'a*b'
+    printf 'three\n' > 'a!b'
+    git add -A
+    git commit -qm one
+    # Now the index drops the colon-named path: HEAD still records it, the index does
+    # not — the state a deletion is in between `git add -A` and the commit.
+    git update-index --force-remove -- ':colonpath'
+  )
+  fixture3 >/dev/null
+
+  # head_entry must SEE a path HEAD records whose name begins with `:`.
+  got=$(head_entry "$tmp2" ':colonpath')
+  [ -n "$got" ] \
+    || fail "head_entry must read a path whose NAME begins with ':' — git reads that plain pathspec as PATHSPEC MAGIC and matches NOTHING (silently, exit 0), so this reader needs the same ':(literal)' pathspec its sibling index_entry carries"
+
+  # So the removal is seen: HEAD records it, the index does not — this diff DELETES it.
+  is_removed_path "$tmp2" ':colonpath' \
+    || fail "is_removed_path must be TRUE for a path whose NAME begins with ':' (HEAD records it, the index does not — this diff DELETES it)"
+
+  # A path the index records is not a removal — whatever its name looks like.
+  is_removed_path "$tmp2" 'a*b' \
+    && fail "is_removed_path must be FALSE for a path the index records"
+
+  # Both readers read a glob-named path as ITSELF, not as a pathspec that also matches
+  # its sibling. If either reader lost its `:(literal)`, the two would report the SAME
+  # sha here — the sibling's.
+  glob_sha=$(index_entry "$tmp2" 'a*b')
+  sib_sha=$(index_entry "$tmp2" 'a!b')
+  [ -n "$glob_sha" ] && [ -n "$sib_sha" ] \
+    || fail "index_entry must read a path whose NAME carries a glob character"
+  [ "$glob_sha" != "$sib_sha" ] \
+    || fail "index_entry read the SAME record for 'a*b' and for 'a!b' — the pathspec GLOBBED (ls-files expands it), so the reader returned a DIFFERENT path's record"
+  glob_head=$(head_entry "$tmp2" 'a*b')
+  [ -n "$glob_head" ] \
+    || fail "head_entry must read a path whose NAME carries a glob character"
+  [ "${glob_head##* }" = "${glob_sha##* }" ] \
+    || fail "the two readers must read the SAME record for 'a*b' (index ${glob_sha##* }, HEAD ${glob_head##* })"
+
+  # THE LIVE BODY on that fixture: the colon-named path is a REMOVAL, so it renders a
+  # (removed) row. The pre-fix tree rendered it as a carried (file) — a false claim
+  # about the diff.
+  printf 'charly task pin-check: OK\n' > "$tmp2/pinlog"
+  if printf ':colonpath\n' | bash "$SCRIPT_DIR/sync-pin-evidence.sh" "$tmp2" "$tmp2/pinlog" \
+       > "$tmp2/colon-body.txt" 2> "$tmp2/colon-body.err"; then
+    colon_rc=0
+  else
+    colon_rc=$?
+  fi
+  [ "$colon_rc" -eq 0 ] \
+    || fail "the body must run on a diff that removes a path whose NAME begins with ':' (err: $(tail -c 300 "$tmp2/colon-body.err"))"
+  grep -qE '^  :colonpath  \(removed\)$' "$tmp2/colon-body.txt" \
+    || fail "a path whose NAME begins with ':' that this diff DELETES must render a (removed) row naming it (the pre-fix tree rendered it as a carried (file))"
+  grep -qE '^  :colonpath  .*\(file\)$' "$tmp2/colon-body.txt" \
+    && fail "a path this diff DELETES must NOT render a (file) row — it carries no staged blob"
 
   # is_gitlink_path / file_row: the moved list is not all gitlinks (the producer stages EVERY
   # changed path), so a plain file must be classified as a file and rendered WITHOUT the `=`/`!`

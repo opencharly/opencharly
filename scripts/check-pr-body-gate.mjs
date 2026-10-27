@@ -20,7 +20,7 @@
 // Usage: node scripts/check-pr-body-gate.mjs [--root <dir>] [--self-test]
 // exit 0 clean · 1 finding
 
-import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -94,6 +94,18 @@ function check() {
   if (!/node "\$RECONCILE"/.test(code)) fail(`runs the reconciliation with node`);
   if (!/BLOCKED — the PR body does not describe the diff/.test(code))
     fail(`blocks a body that does not describe the diff it is published with`);
+
+  // 5. The LIVE body — the SECOND surface. The body this hook validates is a FILE; the
+  //    validator reads the PR's LIVE copy, from GitHub. Nothing reconciled the two, so a
+  //    body FILE that was correct while the PR's body was stale passed this hook
+  //    PERFECTLY and cost a whole review round: opencharly/opencharly#742 (2026-10-27)
+  //    published a body the reviewer never saw, because the file was fixed after the push
+  //    and the PR's copy was not. The control that closes that gap must be WIRED IN, and
+  //    it must BLOCK on a disagreement — a warning would not have stopped that push.
+  if (!/gh pr list/.test(code)) fail(`resolves the PR the live body belongs to`);
+  if (!/gh pr view/.test(code)) fail(`reads the PR's live body`);
+  if (!/BLOCKED — the LIVE body/.test(code)) fail(`blocks a push whose live body is not the body it validated`);
+  if (!/gh is not installed/.test(code)) fail(`names the live-body check's skip when gh is absent`);
 
   if (failures === 0)
     ok(
@@ -171,6 +183,10 @@ async function fire() {
     mkdirSync(repo, { recursive: true });
     const git = (...a) => spawnSync("git", a, { cwd: repo, encoding: "utf8" });
     git("init", "-q", "-b", "main");
+    // A GitHub REMOTE, so the hook's live-body check can resolve a PR for the branch it
+    // is pushing. The reconciler reads only LOCAL git (diff, log, rev-parse), so a remote
+    // URL here never reaches the network — the PR itself is answered by the stub below.
+    git("remote", "add", "origin", "https://github.com/opencharly/opencharly.git");
     git("config", "user.email", "gate@gate");
     git("config", "user.name", "gate");
     writeFileSync(join(repo, "f.txt"), "x\n");
@@ -325,6 +341,107 @@ async function fire() {
       overCap.code === 1 && /GitHub cap/.test(overCap.out),
       `hooks/pre-push FIRED: a body over the size cap is BLOCKED at the push, and the finding names the cap`,
     );
+
+    // ── the LIVE body: the SECOND surface, and the one the validator reads ──────────
+    // The PR is a real boundary, so it is answered with a real tool — a STUB `gh` on the
+    // PATH — rather than by mocking the hook's own logic. The stub answers exactly the
+    // two calls the hook makes, from the environment, so each arm can choose what the PR
+    // holds without a network.
+    const stubBin = join(scratch, "bin");
+    mkdirSync(stubBin, { recursive: true });
+    const stubGh = join(stubBin, "gh");
+    writeFileSync(
+      stubGh,
+      [
+        "#!/usr/bin/env bash",
+        "# A stub gh for the pre-push hook's LIVE-body check.",
+        'if [ "${STUB_GH_FAIL:-}" != "" ]; then',
+        '  echo "stub gh: simulated failure" >&2',
+        "  exit 4",
+        "fi",
+        'if [ "$1" = "pr" ] && [ "$2" = "list" ]; then',
+        '  printf "%s" "${STUB_PR_NUMBER:-}"',
+        "  exit 0",
+        "fi",
+        'if [ "$1" = "pr" ] && [ "$2" = "view" ]; then',
+        '  if [ -n "${STUB_PR_BODY_FILE:-}" ] && [ -f "${STUB_PR_BODY_FILE}" ]; then cat "${STUB_PR_BODY_FILE}"; fi',
+        "  exit 0",
+        "fi",
+        'echo "stub gh: unexpected call: $*" >&2',
+        "exit 64",
+        "",
+      ].join("\n"),
+    );
+    chmodSync(stubGh, 0o755);
+
+    // The full linter, so the arms that expect a push to SUCCEED are satisfied by a
+    // body that actually passes it, and not by a tool that happens to be missing.
+    installLinter();
+    writeFileSync(defaultBody, GOOD_BODY);
+    const liveBodyFile = join(scratch, "live-body.md");
+    writeFileSync(liveBodyFile, GOOD_BODY);
+    const liveEnv = {
+      PATH: `${stubBin}:${process.env.PATH}`,
+      STUB_PR_NUMBER: "742",
+      STUB_PR_BODY_FILE: liveBodyFile,
+    };
+
+    // F10 — the LIVE body MATCHES the body this hook validated: the push proceeds, and
+    //      the match is named — so the arm cannot be satisfied by a later skip.
+    const matching = run(liveEnv);
+    expect(
+      matching.code === 0 && /LIVE body on .*#742 MATCHES/.test(matching.out),
+      `hooks/pre-push FIRED: a PR whose LIVE body matches the validated body passes (exit 0), and the match is named`,
+    );
+
+    // F11 — the LIVE body DIFFERS: the push is BLOCKED, and the finding names the PR and
+    //      the fix. This is the arm opencharly/opencharly#742 needed and did not have.
+    writeFileSync(liveBodyFile, GOOD_BODY.replace("Fixture body proving", "A body the PR holds that is not the file"));
+    const staleLive = run(liveEnv);
+    expect(
+      staleLive.code === 1 &&
+        /BLOCKED — the LIVE body on .*#742/.test(staleLive.out) &&
+        /gh pr edit 742/.test(staleLive.out),
+      `hooks/pre-push FIRED: a PR whose LIVE body does NOT match the validated body is BLOCKED at the push, and the finding names the PR and the fix`,
+    );
+
+    // F12 — no open PR for the branch: the FIRST push OPENS the PR, so there is nothing
+    //      to compare yet. A visible skip, never a block.
+    const noPr = run({ ...liveEnv, STUB_PR_NUMBER: "" });
+    expect(
+      noPr.code === 0 && /no open PR/.test(noPr.out),
+      `hooks/pre-push FIRED: a branch with no open PR SKIPS the LIVE-body check visibly (exit 0)`,
+    );
+
+    // F13 — gh ITSELF fails: a tool that cannot answer is not a finding. Visible skip.
+    const brokenGh = run({ ...liveEnv, STUB_GH_FAIL: "1" });
+    expect(
+      brokenGh.code === 0 && /gh could not list the open PRs/.test(brokenGh.out),
+      `hooks/pre-push FIRED: gh failing SKIPS the LIVE-body check visibly (exit 0) instead of blocking a legitimate push`,
+    );
+
+    // F14 — gh is NOT INSTALLED: the same doctrine, proven by a PATH that holds
+    //      everything EXCEPT gh. The farm is symlinks over the real PATH, minus gh.
+    const noGhBin = join(scratch, "nogh-bin");
+    mkdirSync(noGhBin, { recursive: true });
+    for (const dir of ["/usr/local/bin", "/usr/bin", "/bin"]) {
+      if (!existsSync(dir)) continue;
+      for (const entry of readdirSync(dir)) {
+        if (entry === "gh") continue;
+        const target = join(noGhBin, entry);
+        if (existsSync(target)) continue;
+        try {
+          symlinkSync(join(dir, entry), target);
+        } catch (e) {
+          void e; // a name that cannot be linked is not this arm's concern
+        }
+      }
+    }
+    const noGh = run({ PATH: noGhBin });
+    expect(
+      noGh.code === 0 && /gh is not installed/.test(noGh.out),
+      `hooks/pre-push FIRED: without gh the LIVE-body check SKIPS visibly (exit 0) instead of blocking a legitimate push`,
+    );
   } catch (err) {
     fail(`firing ${rel} (${err instanceof Error ? err.message : String(err)})`);
   } finally {
@@ -403,12 +520,36 @@ if (argv.includes("--self-test")) {
       (s) => s.replace(/if node "\$RECONCILE" --body "\$BODY" --repo "\$ROOT"; then/, "if true; then"),
       "a body that does not describe the diff is BLOCKED",
     ],
+    // The LIVE-body arms do NOT need the marketplace linter: the live-body check runs
+    // BEFORE it, so these three mutations are live in a checkout without the submodule.
+    [
+      "the live-body check does not run",
+      (s) => s.replace(/if ! live_body_check; then/, "if false; then"),
+      "a live body that does not match is BLOCKED",
+      false,
+    ],
+    [
+      "a stale live body does not block the push",
+      (s) => s.replace(/if \[ "\$local_body" = "\$live" \]; then/, "if true; then"),
+      "a live body that does not match is BLOCKED",
+      false,
+    ],
+    [
+      "the live-body check fails closed when gh is absent",
+      (s) =>
+        s.replace(
+          /if ! command -v gh >\/dev\/null 2>&1; then\n(\s*)echo "pre-push: gh is not installed/,
+          'if ! command -v gh >/dev/null 2>&1; then\n$1echo "nope"; exit 1\n$1echo "pre-push: gh is not installed',
+        ),
+      "without gh the LIVE-body check SKIPS visibly",
+      false,
+    ],
   ];
   let stFails = 0;
   let stLive = 0;
   let stSkipped = 0;
-  for (const [name, mutate, expect] of mutations) {
-    if (!lintPresent) {
+  for (const [name, mutate, expect, needsLinter = true] of mutations) {
+    if (needsLinter && !lintPresent) {
       // Every mutation here targets a FIRED assertion, and with no linter to fire there is
       // nothing to judge. Skipped VISIBLY: never counted as caught, never a silent pass.
       stSkipped += 1;

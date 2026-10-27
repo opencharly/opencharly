@@ -28,6 +28,22 @@
 # over one body, and absolute, so it survives a change of cwd. It never dirties the
 # tracked tree and it survives across a push. Override with `PR_BODY_FILE=<path>`.
 #
+# THE LIVE BODY IS A SECOND SURFACE, AND IT IS THE ONE THE VALIDATOR READS. The body
+# this hook validates lives in a FILE; the validator reads the body's LIVE copy, on
+# the PR, from GitHub. Nothing reconciled the two, so a body FILE that was correct
+# while the PR's body was stale passed this hook perfectly and cost a whole review
+# round — opencharly/opencharly#742, 2026-10-27: the validator read a body naming a
+# head and a file table this hook had already rejected for the tree being pushed,
+# because the file had been fixed AFTER the push and the PR's copy had not. The check
+# below IS that reconciliation: the body the push publishes MUST be the body GitHub
+# holds, or the body is not the changelog the reviewer reads.
+#
+# THE LIVE-BODY CHECK SKIPS VISIBLY, never fail-closed, in the same shape as the skips
+# below: no `gh` (not installed), a remote that is not GitHub, no open PR for this
+# branch (the first push OPENS the PR — its body is set at creation), or `gh` itself
+# failing. A push that cannot be checked is still a push; what it must never be is a
+# SILENT one.
+#
 # SKIPS ARE VISIBLE AND NEVER FAIL-CLOSED, the shape pre-commit-gate.sh already uses
 # for a missing golangci-lint. Three of them:
 #   * NO BODY at the path — the body is written by the author as part of the landing
@@ -88,6 +104,93 @@ else
     echo "pre-push: and push again. Nothing about the diff's quality is judged here." >&2
     exit 1
   fi
+fi
+
+# ── the LIVE body: the copy the validator actually reads ───────────────────────────
+# The body is validated as a FILE; the validator reads the PR's LIVE copy. This
+# function is the reconciliation between the two, and it is the control whose absence
+# let opencharly/opencharly#742 (2026-10-27) publish a body the reviewer never saw.
+# It returns 0 when the two agree or when the comparison cannot be made (a VISIBLE
+# skip, never a silent one), and 1 when they DISAGREE — which blocks the push.
+#
+# git hands a pre-push hook the refspec as arguments: $1 is the remote NAME, $3 the
+# local ref. The branch is taken from $3 when it is a branch, and otherwise from
+# HEAD — so the hook also works when it is run by hand, with no arguments at all.
+live_body_check() {
+  if ! command -v gh >/dev/null 2>&1; then
+    echo "pre-push: gh is not installed — the LIVE-body check SKIPPED (the PR's body is not compared with $BODY)."
+    return 0
+  fi
+
+  local remote_name="${1:-origin}" local_ref="${3:-}" branch=""
+  case "$local_ref" in
+    refs/heads/*) branch="${local_ref#refs/heads/}" ;;
+  esac
+  if [ -z "$branch" ]; then
+    branch="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
+    [ "$branch" = "HEAD" ] && branch=""
+  fi
+  if [ -z "$branch" ]; then
+    echo "pre-push: no branch to resolve a PR from (a detached HEAD, or a tag push) — the LIVE-body check SKIPPED."
+    return 0
+  fi
+
+  local url path slug
+  url="$(git config --get "remote.$remote_name.url" 2>/dev/null || true)"
+  case "$url" in
+    *github.com*) ;;
+    *)
+      echo "pre-push: remote '$remote_name' is not a GitHub remote — the LIVE-body check SKIPPED."
+      return 0
+      ;;
+  esac
+  path="${url#*github.com}"
+  path="${path#:}"
+  path="${path#/}"
+  path="${path%.git}"
+  slug="${path%%/*}/${path##*/}"
+
+  local err="$GITDIR/pre-push-gh.err" pr="" ghrc=0 live="" lrc=0 local_body=""
+  if ! : > "$err" 2>/dev/null; then err="/dev/null"; fi
+
+  pr="$(gh pr list --repo "$slug" --head "$branch" --state open --json number --jq '.[0].number // empty' 2>"$err")" || ghrc=$?
+  if [ "$ghrc" -ne 0 ]; then
+    echo "pre-push: gh could not list the open PRs of $slug (gh exit $ghrc) — the LIVE-body check SKIPPED:" >&2
+    sed -n '1p' "$err" >&2 2>/dev/null || true
+    rm -f "$err" 2>/dev/null || true
+    return 0
+  fi
+  if [ -z "$pr" ]; then
+    echo "pre-push: no open PR for $slug head '$branch' — the LIVE-body check SKIPPED (the first push OPENS the PR; its body is set at creation)."
+    rm -f "$err" 2>/dev/null || true
+    return 0
+  fi
+
+  live="$(gh pr view "$pr" --repo "$slug" --json body --jq '.body' 2>"$err")" || lrc=$?
+  rm -f "$err" 2>/dev/null || true
+  if [ "$lrc" -ne 0 ]; then
+    echo "pre-push: gh could not read the body of $slug#$pr (gh exit $lrc) — the LIVE-body check SKIPPED." >&2
+    return 0
+  fi
+
+  # Command substitution strips the trailing newlines from BOTH sides, so the comparison
+  # is about the body's TEXT and not about how the platform happens to terminate it.
+  local_body="$(cat "$BODY" 2>/dev/null || true)"
+  if [ "$local_body" = "$live" ]; then
+    echo "pre-push: the LIVE body on $slug#$pr MATCHES $BODY — the body the validator reads is the one this push validated."
+    return 0
+  fi
+
+  echo "pre-push: BLOCKED — the LIVE body on $slug#$pr does NOT match $BODY." >&2
+  echo "pre-push: the validator reads the body LIVE, so the body the reviewer reads is the PR's — not this file." >&2
+  echo "pre-push: publish the body, then push again:" >&2
+  echo "pre-push:   gh pr edit $pr --repo $slug --body-file $BODY" >&2
+  echo "pre-push: (this file is $(printf '%s' "$local_body" | wc -c) bytes; the PR holds $(printf '%s' "$live" | wc -c))" >&2
+  return 1
+}
+
+if ! live_body_check; then
+  exit 1
 fi
 
 if [ ! -f "$LINT" ]; then
