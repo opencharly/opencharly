@@ -119,7 +119,7 @@ producer_log_excerpt() {
 # sync-pin-evidence.sh (bounded for the body, full for the artifact via SYNC_EVIDENCE_OUT).
 build_body() {
   local root="$1" moved_file="$2" producer_log="$3" pin_check_log="$4" out_body="$5" out_evidence="$6"
-  local MOVED MOVED_TOTAL GITLINK_COUNT FILE_COUNT evidence_body evidence_full type_file
+  local MOVED MOVED_TOTAL GITLINK_COUNT FILE_COUNT REMOVED_COUNT MOVED_DESC evidence_body evidence_full type_file
 
   MOVED="$(cat "$moved_file")"
   MOVED_TOTAL=$(printf '%s\n' "$MOVED" | grep -c . || true); MOVED_TOTAL=${MOVED_TOTAL:-0}
@@ -183,7 +183,7 @@ build_body() {
     rm -f "$type_file"
     return 1
   fi
-  GITLINK_COUNT=0; FILE_COUNT=0
+  GITLINK_COUNT=0; FILE_COUNT=0; REMOVED_COUNT=0
   # shellcheck disable=SC1090
   . "$type_file"
   rm -f "$type_file"
@@ -195,27 +195,39 @@ build_body() {
     echo "— \`charly\` to its own default-branch HEAD, \`distro-*\` to exactly the commits charly's"
     echo "own gitlinks pin, everything else to its own default branch."
     echo
+    # The moved/removed split is the ONE measurement of what KIND of diff this is, so
+    # the count and the change class cannot disagree with the table below. A REMOVED
+    # path is counted apart: it is neither a moved pin nor a carried file, and calling
+    # it "moved" would claim a change the diff does not make.
     if [ "$FILE_COUNT" -gt 0 ]; then
-      echo "**${GITLINK_COUNT}** gitlink(s) and **${FILE_COUNT}** non-gitlink changed path(s)"
-      echo "moved. Every one is named, with its proof, in the complete per-pin evidence"
-      echo "table below (no elision)."
+      MOVED_DESC="**${GITLINK_COUNT}** gitlink(s) and **${FILE_COUNT}** non-gitlink changed path(s) moved"
     else
-      echo "**${GITLINK_COUNT}** gitlink(s) moved. Every one is named, with its proof, in the"
-      echo "complete per-pin evidence table below (no elision)."
+      MOVED_DESC="**${GITLINK_COUNT}** gitlink(s) moved"
+    fi
+    if [ "$REMOVED_COUNT" -gt 0 ]; then
+      echo "${MOVED_DESC}, and **${REMOVED_COUNT}** path(s) removed. Every changed path is"
+      echo "named in the complete per-pin evidence table below (no elision) — a moved path"
+      echo "with its proof, a removed path with the fact that this diff deletes it."
+    else
+      echo "${MOVED_DESC}. Every one is named, with its proof, in the complete per-pin"
+      echo "evidence table below (no elision)."
     fi
     echo
     echo "## Every changed path, named"
     echo
-    echo "The **\`${MOVED_TOTAL}\`** moved paths are named in full — each gitlink with its \`staged-gitlink\`"
-    echo "vs remote default-branch \`HEAD\` proof, each non-gitlink path with its staged blob — in the"
-    echo "complete per-pin evidence table in **How tested** below. That one table IS the changed-path"
-    echo "list and the evidence: no separate list is emitted and no row is elided, so nothing points"
+    echo "The **\`${MOVED_TOTAL}\`** changed paths are named in full — each moved gitlink with its"
+    echo "\`staged-gitlink\` vs remote default-branch \`HEAD\` proof, each moved non-gitlink path with its"
+    echo "staged blob, each removed path with the fact that this diff deletes it — in the complete"
+    echo "per-pin evidence table in **How tested** below. That one table IS the changed-path list"
+    echo "and the evidence: no separate list is emitted and no row is elided, so nothing points"
     echo "at a file for evidence that must be pasted here."
     echo
     echo "Each gitlink entry is a **submodule pointer**, not file content: the umbrella records which"
     echo "commit of each repo the snapshot means. The content behind every gitlink was reviewed and"
     echo "gated by that repo's own \`pr-validator\` before it was tagged. A non-gitlink path, when"
     echo "present, is an ordinary changed file carried on this same branch — named, not hidden."
+    echo "A removed path, when present, is a path this diff DELETES — named with that fact, and"
+    echo "never compared against a remote it has no staged pin for."
     echo "This PR cannot review submodule content and does not restate it."
     echo
     echo "## How tested"
@@ -241,10 +253,24 @@ build_body() {
     echo
     echo "## Change classification"
     echo
-    if [ "$FILE_COUNT" -gt 0 ]; then
-      echo "- **Change class:** gitlink sync + ${FILE_COUNT} non-gitlink file change(s). The ${GITLINK_COUNT} gitlink(s) are submodule pointers (no file content); the ${FILE_COUNT} non-gitlink path(s) are ordinary files carried on this branch."
-    else
+    # The change class is derived from the SAME three counts the table is built from, so
+    # it cannot describe a diff the table does not show. A REMOVED path is a class of
+    # its own: "gitlink-only — no file content" would be false for a removed file, and
+    # a removed pin is not a moved pin.
+    if [ "$FILE_COUNT" -eq 0 ] && [ "$REMOVED_COUNT" -eq 0 ]; then
       echo "- **Change class:** gitlink-only. No file content, no workflow, no script, no Go."
+    else
+      CLASS="gitlink sync"
+      CLASS_DESC="The ${GITLINK_COUNT} gitlink(s) are submodule pointers (no file content)"
+      if [ "$FILE_COUNT" -gt 0 ]; then
+        CLASS="${CLASS} + ${FILE_COUNT} non-gitlink file change(s)"
+        CLASS_DESC="${CLASS_DESC}; the ${FILE_COUNT} non-gitlink path(s) are ordinary files carried on this branch"
+      fi
+      if [ "$REMOVED_COUNT" -gt 0 ]; then
+        CLASS="${CLASS} + ${REMOVED_COUNT} path removal(s)"
+        CLASS_DESC="${CLASS_DESC}; the ${REMOVED_COUNT} removed path(s) are deleted by this diff"
+      fi
+      echo "- **Change class:** ${CLASS}. ${CLASS_DESC}."
     fi
     echo "- **Verification gate:** \`charly task verify\` — the full pinning gate — on"
     echo "  the final tree, plus the per-pin \`git ls-remote\` default-branch table above (rule 10:"
@@ -556,6 +582,40 @@ if [ "${1:-}" = "--self-test" ]; then
   grep -q 'Change class:\*\* gitlink sync + 1 non-gitlink file change' "$tmp/body7" \
     || fail "mixed body must derive a non-gitlink-only change class from the split"
   grep -q 'Change class:\*\* gitlink-only' "$tmp/body7" && fail "mixed body must NOT claim gitlink-only"
+
+  # THE REMOVED PATH — a diff that DELETES a pin. The body must NAME it, must NOT
+  # compare it against a remote (it carries no staged pin to compare), and must not
+  # count it as a moved gitlink: a removal is not a divergence and not a move.
+  #
+  # Its own fixture repo, because the state that matters is a path in HEAD and NOT in
+  # the index — and this repo's index is the fleet fixture's. The remote is the local
+  # repo the fleet arm built, so the arm never touches the network.
+  remroot="$tmp/rem"
+  mkdir -p "$remroot"
+  git -C "$remroot" init -q
+  git -C "$remroot" config user.email t@t; git -C "$remroot" config user.name t
+  printf '[submodule "p1"]\n\tpath = p1\n\turl = %s\n[submodule "p9"]\n\tpath = p9\n\turl = %s\n' \
+    "$tmp/remote-src" "$tmp/remote-src" > "$remroot/.gitmodules"
+  git -C "$remroot" add .gitmodules
+  git -C "$remroot" update-index --add --cacheinfo "160000,${RHEAD},p9"
+  git -C "$remroot" commit -qm "record p9"
+  # This diff DELETES p9 (it leaves the index) and MOVES p1 (it enters the index).
+  git -C "$remroot" update-index --force-remove p9
+  git -C "$remroot" update-index --add --cacheinfo "160000,${RHEAD},p1"
+  { echo p1; echo p9; } > "$moved"
+  build_body "$remroot" "$moved" "$producer" "$pinlog" "$tmp/body8" "$tmp/ev8" \
+    || fail "a diff that removes a pin must build"
+  grep -qE '^  p9  \(removed\)$' "$tmp/body8" || fail "a REMOVED path must render a (removed) row naming it"
+  grep -qE '^  p9  [^ ]+  [^ ]+  [!=]$' "$tmp/body8" \
+    && fail "a REMOVED path must NOT render a comparison row — it carries no staged pin to compare"
+  grep -qE '^  p1  [0-9a-f]{12}  [0-9a-f]{12}  =$' "$tmp/body8" \
+    || fail "a moved pin must still render its comparison row beside a removed one"
+  grep -q '^\*\*1\*\* gitlink(s) moved, and \*\*1\*\* path(s) removed\.' "$tmp/body8" \
+    || fail "the summary must count the removal apart from the moved pins (it must not call a deletion a move)"
+  grep -q 'Change class:\*\* gitlink sync + 1 path removal(s)' "$tmp/body8" \
+    || fail "the change class must name the removal"
+  grep -q 'each removed path with the fact that this diff deletes it' "$tmp/body8" \
+    || fail "the changed-path section must name the removed shape"
 
   # THE ACCEPTANCE SURFACE. AGENTS.md requires the body to carry `## Summary`,
   # `## How tested`, `## Rulebook compliance` and `## Change classification`, with the

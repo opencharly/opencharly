@@ -233,6 +233,52 @@ const PATTERNS = [
     ],
     why: "the FLAT overstatement — an edge judged with no qualifier. Every wording of this class that this change retired is one of the instances above, and the class outlives its wordings",
   },
+  {
+    // THE CLASS: a claim that the umbrella's evidence table reads a staged gitlink out
+    // of the INDEX with `git rev-parse --verify`. The truth: the index entry is read
+    // with `git ls-files -s` (opencharly/opencharly#666).
+    //
+    // WHY THIS CLASS WAS WORTH KEYING, and not just deleting in one PR: the legend
+    // that carried the retired wording states the table's own MECHANISM, so a reader
+    // is told how the row's value was obtained. A legend that names a read the code no
+    // longer performs is a false claim about the product, and it is the kind that
+    // comes BACK — a legend is prose, and prose gets copied forward.
+    //
+    // The shape is the MECHANISM TOKEN, not the sentence: the claim is about HOW the
+    // index is read, and that token names the read wherever the claim is written. The
+    // pattern deliberately does NOT require the word "index" nearby, because the
+    // legend's claim WRAPS: the two `echo` lines that carried it are separate
+    // segments of the claim stream (a shell statement boundary is a boundary), so
+    // "from the index" sits in the NEXT segment and a context-anchored pattern would
+    // not match the very wording it was written for (MEASURED on the retired legend
+    // in origin/main's scripts/sync-pin-evidence.sh).
+    //
+    // The token pair is `--verify --quiet`, not `--verify` alone: the pair is what the
+    // retired read WAS, and a plain `git rev-parse --verify <ref>` — the ordinary
+    // idiom for resolving a ref — is a DIFFERENT read, named without `--quiet`. The
+    // counter-instances below prove that distinction, and they carry the trap this
+    // class has: the code still NAMES the retired read, in the comment that explains
+    // why it is wrong (`git rev-parse ":$p"` ECHOES the literal token on failure). A
+    // key that matched "rev-parse" alone would fire on that explanation and the gate
+    // would be switched off.
+    pattern: "rev-parse --verify --quiet",
+    instances: [
+      // the retired legend clause — the umbrella's own evidence table's mechanism claim
+      "the STAGED GITLINK this PR records (`git rev-parse --verify --quiet :<path>` from the index, `git ls-tree HEAD` fallback)",
+      // the retired wording in the changelog record of the read's own introduction
+      "`staged_gitlink` reads the STAGED INDEX gitlink with `git rev-parse --verify --quiet :<path>` (the index entry)",
+    ],
+    counterInstances: [
+      // TRUE: the index entry is read with `git ls-files -s`
+      "the STAGED GITLINK this PR records (`git ls-files -s` from the index, `git ls-tree HEAD` fallback)",
+      // TRUE: the code NAMES the retired read, to explain why it is wrong — and that
+      // explanation must not be read as a claim that the index is read that way
+      "The index read is `git ls-files -s`, NOT `git rev-parse \":$p\"`: bare rev-parse ECHOES the literal `:<path>` token on failure",
+      // TRUE: a plain rev-parse of a REF is a different read entirely
+      "git rev-parse --verify refs/heads/main",
+    ],
+    why: "the retired MECHANISM claim — that the staged gitlink is read out of the index with `git rev-parse --verify`. The index entry is read with `git ls-files -s` (opencharly/opencharly#666)",
+  },
 ];
 
 const fail = (m) => {

@@ -114,20 +114,57 @@ pin_row() {
   printf '  %s  %.12s  %.12s  %s\n' "$p" "$staged" "$remote" "$flag"
 }
 
+# index_entry <root> <path> — the INDEX's OWN record for <path>: "<mode> <sha>", or EMPTY
+# when the index records no entry for it. ONE read, shared by every predicate below, so a
+# changed path's classification is ONE measurement of the index and not several that can
+# disagree. git's hook-exported repo vars are scrubbed so `-C "$root"` truly targets $root
+# (measured: an unsanitized `-C` wrote into the CALLING repo). `ls-files -s` prints
+# "<mode> <sha> <stage>", so the sha is the SECOND field. The pathspec is `:(literal)` so
+# a path whose NAME carries a glob character is read as itself.
+index_entry() {
+  local root="$1" p="$2"
+  unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES
+  git -C "$root" ls-files -s -- ":(literal)$p" 2>/dev/null | awk 'NR==1{print $1" "$2}'
+}
+
+# head_entry <root> <path> — HEAD's record for <path>: "<mode> <sha>", or EMPTY when HEAD
+# does not record it either. `ls-tree` prints "<mode> <type> <sha>", so the sha is the
+# THIRD field — the one place the two readers' field layouts are normalized.
+head_entry() {
+  local root="$1" p="$2"
+  unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES
+  git -C "$root" ls-tree HEAD -- "$p" 2>/dev/null | awk 'NR==1{print $1" "$3}'
+}
+
 # is_gitlink_path <root> <path> — true when the RECORDED entry for <path> is a submodule
 # pointer (index mode 160000); false for a plain file (100644/100755). The producer stages
 # EVERY changed path (`git diff --cached --name-only`), so a hand-edit beside the pins is a
 # FILE here, never a pointer — the class the old builder miscounted as a gitlink (measured:
 # `reasonix.toml` rendered as a 46th gitlink). Reads the INDEX first (the staged snapshot
-# this PR records) and falls back to HEAD, mirroring staged_gitlink; git's hook-exported
-# repo vars are scrubbed so `-C "$root"` truly targets $root. ONE implementation the live
-# render loop and the self-test both call.
+# this PR records) and falls back to HEAD, mirroring staged_gitlink. ONE implementation the
+# live render loop and the self-test both call.
 is_gitlink_path() {
-  local root="$1" p="$2" mode
-  unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES
-  mode=$(git -C "$root" ls-files -s -- "$p" 2>/dev/null | awk 'NR==1{print $1}')
-  [ -n "$mode" ] || mode=$(git -C "$root" ls-tree HEAD -- "$p" 2>/dev/null | awk 'NR==1{print $1}')
-  [ "$mode" = "160000" ]
+  local root="$1" p="$2" entry
+  entry="$(index_entry "$root" "$p")"
+  [ -n "$entry" ] || entry="$(head_entry "$root" "$p")"
+  [ "${entry%% *}" = "160000" ]
+}
+
+# is_removed_path <root> <path> — true when the INDEX records NO entry for <path> while
+# HEAD still records one: this diff DELETES the path.
+#
+# Why this needs its own predicate. The body is generated AFTER `git add -A` and BEFORE
+# the commit, so a deletion is STAGED-but-not-COMMITTED: the index has no entry for the
+# path and HEAD still does. Both other predicates answer "what does the index record?",
+# and for a deleted path the honest answer is "nothing" — there is no staged pin to
+# compare against a remote and no staged blob to name. Measured on origin/main
+# (2026-10-27): the removal fell through to the HEAD fallback, so the table compared the
+# pin the diff DELETES against the remote's default-branch HEAD and flagged it `!` — a
+# false finding that read as a divergence. A removal and a divergence are different facts
+# and the row must be able to tell them apart.
+is_removed_path() {
+  local root="$1" p="$2"
+  [ -z "$(index_entry "$root" "$p")" ] && [ -n "$(head_entry "$root" "$p")" ]
 }
 
 # file_row <path> <blob_sha> — ONE evidence row for a changed NON-gitlink path. A plain file
@@ -137,6 +174,16 @@ is_gitlink_path() {
 # changed path is hidden. ONE implementation the live render loop and the self-test call.
 file_row() {
   printf '  %s  %.12s  (file)\n' "$1" "$2"
+}
+
+# removed_row <path> — ONE evidence row for a path this diff DELETES. The index records
+# no entry for it, so it carries no staged pin and no staged blob: there is nothing to
+# compare against a remote, so the row carries NO `=`/`!` flag — a removal is not a
+# divergence, and flagging it `!` states a finding the diff does not contain. The path is
+# still NAMED, so the table stays the complete changed-path list and no changed path is
+# hidden. ONE implementation the live render loop and the self-test call.
+removed_row() {
+  printf '  %s  (removed)\n' "$1"
 }
 
 # coverage_note <touched> — is the pin check this diff's coverage? The ANSWER comes
@@ -182,26 +229,33 @@ bounded_rows() {
   fi
 }
 
-# staged_gitlink <root> <path> — the gitlink this PR RECORDS for <path>. It reads the
-# INDEX (`:<path>`), because the body is generated AFTER `git add -A` and BEFORE the
+# staged_gitlink <root> <path> — the gitlink (or blob) this PR RECORDS for <path>. It
+# reads the INDEX, because the body is generated AFTER `git add -A` and BEFORE the
 # commit: HEAD still points at the previous snapshot, so `HEAD:<path>` would name the
 # OLD pin. Falls back to HEAD only when the path is not staged (already committed).
 # The submodule's WORKING-TREE HEAD is NEVER read: it can be uninitialised or on
 # another commit and would turn a correct pin into a false not-equal.
+#
+# THE FALLBACK'S TRAP, and the reason the render loop checks the removed state FIRST.
+# A path that is in HEAD and NOT in the index is a REMOVAL (is_removed_path) — this
+# diff DELETES it — and the fallback then hands back the pin the diff deletes, which
+# the PR records NO pin for. A caller that compared that value against the remote
+# would publish a false divergence for a path the diff removes (measured on
+# origin/main's script, 2026-10-27: `  sub  00f95b3fbbcb  006ddb64b729  !`). The
+# render loop therefore asks is_removed_path BEFORE it asks for a value, and a
+# removed path gets its own `(removed)` row; this read's fallback is not the place
+# that decision is made.
+#
+# The index read is `git ls-files -s`, NOT `git rev-parse ":$p"`: bare rev-parse ECHOES
+# the literal `:<path>` token on failure and exits non-zero (measured: the substitution
+# looked like a sha, the HEAD fallback never ran, and an unstaged path reported a false
+# pin); `ls-files` prints nothing and exits 0 for a path it does not record, so the read
+# cannot abort the caller under `set -e` and the HEAD fallback runs.
 staged_gitlink() {
-  local root="$1" p="$2" sha
-  # Scrub git's hook-exported repo vars so `-C "$root"` truly targets $root: when
-  # this runs from a hook (the self-test), GIT_DIR/GIT_INDEX_FILE name the CALLING
-  # repo and would override -C (measured: it corrupted the umbrella's config).
-  unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES
-  # `--verify --quiet` is the load-bearing fix (measured): bare `git rev-parse
-  # ":$p"` ECHOES the literal `:<path>` token on failure and exits non-zero, so
-  # `-n "$sha"` passed and the HEAD fallback below never ran for an unstaged path.
-  # `--verify --quiet` prints nothing and exits 1; `|| true` keeps that non-zero
-  # from aborting under `set -e` in any caller that inherits errexit.
-  sha=$(git -C "$root" rev-parse --verify --quiet ":$p" || true)
-  [ -n "$sha" ] || sha=$(git -C "$root" ls-tree HEAD -- "$p" 2>/dev/null | awk '{print $3}')
-  printf '%s' "$sha"
+  local root="$1" p="$2" entry
+  entry="$(index_entry "$root" "$p")"
+  [ -n "$entry" ] || entry="$(head_entry "$root" "$p")"
+  printf '%s' "${entry##* }"
 }
 
 # evidence_legend — the section's framing prose and its row legend, emitted verbatim by the
@@ -224,8 +278,8 @@ staged_gitlink() {
 # from what the flag actually means.
 evidence_legend() {
   echo "**Default-branch HEAD, per moved pin.** Every moved path, complete (no"
-  echo "elision): the STAGED GITLINK this PR records (\`git rev-parse --verify --quiet"
-  echo ":\<path>\` from the index, \`git ls-tree HEAD\` fallback) beside the owning"
+  echo "elision): the STAGED GITLINK this PR records (\`git ls-files -s\` from the index,"
+  echo "\`git ls-tree HEAD\` fallback) beside the owning"
   echo "remote default-branch HEAD (\`git ls-remote <url> HEAD\`, read when THIS table is"
   echo "generated). \`charly\` and every non-\`distro-*\` pin is the owning repo's"
   echo "default-branch HEAD **as of the walk that produced this diff**; a \`distro-*\` pin"
@@ -249,6 +303,9 @@ evidence_legend() {
   echo '        (a non-gitlink changed path is rendered `  <path>  <blob>  (file)` — a'
   echo '        plain file has no remote default-branch HEAD to compare, so it carries no flag;'
   echo '        its blob is the index blob this PR stages and is never `!`-flagged.)'
+  echo '        (a path this diff REMOVES is rendered `  <path>  (removed)` — it is in HEAD'
+  echo '        but no longer in the index, so this PR records no pin and no blob for it:'
+  echo '        there is nothing to compare, and it is never `=`/`!`-flagged.)'
 }
 
 if [ "${1:-}" = "--self-test" ]; then
@@ -425,6 +482,16 @@ charly.yml" "" || fail "a manifest edit among plain files must still touch an in
   [ "$got" = "3333333333333333333333333333333333333333" ] \
     || fail "staged_gitlink fallback read '$got', want HEAD's 3333… for an unstaged path"
 
+  # is_removed_path: the path in HEAD but NOT in the index is a REMOVAL — this diff
+  # deletes it. A path the index records is not removed, and a path neither records is
+  # not removed either. (The `sub2` fixture above is exactly the removal case.)
+  is_removed_path "$tmp" sub2 \
+    || fail "is_removed_path must be TRUE for a path in HEAD but not in the index (this diff DELETES it)"
+  is_removed_path "$tmp" sub \
+    && fail "is_removed_path must be FALSE for a path the index records"
+  is_removed_path "$tmp" absent-path \
+    && fail "is_removed_path must be FALSE for a path neither the index nor HEAD records"
+
   # is_gitlink_path / file_row: the moved list is not all gitlinks (the producer stages EVERY
   # changed path), so a plain file must be classified as a file and rendered WITHOUT the `=`/`!`
   # flag — flagging it `!` against a remote that does not exist is the false finding the
@@ -439,6 +506,49 @@ charly.yml" "" || fail "a manifest edit among plain files must still touch an in
     || fail "file_row must render a flagless (file) row, got '$got'"
   printf '%s\n' "$got" | grep -qE '[!=]$' \
     && fail "a file row must carry NO =/! flag (there is no remote to compare)"
+
+  # removed_row: the row for a path this diff DELETES. It names the path and carries
+  # NO `=`/`!` flag: the index records nothing for it, so there is no staged pin to
+  # compare against a remote — a removal is not a divergence.
+  got=$(removed_row sub2)
+  [ "$got" = '  sub2  (removed)' ] \
+    || fail "removed_row must render a flagless (removed) row, got '$got'"
+  printf '%s\n' "$got" | grep -qE '[!=]$' \
+    && fail "a removed row must carry NO =/! flag (there is no staged pin to compare)"
+
+  # THE BODY ON A REMOVED GITLINK — the coverage this defect had none of.
+  #
+  # The arm above exercises staged_gitlink's HEAD fallback, and the pre-fix tree
+  # stopped there: it never asked what the BODY does with the value that fallback
+  # hands it. The body generated on origin/main for a diff that DELETES a gitlink
+  # compared the deleted pin against the remote's default-branch HEAD and flagged it
+  # `!` (measured 2026-10-27 on origin/main's script: `  sub  00f95b3fbbcb
+  # 006ddb64b729  !`) — a false finding that reads exactly like a divergence, and
+  # a removal and a divergence are different facts.
+  #
+  # So this arm runs the LIVE body (the script's own body mode, not a helper) on the
+  # fixture whose HEAD records `sub2` and whose INDEX no longer does, and asserts the
+  # row it produces. It is the discriminating arm: on the pre-fix tree it fails.
+  printf 'charly task pin-check: OK\n' > "$tmp/pinlog"
+  if printf 'sub2\n' | bash "$SCRIPT_DIR/sync-pin-evidence.sh" "$tmp" "$tmp/pinlog" \
+       > "$tmp/removed-body.txt" 2> "$tmp/removed-body.err"; then
+    removed_rc=0
+  else
+    removed_rc=$?
+  fi
+  [ "$removed_rc" -eq 0 ] \
+    || fail "the body must run on a diff that removes a gitlink (err: $(tail -c 300 "$tmp/removed-body.err"))"
+  grep -qE '^  sub2  \(removed\)$' "$tmp/removed-body.txt" \
+    || fail "a REMOVED path must render a (removed) row naming it"
+  grep -qE '^  sub2  [^ ]+  [^ ]+  [!=]$' "$tmp/removed-body.txt" \
+    && fail "a REMOVED path must NOT render a comparison row — it carries no staged pin to compare (the pre-fix tree flagged the DELETED pin '!')"
+  [ "$(grep -cE '^  sub2  ' "$tmp/removed-body.txt")" -eq 1 ] \
+    || fail "a REMOVED path must render exactly ONE row"
+  # A removed GITLINK still changes the index's gitlinks — one of the pin check's three
+  # commit-carried inputs — so the check is still this diff's coverage, exactly as the
+  # commit gate reads it (`:160000 000000` is a gitlink path there too).
+  grep -q 'this diff changes 1 of them' "$tmp/removed-body.txt" \
+    || fail "a removed gitlink still touches the pin check's commit-carried inputs"
 
   # evidence_legend: the wording that tells a reader how to READ a `!`. A `!` on a
   # non-`distro-*` row is EITHER the sync race (benign — measured: an upstream default
@@ -462,8 +572,10 @@ charly.yml" "" || fail "a manifest edit among plain files must still touch an in
     || fail "legend must keep the compact flag line"
   printf '%s\n' "$LEGEND" | grep -q 'is never `!`-flagged' \
     || fail "legend must keep the file-row clause"
+  printf '%s\n' "$LEGEND" | grep -q 'is rendered `  <path>  (removed)`' \
+    || fail "legend must keep the removed-row clause (a removal is not a divergence)"
 
-  echo "sync-pin-evidence: self-test OK (compact <path> <staged> <remote> <flag> rows both ways; coverage both directions; bounded_rows emits all under budget and >=1 + elision notice over budget; staged-gitlink reads the index + falls back to HEAD; evidence_legend states BOTH readings of a non-distro-* ! and the check that tells them apart)"
+  echo "sync-pin-evidence: self-test OK (compact <path> <staged> <remote> <flag> rows both ways; coverage both directions; bounded_rows emits all under budget and >=1 + elision notice over budget; staged-gitlink reads the index + falls back to HEAD; a REMOVED gitlink renders a (removed) row and NO comparison row; evidence_legend states BOTH readings of a non-distro-* ! and the check that tells them apart)"
   exit 0
 fi
 
@@ -480,11 +592,23 @@ evidence_legend
 # writing to a closed pipe; under `set -o pipefail` those failed writes would abort the
 # script. A file sidesteps that entirely (only a few hundred rows).
 scratch ROWS_FILE file
-GITLINK_COUNT=0; FILE_COUNT=0
+GITLINK_COUNT=0; FILE_COUNT=0; REMOVED_COUNT=0
 GITLINK_PATHS=""
 while IFS= read -r p; do
   [ -n "$p" ] || continue
-  if is_gitlink_path "$ROOT" "$p"; then
+  if is_removed_path "$ROOT" "$p"; then
+    # This diff DELETES the path: the index records nothing for it, so there is no
+    # staged pin to compare and no staged blob to name. The row says exactly that.
+    removed_row "$p" >> "$ROWS_FILE"
+    REMOVED_COUNT=$((REMOVED_COUNT + 1))
+    if is_gitlink_path "$ROOT" "$p"; then
+      # A removed GITLINK still changes the INDEX's gitlinks — one of the pin check's
+      # three commit-carried inputs — so it stays in the gitlink-path set the coverage
+      # decision reads. The commit gate reads the SAME set and counts a removal as a
+      # gitlink path (`:160000 000000`), so the two must not disagree.
+      GITLINK_PATHS="${GITLINK_PATHS}${p}"$'\n'
+    fi
+  elif is_gitlink_path "$ROOT" "$p"; then
     pin_row "$p" "$(staged_gitlink "$ROOT" "$p")" \
       "$(git ls-remote "$(git config -f .gitmodules --get "submodule.$p.url" 2>/dev/null || echo '')" HEAD 2>/dev/null | awk '{print $1}' || echo '')" \
       >> "$ROWS_FILE"
@@ -500,7 +624,8 @@ done <<< "$MOVED"
 # KIND of diff this is), so its Summary count and Change-class line cannot disagree with
 # the table below. Absent (a standalone run) it is simply not written.
 if [ -n "${SYNC_EVIDENCE_TYPE_OUT:-}" ]; then
-  printf 'GITLINK_COUNT=%s\nFILE_COUNT=%s\n' "$GITLINK_COUNT" "$FILE_COUNT" > "$SYNC_EVIDENCE_TYPE_OUT"
+  printf 'GITLINK_COUNT=%s\nFILE_COUNT=%s\nREMOVED_COUNT=%s\n' \
+    "$GITLINK_COUNT" "$FILE_COUNT" "$REMOVED_COUNT" > "$SYNC_EVIDENCE_TYPE_OUT"
 fi
 bounded_rows "$SYNC_EVIDENCE_MAX_BYTES" "$MOVED_COUNT" "${SYNC_EVIDENCE_OUT:-}" < "$ROWS_FILE"
 echo '```'
