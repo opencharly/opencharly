@@ -50,17 +50,17 @@ umbrella's own gate scripts read — and leaves the rest as index entries:
 | clone shape | on disk | wall clock |
 |---|---|---|
 | `git clone --recurse-submodules` (every checkout, full history) | 9.5 G | minutes |
-| `git clone` + `scripts/init-submodules.sh` (the working set, blobless) | 71–71 M | 14–18 s |
-| `git clone` + `scripts/init-submodules.sh --all` (every path, blobless) | 1.9–2.2 G | 5 m 55 s – 6 m 43 s |
+| `git clone` + `scripts/init-submodules.sh` (the working set, blobless) | 77–77 M | 14–15 s |
+| `git clone` + `scripts/init-submodules.sh --all` (every path, blobless) | 1.9–2.2 G | 5 m 44 s – 6 m 43 s |
 
-Every figure in the table was measured on this machine on 2026-10-22; the bands carry the readings taken on 2026-10-23 as well.
+Every figure in the table was measured on this machine on 2026-10-22; the bands carry the readings taken on 2026-10-27 as well.
 
 Those sizes are the **clone**; the bootstrap builds the binary and leaves its build cache
-in the tree, so a bootstrapped light tree measures 123–123 M, against the 9.5 G a full
+in the tree, so a bootstrapped light tree measures 129–129 M, against the 9.5 G a full
 checkout occupied on 2026-10-22. Sizes are `du -sh` at whole-unit granularity, and the
 packs move with the upstream repos, so the two shapes the runs repeated carry a **band** —
 the range the runs produced — rather than a number that stays put: the light clone
-measured between 71 M and 71 M, and the `--all` shape between 1.9 G and 2.2 G. The
+measured between 77 M and 77 M, and the `--all` shape between 1.9 G and 2.2 G. The
 `--recurse-submodules` row is the **baseline** this replaces: one measurement, of a full
 checkout; it tracks the upstream mirrors, so it moves as they do. The `--all` shape's band
 is the `openclaw` mirror's module store — 480–520 M in a from-scratch clone, and more
@@ -109,9 +109,9 @@ passed, none skipped**, the same as the full tree.
 **The wall clocks are samples** of repeated runs of the same step, measured from a fresh
 clone, so the two shapes the runs repeated carry the band the runs actually produced
 across this branch — rather than a single number: the light row's fresh clones measured
-between 14 s and 18 s — the whole of it is the network fetch of the working set's
+between 14 s and 15 s — the whole of it is the network fetch of the working set's
 blobless clones — and the `--all` row's from-scratch materializations measured between
-5 m 55 s and 6 m 43 s.
+5 m 44 s and 6 m 43 s.
 The `--recurse-submodules` row is stated coarsely, as *minutes*: that shape was measured
 once, and its time is the mirrors' fetch. The `--all` row is the maintenance shape: it
 clones every declared path in parallel and then checks them out one at a time, and its
