@@ -422,16 +422,50 @@ declared_submodules() {
     | awk '{print $2}' | sort
 }
 
+# The PATHSPEC that names ONE path and nothing else.
+#
+# WHY (opencharly/opencharly#741): git reads a path argument as a PATHSPEC, not
+# as a path. A name carrying a glob character matches SEVERAL paths, and a name
+# BEGINNING with ':' is pathspec MAGIC that matches NOTHING — both SILENTLY,
+# with exit 0. Measured (git 2.56.0, 2026-10-27) on a fixture whose submodule
+# path is `a*b`, beside a sibling `a!b`:
+#   ls-files -s -- 'a*b'        → TWO records; the reader took the SIBLING's SHA
+#   submodule status -- 'a*b'   → TWO submodules
+#   submodule update -- 'a*b'   → checked out BOTH paths
+#   ls-files -s -- ':colonpath' → NOTHING, exit 0
+# `:(literal)` turns the argument back into the path it names, and it PRESERVES
+# directory descent (measured: `:(literal)box` still reaches `box/cachyos`), so
+# the umbrella's directory-shaped pin paths are unaffected. A path that does not
+# exist still fails loud (rc=1): the magic is PARSED, not literalized.
+#
+# The EXCLUDE form is the same magic with an exclusion, so every reader of a path
+# is built from ONE definition and the two cannot drift (R2).
+#
+# $1 — the magic ("literal", "exclude,literal"); $2 — the path.
+pathspec_for() {
+  printf ':(%s)%s' "$1" "$2"
+}
+
 # The recorded gitlink of a path: the SHA the umbrella's INDEX pins (the pin is
 # the index entry — the checkout follows it, it does not define it).
+#
+# The path is read as a LITERAL pathspec, so a path whose NAME carries a glob
+# character is read as ITSELF and not as a pathspec that also matches its
+# sibling — whose record sorts FIRST, and whose SHA the reader would otherwise
+# return in place of this path's own (opencharly/opencharly#741).
 recorded_gitlink() {
-  git -C "$ROOT" ls-files -s -- "$1" | awk '$1 == "160000" {print $2; exit}'
+  git -C "$ROOT" ls-files -s -- "$(pathspec_for literal "$1")" | awk '$1 == "160000" {print $2; exit}'
 }
 
 # The state of a path per `git submodule status`: ' ' at its gitlink, '+' at a
 # different commit, '-' not initialized, 'U' unmerged.
+#
+# The path is read as a LITERAL pathspec, for the same reason and with the same
+# consequence as the reader above: the plain form answers with SEVERAL
+# submodules for a glob-named path, and with NOTHING for a path whose name
+# begins with ':' — so the state it reported was another path's (opencharly/opencharly#741).
 submodule_state() {
-  git -C "$ROOT" submodule status -- "$1" 2>/dev/null | head -1 | cut -c1
+  git -C "$ROOT" submodule status -- "$(pathspec_for literal "$1")" 2>/dev/null | head -1 | cut -c1
 }
 
 # The number of files the submodule's INDEX records, and the number of entries
@@ -566,8 +600,16 @@ materialize_uninitialized() {
     todo+=("$path")
   done
   [ "${#todo[@]}" -gt 0 ] || return 0
+  # The paths go out as LITERAL pathspecs, one per path. A bare path argument
+  # is read as a PATHSPEC, so a name carrying a glob character would check out
+  # SEVERAL paths: the run would materialize a path the caller never named, at
+  # a pin this run was never asked about (opencharly/opencharly#741).
+  local -a specs=()
+  for path in "${todo[@]}"; do
+    specs+=("$(pathspec_for literal "$path")")
+  done
   git -C "$ROOT" -c protocol.version=2 submodule update --init --recursive \
-    --filter=blob:none --jobs "$JOBS" -- "${todo[@]}"
+    --filter=blob:none --jobs "$JOBS" -- "${specs[@]}"
 }
 
 # The path's OWN work: the porcelain view with the path's DECLARED nested paths
@@ -614,7 +656,7 @@ own_work_status() {
   mapfile -t nested_paths <<<"$nested_set"
   local p
   for p in "${nested_paths[@]}"; do
-    exclude+=(":(exclude,literal)$p")
+    exclude+=("$(pathspec_for exclude,literal "$p")")
   done
   git -C "$ROOT/$path" status --porcelain -- . "${exclude[@]}" 2>/dev/null || true
 }
@@ -662,7 +704,7 @@ advance_path() {
     # `materialize_nested_level` applies the same policy (clean + strict
     # ancestor) to every nested path, so a nested checkout that carries work is
     # REPORTED and left alone instead of being overwritten.
-    git -C "$ROOT" -c protocol.version=2 submodule update --init --filter=blob:none -- "$path"
+    git -C "$ROOT" -c protocol.version=2 submodule update --init --filter=blob:none -- "$(pathspec_for literal "$path")"
     return 0
   fi
   echo "init: FAIL — $path is at $head, which is NOT an ancestor of its recorded gitlink $recorded; left untouched (its own commits are not the umbrella's to discard)" >&2
@@ -1114,7 +1156,7 @@ other"
   local p drifted=0
   for p in core extra corpus other gated; do
     local want_sha got_sha
-    want_sha="$(git -C "$fixture" ls-files -s -- "$p" | awk '{print $2}')"
+    want_sha="$(git -C "$fixture" ls-files -s -- ":(literal)$p" | awk '{print $2}')"
     got_sha="$(git -C "$fixture/$p" rev-parse HEAD 2>/dev/null || true)"
     if [ "$want_sha" != "$got_sha" ]; then
       echo "  FAIL  $p is at $got_sha, not its recorded gitlink $want_sha" >&2
@@ -1557,6 +1599,90 @@ other"
     echo "  PASS  a nested path's divergence does not hold the parent back: the parent advances and the nested work survives"
   else
     echo "  FAIL  a nested path's divergence held the parent back (the parent was at '$c5_head' [must be $n_mid_old] and is now '$c5_after' [must be $n_mid_new], the nested twin's HEAD '$c5_now' [must be $c5_local], rc=$out_rc [must be non-zero: the nested divergence is reported], the report must name the nested path [$(grep -q 'inner' <<<"$out" && echo yes || echo no)], and the parent's own notice must NOT appear [$(grep -q 'core5 is not at its recorded gitlink' <<<"$out" && echo yes || echo no)]): $out" >&2
+    fails=$((fails + 1))
+  fi
+
+  # ── claim 24: a path whose NAME carries a glob character is read as ITSELF ──
+  # opencharly/opencharly#741. git reads a path argument as a PATHSPEC, not as a
+  # path: the plain form of a glob-named path matches SEVERAL paths, and the
+  # sibling it also matches sorts FIRST — so a reader that takes the first
+  # record returns the SIBLING's SHA, and the same plain form handed to
+  # `submodule update` CHECKS OUT the sibling too. The run then materializes a
+  # path the caller never named, at a pin it was never asked about.
+  #
+  # The fixture is a SECOND superproject, on the same three-commit remote the
+  # main fixture uses: `a*b` is pinned at the MIDDLE commit and its sibling
+  # `a!b` at the tip, so a misread shows up as a DIFFERENT sha and not as an
+  # absence. A third declared path, `:colonpath`, carries the OTHER half of the
+  # same mechanism: a name that BEGINS with ':' is pathspec MAGIC, and the
+  # plain form then matches NOTHING — silently, with exit 0.
+  local g_root c_root fx_root
+  g_root="$BASE/globbed"
+  c_root="$BASE/colon"
+  for fx_root in "$g_root" "$c_root"; do
+    mkdir -p "$fx_root"
+    git -C "$fx_root" init -q
+    {
+      printf '[submodule "a*b"]\n\tpath = a*b\n\turl = file://%s\n\tbranch = main\n' "$remote"
+      printf '[submodule "a!b"]\n\tpath = a!b\n\turl = file://%s\n\tbranch = main\n' "$remote"
+      printf '[submodule ":colonpath"]\n\tpath = :colonpath\n\turl = file://%s\n\tbranch = main\n' "$remote"
+    } >"$fx_root/.gitmodules"
+    git -C "$fx_root" update-index --add --cacheinfo "160000,$pinned_sha,a*b"
+    git -C "$fx_root" update-index --add --cacheinfo "160000,$head_sha,a!b"
+    git -C "$fx_root" update-index --add --cacheinfo "160000,$pinned_sha,:colonpath"
+    git -C "$fx_root" add .gitmodules
+    git -C "$fx_root" -c user.email=fixture@example.invalid -c user.name=fixture commit -qm fixture
+  done
+
+  # The run is asked for ONE path — `a*b` — and it must materialize THAT path
+  # and nothing else.
+  #
+  # The fixture's checkout is put BEHIND its recorded gitlink on purpose, so the
+  # run's ADVANCE is exercised as well: a checkout that materializes lands AT
+  # the pin, and an advance of a checkout that is already there returns early —
+  # so without this the fourth site the fix touches would never be reached.
+  #
+  # The fixture's OWN setup uses an explicit literal pathspec, so the state it
+  # builds does not depend on the reader under test: the fixture is the ground
+  # truth, the product is what is judged.
+  local g_old_sha
+  g_old_sha="$(git -C "$seed" rev-parse HEAD~2)"
+  git -C "$g_root" -c protocol.version=2 submodule update --init --filter=blob:none -- ':(literal)a*b' >/dev/null 2>&1
+  git -C "$g_root/a*b" checkout -q "$g_old_sha"
+  #
+  # The claim is DISCRIMINATING: before the fix the plain pathspec matched the
+  # sibling as well, so the run checked out BOTH paths, and the reader took the
+  # sibling's SHA for `a*b`'s own — so the sibling's checkout was present, the
+  # run failed, and `a*b` did not sit at its own recorded gitlink.
+  local g_head g_sib
+  out="$(bash "$SCRIPT" --root "$g_root" --paths 'a*b' 2>&1)" && out_rc=0 || out_rc=$?
+  g_head="$(git -C "$g_root/a*b" rev-parse HEAD 2>/dev/null || true)"
+  g_sib="no"
+  if [ -e "$g_root/a!b/.git" ]; then g_sib="yes"; fi
+  if [ "$out_rc" -eq 0 ] && [ "$g_head" = "$pinned_sha" ] && [ "$g_sib" = "no" ]; then
+    echo "  PASS  a path whose name carries a glob character is advanced to its own recorded gitlink, and its sibling is left alone"
+  else
+    echo "  FAIL  a glob-named path was not read as itself (rc=$out_rc [must be 0], the path's HEAD '$g_head' [must be $pinned_sha, its OWN recorded gitlink], the sibling 'a!b' checkout present: $g_sib [must be no — the run must not touch a path the caller never named]): $out" >&2
+    fails=$((fails + 1))
+  fi
+
+  # ── claim 25: a path whose NAME begins with ':' is read as ITSELF ─────────
+  # The other half of the same mechanism: the plain form of a colon-prefixed
+  # name is pathspec MAGIC and matches NOTHING — silently, with exit 0 — so
+  # the reader found no gitlink and the update refused the path (measured:
+  # `submodule update -- ':colonpath'` exits 1 with "pathspec did not match
+  # any file(s) known to git"). The literal form reads the path and
+  # materializes it.
+  #
+  # The claim is DISCRIMINATING: before the fix the run failed outright, on a
+  # path that IS declared and IS pinned.
+  local c_head
+  out="$(bash "$SCRIPT" --root "$c_root" --paths ':colonpath' 2>&1)" && out_rc=0 || out_rc=$?
+  c_head="$(git -C "$c_root/:colonpath" rev-parse HEAD 2>/dev/null || true)"
+  if [ "$out_rc" -eq 0 ] && [ "$c_head" = "$pinned_sha" ]; then
+    echo "  PASS  a path whose name begins with ':' is materialized as itself, at its own recorded gitlink"
+  else
+    echo "  FAIL  a colon-named path was not read as itself (rc=$out_rc [must be 0], the path's HEAD '$c_head' [must be $pinned_sha, its OWN recorded gitlink]): $out" >&2
     fails=$((fails + 1))
   fi
 
