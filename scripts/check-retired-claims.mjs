@@ -153,7 +153,7 @@ const PATTERNS = [
     // The class: two of the report's own states claimed INDISTINGUISHABLE. The truth:
     // the report's state names them apart — `differs (no checkout of <twin> to judge
     // ancestry)` against `behind` / `unmerged` / `not-on-the-served-line` (the product's
-    // own `ancestryClass`, plugin-task v0.2026299.2314, candy/plugin-task/verbs.go:919)
+    // own `ancestryClass`, plugin-task v0.2026300.951, candy/plugin-task/verbs.go:981)
     // — and only the VERDICT level, where both read "not current", cannot tell them
     // apart. A claim that the two states cannot be told apart is that defect in any
     // wording, and this change wrote it in four surfaces.

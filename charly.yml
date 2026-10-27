@@ -195,7 +195,7 @@ map:
       # re-implemented that table (R2 duplication) AND its `command` stdout was
       # discarded by the task reporter (the `command` verb's pass path returns only
       # `exit=N`), so `map` printed no map at all. Composition makes the verb's
-      # table the step's Result.Message, which plugin-task v0.2026299.2314 renders —
+      # table the step's Result.Message, which plugin-task v0.2026300.951 renders —
       # the version the umbrella's PINNED charly compiles, re-derived from that pin by
       # scripts/check-cited-plugin-task-version.mjs.
       # A `task:` verb wrapper is deliberately NOT used: verb:task returns only a

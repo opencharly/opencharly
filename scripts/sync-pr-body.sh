@@ -97,14 +97,16 @@ GITHUB_BODY_MAX="${GITHUB_BODY_MAX:-$PR_BODY_CAP_BYTES}"
 # most <max-lines> lines VERBATIM. It deliberately parses NOTHING: the retired
 # scripts/sync-gitlinks.sh emitted `  <path> -> <sha>` per pin and the current
 # `charly task sync` (verb:git-submodules bump) emits a `pinned N pin_map
-# entr(y|ies) (…) after rolling M submodule(s) … and advancing K pin(s) in the
-# index` summary, but coupling this builder to either incidental format is
-# what broke after the Taskfile→task cutover — the old per-pin-only grep matched
-# nothing against the new shape and the body read "MISSING from producer log —
-# investigate" for every moved pin (measured). The AUTHORITATIVE per-pin proof is
-# the index-derived table sync-pin-evidence.sh emits below (`staged-gitlink` vs
-# remote default-branch HEAD); this excerpt is only the producer's own raw output,
-# pasted as-is so no form is silently dropped. The bound is applied HERE (via
+# entr(y|ies) (…; P moved) after rolling R leaf submodule(s) to their
+# default-branch HEAD (RM moved) and advancing A leaf pin(s) in the index
+# (AM moved); T pin(s) moved` summary, but coupling this builder to either
+# incidental format is what broke after the Taskfile→task cutover — the old
+# per-pin-only grep matched nothing against the new shape and the body read
+# "MISSING from producer log — investigate" for every moved pin (measured). The
+# AUTHORITATIVE per-pin proof is the index-derived table sync-pin-evidence.sh
+# emits below (`staged-gitlink` vs remote default-branch HEAD); this excerpt is
+# only the producer's own raw output, pasted as-is so no form is silently
+# dropped. The bound is applied HERE (via
 # `sed -n`), never by piping into `head` — this harness ignores SIGPIPE, so a
 # caller-side `head` would let an early-exiting reader flood the log with broken-
 # pipe write errors. ONE implementation the live path and the self-test both call.
@@ -457,16 +459,17 @@ if [ "${1:-}" = "--self-test" ]; then
   # ONE definition so that no arm can carry a shape of its own.
   #
   # The STEP MESSAGE, read from the product's own source
-  # (`candy/plugin-task/verbs.go:739` in the module the binary is built from —
+  # (`candy/plugin-task/verbs.go:801` in the module the binary is built from —
   # `charly/charly/go.mod` at the umbrella's PINNED charly pins
-  # `plugin-task v0.2026299.2314`, and that version is the SENTINEL for the source
+  # `plugin-task v0.2026300.951`, and that version is the SENTINEL for the source
   # lines beside it: scripts/check-cited-plugin-task-version.mjs re-derives it from
   # that pin and fails when it moves, so these lines are re-read, not re-remembered)
   # and confirmed end
   # to end by a real `charly task sync` run of this repo (the umbrella's wave
   # PR #671, and the wave that advances this pin):
-  #     pinned N pin_map entr(y|ies) (…) after rolling M submodule(s) to their
-  #     default-branch HEAD and advancing K pin(s) in the index
+  #     pinned N pin_map entr(y|ies) (…; P moved) after rolling R leaf submodule(s)
+  #     to their default-branch HEAD (RM moved) and advancing A leaf pin(s) in the
+  #     index (AM moved); T pin(s) moved
   # — indented six spaces under its step line, exactly as the product renders a
   # step's message (`candy/plugin-task/cli.go:261`, formatStepLine — the retired
   # release cited a lower line number, and the retired one is gone).
@@ -481,29 +484,46 @@ if [ "${1:-}" = "--self-test" ]; then
   # (opencharly/opencharly#678). The summary the product retired in
   # plugin-task#25 (the per-pin count) is likewise NOT this shape.
   #
+  # The STEP MESSAGE's shape that THIS one replaced is retired too: the two-bucket
+  # form counted INDEX WRITES, not the pins that MOVED (opencharly/plugin-task#53
+  # measured 406 written against 4 moved on the live umbrella), and the expectations
+  # below are the current form's OWN literals — so a definition that regressed to
+  # the retired shape cannot pass this arm.
+  #
+  # The three groups PARTITION the paths the bump touched, and their moved counters
+  # SUM to the total the product prints (its own invariant), so the fixture states a
+  # coherent scenario: the three (touched, moved) pairs it is given, the pin_map
+  # entries' names, and the total they sum to.
+  #
   # The headline's step count is this fixture's own scenario (a one-step task);
   # the SHAPE under test is the summary line, which is what the product retired.
   producer_log_current() {
-    local out="$1" names="$2" n
-    n="$(printf '%s' "$names" | tr ',' '\n' | grep -c .)"
+    local out="$1" rolled="$2" rolledMoved="$3" advanced="$4" advancedMoved="$5" \
+      pinned="$6" pinnedMoved="$7" names="$8"
+    local total=$((rolledMoved + advancedMoved + pinnedMoved))
     {
       printf 'task sync: 1 step(s), 0 failed, 0 skipped\n'
       printf '  [pass] run — bump the pins\n'
-      printf '      pinned %d pin_map entr(y|ies) (%s) after rolling %d submodule(s) to their default-branch HEAD and advancing %d pin(s) in the index\n' \
-        "$n" "$names" "$n" "$n"
+      printf '      pinned %d pin_map entr(y|ies) (%s; %d moved) after rolling %d leaf submodule(s) to their default-branch HEAD (%d moved) and advancing %d leaf pin(s) in the index (%d moved); %d pin(s) moved\n' \
+        "$pinned" "$names" "$pinnedMoved" "$rolled" "$rolledMoved" "$advanced" "$advancedMoved" "$total"
     } > "$out"
   }
 
   { echo p3; echo p4; } > "$moved"
-  producer_log_current "$producer" "p3, p4"
+  # The scenario the summary states: TWO paths moved — one ROLLED to its
+  # default-branch HEAD and one ADVANCED in the index — and the two groups' moved
+  # counters SUM to the total the product prints.
+  producer_log_current "$producer" 1 1 1 1 0 0 "none"
   git -C "$tmp" update-index --add --cacheinfo "160000,${RHEAD},p3"
   git -C "$tmp" update-index --add --cacheinfo "160000,${RHEAD},p4"
   build_body "$tmp" "$moved" "$producer" "$pinlog" "$tmp/body4" "$tmp/ev4" || fail "task-summary producer must build"
   # The expectation is an INDEPENDENT literal, NOT the renderer's own template:
   # an assertion that greps the definition cannot fail when the definition
   # regresses — which is exactly how the retired shape survived here.
-  grep -qF 'pin_map entr(y|ies)' "$tmp/body4" || fail "the CURRENT producer summary must reach the body verbatim"
-  grep -qF 'advancing 2 pin(s) in the index' "$tmp/body4" || fail "the CURRENT producer summary must reach the body verbatim"
+  grep -qF 'pin_map entr(y|ies) (none; 0 moved)' "$tmp/body4" || fail "the CURRENT producer summary must reach the body verbatim"
+  grep -qF 'rolling 1 leaf submodule(s) to their default-branch HEAD (1 moved)' "$tmp/body4" || fail "the CURRENT producer summary must reach the body verbatim"
+  grep -qF 'advancing 1 leaf pin(s) in the index (1 moved)' "$tmp/body4" || fail "the CURRENT producer summary must reach the body verbatim"
+  grep -qF '; 2 pin(s) moved' "$tmp/body4" || fail "the CURRENT producer summary must reach the body verbatim"
   # The HEADLINE is its own shape, and the release this pin compiles in carries the
   # third bucket. The expectation is a CONCRETE instance of the product's current
   # line — a renderer that regressed to the two-bucket form would not produce it,
@@ -520,9 +540,14 @@ if [ "${1:-}" = "--self-test" ]; then
   # a file with NO `=`/`!` flag, and derive the change class from the split — never claim
   # `gitlink-only`.
   { echo p1; echo p5; } > "$moved"
-  producer_log_current "$producer" "p1"
+  # The pin_map EDGE scenario: the one moved PIN is a pin_map entry, so its NAME
+  # and its moved count are part of the shape.
+  producer_log_current "$producer" 0 0 0 0 1 1 "p1"
   printf 'x\n' > "$tmp/p5"; git -C "$tmp" add p5
   build_body "$tmp" "$moved" "$producer" "$pinlog" "$tmp/body7" "$tmp/ev7" || fail "mixed gitlink+file input must build"
+  # The pin_map clause's NAMES are asserted too — the one part of the shape that
+  # carries the paths, and the one the retired form's names had already lost.
+  grep -qF 'pin_map entr(y|ies) (p1; 1 moved)' "$tmp/body7" || fail "the CURRENT producer summary must reach the body verbatim"
   grep -q '^\*\*1\*\* gitlink(s) and \*\*1\*\* non-gitlink changed path(s)' "$tmp/body7" \
     || fail "mixed body must separate the gitlink count from the non-gitlink count"
   grep -qE '^  p5  [0-9a-f]{12}  \(file\)$' "$tmp/body7" || fail "a non-gitlink path must render a (file) row"
@@ -648,7 +673,7 @@ if [ "${1:-}" = "--self-test" ]; then
   grep -q 'below the fleet-scale floor' "$tmp/err-fleet" \
     || fail "the floor guard must name the floor, on stderr"
 
-  echo "sync-pr-body: self-test OK (fleet-scale BODY — the umbrella's live submodule count, read from .gitmodules — carries the COMPLETE compact evidence table — every path named, no elision — and stays under the ${PR_BODY_CAP_BYTES}-byte cap; the caller's evidence file keeps a convenience copy; neither names a CI run artifact; small input names its paths with no elision; the producer excerpt is verbatim for BOTH the historical per-pin form and the CURRENT summary shape (pinned N pin_map entr(y|ies) … in the index); the body carries the four required sections, the Change classification's change class + verification gate + attribution tier, and rule 7's two-line footer — the Agent: line directly above the italic Assisted-by trailer as the FINAL line, and exactly ONE literal 'Assisted-by:' in the body so squash_body.py's prose contract holds; an unset SYNC_AGENT fails loud, and the Agent: line is shown to TRACK its variable rather than a literal; a trailer with no (tier) fails loud; over-cap trips the hard guard; a .gitmodules with no submodule entry counts as 0 and reaches the floor guard's own message instead of aborting on grep's exit status)"
+  echo "sync-pr-body: self-test OK (fleet-scale BODY — the umbrella's live submodule count, read from .gitmodules — carries the COMPLETE compact evidence table — every path named, no elision — and stays under the ${PR_BODY_CAP_BYTES}-byte cap; the caller's evidence file keeps a convenience copy; neither names a CI run artifact; small input names its paths with no elision; the producer excerpt is verbatim for BOTH the historical per-pin form and the CURRENT summary shape (pinned N pin_map entr(y|ies) (…; P moved) after rolling R leaf submodule(s) to their default-branch HEAD (RM moved) and advancing A leaf pin(s) in the index (AM moved); T pin(s) moved); the body carries the four required sections, the Change classification's change class + verification gate + attribution tier, and rule 7's two-line footer — the Agent: line directly above the italic Assisted-by trailer as the FINAL line, and exactly ONE literal 'Assisted-by:' in the body so squash_body.py's prose contract holds; an unset SYNC_AGENT fails loud, and the Agent: line is shown to TRACK its variable rather than a literal; a trailer with no (tier) fails loud; over-cap trips the hard guard; a .gitmodules with no submodule entry counts as 0 and reaches the floor guard's own message instead of aborting on grep's exit status)"
   exit 0
 fi
 
