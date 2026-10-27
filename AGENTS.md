@@ -770,8 +770,10 @@ Before declaring completion, answer every applicable item YES. There is one line
 - `README.md` — the org map, user overview, and the maintenance-command table
   (`./charly/bin/charly task list`; build the binary once per clone with
   `./charly/scripts/bootstrap-charly.sh`).
-- this umbrella's own `.agents/skills/<name>/SKILL.md` trees — where the org's GENERAL-GUIDANCE
-  skills are authored (Part II #5). Every other skill lives in the repo of the code, plugin, or
+- this umbrella's own `.agents/` trees — where the org's GENERAL-GUIDANCE skills are authored
+  (Part II #5): `.agents/skills/<name>/SKILL.md` for a skill, and the sibling
+  `.agents/agents/<name>.md` for an `agent`-type node (the agent roster, whose describing skill
+  is `.agents/skills/agents/`). Every other skill lives in the repo of the code, plugin, or
   config it describes.
 - The opencharly/marketplace repo — the GENERATED corpus: every skill
   (`<family>/skills/<skill>/SKILL.md`) and the full skill index in its README. Every file there

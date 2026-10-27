@@ -121,15 +121,17 @@ opencharly-guidance:
         description: |-
             Concept candy owning the umbrella's general-guidance skills — the ones with no code,
             plugin, or config behind them — and the exception of AGENTS.md Part II #5: the two skills
-            whose config home, opencharly/.github, cannot author skills. It ships no install content
-            and composes no image; it carries the family's `skill:` routing nodes, and the prose lives
-            in `.agents/skills/<name>/SKILL.md` at this repo's root.
+            whose config home, opencharly/.github, cannot author skills. It also owns the AGENT ROSTER:
+            the six `type: agent` definitions that describe a role in the org's development workflow.
+            It ships no install content and composes no image; it carries the family's `skill:` routing
+            nodes, and the prose lives at this repo's root — in `.agents/skills/<name>/SKILL.md` for a
+            skill and in the sibling `.agents/agents/<name>.md` for an `agent`-type node.
         plan:
             - run: this documentation-only candy ships no install content (it carries the org's general-guidance skill entities); validate-satisfying no-op
               command: "true"
               context:
                 - build
-            - check: every general-guidance skill node resolves to an authored body under .agents/skills
+            - check: every general-guidance skill and agent node resolves to an authored body — `.agents/skills/<name>/SKILL.md` for a skill, `.agents/agents/<name>.md` for an `agent`-type node
               id: opencharly-guidance-present
               context:
                 - build
@@ -181,6 +183,60 @@ strict-policy-skill:
             - "Agent Driven Evaluation (ADE) / `charly box feature run` / `charly check feature run` / `charly feature list/pending/validate` / authoring a candy's `plan:` + `description:` string / the agent grader for `agent-check:` steps"
             - "Engineering-discipline triggers (failure surfaced / dup pattern / ad-hoc fix tempting / \"out of scope\" framing)"
             - "Go code-quality / AGENTS.md-compliance audit / `golangci-lint` / `dupl` / duplication or dead-code check / `.golangci.yml`"
+
+# -----------------------------------------------------------------------------
+# The agent roster — the six `type: agent` definitions that were the
+# `layer-charly-internals-extra` carrier's overflow half (opencharly/opencharly#600,
+# #611). They describe a ROLE in the org's development workflow — an evaluator, an
+# executor, the R1 analyzer — and no code, plugin or config implements one, so the
+# Part II #5 rule that places general guidance in the one repo every consumer shares
+# places them here. Their bodies are the sibling `.agents/agents/<name>.md` tree, the
+# path `deploykit` reads for an `agent`-type node's body; the roster that DESCRIBES
+# them (`.agents/skills/agents/references/agent-roster.md`) is here too, so the
+# roster and its members are edited, reviewed and tagged together.
+# -----------------------------------------------------------------------------
+check-bed-runner-agent:
+    skill:
+        name: check-bed-runner
+        family: internals
+        owner: opencharly-guidance
+        type: agent
+        model: inherit
+deploy-verifier-agent:
+    skill:
+        name: deploy-verifier
+        family: internals
+        owner: opencharly-guidance
+        type: agent
+        model: inherit
+layer-validator-agent:
+    skill:
+        name: layer-validator
+        family: internals
+        owner: opencharly-guidance
+        type: agent
+        model: inherit
+pr-validator-agent:
+    skill:
+        name: pr-validator
+        family: internals
+        owner: opencharly-guidance
+        type: agent
+        model: inherit
+root-cause-analyzer-agent:
+    skill:
+        name: root-cause-analyzer
+        family: internals
+        owner: opencharly-guidance
+        type: agent
+        model: inherit
+testing-validator-agent:
+    skill:
+        name: testing-validator
+        family: internals
+        owner: opencharly-guidance
+        type: agent
+        model: inherit
 
 # -----------------------------------------------------------------------------
 # map — list every submodule with its pin and sync state.
