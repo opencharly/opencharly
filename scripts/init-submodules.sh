@@ -1156,6 +1156,8 @@ other"
   local p drifted=0
   for p in core extra corpus other gated; do
     local want_sha got_sha
+    # NOT via pathspec_for: the ORACLE reads the FIXTURE's own record, so no
+    # expectation in this file is the code's own output (R7).
     want_sha="$(git -C "$fixture" ls-files -s -- ":(literal)$p" | awk '{print $2}')"
     got_sha="$(git -C "$fixture/$p" rev-parse HEAD 2>/dev/null || true)"
     if [ "$want_sha" != "$got_sha" ]; then
