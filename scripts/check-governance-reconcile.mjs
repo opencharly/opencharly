@@ -37,7 +37,7 @@
 // Usage: node scripts/check-governance-reconcile.mjs [--root <dir>] [--self-test]
 // exit 0 clean · 1 finding
 
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -63,15 +63,15 @@ function runGate(rootDir) {
     const out =
       `${SKIP_MARK} — this checkout does not carry ${RECONCILE_REL}, so the strong form cannot run here. ` +
       `Materialize it with: bash scripts/init-submodules.sh  (the derived working set carries the repo the gates read)`;
-    return { code: 0, out, skipped: true };
+    return { code: 0, out };
   }
   const r = spawnSync("bash", [script, "--root", rootDir], { encoding: "utf8" });
   if (r.error) {
-    return { code: 1, out: `governance-reconcile: FAIL — the reconcile could not be run: ${r.error.message}`, skipped: false };
+    return { code: 1, out: `governance-reconcile: FAIL — the reconcile could not be run: ${r.error.message}` };
   }
   const out = `${r.stdout ?? ""}${r.stderr ?? ""}`.trimEnd();
   const status = r.status === null ? 1 : r.status;
-  return { code: status, out, skipped: false };
+  return { code: status, out };
 }
 
 /** The gate's own verdict, printed as the gate prints it. */
@@ -101,11 +101,32 @@ function report(res) {
 // Each assertion is paired with a MUTATION of this script that breaks it, and the
 // mutated script is judged by the SAME assertion: a mutation that does not break
 // its assertion is a failure, because it means the assertion cannot fail (R7).
+// Two mechanisms carry that proof, because the code lives in two places — see
+// the mutation table below.
+//
+// The fixture is addressed THROUGH A SYMLINK, so the checkout's path has two
+// spellings: the one the caller holds and the one a module that resolves its
+// own location sees. A temp root that is itself a symlink (macOS: /var ->
+// /private/var) has that property on every run, and the assertion must judge
+// the DIRECTORY rather than the spelling of its path.
 // ---------------------------------------------------------------------------
 
-/** A fixture checkout: a copy of `source` under scripts/, and a stub reconcile. */
+/**
+ * A fixture checkout: a copy of `source` under scripts/, and a stub reconcile.
+ *
+ * The fixture is addressed THROUGH A SYMLINK on purpose. A temp root that is
+ * itself a symlink (macOS: /var -> /private/var) is named one way by the
+ * caller and another by the module that resolves its own path, so the strong
+ * form's `--root` and the path the caller holds can differ in SPELLING while
+ * naming the same directory. Building the fixture that way HERE makes that
+ * asymmetry real on every platform, so assertion D is proved against it rather
+ * than assumed away.
+ */
 function makeFixture(source, { withReconcile, exitCode, marker }) {
-  const dir = mkdtempSync(join(tmpdir(), "govrec-"));
+  const base = mkdtempSync(join(tmpdir(), "govrec-"));
+  const link = join(tmpdir(), `govrec-link-${base.slice(base.lastIndexOf("-") + 1)}`);
+  symlinkSync(base, link, "dir");
+  const dir = join(link, "fixture");
   mkdirSync(join(dir, "scripts"), { recursive: true });
   writeFileSync(join(dir, "scripts", "check-governance-reconcile.mjs"), source);
   if (withReconcile) {
@@ -115,7 +136,7 @@ function makeFixture(source, { withReconcile, exitCode, marker }) {
       `#!/usr/bin/env bash\necho "stub-governance-reconcile: args=[$*] marker=${marker}"\nexit ${exitCode}\n`,
     );
   }
-  return dir;
+  return { dir, cleanup: [link, base] };
 }
 
 /** Run the gate copy inside a fixture checkout. */
@@ -129,9 +150,9 @@ function runFixture(dir) {
  * Returns { A, B, C, D } — true means the assertion HOLDS.
  */
 function evaluate(source, dirs) {
-  const track = (d) => {
-    dirs.push(d);
-    return d;
+  const track = (fixture) => {
+    dirs.push(...fixture.cleanup);
+    return fixture.dir;
   };
 
   const passDir = track(makeFixture(source, { withReconcile: true, exitCode: 0, marker: "pass" }));
@@ -147,7 +168,20 @@ function evaluate(source, dirs) {
     A: pass.code === 0,
     B: bad.code === 1,
     C: bare.code === 0 && bare.out.includes(SKIP_MARK),
-    D: pass.out.includes("--root " + passDir),
+    // The stub echoes the arguments it was given, so the strong form's --root
+    // value is in its output. Compare the REAL paths: the fixture is addressed
+    // through a symlink, so the value the gate resolved and the path the
+    // caller holds name the same DIRECTORY in two spellings, and the assertion
+    // must judge the directory, not the spelling.
+    D: (() => {
+      const m = pass.out.match(/--root ([^\s\]]+)/);
+      if (!m) return false;
+      try {
+        return realpathSync(m[1]) === realpathSync(passDir);
+      } catch {
+        return m[1] === passDir;
+      }
+    })(),
   };
 }
 
@@ -158,8 +192,20 @@ const ASSERTION_TEXT = {
   D: "the strong form is invoked with --root <the checkout>",
 };
 
+/** Run the gate copy in a fixture AS A SELF-TEST, and report what it decided. */
+function runSelfTest(dir) {
+  const r = spawnSync("node", [join(dir, "scripts", "check-governance-reconcile.mjs"), "--self-test"], {
+    encoding: "utf8",
+    // The nested run must not recurse: it proves the mutation, and its own
+    // "self" mutation is SKIPPED there (visibly, below).
+    env: { ...process.env, GOVREC_SELFTEST_NESTED: "1" },
+  });
+  return { code: r.status === null ? 1 : r.status, out: `${r.stdout ?? ""}${r.stderr ?? ""}` };
+}
+
 function selfTest() {
   const source = readFileSync(fileURLToPath(import.meta.url), "utf8");
+  const nested = process.env.GOVREC_SELFTEST_NESTED === "1";
   const dirs = [];
   let fails = 0;
   const fail = (m) => {
@@ -177,32 +223,69 @@ function selfTest() {
 
   // The mutations: each breaks exactly one assertion, which is what proves that
   // assertion can fail.
+  //
+  // TWO MECHANISMS, because the two kinds of code live in different places:
+  //   "gate" — the mutation is in the GATE's executed path. The fixture copy
+  //            runs it, and the parent judges the copy's BEHAVIOUR.
+  //   "self" — the mutation is in THIS HARNESS's own assertion logic, which
+  //            the fixture copy never executes (it runs as a gate, not as a
+  //            self-test). So the mutated source is run AS a self-test, and
+  //            the mutation is caught when that nested self-test FAILS on the
+  //            assertion under test. Without this second mechanism, a
+  //            mutation of the assertion logic would change nothing the
+  //            parent observes, and the assertion would look live when it is
+  //            not — a coverage that cannot fail.
   const mutations = [
     [
       "the gate stops propagating the reconcile's exit status",
       (s) => s.replace("const status = r.status === null ? 1 : r.status;", "const status = 0;"),
       "B",
+      "gate",
     ],
     [
       "the gate stops passing --root to the strong form",
       (s) => s.replace('spawnSync("bash", [script, "--root", rootDir]', 'spawnSync("bash", [script, "--root", "/nonexistent-root"]'),
       "D",
+      "gate",
     ],
     [
       "the gate turns the missing-reconcile skip red",
-      (s) => s.replace("return { code: 0, out, skipped: true };", "return { code: 1, out, skipped: true };"),
+      (s) => s.replace("return { code: 0, out };", "return { code: 1, out };"),
       "C",
+      "gate",
     ],
     [
       "the gate turns a passing reconcile red",
       (s) => s.replace("const status = r.status === null ? 1 : r.status;", "const status = r.status === 0 ? 1 : r.status;"),
       "A",
+      "gate",
+    ],
+    [
+      "the D assertion judges the path's SPELLING instead of the directory",
+      (s) => s.replace("return realpathSync(m[1]) === realpathSync(passDir);", "return m[1] === passDir;"),
+      "D",
+      "self",
     ],
   ];
-  for (const [name, mutate, mustBreak] of mutations) {
+  for (const [name, mutate, mustBreak, kind] of mutations) {
     const mutated = mutate(source);
     if (mutated === source) {
       fail(`mutation '${name}' did not apply — this script no longer contains the text it targets`);
+      continue;
+    }
+    if (kind === "self") {
+      if (nested) {
+        console.log(`  SKIP  mutation '${name}' — this is a nested self-test, and a nested self-test does not recurse`);
+        continue;
+      }
+      const fixture = makeFixture(mutated, { withReconcile: true, exitCode: 0, marker: "nested" });
+      dirs.push(...fixture.cleanup);
+      const after = runSelfTest(fixture.dir);
+      if (after.code !== 0 && after.out.includes(`FAIL  ${mustBreak}:`)) {
+        ok(`mutation '${name}' is caught by assertion ${mustBreak} (${ASSERTION_TEXT[mustBreak]}) — the mutated self-test fails on it`);
+      } else {
+        fail(`mutation '${name}' was NOT caught by assertion ${mustBreak} — that assertion cannot fail`);
+      }
       continue;
     }
     const after = evaluate(mutated, dirs);
