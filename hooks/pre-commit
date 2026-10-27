@@ -77,8 +77,10 @@
 #  14. the ONE body cap — the cap file states ONE rule and BOTH of its readers
 #                          implement it: they read the same number from the same file,
 #                          and both refuse a cap file that is not exactly one positive
-#                          integer — asserted by FIRING both readers against the same
-#                          file (`node scripts/check-pr-body-cap.mjs`;
+#                          integer; and no reader inherits an ambient
+#                          GITHUB_BODY_MAX, so the gate's verdict is the same whatever
+#                          the caller's shell carries — asserted by FIRING both readers
+#                          against the same file (`node scripts/check-pr-body-cap.mjs`;
 #                          opencharly/opencharly#720)
 #
 # Deliberately NOT here (see `charly task verify`): the per-submodule

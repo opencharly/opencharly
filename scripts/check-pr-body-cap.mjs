@@ -23,6 +23,13 @@
 // runs them against the same file and compares what they read and what they
 // refuse.
 //
+// The readers are fired with GITHUB_BODY_MAX REMOVED from their environment. The
+// override is a knob on the READER, so an ambient value that reached them would
+// decide what the gate judges: the JS reader checks the override BEFORE it reads
+// the cap file, so it would report the caller's number instead of the file's, and
+// the gate would be comparing the shell it happens to run in rather than the cap
+// (opencharly/opencharly#721).
+//
 // Usage: node scripts/check-pr-body-cap.mjs [--root <dir>] [--self-test]
 // exit 0 clean · 1 finding
 
@@ -107,25 +114,52 @@ function makeRepo(dir) {
   return repo;
 }
 
+/**
+ * The environment a reader is fired with.
+ *
+ * `GITHUB_BODY_MAX` is REMOVED, and that is the whole point of it. The override is a
+ * documented knob on the READER, so an ambient value in the caller's shell would
+ * otherwise reach the readers: the JS reader checks the override BEFORE it reads the
+ * cap file, so it would report the ambient number instead of the file's, the
+ * same-number arm would compare the ambient against the file, and the refusal arms
+ * would never see the mutated cap at all — the gate would be judging the shell it
+ * happens to run in rather than the cap file. The gate's subject is the FILE, so the
+ * file's number is the only number the readers are allowed to see
+ * (opencharly/opencharly#721).
+ */
+function readerEnv(extra = {}) {
+  const env = { ...process.env, ...extra };
+  delete env.GITHUB_BODY_MAX;
+  return env;
+}
+
 /** The JS reader, fired as the pre-push hook fires it. */
 function runJsReader(dir, repo, bodyFile) {
   const r = spawnSync(
     process.execPath,
     [join(dir, JS_READER_REL), "--body", bodyFile, "--repo", repo, "--base", "origin/main"],
-    { encoding: "utf8" },
+    { encoding: "utf8", env: readerEnv() },
   );
   return { code: r.status, out: `${r.stdout ?? ""}${r.stderr ?? ""}` };
 }
 
 /** The bash reader, fired as the builder fires it: the cap is read before anything else. */
 function runBashReader(dir) {
-  const r = spawnSync("bash", [join(dir, BASH_READER_REL)], { cwd: dir, encoding: "utf8" });
+  const r = spawnSync("bash", [join(dir, BASH_READER_REL)], {
+    cwd: dir,
+    encoding: "utf8",
+    env: readerEnv(),
+  });
   return { code: r.status, out: `${r.stdout ?? ""}${r.stderr ?? ""}` };
 }
 
 /** The bash reader's self-test — the run that reports the cap it read. */
 function runBashSelfTest(dir) {
-  const r = spawnSync("bash", [join(dir, BASH_READER_REL), "--self-test"], { cwd: dir, encoding: "utf8" });
+  const r = spawnSync("bash", [join(dir, BASH_READER_REL), "--self-test"], {
+    cwd: dir,
+    encoding: "utf8",
+    env: readerEnv(),
+  });
   return { code: r.status, out: `${r.stdout ?? ""}${r.stderr ?? ""}` };
 }
 
@@ -245,11 +279,13 @@ function trackedTextFiles(tree) {
 
 /**
  * A7 — the RETIRED rule's wording must be GONE from the umbrella's own tracked tree
- * (R5). The old header promised the readers a rule they did not both implement, and
- * a promise is what made the disagreement invisible: a reader that diverged from the
- * prose was diverging from the ONE description of the cap, so nothing but this gate
- * could see it. The scan is repo-wide, so a copy of the promise in a reader, a doc or
- * a message is found too.
+ * (R5), with the two exceptions the scan itself makes, and states in its verdict: THIS
+ * GATE, which must name the wording it forbids, and `CHANGELOG/`, which is the record
+ * of what happened rather than a current claim. The old header promised the readers a
+ * rule they did not both implement, and a promise is what made the disagreement
+ * invisible: a reader that diverged from the prose was diverging from the ONE
+ * description of the cap, so nothing but this gate could see it. The scan is
+ * repo-wide, so a copy of the promise in a reader, a doc or a message is found too.
  */
 function armRetiredWordingGone() {
   const rels = trackedTextFiles(root);
@@ -268,9 +304,17 @@ function armRetiredWordingGone() {
     }
   }
   if (hits.length) {
-    fail(`the RETIRED rule's wording must be GONE from the tracked tree — it survives at ${hits.join(", ")}`);
+    fail(
+      `the RETIRED rule's wording must be GONE from every tracked file except this gate, which names it in ` +
+        `order to forbid it, and except CHANGELOG/, which is the record of what happened — it survives at ` +
+        `${hits.join(", ")}`,
+    );
   } else {
-    ok(`the RETIRED rule's wording is gone from the tracked tree (${rels.length} tracked file(s) scanned)`);
+    ok(
+      `the RETIRED rule's wording is gone from every tracked file EXCEPT this gate — which names it in order ` +
+        `to forbid it — and except CHANGELOG/, which is the record of what happened ` +
+        `(${rels.length} tracked file(s) scanned)`,
+    );
   }
 }
 
@@ -311,43 +355,131 @@ function runGate() {
 
 // ── --self-test: prove each arm is live, by mutating a reader ─────────────────────
 // The arms above are fired against the REAL readers, so a reader that stopped
-// implementing the rule would take an arm with it. Each mutation puts a reader
-// back on the RETIRED rule, and the gate must then go RED on that arm — otherwise
-// the arm was never watching anything.
+// implementing the rule would take an arm with it. Each mutation puts a reader — or
+// this gate's own source — back on a rule it must not have, and the gate must then
+// go RED on that arm — otherwise the arm was never watching anything.
+//
+// Every arm is covered by a mutation, and the self-test SAYS so: it names the arms,
+// counts the arms, and fails when one has no mutation. Counting the MUTATIONS and
+// calling the count "arms" is how "4/4 arms live" came to describe four mutations of
+// seven arms (opencharly/opencharly#721).
 if (argv.includes("--self-test")) {
   const selfDir = mkdtempSync(join(tmpdir(), "check-pr-body-cap-self-"));
   let stFails = 0;
   let stLive = 0;
+  const covered = new Set();
 
   const RETIRED_JS_READER =
     'function capContentLines(text) {\n' +
     '  return [text.replace(/#.*$/gm, "").replace(/\\s+/g, "")];\n' +
     '}';
 
+  /**
+   * The arms the gate fires, in the order it fires them. Every one of them must be
+   * covered by a mutation below: an arm with no mutation is an arm that watches
+   * nothing, and this list is what the self-test checks that against.
+   */
+  const ARMS = [
+    ["A1", "the two readers read the SAME number from the shipped cap"],
+    ["A2", "a cap file with TWO content lines is refused by BOTH readers"],
+    ["A3", "a cap file whose content line carries a trailing note is refused by BOTH readers"],
+    ["A4", "a cap file with NO content line is refused by BOTH readers"],
+    ["A5", "the reconciler's self-test is GREEN under an ambient GITHUB_BODY_MAX"],
+    ["A6", "the cap file's header states the ONE-content-line rule"],
+    ["A7", "the RETIRED rule's wording is gone from the tracked tree"],
+  ];
+
+  /** Replace one exact substring, or report that the source it targets moved. */
+  const swap = (src, from, to) => (src.includes(from) ? src.replace(from, to) : null);
+
   const mutations = [
     {
       name: "the JS reader concatenates the cap file's content lines (the retired rule)",
       file: "js",
-      apply: (src) => src.replace(/function capContentLines\(text\) \{[\s\S]*?\n\}/, RETIRED_JS_READER),
-      expect: "must REFUSE it",
+      apply: (src) =>
+        src.replace(/function capContentLines\(text\) \{[\s\S]*?\n\}/, RETIRED_JS_READER),
+      expect: "a cap file with TWO content lines: the JS reader must REFUSE it",
+      arms: ["A2", "A3"],
     },
     {
       name: "the bash reader takes the FIRST content line (the retired rule)",
       file: "bash",
       apply: (src) => src.replace("{ print }", "{ print; exit }"),
-      expect: "must REFUSE it",
+      expect: "a cap file with TWO content lines: the bash reader must REFUSE it",
+      arms: ["A2"],
+    },
+    {
+      name: "the bash reader takes the number BEFORE the note",
+      file: "bash",
+      apply: (src) =>
+        swap(
+          src,
+          'PR_BODY_CAP_BYTES="$PR_BODY_CAP_LINES"',
+          'PR_BODY_CAP_BYTES="${PR_BODY_CAP_LINES%% *}"',
+        ),
+      expect: "a cap file whose content line carries a trailing note: the bash reader must REFUSE it",
+      arms: ["A3"],
+    },
+    {
+      name: "the bash reader reads a DIFFERENT number from the shipped cap",
+      file: "bash",
+      apply: (src) =>
+        swap(
+          src,
+          'PR_BODY_CAP_BYTES="$PR_BODY_CAP_LINES"',
+          'PR_BODY_CAP_BYTES="$((PR_BODY_CAP_LINES + 1))"',
+        ),
+      expect: "the two readers must read the SAME number from the shipped cap",
+      arms: ["A1"],
+    },
+    {
+      name: "the bash reader falls back to a DEFAULT when the cap file holds no content line",
+      file: "bash",
+      apply: (src) => {
+        const counted = swap(
+          src,
+          'if [ "$PR_BODY_CAP_COUNT" -ne 1 ]; then',
+          'if [ "$PR_BODY_CAP_COUNT" -gt 1 ]; then',
+        );
+        if (counted === null) return null;
+        return swap(
+          counted,
+          'PR_BODY_CAP_BYTES="$PR_BODY_CAP_LINES"',
+          'PR_BODY_CAP_BYTES="${PR_BODY_CAP_LINES:-65536}"',
+        );
+      },
+      expect: "a cap file with NO content line: the bash reader must REFUSE it",
+      arms: ["A4"],
     },
     {
       name: "the reconciler's self-test follows the ambient override again",
       file: "js",
-      apply: (src) => src.replace("const capBytes = readCapFileBytes();", "const capBytes = readCapBytes();"),
+      apply: (src) =>
+        swap(
+          src,
+          "const capBytes = readCapBytes({ fromFile: true });",
+          "const capBytes = readCapBytes();",
+        ),
       expect: "must be GREEN under an ambient GITHUB_BODY_MAX",
+      arms: ["A5"],
+    },
+    {
+      name: "the cap file's header stops stating the ONE-content-line rule",
+      file: "cap",
+      apply: (src) => swap(src, "EXACTLY ONE", "ONE"),
+      expect: "the cap file's header must state the ONE-content-line rule",
+      arms: ["A6"],
     },
     {
       name: "the cap file's header promises the retired rule again",
       file: "cap",
-      apply: (src) => src.replace(/^# pr-body-cap/, `# pr-body-cap — the readers take the first line that is ${RETIRED_PROMISE}`),
-      expect: "must be GONE from the tracked tree",
+      apply: (src) =>
+        src.replace(
+          /^# pr-body-cap/,
+          `# pr-body-cap — the readers take the first line that is ${RETIRED_PROMISE}`,
+        ),
+      expect: "must be GONE from every tracked file except",
+      arms: ["A7"],
     },
   ];
 
@@ -361,28 +493,43 @@ if (argv.includes("--self-test")) {
     const jsPath = join(selfDir, JS_READER_REL);
     const bashPath = join(selfDir, BASH_READER_REL);
     const capPath = join(selfDir, CAP_REL);
+    // The gate's OWN copy. The self-test runs the copy, not the file this script
+    // was started from, so the gate's own source can be mutated — the hermeticity
+    // case below turns the readers' environment on, and the gate's environment is
+    // part of what the gate must prove.
+    const gatePath = join(selfDir, SELF_REL);
     const originalJs = readFileSync(jsPath, "utf8");
     const originalBash = readFileSync(bashPath, "utf8");
     const originalCap = readFileSync(capPath, "utf8");
+    const originalGate = readFileSync(gatePath, "utf8");
 
-    const pathOf = (kind) => (kind === "js" ? jsPath : kind === "bash" ? bashPath : capPath);
-    const originalOf = (kind) => (kind === "js" ? originalJs : kind === "bash" ? originalBash : originalCap);
+    const pathOf = (kind) =>
+      kind === "js" ? jsPath : kind === "bash" ? bashPath : kind === "cap" ? capPath : gatePath;
+    const originalOf = (kind) =>
+      kind === "js"
+        ? originalJs
+        : kind === "bash"
+          ? originalBash
+          : kind === "cap"
+            ? originalCap
+            : originalGate;
 
     for (const m of mutations) {
       writeFileSync(jsPath, originalJs, "utf8");
       writeFileSync(bashPath, originalBash, "utf8");
       writeFileSync(capPath, originalCap, "utf8");
+      writeFileSync(gatePath, originalGate, "utf8");
       const path = pathOf(m.file);
       const original = originalOf(m.file);
       const mutated = m.apply(original);
-      if (mutated === original) {
+      if (mutated === null || mutated === original) {
         stFails += 1;
         console.error(`  FAIL  mutation '${m.name}' did not apply (the source it targets moved)`);
         continue;
       }
       writeFileSync(path, mutated, "utf8");
       stLive += 1;
-      const r = spawnSync(process.execPath, [fileURLToPath(import.meta.url), "--root", selfDir], {
+      const r = spawnSync(process.execPath, [gatePath, "--root", selfDir], {
         encoding: "utf8",
       });
       const out = `${r.stdout ?? ""}${r.stderr ?? ""}`;
@@ -393,7 +540,65 @@ if (argv.includes("--self-test")) {
         stFails += 1;
         console.error(`  FAIL  mutation '${m.name}' went red, but not on the arm it targets (expected '${m.expect}')`);
       } else {
-        console.log(`  PASS  mutation '${m.name}' is caught (gate red on that arm)`);
+        for (const arm of m.arms) covered.add(arm);
+        console.log(`  PASS  mutation '${m.name}' is caught (gate red on ${m.arms.join(", ")})`);
+      }
+    }
+
+    // The whole gate under an ambient GITHUB_BODY_MAX: the readers are fired with
+    // the ambient REMOVED, so the gate's verdict is the same whatever the caller's
+    // shell carries. The case is proven live by removing that removal.
+    writeFileSync(jsPath, originalJs, "utf8");
+    writeFileSync(bashPath, originalBash, "utf8");
+    writeFileSync(capPath, originalCap, "utf8");
+    writeFileSync(gatePath, originalGate, "utf8");
+    const ambient = spawnSync(process.execPath, [gatePath, "--root", selfDir], {
+      encoding: "utf8",
+      env: { ...process.env, GITHUB_BODY_MAX: "100" },
+    });
+    stLive += 1;
+    if (ambient.status !== 0) {
+      stFails += 1;
+      console.error(
+        `  FAIL  the whole gate is NOT green under an ambient GITHUB_BODY_MAX:\n${ambient.stdout ?? ""}${ambient.stderr ?? ""}`,
+      );
+    } else {
+      console.log(
+        "  PASS  the whole gate is GREEN under an ambient GITHUB_BODY_MAX (the ambient reaches no reader)",
+      );
+    }
+    const inheriting = swap(originalGate, "  delete env.GITHUB_BODY_MAX;\n", "");
+    if (inheriting === null) {
+      stFails += 1;
+      console.error("  FAIL  the hermeticity mutation did not apply (the source it targets moved)");
+    } else {
+      writeFileSync(gatePath, inheriting, "utf8");
+      stLive += 1;
+      const r = spawnSync(process.execPath, [gatePath, "--root", selfDir], {
+        encoding: "utf8",
+        env: { ...process.env, GITHUB_BODY_MAX: "100" },
+      });
+      const out = `${r.stdout ?? ""}${r.stderr ?? ""}`;
+      if (r.status === 0 || !out.includes("must read the SAME number from the shipped cap")) {
+        stFails += 1;
+        console.error(
+          `  FAIL  a gate whose readers INHERIT the ambient did NOT go red on the same-number arm:\n${out}`,
+        );
+      } else {
+        console.log(
+          "  PASS  a gate whose readers inherit the ambient goes RED on the same-number arm (the case is live)",
+        );
+      }
+      writeFileSync(gatePath, originalGate, "utf8");
+    }
+
+    // Every arm must be covered by a mutation: an arm with no mutation is an arm
+    // that watches nothing, and the count this self-test prints is the count of
+    // ARMS, not the count of mutations.
+    for (const [id, what] of ARMS) {
+      if (!covered.has(id)) {
+        stFails += 1;
+        console.error(`  FAIL  arm ${id} (${what}) has NO mutation — it is not proven live`);
       }
     }
 
@@ -402,7 +607,8 @@ if (argv.includes("--self-test")) {
     writeFileSync(jsPath, originalJs, "utf8");
     writeFileSync(bashPath, originalBash, "utf8");
     writeFileSync(capPath, originalCap, "utf8");
-    const green = spawnSync(process.execPath, [fileURLToPath(import.meta.url), "--root", selfDir], {
+    writeFileSync(gatePath, originalGate, "utf8");
+    const green = spawnSync(process.execPath, [gatePath, "--root", selfDir], {
       encoding: "utf8",
     });
     if (green.status !== 0) {
@@ -421,7 +627,9 @@ if (argv.includes("--self-test")) {
     console.error(`check-pr-body-cap --self-test: FAIL (${stFails})`);
     process.exit(1);
   }
-  console.log(`check-pr-body-cap --self-test: OK (${stLive}/${mutations.length} arms live)`);
+  console.log(
+    `check-pr-body-cap --self-test: OK (${covered.size}/${ARMS.length} arms live, 1/1 hermeticity case live)`,
+  );
   process.exit(0);
 }
 

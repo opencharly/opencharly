@@ -590,16 +590,16 @@ verify:
       - check: the cited-version gate discriminates — a stale citation, an advanced pin and a moved owner each turn it RED, a version naming another module stays GREEN, a broken pin is RED, an unmaterialized checkout is a visible SKIP, and a tracked set over the old 1 MiB default is judged rather than fatal (fixtures)
         command: node scripts/check-cited-plugin-task-version.mjs --self-test
         context: [runtime]
-      - check: the body/diff reconciliation gate discriminates — a file table that omits a changed file, one that lists an unchanged file, a pasted `git rev-parse HEAD` that is not the head, a stale count of the diff's new files, a pasted evidence line that does not resolve in the tree being pushed, a body whose fences do not pair, a body that hides a required section inside a fenced block, and a body over the size cap, each turn it RED (fixtures)
+      - check: the body/diff reconciliation gate discriminates — a file table that omits a changed file, one that lists an unchanged file, a pasted `git rev-parse HEAD` that is not the head, a stale count of the diff's new files, a pasted evidence line that does not resolve in the tree being pushed, a body whose fences do not pair, a body that hides a required section inside a fenced block, a body over the size cap, and a diff that two diff algorithms count differently, each turn it RED (fixtures)
         command: node scripts/check-pr-body-diff.mjs --self-test
         context: [runtime]
       - check: the pre-push body gate's FIRED assertions hold — a body whose fences do not pair, and a body over the size cap, are each BLOCKED at the push by a finding that names the cause (fixtures)
         command: node scripts/check-pr-body-gate.mjs
         context: [runtime]
-      - check: the ONE cap on a body's size has ONE rule and BOTH readers implement it — the two readers read the same number from the same file, both refuse a cap file that is not exactly one positive integer, and the reconciler's self-test is green under an ambient GITHUB_BODY_MAX (fixtures)
+      - check: the ONE cap on a body's size has ONE rule and BOTH readers implement it — the two readers read the same number from the same file, both refuse a cap file that is not exactly one positive integer, the reconciler's self-test is green under an ambient GITHUB_BODY_MAX, and the gate's own verdict is green under one too, because no reader inherits the ambient (fixtures)
         command: node scripts/check-pr-body-cap.mjs
         context: [runtime]
-      - check: the cap gate discriminates — a JS reader that concatenates the cap file's content lines, a bash reader that takes the first one, and a reconciler whose self-test follows the ambient override each turn it RED on the arm it targets, and the unmutated copy stays GREEN (fixtures)
+      - check: the cap gate discriminates — every one of its seven arms has a mutation that turns that arm RED, the whole gate stays GREEN under an ambient GITHUB_BODY_MAX, and a gate whose readers inherit that ambient goes RED on the same-number arm (fixtures)
         command: node scripts/check-pr-body-cap.mjs --self-test
         context: [runtime]
       - check: the umbrella's own committed builders pass their self-tests — the set the commit gate runs, owned by scripts/self-test.sh

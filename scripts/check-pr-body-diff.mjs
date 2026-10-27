@@ -179,7 +179,17 @@ function capContentLines(text) {
 }
 
 /**
- * The ONE cap, read from the FILE.
+ * The EFFECTIVE cap: the environment's override when there is one, else the ONE cap
+ * from the FILE. A cap that cannot be read is a hard failure: it is never replaced
+ * by a default that is not this number, because a default that is not this number
+ * is a SECOND cap, and the two would disagree the first time one of them is
+ * changed.
+ *
+ * `fromFile` reads the FILE's cap and ignores the environment's override. The
+ * override is a TIGHTER POLICY, never a second definition of the number, so the cap
+ * the file states is the cap the file is read for — the self-test needs that number
+ * to size its fixture, and an ambient override in the caller's shell must not decide
+ * whether the fixture fits (opencharly/opencharly#720).
  *
  * The rule is the cap file's, stated there and implemented here and in
  * `scripts/sync-pr-body.sh`: exactly ONE content line, and that line is a positive
@@ -190,7 +200,15 @@ function capContentLines(text) {
  * while the bash reader read the first of them: the two read different numbers
  * from the same file (opencharly/opencharly#720).
  */
-function readCapFileBytes() {
+function readCapBytes({ fromFile = false } = {}) {
+  const override = (process.env.GITHUB_BODY_MAX ?? "").trim();
+  if (!fromFile && override !== "") {
+    if (!/^\d+$/.test(override) || Number(override) <= 0) {
+      fail(`GITHUB_BODY_MAX is not a positive integer (${override}) — the body's size cap cannot be read`);
+      return null;
+    }
+    return Number(override);
+  }
   let text;
   try {
     text = readFileSync(CAP_FILE, "utf8");
@@ -215,25 +233,6 @@ function readCapFileBytes() {
   return Number(value);
 }
 
-/**
- * The EFFECTIVE cap: the environment's override when there is one, else the ONE cap
- * from the file. A cap that cannot be read is a hard failure: it is never replaced
- * by a default that is not this number, because a default that is not this number
- * is a SECOND cap, and the two would disagree the first time one of them is
- * changed.
- */
-function readCapBytes() {
-  const override = (process.env.GITHUB_BODY_MAX ?? "").trim();
-  if (override !== "") {
-    if (!/^\d+$/.test(override) || Number(override) <= 0) {
-      fail(`GITHUB_BODY_MAX is not a positive integer (${override}) — the body's size cap cannot be read`);
-      return null;
-    }
-    return Number(override);
-  }
-  return readCapFileBytes();
-}
-
 /** Run a git command in the repo and return its trimmed stdout, or null on failure. */
 const git = (...a) => {
   const r = spawnSync("git", ["-C", root, ...a], { encoding: "utf8" });
@@ -250,6 +249,71 @@ const gitRaw = (...a) => {
   const r = spawnSync("git", ["-C", root, ...a], { encoding: "utf8" });
   return r.status === 0 ? (r.stdout ?? "") : null;
 };
+
+/**
+ * The diff's line count, as ONE diff algorithm renders it.
+ *
+ * The algorithm is PINNED on the command line, because a count is a property of the
+ * diff only when every reader computes it the same way — and a reader's own
+ * `diff.algorithm` setting changes the count whenever the diff carries a MOVED
+ * block.
+ */
+function diffTotals(algorithm, baseRef) {
+  const out = git("diff", "--numstat", `--diff-algorithm=${algorithm}`, `${baseRef}...HEAD`);
+  if (out === null) return null;
+  let files = 0;
+  let ins = 0;
+  let del = 0;
+  for (const line of out.split("\n")) {
+    if (!line) continue;
+    const parts = line.split("\t");
+    if (parts.length < 3) continue;
+    files += 1;
+    if (parts[0] !== "-") ins += Number(parts[0]);
+    if (parts[1] !== "-") del += Number(parts[1]);
+  }
+  return { files, ins, del };
+}
+
+/**
+ * The diff algorithms the count is compared across. Every one of them is a rendering
+ * a reader can hold, so the count that matters is the one they all agree on.
+ */
+const DIFF_ALGORITHMS = ["myers", "patience", "histogram", "minimal"];
+
+/**
+ * The diff's line count must be the SAME under every diff algorithm, so a diffstat
+ * stated in a body is true for EVERY reader: the org linter, this gate, GitHub's own
+ * rendering, and whoever reads the diff by hand.
+ *
+ * The count is a fact about the diff only when the diff admits ONE of them. A diff
+ * that carries a MOVED block is rendered differently by different algorithms — the
+ * Myers family splits the move into three hunks and the histogram family into one —
+ * so the same diff counts as 574/26 to one reader and 577/29 to another. A body
+ * stating either number is true for one reader and false for the other, and nothing
+ * in the tree noticed, because nothing asked the question: this arm is the control
+ * that asks it (opencharly/opencharly#721).
+ */
+function checkDiffCountIsReaderIndependent(baseRef) {
+  const totals = DIFF_ALGORITHMS.map((a) => diffTotals(a, baseRef));
+  if (totals.some((t) => t === null)) {
+    notice(
+      "the diff could not be read under every diff algorithm — the reader-independence rule is not applied",
+    );
+    return;
+  }
+  const rendered = DIFF_ALGORITHMS.map((a, i) => `${a} ${totals[i].ins}/${totals[i].del}`).join(", ");
+  const first = totals[0];
+  if (totals.some((t) => t.ins !== first.ins || t.del !== first.del)) {
+    fail(
+      `the diff's line count DEPENDS on the reader's diff algorithm (${rendered}) — a diffstat stated in ` +
+        `the body would be true for one reader and false for another; reshape the diff so that every ` +
+        `reader computes the same count`,
+    );
+    return;
+  }
+  ok(`the diff's line count is the SAME under every diff algorithm (${rendered})`);
+}
 
 /**
  * The body's FILE TABLE: a markdown table whose header row's first cell is `file`.
@@ -912,6 +976,12 @@ function check() {
       return [parts[0], parts.slice(1).join("\t")];
     });
 
+  // DI. the diff's line count, under every diff algorithm. It runs before the table
+  // arm and independently of it: the count is a property of the DIFF, so it is judged
+  // whether or not the body carries a table — and a body that states a diffstat
+  // needs that count to be ONE number, not one number per reader.
+  checkDiffCountIsReaderIndependent(baseRef);
+
   // N. the count the prose states about the diff's new files. It does not need the
   // file table, so it runs whether or not the body carries one.
   checkCounts(body, table, statuses);
@@ -1054,6 +1124,74 @@ ${claim || "Test fixture, not a real change."}
 
 *Assisted-by: DeepSeek Harness ollama-cloud/deepseek-v4.1-flash (documentation reviewed)*
 `);
+    // The MOVED-BLOCK fixture, used by the reader-independence arm's own case below.
+    // The base file holds one function; the head file splits it in two and leaves the
+    // first half calling the second. That is the shape that makes two diff
+    // algorithms count the SAME diff differently: the Myers family aligns the move
+    // as three hunks and the histogram family as one, so the counts differ while
+    // the diff is the same. Measured on this git: myers 27/10, histogram 30/13.
+    const DIVERGE_BASE = `function readCapBytes() {
+  const override = (process.env.GITHUB_BODY_MAX ?? "").trim();
+  if (override !== "") {
+    if (!/^\\d+$/.test(override) || Number(override) <= 0) {
+      fail(\`GITHUB_BODY_MAX is not a positive integer (\${override})\`);
+      return null;
+    }
+    return Number(override);
+  }
+  let text;
+  try {
+    text = readFileSync(CAP_FILE, "utf8");
+  } catch {
+    fail(\`the cap is missing\`);
+    return null;
+  }
+  const value = text.replace(/#.*$/gm, "").replace(/\\s+/g, "");
+  if (!/^\\d+$/.test(value) || Number(value) <= 0) {
+    fail(\`the cap is not a positive integer (\${value})\`);
+    return null;
+  }
+  return Number(value);
+}
+`;
+    const DIVERGE_HEAD = `function capContentLines(text) {
+  return text
+    .split("\\n")
+    .map((l) => l.replace(/^[ \\t\\n\\v\\f\\r]+/, "").replace(/[ \\t\\n\\v\\f\\r]+$/, ""))
+    .filter((l) => l !== "" && !l.startsWith("#"));
+}
+function readCapFileBytes() {
+  let text;
+  try {
+    text = readFileSync(CAP_FILE, "utf8");
+  } catch {
+    fail(\`the cap is missing\`);
+    return null;
+  }
+  const lines = capContentLines(text);
+  if (lines.length !== 1) {
+    fail(\`the cap is not exactly one line\`);
+    return null;
+  }
+  const value = lines[0];
+  if (!/^\\d+$/.test(value) || Number(value) <= 0) {
+    fail(\`the cap is not a positive integer (\${value})\`);
+    return null;
+  }
+  return Number(value);
+}
+function readCapBytes() {
+  const override = (process.env.GITHUB_BODY_MAX ?? "").trim();
+  if (override !== "") {
+    if (!/^\\d+$/.test(override) || Number(override) <= 0) {
+      fail(\`GITHUB_BODY_MAX is not a positive integer (\${override})\`);
+      return null;
+    }
+    return Number(override);
+  }
+  return readCapFileBytes();
+}
+`;
     // The cap the size arm reads, and the padding that puts a body at an EXACT byte
     // size. The padding is a run of a word with no digit and no slash, so it cannot be
     // read as a count claim, a path or an evidence line — the size arm is the only
@@ -1066,7 +1204,7 @@ ${claim || "Test fixture, not a real change."}
     // override used to size the fixture, so a tight override made this self-test die
     // on a fixture-size error that named neither the override nor the cap
     // (opencharly/opencharly#720).
-    const capBytes = readCapFileBytes();
+    const capBytes = readCapBytes({ fromFile: true });
     if (capBytes === null) {
       throw new Error("the body's size cap could not be read — the size arm cannot be self-tested");
     }
@@ -1389,6 +1527,81 @@ ${claim || "Test fixture, not a real change."}
         console.error(`  FAIL  case '${name}' went RED but must stay GREEN:\n${r.out}`);
       } else {
         console.log(`  PASS  case '${name}' stays green`);
+      }
+    }
+    // ── The reader-independence arm, proven live on a diff that DIVERGES ───────────
+    // A SECOND fixture repo, whose diff carries a moved block. The ground truth is
+    // computed HERE, by git itself, so the case cannot pass by asserting what it
+    // wants to see: if the two algorithms count this diff differently, the gate must
+    // report it, and if they do not, the case FAILS — a gate whose arm cannot be
+    // proven live is not a gate.
+    const diverge = join(scratch, "diverge");
+    const dg = (...a) => spawnSync("git", a, { cwd: diverge, encoding: "utf8" });
+    mkdirSync(diverge, { recursive: true });
+    dg("init", "-q", "-b", "main");
+    dg("config", "user.email", "gate@gate");
+    dg("config", "user.name", "gate");
+    writeFileSync(join(diverge, "a.txt"), DIVERGE_BASE);
+    writeFileSync(join(diverge, "b.txt"), "b\n");
+    mkdirSync(join(diverge, "scripts"), { recursive: true });
+    writeFileSync(join(diverge, "scripts/one.sh"), "#!/bin/sh\n");
+    writeFileSync(join(diverge, "scripts/blank.sh"), "\n#!/bin/sh\n");
+    dg("add", "-A");
+    dg("commit", "-q", "-m", "base");
+    dg("checkout", "-q", "-b", "feat");
+    writeFileSync(join(diverge, "a.txt"), DIVERGE_HEAD);
+    writeFileSync(join(diverge, "c.txt"), "c\n");
+    writeFileSync(join(diverge, "scripts/two.sh"), "#!/bin/sh\n");
+    mkdirSync(join(diverge, "CHANGELOG"), { recursive: true });
+    writeFileSync(
+      join(diverge, "CHANGELOG/2026.001.0001.md"),
+      "## Summary\n\nThe gate script `scripts/one.sh` grew by 2 lines.\n",
+    );
+    dg("add", "-A");
+    dg("commit", "-q", "-m", "feat");
+    const divergeHead = dg("rev-parse", "HEAD").stdout.trim();
+    const divergeTotals = (algorithm) => {
+      const r = spawnSync(
+        "git",
+        ["-C", diverge, "diff", "--numstat", `--diff-algorithm=${algorithm}`, "main...HEAD"],
+        { encoding: "utf8" },
+      );
+      let ins = 0;
+      let del = 0;
+      for (const line of (r.stdout ?? "").split("\n")) {
+        if (!line) continue;
+        const parts = line.split("\t");
+        if (parts[0] !== "-") ins += Number(parts[0]);
+        if (parts[1] !== "-") del += Number(parts[1]);
+      }
+      return `${ins}/${del}`;
+    };
+    const truthMyers = divergeTotals("myers");
+    const truthHistogram = divergeTotals("histogram");
+    stLive += 1;
+    if (truthMyers === truthHistogram) {
+      stFails += 1;
+      console.error(
+        `  FAIL  the moved-block fixture no longer diverges on this git (myers ${truthMyers}, histogram ` +
+          `${truthHistogram}) — the reader-independence arm cannot be proven live here, and a gate whose arm ` +
+          `cannot be proven live is not a gate`,
+      );
+    } else {
+      writeFileSync(bodyFile, body(FULL_TABLE, divergeHead), "utf8");
+      const r = spawnSync(
+        process.execPath,
+        [fileURLToPath(import.meta.url), "--body", bodyFile, "--repo", diverge, "--base", "main"],
+        { encoding: "utf8", env: { ...process.env, GITHUB_BODY_MAX: String(capBytes) } },
+      );
+      const out = `${r.stdout ?? ""}${r.stderr ?? ""}`;
+      if (r.status === 0 || !out.includes("DEPENDS on the reader's diff algorithm")) {
+        stFails += 1;
+        console.error(`  FAIL  a diff two algorithms count differently did NOT turn the arm RED:\n${out}`);
+      } else {
+        console.log(
+          `  PASS  a diff two algorithms count differently turns the reader-independence arm RED ` +
+            `(myers ${truthMyers}, histogram ${truthHistogram})`,
+        );
       }
     }
     // The unmutated body is GREEN — and it states a count, so the green run also
