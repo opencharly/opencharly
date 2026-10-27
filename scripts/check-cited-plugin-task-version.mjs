@@ -20,7 +20,7 @@
 //   here to judge, and no self-exemption is needed to make that true.
 //
 // WHY THE VERSION IS THE SENTINEL. A citation beside a version is a claim about a
-// module's SOURCE ("verbs.go:739", "cli.go:261"), and those line numbers are only
+// module's SOURCE ("verbs.go:801", "cli.go:261"), and those line numbers are only
 // meaningful against a version. So the version is the thing that must be re-derived:
 // when the pinned charly advances, the version changes, the gate goes RED, and the
 // citations beside it are re-read. A gate that only checked the version would still
@@ -39,6 +39,13 @@
 //      version literal on a line that NAMES plugin-task; a line naming a different
 //      module is not a citation of this one, so the plugin-candy example in the
 //      git-workflow skill is NOT flagged.
+//   S. The version SHAPE: the org's module version is `v0.<YYYY><DDD>.<HHMM>` with
+//      the TIME part's leading zeros DROPPED — the tag `v2026.300.0951` is the module
+//      `v0.2026300.951` — so the time part is ONE to FOUR digits. A predicate
+//      hard-coded to four stops matching the CURRENT version and the gate goes
+//      VACUOUS: it finds no citation at all and passes on any prose (MEASURED
+//      2026-10-27, when the pin moved to `v0.2026300.951` and the scan found 0).
+//      The widths are asserted, so the shape is a live fact and not a habit.
 //   P. The pinned charly's go.mod is the OWNER of the version. If the checkout is not
 //      here, the version cannot be derived and the gate SKIPS VISIBLY (R8: live or
 //      skip, never fake) — it never judges against a version it made up. The
@@ -109,8 +116,20 @@ function gitOut(args, opts = {}) {
   return execFileSync("git", args, { ...opts, maxBuffer: MAX_EXEC_BYTES });
 }
 
-/** The module-version literal shape the org's CalVer module tags use. */
-const RE_VERSION = /v0\.\d{7}\.\d{4}/g;
+/** The module-version literal shape the org's CalVer module versions use.
+ *
+ *  MEASURED 2026-10-27, on this repo's own tree: the module version is
+ *  `v0.<YYYY><DDD>.<HHMM>` with the TIME part's leading zeros DROPPED, while the
+ *  repo's git TAG keeps them — the tag `v2026.300.0951` is the module
+ *  `v0.2026300.951`. So the time part is ONE to FOUR digits, and a shape hard-coded
+ *  to four silently stops matching: the pinned plugin-task moved to
+ *  `v0.2026300.951`, the predicate then found NO citation at all, and the gate went
+ *  VACUOUS — it would pass on any prose, which is the one thing a gate about
+ *  citations must never be. The calibration assertion below (the scan must find a
+ *  known positive) is the control that caught it, and it stays; the shape assertion
+ *  beside it names the widths the org actually uses, so the shape is a live fact
+ *  rather than a habit. */
+const RE_VERSION = /v0\.\d{7}\.\d{1,4}/g;
 
 /** The requirement line in a Go module's go.mod, as the org writes it. */
 const RE_REQUIREMENT = /github\.com\/opencharly\/plugin-task\/candy\/plugin-task\s+(v0\.\d+\.\d+)/;
@@ -358,9 +377,14 @@ const okLine = (n, version) =>
  *  The control holds no version literal (see the header): every version it needs
  *  is computed from the pin, so the file cannot rot a copy of the fact it checks. */
 function otherVersion(pinnedVersion, salt) {
-  const m = pinnedVersion.match(/^(v0\.\d{7}\.)(\d{4})$/);
+  const m = pinnedVersion.match(/^(v0\.\d{7}\.)(\d{1,4})$/);
   if (!m) return null;
-  const bumped = String((Number(m[2]) + salt) % 10000).padStart(4, "0");
+  // The bump stays INSIDE the pinned version's OWN width, so a derived version has
+  // the same SHAPE as the one it was derived from (a 3-digit time part stays 3
+  // digits) and the mutation exercises the predicate's real rule rather than a
+  // shape the org never publishes.
+  const width = m[2].length;
+  const bumped = String((Number(m[2]) + salt) % 10 ** width).padStart(width, "0");
   if (bumped === m[2]) return null; // the bump wrapped onto itself: refuse it
   return m[1] + bumped;
 }
@@ -532,6 +556,39 @@ if (selfTest) {
     console.error("  FAIL  the scan found NO citation in the shipped tree — the predicate is not calibrated");
   } else {
     console.log(`  PASS  the predicate is calibrated — it matches ${shipped.length} known positive(s)`);
+  }
+
+  // S. The SHAPE the predicate accepts, asserted over the widths the org's module
+  //    versions actually use. The module version drops the time part's leading
+  //    zeros (the tag `v2026.300.0951` is the module `v0.2026300.951`), so the
+  //    time part is ONE to FOUR digits. A predicate hard-coded to four stops
+  //    matching the CURRENT version and the gate goes VACUOUS — it then passes on
+  //    any prose, which is the failure this gate exists to prevent. MEASURED: that
+  //    is exactly what happened when the pin moved to `v0.2026300.951` — the scan
+  //    found 0 citations and the calibration assertion above went red. Asserted
+  //    here so the shape is a live fact and not a habit.
+  //
+  //    The examples are SHAPE examples — a 3-digit time part, a 4-digit one, a
+  //    1-digit one — not citations of a release: they are derived from the current
+  //    release's own shape, so a later release does not invalidate them, and the
+  //    retired version literal stays out of this repo's current surfaces.
+  const shapeCases = [
+    ["v0.2026300.951", true, "a 3-digit time part (the CURRENT release's shape)"],
+    ["v0.2026300.0951", true, "a 4-digit time part (the same release, zero-padded)"],
+    ["v0.2026300.5", true, "a 1-digit time part (a 00:05 release)"],
+    ["v2026.300.0951", false, "the TAG shape is not the module shape"],
+    ["v0.202630.951", false, "a 6-digit date is not the shape"],
+  ];
+  for (const [v, want, why] of shapeCases) {
+    const matched = citationsIn(`plugin-task ${v}`).some((c) => c.version === v);
+    if (matched === want) {
+      console.log(`  PASS  the version shape — ${why}: ${v} is ${want ? "a citation" : "not a citation"}`);
+    } else {
+      stFails += 1;
+      console.error(
+        `  FAIL  the version shape — ${why}: ${v} was ${matched ? "matched" : "not matched"}, expected ${want ? "matched" : "not matched"}`,
+      );
+    }
   }
 
   // V, mutation 1: THE DEFECT THIS GATE EXISTS FOR — a citation naming a version the
