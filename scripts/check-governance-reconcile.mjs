@@ -55,6 +55,23 @@ const selfTestMode = argv.includes("--self-test");
 // this gate really runs on a light tree.
 const RECONCILE_REL = "dotgithub/scripts/governance-reconcile.sh";
 const SKIP_MARK = "governance-reconcile: SKIP";
+// The line a NESTED self-test prints when it skips its own "self" mutation. The
+// parent reads it, so the skip is a MARK the parent can see — not a behaviour
+// the parent has to infer from the absence of a failure.
+const NESTED_SKIP_MARK = "SKIP  mutation '";
+
+/**
+ * How many times `target` occurs in `source`.
+ *
+ * A mutation's target must occur EXACTLY ONCE: zero means the text it breaks
+ * is gone, and more than one means the replacement would land on an occurrence
+ * that is not the code the mutation is about. Counting is what makes that
+ * checkable instead of assumed (R7).
+ */
+function countMatches(source, target) {
+  const matches = source.match(new RegExp(target.source, "g"));
+  return matches ? matches.length : 0;
+}
 
 /** Run the strong form against `rootDir`. Returns the gate's verdict. */
 function runGate(rootDir) {
@@ -103,6 +120,13 @@ function report(res) {
 // its assertion is a failure, because it means the assertion cannot fail (R7).
 // Two mechanisms carry that proof, because the code lives in two places — see
 // the mutation table below.
+//
+// And a third property the table must hold: a mutation's target occurs EXACTLY
+// ONCE in this script. A target that occurs twice — once in the code it breaks,
+// once in the table's own copy of it — is AMBIGUOUS: the replacement lands on
+// the first occurrence, which may not be the code the mutation is about, and the
+// case the mutation exists to reach becomes unreachable. The harness counts the
+// occurrences and refuses an ambiguous target BY NAME (opencharly/opencharly#727).
 //
 // The fixture is addressed THROUGH A SYMLINK, so the checkout's path has two
 // spellings: the one the caller holds and the one a module that resolves its
@@ -235,39 +259,56 @@ function selfTest() {
   //            mutation of the assertion logic would change nothing the
   //            parent observes, and the assertion would look live when it is
   //            not — a coverage that cannot fail.
+  //
+  // EACH TARGET IS A REGEX, and that is not a style choice. A plain-string
+  // target is written out HERE as well as in the code it breaks, so it occurs
+  // TWICE in this file, and `String.replace` replaces the FIRST occurrence.
+  // The "self" mutation's target therefore landed on the assertion's own text
+  // and left this table's copy intact, so the nested run still had a target it
+  // could apply and the "the target is not there" case was UNREACHABLE in the
+  // committed harness: the committed self-test could not tell the guarded
+  // ordering from the unguarded one (opencharly/opencharly#727). A regex's own
+  // source is not the text it matches, so every target below occurs EXACTLY
+  // ONCE in this file — and the harness PROVES that, per mutation, before it
+  // applies one.
   const mutations = [
     [
       "the gate stops propagating the reconcile's exit status",
-      (s) => s.replace("const status = r.status === null ? 1 : r.status;", "const status = 0;"),
+      /const status = r\.status === null \? 1 : r\.status;/,
+      "const status = 0;",
       "B",
       "gate",
     ],
     [
       "the gate stops passing --root to the strong form",
-      (s) => s.replace('spawnSync("bash", [script, "--root", rootDir]', 'spawnSync("bash", [script, "--root", "/nonexistent-root"]'),
+      /spawnSync\("bash", \[script, "--root", rootDir\]/,
+      'spawnSync("bash", [script, "--root", "/nonexistent-root"]',
       "D",
       "gate",
     ],
     [
       "the gate turns the missing-reconcile skip red",
-      (s) => s.replace("return { code: 0, out };", "return { code: 1, out };"),
+      /return \{ code: 0, out \};/,
+      "return { code: 1, out };",
       "C",
       "gate",
     ],
     [
       "the gate turns a passing reconcile red",
-      (s) => s.replace("const status = r.status === null ? 1 : r.status;", "const status = r.status === 0 ? 1 : r.status;"),
+      /const status = r\.status === null \? 1 : r\.status;/,
+      "const status = r.status === 0 ? 1 : r.status;",
       "A",
       "gate",
     ],
     [
       "the D assertion judges the path's SPELLING instead of the directory",
-      (s) => s.replace("return realpathSync(m[1]) === realpathSync(passDir);", "return m[1] === passDir;"),
+      /return realpathSync\(m\[1\]\) === realpathSync\(passDir\);/,
+      "return m[1] === passDir;",
       "D",
       "self",
     ],
   ];
-  for (const [name, mutate, mustBreak, kind] of mutations) {
+  for (const [name, target, replacement, mustBreak, kind] of mutations) {
     // A NESTED run skips the "self" mutation BEFORE it applies it. The nested run
     // exists to prove the mutation; proving it there would recurse, so the skip
     // is decided first and is unconditional — it must not depend on the mutation
@@ -277,19 +318,39 @@ function selfTest() {
       console.log(`  SKIP  mutation '${name}' — this is a nested self-test, and a nested self-test does not recurse`);
       continue;
     }
-    const mutated = mutate(source);
-    if (mutated === source) {
-      fail(`mutation '${name}' did not apply — this script no longer contains the text it targets`);
+    // The target must occur EXACTLY ONCE in this script. Zero means the text
+    // this mutation breaks is gone; more than one means the replacement would
+    // land on an occurrence that is not the code the mutation is about — the
+    // defect opencharly/opencharly#727 was built on. Either way the mutation
+    // cannot mean what it says, so it is refused BY NAME.
+    const occurrences = countMatches(source, target);
+    if (occurrences !== 1) {
+      fail(`mutation '${name}' targets text that occurs ${occurrences} time(s) in this script — a mutation's target must occur exactly once`);
       continue;
     }
+    const mutated = source.replace(target, replacement);
     if (kind === "self") {
       const fixture = makeFixture(mutated, { withReconcile: true, exitCode: 0, marker: "nested" });
       dirs.push(...fixture.cleanup);
       const after = runSelfTest(fixture.dir);
-      if (after.code !== 0 && after.out.includes(`FAIL  ${mustBreak}:`)) {
+      // The nested run's verdict must be EXACTLY the assertion under test: it
+      // fails on that assertion, it fails on NOTHING else, and it took the SKIP
+      // path — which is what the guard is for. A nested run that also reports a
+      // mutation of its own (its own target is not in its source) is a run
+      // whose verdict is not the parent's to read, and the parent refuses it.
+      // That refusal is what makes the guard's POSITION observable: with the
+      // guard moved back, the nested run reports two failures instead of one,
+      // and the parent turns RED.
+      const failures = [...after.out.matchAll(/^ {2}FAIL {2}(.*)$/gm)].map((m) => m[1]);
+      const caught = after.code !== 0 && failures.length === 1 && failures[0].startsWith(`${mustBreak}:`);
+      const skipped = after.out.includes(NESTED_SKIP_MARK);
+      if (caught && skipped) {
         ok(`mutation '${name}' is caught by assertion ${mustBreak} (${ASSERTION_TEXT[mustBreak]}) — the mutated self-test fails on it`);
       } else {
-        fail(`mutation '${name}' was NOT caught by assertion ${mustBreak} — that assertion cannot fail`);
+        fail(
+          `mutation '${name}' was NOT caught cleanly by assertion ${mustBreak} — the nested self-test reported ` +
+            `${failures.length} failure(s) and ${skipped ? "took" : "did NOT take"} the skip path, so its verdict is not the parent's to read`,
+        );
       }
       continue;
     }
