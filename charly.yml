@@ -718,6 +718,20 @@ verify:
       - check: the retired-claim gate discriminates — every key turns the scan RED when injected into a COPY of a tracked file, and every qualified wording leaves it GREEN (fixtures)
         command: node scripts/check-retired-claims.mjs --self-test
         context: [runtime]
+      # A path argument is a PATHSPEC, not a path: git may REINTERPRET it — a glob makes it
+      # match SEVERAL paths, a leading ':' makes it match NOTHING, and both do it SILENTLY,
+      # with exit 0. The umbrella's guidance taught the bare form at EIGHTEEN sites
+      # (measured: 19 path arguments over 5 files; the issue's group A enumerated seven of
+      # them by hand) and NO gate asserted the form. This gate scans the covered guidance
+      # with git's per-command GRAMMAR — a property of git, not a hand-written list of
+      # sites — and its LIVE ARM proves the literal form selects exactly the ONE intended
+      # record for a glob-named and for a colon-named path, while the bare form does not.
+      - check: every path argument in the umbrella's guidance is in the LITERAL pathspec form, and the live arm proves the literal form selects exactly the intended record for a glob-named and a colon-named path (opencharly/opencharly#751)
+        command: node scripts/check-guidance-pathspec.mjs
+        context: [runtime]
+      - check: the guidance-pathspec gate discriminates — each bare-path-argument fixture turns it RED, and each rev/pattern/fixed-name counter-instance leaves it GREEN (fixtures)
+        command: node scripts/check-guidance-pathspec.mjs --self-test
+        context: [runtime]
       - check: the validator enforces only what the rulebook states — rulebook check ids == the AGENTS.md "What the validator checks" table, every cited skill resolves, and the committed rulebook == the live AI_REVIEW_PROMPT (opencharly/opencharly#446)
         command: node scripts/check-validator-rule-map.mjs
         context: [runtime]
