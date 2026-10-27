@@ -3,7 +3,7 @@
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/opencharly/opencharly)
 
 **One clone of the whole org — and the place all charly development happens.**
-`opencharly/opencharly` is an org-level umbrella repo: every OpenCharly repo (411 today)
+`opencharly/opencharly` is an org-level umbrella repo: every OpenCharly repo (409 today)
 is pinned here as a git submodule ("gitlink", in the org's vocabulary), flat at the
 root — submodule path == repo name for all but one alias (`.github`, pinned at the
 `dotgithub/` path).
@@ -328,12 +328,11 @@ six vendored OpenClaw upstream forks.
 
 ### Charly candy layers
 
-3 repos — the charly meta/skill candy layers.
+2 repos — the charly meta/skill candy layers.
 
 | path | repo | role |
 |---|---|---|
 | `layer-charly-check/` | [opencharly/layer-charly-check](https://github.com/opencharly/layer-charly-check) | The charly-check candy — 14 check skills (extracted from charly/candy) |
-| `layer-charly-internals-extra/` | [opencharly/layer-charly-internals-extra](https://github.com/opencharly/layer-charly-internals-extra) | The charly-internals-extra candy — 2 internals skills (extracted from charly/candy) |
 | `layer-charly-tools/` | [opencharly/layer-charly-tools](https://github.com/opencharly/layer-charly-tools) | image layer / candy |
 
 
@@ -675,7 +674,7 @@ agent runtimes and terminals charly speaks.
 
 ### Pods
 
-73 repos — pod/deployment bundles.
+72 repos — pod/deployment bundles.
 
 | path | repo | role |
 |---|---|---|
@@ -689,7 +688,6 @@ agent runtimes and terminals charly speaks.
 | `pod-airflow/` | [opencharly/pod-airflow](https://github.com/opencharly/pod-airflow) | pod / deployment bundle |
 | `pod-android-emulator-layer/` | [opencharly/pod-android-emulator-layer](https://github.com/opencharly/pod-android-emulator-layer) | pod / deployment bundle |
 | `pod-appium-server/` | [opencharly/pod-appium-server](https://github.com/opencharly/pod-appium-server) | pod / deployment bundle |
-| `pod-charly-automation/` | [opencharly/pod-charly-automation](https://github.com/opencharly/pod-charly-automation) | pod / deployment bundle |
 | `pod-charly-hooks/` | [opencharly/pod-charly-hooks](https://github.com/opencharly/pod-charly-hooks) | pod / deployment bundle |
 | `pod-charly-mcp/` | [opencharly/pod-charly-mcp](https://github.com/opencharly/pod-charly-mcp) | The charly-mcp candy — the charly MCP gateway pod (extracted from charly/candy) |
 | `pod-charly-versa/` | [opencharly/pod-charly-versa](https://github.com/opencharly/pod-charly-versa) | pod / deployment bundle |
