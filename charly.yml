@@ -656,6 +656,12 @@ verify:
         command: node scripts/check-pr-body-cap.mjs
         context: [runtime]
       - check: the cap gate discriminates — every one of its seven arms has a mutation that turns that arm RED, the whole gate stays GREEN under an ambient GITHUB_BODY_MAX, and a gate whose readers inherit that ambient goes RED on the same-number arm (fixtures)
+        # SEVEN mutation arms, each spawning the gate: measured 5m00s and still running on
+        # 2026-10-27 (300 s cap, `user 2m44 sys 2m35` — process-spawn bound, not a hang), so
+        # the step carries a declared ceiling above the runner's 90 s never-hang floor. A
+        # step the floor cuts short does not report a defect; it reports `killed`, which is
+        # indistinguishable from a real break at a glance.
+        timeout: 10m
         command: node scripts/check-pr-body-cap.mjs --self-test
         context: [runtime]
       - check: the umbrella's own committed builders pass their self-tests — the set the commit gate runs, owned by scripts/self-test.sh
