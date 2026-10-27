@@ -268,16 +268,21 @@ function selfTest() {
     ],
   ];
   for (const [name, mutate, mustBreak, kind] of mutations) {
+    // A NESTED run skips the "self" mutation BEFORE it applies it. The nested run
+    // exists to prove the mutation; proving it there would recurse, so the skip
+    // is decided first and is unconditional — it must not depend on the mutation
+    // still applying to the source, which is exactly what a nested run cannot
+    // assume (its source is already mutated).
+    if (kind === "self" && nested) {
+      console.log(`  SKIP  mutation '${name}' — this is a nested self-test, and a nested self-test does not recurse`);
+      continue;
+    }
     const mutated = mutate(source);
     if (mutated === source) {
       fail(`mutation '${name}' did not apply — this script no longer contains the text it targets`);
       continue;
     }
     if (kind === "self") {
-      if (nested) {
-        console.log(`  SKIP  mutation '${name}' — this is a nested self-test, and a nested self-test does not recurse`);
-        continue;
-      }
       const fixture = makeFixture(mutated, { withReconcile: true, exitCode: 0, marker: "nested" });
       dirs.push(...fixture.cleanup);
       const after = runSelfTest(fixture.dir);
