@@ -144,6 +144,17 @@ function check() {
   //    BLOCK, from the same hook.
   if (!/PUSH_REFS/.test(code)) fail(`reads the published refs from the hook's stdin`);
   if (!/refs\/heads\/\*/.test(code)) fail(`takes the published branch from the remote ref git publishes`);
+  // 6a. The TREE the body is reconciled against is the tree the push PUBLISHES. The
+  //     local sha on the published ref is that commit; the checkout's HEAD is a
+  //     different one whenever the push publishes another branch, and reconciling
+  //     against the checkout judged the body against a tree the push does not publish
+  //     (opencharly/opencharly#744). The reconciliation must be told which head to read.
+  if (!/published_head="\$local_sha"/.test(code))
+    fail(`takes the commit the push PUBLISHES from the published ref's local sha`);
+  if (!/--head "\$RECONCILE_HEAD"/.test(code))
+    fail(`reconciles the body against the head the push PUBLISHES, not the checkout's`);
+  if (!/if python3 "\$LINT" "\$BODY" --repo "\$ROOT" --head "\$RECONCILE_HEAD"; then/.test(code))
+    fail(`lints the body against the head the push PUBLISHES, not the checkout's`);
   if (/\$\{3:-\}/.test(code)) fail(`reads no third argument for the pushed ref (git hands the hook $1 and $2 only)`);
   if (!/\$\{2:-\}/.test(code)) fail(`takes the pushed remote's URL from the hook's own $2`);
 
@@ -275,9 +286,20 @@ async function fire() {
     git("add", "-A");
     git("commit", "-q", "-F", join(scratch, "msg.txt"));
     const changedSha = git("rev-parse", "HEAD").stdout.trim();
-    // A second branch, at the same commit. The checkout stays on `main`; a push of
-    // `other` must be checked against `other`'s PR, not `main`'s.
-    git("branch", "other");
+    // A second branch, on a DIFFERENT tree. The checkout stays on `main`; a push of
+    // `other` must be checked against `other`'s PR — and, because `other` carries a
+    // different commit, against `other`'s DIFF. A fixture whose two branches share a
+    // commit cannot tell them apart, which is exactly why the merged gate could not
+    // see that the reconciler read the checkout's tree instead of the tree the push
+    // publishes (opencharly/opencharly#744).
+    git("checkout", "-q", "-b", "other", "main~1");
+    writeFileSync(join(repo, "f.txt"), "w\n");
+    writeFileSync(join(repo, "i.txt"), "i\n");
+    git("add", "-A");
+    writeFileSync(join(scratch, "msg-other.txt"), "other\n");
+    git("commit", "-q", "-F", join(scratch, "msg-other.txt"));
+    const otherSha = git("rev-parse", "HEAD").stdout.trim();
+    git("checkout", "-q", "main");
 
     // The stub `gh`, created BEFORE the first arm and on the PATH for EVERY arm: the PR
     // is a real boundary, so it is answered with a real tool rather than by mocking the
@@ -532,7 +554,7 @@ async function fire() {
     // What git writes to the hook's stdin when a push publishes a ref: the LOCAL ref,
     // its SHA, the REMOTE ref, and the SHA it lands on.
     const publishedMain = `refs/heads/main ${changedSha} refs/heads/main ${changedSha}\n`;
-    const publishedOther = `refs/heads/other ${changedSha} refs/heads/other ${changedSha}\n`;
+    const publishedOther = `refs/heads/other ${otherSha} refs/heads/other ${otherSha}\n`;
     const publishedTag = `refs/tags/v1 ${changedSha} refs/tags/v1 ${changedSha}\n`;
 
     // F10 — the LIVE body MATCHES the body this hook validated: the push proceeds, and
@@ -668,6 +690,38 @@ async function fire() {
       `hooks/pre-push FIRED: a push whose PUBLISHED branch has no open PR skips the LIVE-body check visibly, naming the published branch`,
     );
     writePrMap([mapMain, mapOther, mapFork]);
+
+    // F20 — the RECONCILIATION reads the tree the PUSH PUBLISHES. The push publishes
+    //      `other` — a different commit, with a different diff — while the checkout sits
+    //      on `main`. A body that describes the CHECKOUT's diff therefore does not
+    //      describe the diff this push publishes, and the push is BLOCKED by the
+    //      reconciliation. RED without the fix: the reconciler read `HEAD`, found the
+    //      body correct for the checkout, and let the push through
+    //      (opencharly/opencharly#744).
+    writeFileSync(defaultBody, tableBody(changedSha, "| `f.txt` | a change |\n| `g.txt` | a change |"));
+    const checkoutTree = run(liveEnv, ["origin", "https://github.com/opencharly/opencharly.git"], publishedOther);
+    expect(
+      checkoutTree.code === 1 &&
+        /BLOCKED — the PR body does not describe the diff/.test(checkoutTree.out) &&
+        !/BLOCKED — the LIVE body/.test(checkoutTree.out),
+      `hooks/pre-push FIRED: a body that describes the CHECKOUT's diff is BLOCKED when the push publishes ANOTHER branch's diff`,
+    );
+
+    // F21 — the same push, with a body that describes the PUBLISHED branch's diff: the
+    //      push proceeds, and the LIVE body matches. With F20 this proves the
+    //      reconciliation reads the tree the push PUBLISHES: RED without the fix, which
+    //      reconciled the body against the checkout and blocked a body that was right.
+    const otherTreeBody = tableBody(otherSha, "| `f.txt` | a change |\n| `i.txt` | a change |");
+    writeFileSync(defaultBody, otherTreeBody);
+    writeFileSync(liveBodyFile, otherTreeBody);
+    writePrMap([mapMain, ["opencharly/opencharly", "other", "222", liveBodyFile], mapFork]);
+    const publishedTree = run(liveEnv, ["origin", "https://github.com/opencharly/opencharly.git"], publishedOther);
+    expect(
+      publishedTree.code === 0 && /LIVE body on opencharly\/opencharly#222 MATCHES/.test(publishedTree.out),
+      `hooks/pre-push FIRED: a body that describes the PUBLISHED branch's diff passes when the push publishes that branch`,
+    );
+    writePrMap([mapMain, mapOther, mapFork]);
+    writeFileSync(liveBodyFile, GOOD_BODY);
   } catch (err) {
     fail(`firing ${rel} (${err instanceof Error ? err.message : String(err)})`);
   } finally {
@@ -735,7 +789,11 @@ if (argv.includes("--self-test")) {
     ],
     [
       "a lint finding does not block the push",
-      (s) => s.replace(/if python3 "\$LINT" "\$BODY" --repo "\$ROOT"; then/, 'if true; then'),
+      (s) =>
+        s.replace(
+          /if python3 "\$LINT" "\$BODY" --repo "\$ROOT" --head "\$RECONCILE_HEAD"; then/,
+          "if true; then",
+        ),
       "defective body is BLOCKED",
     ],
     [
@@ -750,8 +808,43 @@ if (argv.includes("--self-test")) {
     ],
     [
       "the body/diff reconciliation does not run",
-      (s) => s.replace(/if node "\$RECONCILE" --body "\$BODY" --repo "\$ROOT"; then/, "if true; then"),
+      (s) =>
+        s.replace(
+          /if node "\$RECONCILE" --body "\$BODY" --repo "\$ROOT" --head "\$RECONCILE_HEAD"; then/,
+          "if true; then",
+        ),
       "a body that does not describe the diff is BLOCKED",
+      false,
+    ],
+    // The three mutations that reproduce the defect opencharly/opencharly#744 shipped
+    // with: the reconciler read the CHECKOUT's tree instead of the tree the push
+    // publishes, so a body about the pushed branch was blocked and a body about the
+    // checkout was let through — and the linter judged the body's head claim against
+    // the checkout as well.
+    [
+      "the reconciliation reads the checkout's tree instead of the published one",
+      (s) =>
+        s.replace(
+          /if node "\$RECONCILE" --body "\$BODY" --repo "\$ROOT" --head "\$RECONCILE_HEAD"; then/,
+          'if node "$RECONCILE" --body "$BODY" --repo "$ROOT" --head "HEAD"; then',
+        ),
+      "a body that describes the PUBLISHED branch's diff passes when the push publishes that branch",
+      false,
+    ],
+    [
+      "the linter reads the checkout's head instead of the published one",
+      (s) =>
+        s.replace(
+          /if python3 "\$LINT" "\$BODY" --repo "\$ROOT" --head "\$RECONCILE_HEAD"; then/,
+          'if python3 "$LINT" "$BODY" --repo "$ROOT" --head "HEAD"; then',
+        ),
+      "a body that describes the PUBLISHED branch's diff passes when the push publishes that branch",
+      false,
+    ],
+    [
+      "the published commit is not read from the ref git publishes",
+      (s) => s.replace(/published_head="\$local_sha"/, 'published_head=""'),
+      "a body that describes the PUBLISHED branch's diff passes when the push publishes that branch",
       false,
     ],
     // The LIVE-body arms do NOT need the marketplace linter: the live-body check runs

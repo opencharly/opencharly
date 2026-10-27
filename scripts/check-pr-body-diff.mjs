@@ -121,7 +121,16 @@
 // decide it. A QUANTITATIVE CLAIM in a record is the same class again: the number is
 // the command's own output, and the body can decide whether it shows.
 //
-// Usage: node scripts/check-pr-body-diff.mjs [--body <path>] [--repo <dir>] [--base <ref>] [--self-test]
+// THE HEAD THE BODY IS PUBLISHED WITH. Every arm that reads the tree reads ONE head:
+// the head the body is published with, named by `--head`. It defaults to `HEAD`, so
+// every other caller — the umbrella's own gate step, a hand-run check — reconciles
+// against the checked-out tree, exactly as before. The pre-push hook names the commit
+// the push PUBLISHES, because the checked-out tree is NOT the tree a push of another
+// branch publishes (opencharly/opencharly#744): `git push origin other` publishes
+// `other`'s commit while the checkout still sits on `main`, so a body reconciled
+// against `HEAD` was reconciled against a tree the push does not publish.
+//
+// Usage: node scripts/check-pr-body-diff.mjs [--body <path>] [--repo <dir>] [--base <ref>] [--head <rev>] [--self-test]
 // exit 0 clean · 1 finding · 2 usage
 
 import { spawnSync } from "node:child_process";
@@ -139,6 +148,9 @@ const argOf = (name) => {
 const root = resolve(argOf("--repo") ?? resolve(here, ".."));
 const bodyPath = resolve(argOf("--body") ?? join(root, "PR_BODY.md"));
 const baseRef = argOf("--base") ?? "origin/main";
+// The head the body is published with. `HEAD` for every caller that does not name
+// one; the pre-push hook names the commit its push publishes.
+const headRef = argOf("--head") ?? "HEAD";
 
 let findings = 0;
 const fail = (m) => {
@@ -258,8 +270,8 @@ const gitRaw = (...a) => {
  * `diff.algorithm` setting changes the count whenever the diff carries a MOVED
  * block.
  */
-function diffTotals(algorithm, baseRef) {
-  const out = git("diff", "--numstat", `--diff-algorithm=${algorithm}`, `${baseRef}...HEAD`);
+function diffTotals(algorithm, baseRef, headRef) {
+  const out = git("diff", "--numstat", `--diff-algorithm=${algorithm}`, `${baseRef}...${headRef}`);
   if (out === null) return null;
   let files = 0;
   let ins = 0;
@@ -294,8 +306,8 @@ const DIFF_ALGORITHMS = ["myers", "patience", "histogram", "minimal"];
  * in the tree noticed, because nothing asked the question: this arm is the control
  * that asks it (opencharly/opencharly#721).
  */
-function checkDiffCountIsReaderIndependent(baseRef) {
-  const totals = DIFF_ALGORITHMS.map((a) => diffTotals(a, baseRef));
+function checkDiffCountIsReaderIndependent(baseRef, headRef) {
+  const totals = DIFF_ALGORITHMS.map((a) => diffTotals(a, baseRef, headRef));
   if (totals.some((t) => t === null)) {
     notice(
       "the diff could not be read under every diff algorithm — the reader-independence rule is not applied",
@@ -565,12 +577,12 @@ function checkEvidence(body) {
   const cache = new Map();
   const linesOf = (path) => {
     if (cache.has(path)) return cache.get(path);
-    const type = git("cat-file", "-t", `HEAD:${path}`);
+    const type = git("cat-file", "-t", `${headRef}:${path}`);
     if (type !== "blob") {
       cache.set(path, null); // not a file in this tree: a submodule, or absent
       return null;
     }
-    const blob = gitRaw("show", `HEAD:${path}`);
+    const blob = gitRaw("show", `${headRef}:${path}`);
     const ls = (blob ?? "").split("\n");
     if (ls.length > 0 && ls[ls.length - 1] === "") ls.pop();
     cache.set(path, ls);
@@ -741,11 +753,11 @@ function numberTokens(text) {
  * rewrites. A record is written by the merge FROM a body, so a diff that adds one is
  * a correction: the body publishing the correction must carry the record's claims.
  */
-function recordAdditions(baseRef, statuses) {
+function recordAdditions(baseRef, statuses, headRef) {
   const out = [];
   for (const [, file] of statuses) {
     if (!file.startsWith("CHANGELOG/")) continue;
-    const diff = gitRaw("diff", `${baseRef}...HEAD`, "--", file);
+    const diff = gitRaw("diff", `${baseRef}...${headRef}`, "--", file);
     if (diff === null) continue;
     const added = diff
       .split("\n")
@@ -760,8 +772,8 @@ function recordAdditions(baseRef, statuses) {
 /**
  * C. Every claim a changed record states is visible in the body.
  */
-function checkRecordClaims(body, baseRef, statuses) {
-  const records = recordAdditions(baseRef, statuses);
+function checkRecordClaims(body, baseRef, statuses, headRef) {
+  const records = recordAdditions(baseRef, statuses, headRef);
   if (records.length === 0) {
     notice("the diff rewrites no CHANGELOG record — the record-claim rule is inapplicable");
     return;
@@ -907,9 +919,11 @@ function check() {
   }
   const raw = readFileSync(bodyPath);
   const body = raw.toString("utf8");
-  const head = git("rev-parse", "HEAD");
+  const head = git("rev-parse", headRef);
   if (!head) {
-    notice(`${root} is not a git repository — the diff cannot be read, so nothing is reconciled`);
+    notice(
+      `the head ${headRef} could not be read in ${root} — the diff cannot be read, so nothing is reconciled`,
+    );
     return;
   }
 
@@ -967,8 +981,8 @@ function check() {
     notice(`the base ref ${baseRef} is not available here — the diff cannot be read, so the table is not reconciled`);
     return;
   }
-  const changed = (git("diff", "--name-only", `${baseRef}...HEAD`) ?? "").split("\n").filter(Boolean);
-  const statuses = (git("diff", "--name-status", `${baseRef}...HEAD`) ?? "")
+  const changed = (git("diff", "--name-only", `${baseRef}...${headRef}`) ?? "").split("\n").filter(Boolean);
+  const statuses = (git("diff", "--name-status", `${baseRef}...${headRef}`) ?? "")
     .split("\n")
     .filter(Boolean)
     .map((line) => {
@@ -980,7 +994,7 @@ function check() {
   // arm and independently of it: the count is a property of the DIFF, so it is judged
   // whether or not the body carries a table — and a body that states a diffstat
   // needs that count to be ONE number, not one number per reader.
-  checkDiffCountIsReaderIndependent(baseRef);
+  checkDiffCountIsReaderIndependent(baseRef, headRef);
 
   // N. the count the prose states about the diff's new files. It does not need the
   // file table, so it runs whether or not the body carries one.
@@ -989,7 +1003,7 @@ function check() {
   // C. the record's claims, against the body that publishes the correction. It runs
   // before the table arm and independently of it: a body that carries no table still
   // has to show what a rewritten record claims.
-  checkRecordClaims(body, baseRef, statuses);
+  checkRecordClaims(body, baseRef, statuses, headRef);
 
   // T. the file table.
   if (table === null) {
@@ -1048,6 +1062,32 @@ if (argv.includes("--self-test")) {
     writeFileSync(join(scratch, "msg.txt"), "feat\n");
     g("commit", "-q", "-F", join(scratch, "msg.txt"));
     const head = g("rev-parse", "HEAD").stdout.trim();
+
+    // A SECOND branch, on a DIFFERENT tree, so the head the body is published with
+    // is a choice the fixture can make. `git push origin other` publishes `other`'s
+    // commit while the checkout still sits on `feat` — so a gate that reads `HEAD`
+    // reconciles the body against a tree the push does not publish. The branch
+    // changes a DIFFERENT file (`b.txt`) and adds another (`d.txt`), and rewrites no
+    // record, so a body that describes it is a body about another tree in every arm
+    // that reads the tree.
+    g("checkout", "-q", "-b", "other", "main");
+    writeFileSync(join(repo, "b.txt"), "b2\n");
+    writeFileSync(join(repo, "d.txt"), "d\n");
+    g("add", "-A");
+    writeFileSync(join(scratch, "msg.txt"), "other\n");
+    g("commit", "-q", "-F", join(scratch, "msg.txt"));
+    const otherHead = g("rev-parse", "HEAD").stdout.trim();
+    g("checkout", "-q", "feat");
+    // The file table the OTHER branch's diff actually has, and the evidence lines
+    // that resolve in BOTH branches — the two files they share, so the evidence arm
+    // is not the discriminator and the TABLE is.
+    const OTHER_TABLE = "| `b.txt` | a change |\n| `d.txt` | a change |";
+    const OTHER_EVIDENCE = "scripts/blank.sh:2:#!/bin/sh\nscripts/one.sh:1:#!/bin/sh";
+    // The template's table carries the fixture's RECORD row, because the record arm
+    // needs a body that publishes it. The other branch rewrites no record, so that
+    // row is a phantom there — it is removed rather than forked per arm.
+    const withoutRecordRow = (t) =>
+      t.replace(/^\| `CHANGELOG\/2026\.001\.0001\.md` \| a record \|\n/m, "");
 
     // The pasted command is a GLOB over the fixture's `scripts` directory, sorted, so
     // the output it claims is exactly the evidence block below it — the command and
@@ -1218,10 +1258,19 @@ function readCapBytes() {
       const filler = "filler".repeat(Math.ceil(pad / 6)).slice(0, pad);
       return text.replace("## Rulebook compliance", () => `${filler}\n## Rulebook compliance`);
     };
-    const runGate = () => {
+    const runGate = (extra = []) => {
       const r = spawnSync(
         process.execPath,
-        [fileURLToPath(import.meta.url), "--body", bodyFile, "--repo", repo, "--base", "main"],
+        [
+          fileURLToPath(import.meta.url),
+          "--body",
+          bodyFile,
+          "--repo",
+          repo,
+          "--base",
+          "main",
+          ...extra,
+        ],
         // The cap travels with the child, so the size arm judges the SAME number in
         // the fixture as in the self-test, whatever the ambient environment carries.
         { encoding: "utf8", env: { ...process.env, GITHUB_BODY_MAX: String(capBytes) } },
@@ -1243,6 +1292,23 @@ function readCapBytes() {
         "the pasted head is not the head being pushed",
         body("| `a.txt` | a change |\n| `c.txt` | a change |\n| `scripts/two.sh` | a change |", "0".repeat(40)),
         "another tree than the body claims",
+      ],
+      // The head the body is PUBLISHED WITH. This body describes the OTHER branch's
+      // diff, and the head the gate reads is the CHECKOUT's — so the table lists two
+      // files the published diff does not change, and the two files it does change
+      // are missing from the table.
+      [
+        "a body that describes another branch's diff is red when the head is the checkout's",
+        body(
+          OTHER_TABLE,
+          otherHead,
+          "",
+          OTHER_EVIDENCE,
+          "",
+          BACKTICK_FENCE,
+          withoutRecordRow,
+        ),
+        "does not change it",
       ],
       [
         "the prose states a stale count of the diff's new files",
@@ -1503,11 +1569,30 @@ function readCapBytes() {
         "a body just under GitHub's cap stays green",
         sized(body(FULL_TABLE, head, "This change adds one new script."), capBytes - 1),
       ],
+      // The head the body is published with, NAMED. This body describes the OTHER
+      // branch's diff, and the head the gate reads IS that branch — so every arm
+      // that reads the tree is green. This is the case that is RED without the
+      // `--head` option: the gate would read the CHECKOUT's tree, find two files
+      // the published diff does not change, and BLOCK a body that describes the
+      // push exactly (opencharly/opencharly#744).
+      [
+        "a body that describes another branch's diff is green when the head names that branch",
+        body(
+          OTHER_TABLE,
+          otherHead,
+          "",
+          OTHER_EVIDENCE,
+          "",
+          BACKTICK_FENCE,
+          withoutRecordRow,
+        ),
+        ["--head", "other"],
+      ],
     ];
-    for (const [name, text, expect] of arms) {
+    for (const [name, text, expect, extra = []] of arms) {
       stLive += 1;
       writeFileSync(bodyFile, text, "utf8");
-      const r = runGate();
+      const r = runGate(extra);
       if (r.code === 0) {
         stFails += 1;
         console.error(`  FAIL  mutation '${name}' did NOT go red (expected a '${expect}' finding)`);
@@ -1518,10 +1603,10 @@ function readCapBytes() {
         console.log(`  PASS  mutation '${name}' is caught (gate red)`);
       }
     }
-    for (const [name, text] of greenArms) {
+    for (const [name, text, extra = []] of greenArms) {
       stLive += 1;
       writeFileSync(bodyFile, text, "utf8");
-      const r = runGate();
+      const r = runGate(extra);
       if (r.code !== 0) {
         stFails += 1;
         console.error(`  FAIL  case '${name}' went RED but must stay GREEN:\n${r.out}`);

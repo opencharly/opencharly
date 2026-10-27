@@ -23,6 +23,18 @@
 # MECHANICS only, which is exactly this class: it checks the body's FORM and its
 # FIDELITY TO THE DIFF, and judges nothing about the change, the tier, or the evidence.
 #
+# THE TREE THE BODY IS RECONCILED AGAINST IS THE TREE THE PUSH PUBLISHES. git writes the
+# refs it publishes to this hook's stdin, and the LOCAL SHA on such a line is the commit
+# the push publishes — which is NOT the checkout's HEAD whenever the push publishes a
+# branch other than the checked-out one: `git push origin other` publishes `other`'s
+# commit while the checkout still sits on `main`. Reconciling against `HEAD` therefore
+# judged the body against a tree the push does not publish — a false PASS for a body
+# that described the pushed branch, and a false BLOCK for a body that described the
+# checkout (opencharly/opencharly#744). The reconciliation is run against the PUBLISHED
+# commit, named with `--head`; the checked-out tree is the fallback for a push that
+# publishes no single branch (a tag, a deletion, several branches at once, or a
+# hand-run hook), and that fallback is the tree it always read.
+#
 # THE BODY PATH defaults to the GIT DIR — `git rev-parse --absolute-git-dir`, which is
 # per-WORKTREE (`…/.git/worktrees/<name>`), so two session worktrees can never fight
 # over one body, and absolute, so it survives a change of cwd. It never dirties the
@@ -82,6 +94,63 @@ if [ ! -t 0 ]; then
   PUSH_REFS="$(cat 2>/dev/null || true)"
 fi
 
+# ── the PUBLISHED refs, resolved ONCE ───────────────────────────────────────────────
+# git publishes a ref by writing FOUR fields to this hook's stdin:
+#
+#   <local ref> <local sha> <remote ref> <remote sha>
+#
+# The LOCAL SHA is the commit the push PUBLISHES. The checkout's HEAD is a different
+# commit whenever the push publishes a branch other than the checked-out one, so the
+# two facts this hook needs are resolved HERE, once, and both consumers read them: the
+# reconciliation (the head to read the tree from) and the LIVE-body check (the branch
+# whose PR holds the body). One parse, two consumers (R2).
+#
+# When the push publishes no single branch — a tag, a deletion, several branches at
+# once, or a hand-run hook with an empty stdin — there is no published commit, and the
+# reconciliation falls back to `HEAD`: the tree it always read. The fallback is not a
+# skip; the check still runs.
+PUBLISHED_BRANCH=""
+PUBLISHED_HEAD=""
+PUBLISHED_WHY=""
+
+resolve_published_refs() {
+  local published="" published_head="" refs_seen=0 branch_refs=0
+  local local_ref="" local_sha="" remote_ref="" remote_sha=""
+  while read -r local_ref local_sha remote_ref remote_sha; do
+    [ -z "$local_ref" ] && continue
+    refs_seen=$((refs_seen + 1))
+    [ "$local_ref" = "(delete)" ] && continue
+    case "$remote_ref" in
+      refs/heads/*)
+        branch_refs=$((branch_refs + 1))
+        published="${remote_ref#refs/heads/}"
+        published_head="$local_sha"
+        ;;
+    esac
+  done <<< "$PUSH_REFS"
+
+  PUBLISHED_BRANCH=""
+  PUBLISHED_HEAD=""
+  PUBLISHED_WHY=""
+
+  local branch="" branch_why=""
+  if [ "$branch_refs" -eq 1 ]; then
+    branch="$published"
+    PUBLISHED_HEAD="$published_head"
+  elif [ "$branch_refs" -gt 1 ]; then
+    branch_why="the push publishes $branch_refs branches at once"
+  elif [ "$refs_seen" -eq 0 ]; then
+    # Nothing was published: a hand-run invocation, or a push with nothing to do.
+    branch="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
+    [ "$branch" = "HEAD" ] && branch=""
+    [ -z "$branch" ] && branch_why="a detached HEAD and no published ref"
+  else
+    branch_why="the push publishes no branch (a tag, or a deletion)"
+  fi
+  PUBLISHED_BRANCH="$branch"
+  PUBLISHED_WHY="$branch_why"
+}
+
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || ROOT=""
 if [ -z "$ROOT" ]; then
   echo "pre-push: [pre-push-skip] not inside a git working tree — body lint SKIPPED." >&2
@@ -109,6 +178,13 @@ if [ ! -e "$BODY" ]; then
   exit 0
 fi
 
+# The PUBLISHED refs, resolved once, for BOTH consumers below: the reconciliation reads
+# the head the push publishes, the LIVE-body check reads the branch whose PR holds the
+# body. It runs even when the reconciliation is skipped, so the LIVE-body check never
+# loses the branch it resolves.
+resolve_published_refs
+RECONCILE_HEAD="${PUBLISHED_HEAD:-HEAD}"
+
 # The umbrella's OWN reconciliation, and it runs whether or not the org's linter is
 # here: the diff it reconciles against is this tree's, and it needs nothing from the
 # marketplace submodule. Its skips are visible and never fail-closed, like the linter's.
@@ -118,8 +194,11 @@ if [ ! -f "$RECONCILE" ]; then
 elif ! command -v node >/dev/null 2>&1; then
   echo "pre-push: [pre-push-skip] node not found — body/diff reconciliation SKIPPED." >&2
 else
-  echo "pre-push: reconciling the PR body against the diff ..."
-  if node "$RECONCILE" --body "$BODY" --repo "$ROOT"; then
+  # The head the push PUBLISHES, or the checked-out tree when the push publishes no
+  # single branch — the reconciler's own default, named here so the head is EXPLICIT
+  # in the command that reads the tree.
+  echo "pre-push: reconciling the PR body against the diff at $RECONCILE_HEAD ..."
+  if node "$RECONCILE" --body "$BODY" --repo "$ROOT" --head "$RECONCILE_HEAD"; then
     echo "pre-push: OK (the body describes the diff it ships with)"
   else
     echo "pre-push: BLOCKED — the PR body does not describe the diff it is published with." >&2
@@ -149,34 +228,10 @@ live_body_check() {
     return 0
   fi
 
-  # The PUBLISHED branch, read from the refs git wrote to stdin.
-  local published="" refs_seen=0 branch_refs=0
-  local local_ref="" local_sha="" remote_ref="" remote_sha=""
-  while read -r local_ref local_sha remote_ref remote_sha; do
-    [ -z "$local_ref" ] && continue
-    refs_seen=$((refs_seen + 1))
-    [ "$local_ref" = "(delete)" ] && continue
-    case "$remote_ref" in
-      refs/heads/*)
-        branch_refs=$((branch_refs + 1))
-        published="${remote_ref#refs/heads/}"
-        ;;
-    esac
-  done <<< "$PUSH_REFS"
-
-  local branch="" branch_why=""
-  if [ "$branch_refs" -eq 1 ]; then
-    branch="$published"
-  elif [ "$branch_refs" -gt 1 ]; then
-    branch_why="the push publishes $branch_refs branches at once"
-  elif [ "$refs_seen" -eq 0 ]; then
-    # Nothing was published: a hand-run invocation, or a push with nothing to do.
-    branch="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
-    [ "$branch" = "HEAD" ] && branch=""
-    [ -z "$branch" ] && branch_why="a detached HEAD and no published ref"
-  else
-    branch_why="the push publishes no branch (a tag, or a deletion)"
-  fi
+  # The PUBLISHED branch, resolved ONCE above from the refs git wrote to stdin — the
+  # same resolution the reconciliation read its head from, so the two can never name
+  # different pushes.
+  local branch="$PUBLISHED_BRANCH" branch_why="$PUBLISHED_WHY"
   if [ -z "$branch" ]; then
     echo "pre-push: [live-body-skip] no single branch to resolve a PR from ($branch_why) — the LIVE-body check SKIPPED."
     return 0
@@ -271,7 +326,10 @@ if ! python3 "$LINT" --help >/dev/null 2>&1; then
 fi
 
 echo "pre-push: linting the PR body at $BODY ..."
-if python3 "$LINT" "$BODY" --repo "$ROOT"; then
+# The linter gets the SAME head the reconciliation read: it judges the body's pasted
+# head claim against the commit being pushed, and its own default is the repository's
+# HEAD — the checkout, which is not the tree a push of another branch publishes.
+if python3 "$LINT" "$BODY" --repo "$ROOT" --head "$RECONCILE_HEAD"; then
   echo "pre-push: OK"
   exit 0
 fi
