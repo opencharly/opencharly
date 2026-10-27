@@ -686,6 +686,22 @@ verify:
       - check: the root-ref gate discriminates — each mutation turns it RED (fixtures)
         command: node scripts/check-root-refs.mjs --self-test
         context: [runtime]
+      # The cross-surface governance claims, reconciled in the STRONG form: the pinned
+      # `dotgithub` checkout is the OWNER of that checker, and the strong form is the
+      # only one that asserts the cross-repo rows (the CI form runs against the
+      # .github checkout, where every sibling row SKIPS). A surface whose owner repo
+      # IS materialized here but whose file is ABSENT is a STALE POINTER and FAILS.
+      # The gate is reached through scripts/check-governance-reconcile.mjs, because the
+      # path it READS has to be visible to the working-set derivation in
+      # scripts/init-submodules.sh — a path named only in this step's text would leave
+      # the owning repo out of the derived working set, and the step would SKIP on
+      # every light tree (opencharly/opencharly#674).
+      - check: the cross-surface governance claims reconcile in the STRONG form — every surface this checkout carries is asserted, and a surface whose owner repo is present but whose file is ABSENT is a STALE POINTER and FAILS (not a skip)
+        command: node scripts/check-governance-reconcile.mjs
+        context: [runtime]
+      - check: the governance-reconcile gate discriminates — a reconcile that fails turns the gate RED, a passing one turns it GREEN, and a checkout that does not carry the reconcile is a visible SKIP (fixtures)
+        command: node scripts/check-governance-reconcile.mjs --self-test
+        context: [runtime]
 
 # -----------------------------------------------------------------------------
 # skills — splice the generated R0 dispatcher from the pinned marketplace.
