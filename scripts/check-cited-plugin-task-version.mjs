@@ -20,7 +20,7 @@
 //   here to judge, and no self-exemption is needed to make that true.
 //
 // WHY THE VERSION IS THE SENTINEL. A citation beside a version is a claim about a
-// module's SOURCE ("verbs.go:736", "cli.go:261"), and those line numbers are only
+// module's SOURCE ("verbs.go:739", "cli.go:261"), and those line numbers are only
 // meaningful against a version. So the version is the thing that must be re-derived:
 // when the pinned charly advances, the version changes, the gate goes RED, and the
 // citations beside it are re-read. A gate that only checked the version would still

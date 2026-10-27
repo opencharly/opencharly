@@ -457,9 +457,9 @@ if [ "${1:-}" = "--self-test" ]; then
   # ONE definition so that no arm can carry a shape of its own.
   #
   # The STEP MESSAGE, read from the product's own source
-  # (`candy/plugin-task/verbs.go:736` in the module the binary is built from —
+  # (`candy/plugin-task/verbs.go:739` in the module the binary is built from —
   # `charly/charly/go.mod` at the umbrella's PINNED charly pins
-  # `plugin-task v0.2026297.2108`, and that version is the SENTINEL for the source
+  # `plugin-task v0.2026299.2314`, and that version is the SENTINEL for the source
   # lines beside it: scripts/check-cited-plugin-task-version.mjs re-derives it from
   # that pin and fails when it moves, so these lines are re-read, not re-remembered)
   # and confirmed end
