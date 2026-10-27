@@ -74,6 +74,14 @@
 #                          at the moment the citations beside it must be re-read
 #                          (`node scripts/check-cited-plugin-task-version.mjs`;
 #                          opencharly/opencharly#689)
+#  14. the ONE body cap — the cap file states ONE rule and BOTH of its readers
+#                          implement it: they read the same number from the same file,
+#                          and both refuse a cap file that is not exactly one positive
+#                          integer; and no reader inherits an ambient
+#                          GITHUB_BODY_MAX, so the gate's verdict is the same whatever
+#                          the caller's shell carries — asserted by FIRING both readers
+#                          against the same file (`node scripts/check-pr-body-cap.mjs`;
+#                          opencharly/opencharly#720)
 #
 # Deliberately NOT here (see `charly task verify`): the per-submodule
 # `git ls-remote` default-branch audit — it reads remote state no commit can change
@@ -120,6 +128,7 @@ node "$ROOT/scripts/check-pi-question.mjs"
 node "$ROOT/scripts/check-task-contexts.mjs"
 node "$ROOT/scripts/check-task-command-vars.mjs"
 node "$ROOT/scripts/check-pr-body-gate.mjs"
+node "$ROOT/scripts/check-pr-body-cap.mjs"
 node "$ROOT/scripts/check-pre-commit-gate.mjs"
 node "$ROOT/scripts/check-validator-rule-map.mjs" --no-live
 node "$ROOT/scripts/check-readme-measurements.mjs"

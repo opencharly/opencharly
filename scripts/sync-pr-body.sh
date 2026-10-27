@@ -45,14 +45,40 @@ PR_BODY_CAP_FILE="$SCRIPT_DIR/lib/pr-body-cap"
 
 # The ONE cap. It is read from the file, never written here: a second copy of the
 # number in this script is a second cap, and the two would disagree the first time
-# one of them is changed. The reader takes the first line that is neither blank nor
-# a comment and REQUIRES a positive integer — a cap that cannot be read fails loud,
-# because a silently substituted default is a cap nobody chose.
-PR_BODY_CAP_BYTES=""
+# one of them is changed.
+#
+# The RULE is the cap file's, stated there and implemented here and in
+# `scripts/check-pr-body-diff.mjs`: a line whose first non-blank character is `#` is
+# a comment, a blank line is blank, everything else is a content line, and the file
+# holds EXACTLY ONE content line — which, with its surrounding whitespace removed, is
+# a positive integer and nothing else. A second content line is not a second reading
+# of the cap, it is a cap that cannot be read, and it fails loud here exactly as it
+# fails loud in the JS reader. The two readers used to disagree on the same file
+# (opencharly/opencharly#720): this one took the FIRST content line, the other
+# concatenated them all, so a cap file with two numbers read 65536 here and
+# 6553665537 there. `scripts/check-pr-body-cap.mjs` runs both against the same file
+# and proves they agree.
+PR_BODY_CAP_LINES=""
 if [ -r "$PR_BODY_CAP_FILE" ]; then
-  PR_BODY_CAP_BYTES="$(awk '/^[[:space:]]*#/ { next } NF { gsub(/[[:space:]]/, ""); print; exit }' \
-    "$PR_BODY_CAP_FILE" 2>/dev/null || true)"
+  PR_BODY_CAP_LINES="$(awk '
+    /^[[:space:]]*#/ { next }
+    { gsub(/^[[:space:]]+/, ""); gsub(/[[:space:]]+$/, "") }
+    $0 == "" { next }
+    { print }
+  ' "$PR_BODY_CAP_FILE" 2>/dev/null || true)"
+  # The cap file is THERE, and it does not hold exactly one content line: that is a
+  # DIFFERENT defect from a cap file that is not there at all, and it is named as
+  # one. A cap file that is missing keeps the refusal it has always had, word for
+  # word, because the published record for opencharly/opencharly#719 pastes that
+  # message.
+  PR_BODY_CAP_COUNT="$(printf '%s\n' "$PR_BODY_CAP_LINES" | grep -c . || true)"
+  PR_BODY_CAP_COUNT="${PR_BODY_CAP_COUNT:-0}"
+  if [ "$PR_BODY_CAP_COUNT" -ne 1 ]; then
+    echo "::error::the PR body's size cap in ${PR_BODY_CAP_FILE} is not exactly one line — the ONE cap is ${PR_BODY_CAP_COUNT} content line(s) and the rule is exactly one" >&2
+    exit 1
+  fi
 fi
+PR_BODY_CAP_BYTES="$PR_BODY_CAP_LINES"
 case "$PR_BODY_CAP_BYTES" in
   '' | *[!0-9]*)
     echo "::error::the PR body's size cap cannot be read from ${PR_BODY_CAP_FILE} — the ONE cap is missing or is not a number ('${PR_BODY_CAP_BYTES}')" >&2
