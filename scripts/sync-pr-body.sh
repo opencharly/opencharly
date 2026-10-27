@@ -119,7 +119,7 @@ producer_log_excerpt() {
 # sync-pin-evidence.sh (bounded for the body, full for the artifact via SYNC_EVIDENCE_OUT).
 build_body() {
   local root="$1" moved_file="$2" producer_log="$3" pin_check_log="$4" out_body="$5" out_evidence="$6"
-  local MOVED MOVED_TOTAL GITLINK_COUNT FILE_COUNT REMOVED_COUNT MOVED_DESC evidence_body evidence_full type_file
+  local MOVED MOVED_TOTAL GITLINK_COUNT FILE_COUNT REMOVED_COUNT MOVED_DESC CLASS CLASS_DESC evidence_body evidence_full type_file
 
   MOVED="$(cat "$moved_file")"
   MOVED_TOTAL=$(printf '%s\n' "$MOVED" | grep -c . || true); MOVED_TOTAL=${MOVED_TOTAL:-0}
@@ -570,7 +570,19 @@ if [ "${1:-}" = "--self-test" ]; then
   # and its moved count are part of the shape.
   producer_log_current "$producer" 0 0 0 0 1 1 "p1"
   printf 'x\n' > "$tmp/p5"; git -C "$tmp" add p5
+  # build_body must not LEAK its function-local names into the caller's scope. The
+  # change-class names (`CLASS`/`CLASS_DESC`) are assigned inside build_body; declared
+  # `local`, they die with the function. Assigned without it, they become GLOBALS — and
+  # this self-test calls build_body eleven times in ONE shell, so a stale value left by
+  # an earlier call is exactly what a later reader would pick up
+  # (opencharly/opencharly#740). The names are unset first, so the arm observes THIS
+  # call's scope and no earlier one.
+  unset CLASS CLASS_DESC
   build_body "$tmp" "$moved" "$producer" "$pinlog" "$tmp/body7" "$tmp/ev7" || fail "mixed gitlink+file input must build"
+  [ -z "${CLASS:-}" ] \
+    || fail "build_body leaked CLASS into the caller's scope ('${CLASS}') — a function-local name must be declared local"
+  [ -z "${CLASS_DESC:-}" ] \
+    || fail "build_body leaked CLASS_DESC into the caller's scope ('${CLASS_DESC}') — a function-local name must be declared local"
   # The pin_map clause's NAMES are asserted too — the one part of the shape that
   # carries the paths, and the one the retired form's names had already lost.
   grep -qF 'pin_map entr(y|ies) (p1; 1 moved)' "$tmp/body7" || fail "the CURRENT producer summary must reach the body verbatim"
