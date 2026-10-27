@@ -1070,10 +1070,6 @@
 	path = layer-xfce4-terminal
 	url = https://github.com/opencharly/layer-xfce4-terminal.git
 	branch = main
-[submodule "pod-charly-automation"]
-	path = pod-charly-automation
-	url = https://github.com/opencharly/pod-charly-automation.git
-	branch = main
 [submodule "plugin-adb"]
 	path = plugin-adb
 	url = https://github.com/opencharly/plugin-adb.git
@@ -1501,10 +1497,6 @@
 [submodule "layer-charly-check"]
 	path = layer-charly-check
 	url = https://github.com/opencharly/layer-charly-check.git
-	branch = main
-[submodule "layer-charly-internals-extra"]
-	path = layer-charly-internals-extra
-	url = https://github.com/opencharly/layer-charly-internals-extra.git
 	branch = main
 [submodule "layer-check-local-layer"]
 	path = layer-check-local-layer

@@ -656,13 +656,11 @@ verify:
         command: node scripts/check-pr-body-cap.mjs
         context: [runtime]
       - check: the cap gate discriminates — every one of its seven arms has a mutation that turns that arm RED, the whole gate stays GREEN under an ambient GITHUB_BODY_MAX, and a gate whose readers inherit that ambient goes RED on the same-number arm (fixtures)
-        # This step's cost is the cap gate's SEVEN mutated runs plus the two
-        # sub-self-tests it spawns, and it is LOAD-SENSITIVE: measured 81s at load
-        # 6.0, 91s at load 10.7 (on origin/main) and 149s at load 13.5 (2026-10-27) —
-        # it straddles the runner's 90s per-attempt never-hang floor, and a step the
-        # floor cuts short is KILLED mid-run, so a busy box reports a RED gate over a
-        # step that never failed. The ceiling is declared here — the mechanism's own
-        # parameter, not a sleep and not a retry.
+        # SEVEN mutation arms, each spawning the gate: measured 5m00s and still running on
+        # 2026-10-27 (300 s cap, `user 2m44 sys 2m35` — process-spawn bound, not a hang), so
+        # the step carries a declared ceiling above the runner's 90 s never-hang floor. A
+        # step the floor cuts short does not report a defect; it reports `killed`, which is
+        # indistinguishable from a real break at a glance.
         timeout: 10m
         command: node scripts/check-pr-body-cap.mjs --self-test
         context: [runtime]
