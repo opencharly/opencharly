@@ -29,8 +29,8 @@
 # tracked tree and it survives across a push. Override with `PR_BODY_FILE=<path>`.
 #
 # THE LIVE BODY IS A SECOND SURFACE, AND IT IS THE ONE THE VALIDATOR READS. The body
-# this hook validates lives in a FILE; the validator reads the body's LIVE copy, on
-# the PR, from GitHub. Nothing reconciled the two, so a body FILE that was correct
+# this hook validates lives in a FILE; the validator reads the body's LIVE copy, on the
+# PR, from GitHub. Nothing reconciled the two, so a body FILE that was correct
 # while the PR's body was stale passed this hook perfectly and cost a whole review
 # round — opencharly/opencharly#742, 2026-10-27: the validator read a body naming a
 # head and a file table this hook had already rejected for the tree being pushed,
@@ -38,30 +38,53 @@
 # below IS that reconciliation: the body the push publishes MUST be the body GitHub
 # holds, or the body is not the changelog the reviewer reads.
 #
-# THE LIVE-BODY CHECK SKIPS VISIBLY, never fail-closed, in the same shape as the skips
-# below: no `gh` (not installed), a remote that is not GitHub, no open PR for this
-# branch (the first push OPENS the PR — its body is set at creation), or `gh` itself
-# failing. A push that cannot be checked is still a push; what it must never be is a
-# SILENT one.
+# SKIP COUNTS: hook=8 live-body=6   (machine-checked by scripts/check-pr-body-gate.mjs)
 #
-# SKIPS ARE VISIBLE AND NEVER FAIL-CLOSED, the shape pre-commit-gate.sh already uses
-# for a missing golangci-lint. Three of them:
+# EVERY SKIP IS VISIBLE AND NEVER FAIL-CLOSED, the shape pre-commit-gate.sh already uses
+# for a missing golangci-lint, and every one of them carries a marker the gate COUNTS —
+# so the counts above cannot drift away from the code they describe.
+#
+# THE HOOK'S OWN 8:
+#   * NO GIT TREE — the hook does not run inside a git working tree at all.
+#   * NO GIT DIR — the working tree's git dir could not be resolved.
 #   * NO BODY at the path — the body is written by the author as part of the landing
 #     discipline, so its absence at push time is the DISCIPLINE failing, not a defect
 #     in the diff. A hook that blocked there would be inventing a rule, so it says how
 #     to create the file and gets out of the way.
+#   * NO RECONCILER — the reconciliation is a script in THIS repo, so its absence is
+#     this checkout being incomplete rather than the diff being wrong; it is named and
+#     the push continues.
+#   * NO node — the same, for the interpreter the reconciliation runs under.
 #   * NO LINTER — `marketplace/` is a submodule a session worktree may not have
 #     materialized, and blocking a push for an unmaterialized submodule would make
 #     every fresh worktree unlandable. It names the one command that fixes it.
-#   * NO RECONCILER (or no `node`) — the reconciliation is a script in THIS repo, so
-#     its absence is this checkout being incomplete rather than the diff being wrong;
-#     it is named and the push continues.
+#   * NO python3 — the same, for the interpreter the linter runs under.
+#   * A LINTER THAT CANNOT RUN — the linter is here but its sibling module from the
+#     marketplace submodule is not, so it dies with a traceback that also exits 1.
+#
+# THE LIVE-BODY CHECK'S 6: no `gh` (not installed); no single branch to resolve a PR
+# from; a remote that is not GitHub; `gh` failing to list the open PRs; no open PR for
+# the PUBLISHED branch (the first push OPENS the PR — its body is set at creation); and
+# `gh` failing to read that PR's body. A push that cannot be checked is still a push;
+# what it must never be is a SILENT one.
 
 set -uo pipefail
 
+# git hands a pre-push hook the refs it is PUBLISHING on STDIN, one line per ref:
+#
+#   <local ref> <local sha> <remote ref> <remote sha>
+#
+# Read them ONCE, here, BEFORE any child process runs: a child that inherits this pipe
+# could consume the lines. A terminal on stdin means the hook was run BY HAND, and a
+# hand-run hook must not block waiting for a line that will never come.
+PUSH_REFS=""
+if [ ! -t 0 ]; then
+  PUSH_REFS="$(cat 2>/dev/null || true)"
+fi
+
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || ROOT=""
 if [ -z "$ROOT" ]; then
-  echo "pre-push: not inside a git working tree — body lint SKIPPED." >&2
+  echo "pre-push: [pre-push-skip] not inside a git working tree — body lint SKIPPED." >&2
   exit 0
 fi
 
@@ -73,14 +96,14 @@ cd "$ROOT" || exit 0
 
 GITDIR="$(git rev-parse --absolute-git-dir 2>/dev/null)" || GITDIR=""
 if [ -z "$GITDIR" ]; then
-  echo "pre-push: could not resolve the git dir — body lint SKIPPED." >&2
+  echo "pre-push: [pre-push-skip] could not resolve the git dir — body lint SKIPPED." >&2
   exit 0
 fi
 BODY="${PR_BODY_FILE:-$GITDIR/PR_BODY.md}"
 LINT="$ROOT/marketplace/scripts/pr_body_lint.py"
 
 if [ ! -e "$BODY" ]; then
-  echo "pre-push: no PR body at $BODY — body lint SKIPPED (nothing to check)."
+  echo "pre-push: [pre-push-skip] no PR body at $BODY — body lint SKIPPED (nothing to check)."
   echo "pre-push: the body IS the changelog; write the whole thing for the head you are about to"
   echo "pre-push: publish and push again. To lint a body that lives elsewhere: PR_BODY_FILE=<path>."
   exit 0
@@ -91,9 +114,9 @@ fi
 # marketplace submodule. Its skips are visible and never fail-closed, like the linter's.
 RECONCILE="$ROOT/scripts/check-pr-body-diff.mjs"
 if [ ! -f "$RECONCILE" ]; then
-  echo "pre-push: $RECONCILE is absent — body/diff reconciliation SKIPPED." >&2
+  echo "pre-push: [pre-push-skip] $RECONCILE is absent — body/diff reconciliation SKIPPED." >&2
 elif ! command -v node >/dev/null 2>&1; then
-  echo "pre-push: node not found — body/diff reconciliation SKIPPED." >&2
+  echo "pre-push: [pre-push-skip] node not found — body/diff reconciliation SKIPPED." >&2
 else
   echo "pre-push: reconciling the PR body against the diff ..."
   if node "$RECONCILE" --body "$BODY" --repo "$ROOT"; then
@@ -113,38 +136,68 @@ fi
 # It returns 0 when the two agree or when the comparison cannot be made (a VISIBLE
 # skip, never a silent one), and 1 when they DISAGREE — which blocks the push.
 #
-# git hands a pre-push hook the refspec as arguments: $1 is the remote NAME, $3 the
-# local ref. The branch is taken from $3 when it is a branch, and otherwise from
-# HEAD — so the hook also works when it is run by hand, with no arguments at all.
+# GIT'S CONTRACT, measured (git 2.56, seven push shapes): a pre-push hook is given
+# TWO arguments — $1 the remote NAME, $2 that remote's URL or path — and the refs it
+# publishes on STDIN. There is NO $3. The PUBLISHED branch is the REMOTE ref of a
+# stdin line whose remote ref is a `refs/heads/*`: it is the branch on the platform,
+# whatever the LOCAL ref was called (`HEAD:refs/heads/x` publishes `x`). A push with
+# nothing to do still runs the hook, with an EMPTY stdin, and so does a hand-run
+# invocation — those are the ONLY two cases where HEAD's branch is the right answer.
 live_body_check() {
   if ! command -v gh >/dev/null 2>&1; then
-    echo "pre-push: gh is not installed — the LIVE-body check SKIPPED (the PR's body is not compared with $BODY)."
+    echo "pre-push: [live-body-skip] gh is not installed — the LIVE-body check SKIPPED (the PR's body is not compared with $BODY)."
     return 0
   fi
 
-  local remote_name="${1:-origin}" local_ref="${3:-}" branch=""
-  case "$local_ref" in
-    refs/heads/*) branch="${local_ref#refs/heads/}" ;;
-  esac
-  if [ -z "$branch" ]; then
+  # The PUBLISHED branch, read from the refs git wrote to stdin.
+  local published="" refs_seen=0 branch_refs=0
+  local local_ref="" local_sha="" remote_ref="" remote_sha=""
+  while read -r local_ref local_sha remote_ref remote_sha; do
+    [ -z "$local_ref" ] && continue
+    refs_seen=$((refs_seen + 1))
+    [ "$local_ref" = "(delete)" ] && continue
+    case "$remote_ref" in
+      refs/heads/*)
+        branch_refs=$((branch_refs + 1))
+        published="${remote_ref#refs/heads/}"
+        ;;
+    esac
+  done <<< "$PUSH_REFS"
+
+  local branch="" branch_why=""
+  if [ "$branch_refs" -eq 1 ]; then
+    branch="$published"
+  elif [ "$branch_refs" -gt 1 ]; then
+    branch_why="the push publishes $branch_refs branches at once"
+  elif [ "$refs_seen" -eq 0 ]; then
+    # Nothing was published: a hand-run invocation, or a push with nothing to do.
     branch="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
     [ "$branch" = "HEAD" ] && branch=""
+    [ -z "$branch" ] && branch_why="a detached HEAD and no published ref"
+  else
+    branch_why="the push publishes no branch (a tag, or a deletion)"
   fi
   if [ -z "$branch" ]; then
-    echo "pre-push: no branch to resolve a PR from (a detached HEAD, or a tag push) — the LIVE-body check SKIPPED."
+    echo "pre-push: [live-body-skip] no single branch to resolve a PR from ($branch_why) — the LIVE-body check SKIPPED."
     return 0
   fi
 
-  local url path slug
-  url="$(git config --get "remote.$remote_name.url" 2>/dev/null || true)"
-  case "$url" in
-    *github.com*) ;;
-    *)
-      echo "pre-push: remote '$remote_name' is not a GitHub remote — the LIVE-body check SKIPPED."
-      return 0
-      ;;
-  esac
-  path="${url#*github.com}"
+  # The pushed REMOTE, from git's own $1/$2. A URL push passes the URL as BOTH; a named
+  # remote passes that remote's URL as $2. So the first of $2, $1 and the configured
+  # remote's URL that names a GitHub repository is the one whose PR holds the body.
+  local remote_name="${1:-origin}" remote_url="" candidate=""
+  for candidate in "${2:-}" "${1:-}" "$(git config --get "remote.${1:-origin}.url" 2>/dev/null || true)"; do
+    case "$candidate" in
+      *github.com*) remote_url="$candidate"; break ;;
+    esac
+  done
+  if [ -z "$remote_url" ]; then
+    echo "pre-push: [live-body-skip] remote '$remote_name' is not a GitHub remote — the LIVE-body check SKIPPED."
+    return 0
+  fi
+
+  local path slug
+  path="${remote_url#*github.com}"
   path="${path#:}"
   path="${path#/}"
   path="${path%.git}"
@@ -155,13 +208,13 @@ live_body_check() {
 
   pr="$(gh pr list --repo "$slug" --head "$branch" --state open --json number --jq '.[0].number // empty' 2>"$err")" || ghrc=$?
   if [ "$ghrc" -ne 0 ]; then
-    echo "pre-push: gh could not list the open PRs of $slug (gh exit $ghrc) — the LIVE-body check SKIPPED:" >&2
+    echo "pre-push: [live-body-skip] gh could not list the open PRs of $slug (gh exit $ghrc) — the LIVE-body check SKIPPED:" >&2
     sed -n '1p' "$err" >&2 2>/dev/null || true
     rm -f "$err" 2>/dev/null || true
     return 0
   fi
   if [ -z "$pr" ]; then
-    echo "pre-push: no open PR for $slug head '$branch' — the LIVE-body check SKIPPED (the first push OPENS the PR; its body is set at creation)."
+    echo "pre-push: [live-body-skip] no open PR for $slug head '$branch' — the LIVE-body check SKIPPED (the first push OPENS the PR; its body is set at creation)."
     rm -f "$err" 2>/dev/null || true
     return 0
   fi
@@ -169,7 +222,7 @@ live_body_check() {
   live="$(gh pr view "$pr" --repo "$slug" --json body --jq '.body' 2>"$err")" || lrc=$?
   rm -f "$err" 2>/dev/null || true
   if [ "$lrc" -ne 0 ]; then
-    echo "pre-push: gh could not read the body of $slug#$pr (gh exit $lrc) — the LIVE-body check SKIPPED." >&2
+    echo "pre-push: [live-body-skip] gh could not read the body of $slug#$pr (gh exit $lrc) — the LIVE-body check SKIPPED." >&2
     return 0
   fi
 
@@ -189,18 +242,18 @@ live_body_check() {
   return 1
 }
 
-if ! live_body_check; then
+if ! live_body_check "$@"; then
   exit 1
 fi
 
 if [ ! -f "$LINT" ]; then
-  echo "pre-push: $LINT is absent (the marketplace submodule is not materialized here) — body lint SKIPPED."
+  echo "pre-push: [pre-push-skip] $LINT is absent (the marketplace submodule is not materialized here) — body lint SKIPPED."
   echo "pre-push: materialize it with: bash scripts/init-submodules.sh  (the working set includes the marketplace)"
   exit 0
 fi
 
 if ! command -v python3 >/dev/null 2>&1; then
-  echo "pre-push: python3 not found — body lint SKIPPED."
+  echo "pre-push: [pre-push-skip] python3 not found — body lint SKIPPED."
   exit 0
 fi
 
@@ -212,7 +265,7 @@ fi
 # non-zero from the real invocation below means the BODY has findings. Without this,
 # one broken submodule blocks every legitimate push in the clone.
 if ! python3 "$LINT" --help >/dev/null 2>&1; then
-  echo "pre-push: the body linter cannot run here (it needs its sibling module from the marketplace submodule) — body lint SKIPPED." >&2
+  echo "pre-push: [pre-push-skip] the body linter cannot run here (it needs its sibling module from the marketplace submodule) — body lint SKIPPED." >&2
   echo "pre-push: materialize it with: bash scripts/init-submodules.sh  (the working set includes the marketplace)" >&2
   exit 0
 fi
