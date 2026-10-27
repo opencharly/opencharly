@@ -12,9 +12,27 @@
 # first time one of them is changed.
 #
 # The environment variable `GITHUB_BODY_MAX` overrides the number in BOTH readers —
-# for a tighter local policy, or for a self-test that wants a small body.
+# for a tighter local policy, or for a self-test that wants a small body. The
+# override is not a second DEFINITION: the number itself lives here and only here.
 #
-# The readers take the first line that is neither blank nor a comment, and require it
-# to be a positive integer: a cap that cannot be read must fail LOUD, never be
+# ── THE RULE ──────────────────────────────────────────────────────────────────────
+# It is stated HERE, once, and both readers implement exactly it.
+#
+#   - a line whose first non-blank character is `#` is a COMMENT;
+#   - a line that is blank is BLANK;
+#   - every other line is a CONTENT line, and this file holds EXACTLY ONE of them.
+#
+# That one content line, with its surrounding whitespace removed, is a positive
+# integer and NOTHING ELSE: no trailing note, no second number on the same line, no
+# interior space.
+#
+# So a file that is not exactly this is UNREADABLE, and BOTH readers refuse it
+# loudly: a second content line is not a second reading of the cap, it is a cap
+# nobody chose, and a cap that cannot be read must fail LOUD rather than be
 # silently replaced by a default that is not this number.
+#
+# `scripts/check-pr-body-cap.mjs` proves the two readers agree: it runs BOTH of them
+# against the SAME file — this one, which both must read as the same number, and
+# mutated ones, which both must refuse. A rule only one reader implements is a cap
+# that can drift, which is the defect this rule closes.
 65536

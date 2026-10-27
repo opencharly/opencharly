@@ -155,13 +155,73 @@ const notice = (m) => console.log(`  NOTE  ${m}`);
  * definition, two readers.
  *
  * The environment variable `GITHUB_BODY_MAX` overrides the number, in BOTH readers,
- * for a tighter local policy or for a self-test that wants a small body. A cap that
- * cannot be read is a hard failure: it is never replaced by a default that is not
- * this number, because a default that is not this number is a SECOND cap, and the
- * two would disagree the first time one of them is changed.
+ * for a tighter local policy or for a self-test that wants a small body. The
+ * override is not a second DEFINITION: the number itself lives in the cap file and
+ * only there.
  */
 const CAP_FILE = join(here, "lib", "pr-body-cap");
 
+/**
+ * The cap file's content lines, by the ONE rule the cap file states.
+ *
+ * The surrounding whitespace is the POSIX space class — spaces, tabs, carriage
+ * returns and the rest — and it is spelled out rather than written as `\s`,
+ * because `\s` in JavaScript also matches the UNICODE spaces while the reader
+ * that must agree with this one strips the POSIX class (`[[:space:]]` in the
+ * builder's awk). A rule one reader implements more loosely than the other is a
+ * rule the two can disagree on.
+ */
+function capContentLines(text) {
+  return text
+    .split("\n")
+    .map((l) => l.replace(/^[ \t\n\v\f\r]+/, "").replace(/[ \t\n\v\f\r]+$/, ""))
+    .filter((l) => l !== "" && !l.startsWith("#"));
+}
+
+/**
+ * The ONE cap, read from the FILE.
+ *
+ * The rule is the cap file's, stated there and implemented here and in
+ * `scripts/sync-pr-body.sh`: exactly ONE content line, and that line is a positive
+ * integer and nothing else. A second content line is not a second reading of the
+ * cap — it is a cap that cannot be read, and it fails loud here. The earlier
+ * reader stripped the comments and whitespace from the WHOLE file and concatenated
+ * what was left, so a file with two content lines read as their CONCATENATION
+ * while the bash reader read the first of them: the two read different numbers
+ * from the same file (opencharly/opencharly#720).
+ */
+function readCapFileBytes() {
+  let text;
+  try {
+    text = readFileSync(CAP_FILE, "utf8");
+  } catch {
+    fail(`the body's size cap cannot be read from ${CAP_FILE} — the ONE cap is missing`);
+    return null;
+  }
+  const lines = capContentLines(text);
+  if (lines.length !== 1) {
+    fail(
+      `the body's size cap in ${CAP_FILE} is not exactly one line — the ONE cap is ` +
+        `${lines.length} content line(s) (${lines.map((l) => `"${l}"`).join(", ") || "none"}); ` +
+        `the rule is one positive integer and nothing else`,
+    );
+    return null;
+  }
+  const value = lines[0];
+  if (!/^\d+$/.test(value) || Number(value) <= 0) {
+    fail(`the body's size cap in ${CAP_FILE} is not a positive integer (${value})`);
+    return null;
+  }
+  return Number(value);
+}
+
+/**
+ * The EFFECTIVE cap: the environment's override when there is one, else the ONE cap
+ * from the file. A cap that cannot be read is a hard failure: it is never replaced
+ * by a default that is not this number, because a default that is not this number
+ * is a SECOND cap, and the two would disagree the first time one of them is
+ * changed.
+ */
 function readCapBytes() {
   const override = (process.env.GITHUB_BODY_MAX ?? "").trim();
   if (override !== "") {
@@ -171,19 +231,7 @@ function readCapBytes() {
     }
     return Number(override);
   }
-  let text;
-  try {
-    text = readFileSync(CAP_FILE, "utf8");
-  } catch {
-    fail(`the body's size cap cannot be read from ${CAP_FILE} — the ONE cap is missing`);
-    return null;
-  }
-  const value = text.replace(/#.*$/gm, "").replace(/\s+/g, "");
-  if (!/^\d+$/.test(value) || Number(value) <= 0) {
-    fail(`the body's size cap in ${CAP_FILE} is not a positive integer (${value})`);
-    return null;
-  }
-  return Number(value);
+  return readCapFileBytes();
 }
 
 /** Run a git command in the repo and return its trimmed stdout, or null on failure. */
@@ -737,8 +785,11 @@ function checkFenceBalance(body) {
  * section the body hides — no prose heading for it anywhere — is a failure.
  *
  * A section the body does not carry AT ALL is not this arm's business: the org's
- * linter owns the presence of the four required sections, and this gate implements
- * no rule the linter already owns.
+ * linter owns the presence of the four sections it requires, and this gate
+ * implements no rule the linter already owns. The list below is THIS gate's own, and
+ * it carries five: the org linter's four, plus `Filed issues`, which the umbrella's
+ * reconciler additionally requires. The two lists are different lists, so the
+ * comment says which is which.
  */
 const REQUIRED_SECTIONS = [
   "Summary",
@@ -1007,7 +1058,15 @@ ${claim || "Test fixture, not a real change."}
     // size. The padding is a run of a word with no digit and no slash, so it cannot be
     // read as a count claim, a path or an evidence line — the size arm is the only
     // thing the padded bodies are for.
-    const capBytes = readCapBytes();
+    //
+    // The cap is the ONE cap FROM THE FILE, never the ambient override. The
+    // builder's own self-test pins it for exactly this reason — an ambient
+    // GITHUB_BODY_MAX in the caller's shell must not decide whether the fixture
+    // fits — and the two self-tests must agree on that (R2). Here the ambient
+    // override used to size the fixture, so a tight override made this self-test die
+    // on a fixture-size error that named neither the override nor the cap
+    // (opencharly/opencharly#720).
+    const capBytes = readCapFileBytes();
     if (capBytes === null) {
       throw new Error("the body's size cap could not be read — the size arm cannot be self-tested");
     }

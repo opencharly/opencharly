@@ -596,6 +596,12 @@ verify:
       - check: the pre-push body gate's FIRED assertions hold — a body whose fences do not pair, and a body over the size cap, are each BLOCKED at the push by a finding that names the cause (fixtures)
         command: node scripts/check-pr-body-gate.mjs
         context: [runtime]
+      - check: the ONE cap on a body's size has ONE rule and BOTH readers implement it — the two readers read the same number from the same file, both refuse a cap file that is not exactly one positive integer, and the reconciler's self-test is green under an ambient GITHUB_BODY_MAX (fixtures)
+        command: node scripts/check-pr-body-cap.mjs
+        context: [runtime]
+      - check: the cap gate discriminates — a JS reader that concatenates the cap file's content lines, a bash reader that takes the first one, and a reconciler whose self-test follows the ambient override each turn it RED on the arm it targets, and the unmutated copy stays GREEN (fixtures)
+        command: node scripts/check-pr-body-cap.mjs --self-test
+        context: [runtime]
       - check: the umbrella's own committed builders pass their self-tests — the set the commit gate runs, owned by scripts/self-test.sh
         command: bash scripts/self-test.sh
         context: [runtime]
