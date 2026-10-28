@@ -27,6 +27,15 @@
 //      mention (with the reason it is not a claim-maker), or an exempt control. A
 //      file that names the verb and is in NEITHER list is a FINDING: a new
 //      claim-maker surface cannot slip in unclassified.
+//   D. NO NARROWING — no claim-maker surface may scope the operation to a SUBSET
+//      of the declared paths. Arm A asserts the POSITIVE claim ("advances EVERY pin
+//      the repo declares"), and a surface can state that AND contradict it in the
+//      same breath — "the pin operation over the `distro-*` set — advances EVERY pin
+//      this repo declares" — which is what opencharly/opencharly#787 found in three
+//      surfaces: the EDGE subset's vocabulary applied to the whole operation. The
+//      operation runs over EVERY path `.gitmodules` declares; the `distro-*` paths
+//      are the EDGE subset of them (the `pin_map`), and every other declared path
+//      is an ordinary pin. A subset may be named — as a SUBSET of that whole set.
 //
 // The retired claim is keyed in scripts/check-retired-claims.mjs, which owns the
 // claim CLASSES; this gate owns the POSITIVE claim (the scope), and the two
@@ -172,6 +181,54 @@ function extract(lines, idx, kind) {
   return out.join("\n");
 }
 
+/**
+ * The NEGATIVE scope claim (arm D): a scope clause that names a SUBSET.
+ *
+ * The clause is found by SHAPE — a preposition, a qualifier and a set-noun
+ * ("over the X set") — and not by naming one subset, so the arm catches the
+ * CLASS rather than the instance that happened to be in the tree when it was
+ * written. The qualifier is then classified:
+ *
+ *   - a GLOB names a subset ("the `distro-*` set");
+ *   - a quantifier ("every", "all", "each", "the whole"), the stem of "declare"
+ *     and a possessive name the WHOLE declared set ("the paths this repo declares").
+ *
+ * The order matters: "every `distro-*` path" carries a quantifier AND a glob,
+ * and the glob is the narrowing half — the phrase is universal over a SUBSET,
+ * which is exactly the claim this arm forbids.
+ *
+ * The arm reads the SURFACE text, never a whole claim-maker file: those files
+ * hold prose that is not a claim about this verb (a file header's "over the org's
+ * submodules"), and a whole-file scan reports those as findings — measured, on the
+ * surfaces this arm reads: four such phrases in the tree, none of them in a
+ * claim-maker surface. The surfaces are the claim-makers; arm C owns the files.
+ */
+const NARROW_RE =
+  /\b(?:over|across|within|among)\s+(?:the\s+)?([`'"*A-Za-z0-9_.,+-]+(?:\s+[`'"*A-Za-z0-9_.,+-]+){0,3}?)\s+(?:sets?|subsets?|groups?|famil(?:y|ies)|paths?|repos?|pins?|entries|submodules?)\b/gi;
+const GLOB_RE = /[*?]/;
+const UNIVERSAL_RE = /\b(?:every|all|each|both|whole|full|entire|complete|total|any)\b/i;
+const DECLARE_RE = /declar/i;
+const POSSESSIVE_RE = /['’]s\b/i;
+
+/** The scope clauses of a surface that name a SUBSET of the declared paths. */
+function narrowingClauses(text) {
+  const out = [];
+  NARROW_RE.lastIndex = 0;
+  let m;
+  while ((m = NARROW_RE.exec(text)) !== null) {
+    const qualifier = m[1];
+    if (GLOB_RE.test(qualifier)) {
+      out.push(m[0]);
+      continue;
+    }
+    if (UNIVERSAL_RE.test(qualifier)) continue;
+    if (DECLARE_RE.test(qualifier)) continue;
+    if (POSSESSIVE_RE.test(qualifier)) continue;
+    out.push(m[0]);
+  }
+  return out;
+}
+
 /** The tracked REGULAR files of a tree — derived from the INDEX, never hand-kept. */
 function trackedFiles(rootDir) {
   const raw = execFileSync("git", ["ls-files", "-s", "-z"], {
@@ -246,6 +303,21 @@ function findings(rootDir, overrides = new Map()) {
           `question about currency). A reader with no scope is the #501 reader`,
       });
     }
+    // D: the NEGATIVE claim — a scope clause that narrows the operation to a
+    // SUBSET of the declared paths. Arm A cannot catch it: the surface can state
+    // the universal claim AND contradict it in the same breath.
+    for (const clause of narrowingClauses(surface)) {
+      out.push({
+        kind: "D",
+        rel: s.rel,
+        line: hits[0] + 1,
+        msg:
+          `${s.id} — the surface scopes the operation to a SUBSET ("${clause}"): the pin ` +
+          `operation runs over EVERY declared path, and a subset — the \`distro-*\` EDGE, or any ` +
+          `other group — may be named only as a SUBSET of that whole set. A reader who trusts ` +
+          `this line expects the verb to touch that subset alone`,
+      });
+    }
   }
 
   // C: coverage — every file that NAMES the verb is classified.
@@ -305,7 +377,9 @@ if (argv.includes("--self-test")) {
     console.error("check-pin-verb-scope --self-test: FAIL (the UNMUTATED tree is not green — fix the files first)");
     process.exit(1);
   }
-  ok(`the unmutated tree is GREEN — ${SURFACES.length} claim-maker surface(s) state the scope`);
+  ok(
+    `the unmutated tree is GREEN — ${SURFACES.length} claim-maker surface(s) state the scope, and none narrows it to a subset`,
+  );
 
   /** The surface's char range in its file, so a mutation can be applied to THAT text. */
   function surfaceRange(rel, anchor, kind) {
@@ -320,6 +394,13 @@ if (argv.includes("--self-test")) {
   }
 
   let stFails = 0;
+
+  /** The file's text with a suffix appended INSIDE the surface's own range. */
+  function withSurfaceSuffix(rel, anchor, kind, suffix) {
+    const range = surfaceRange(rel, anchor, kind);
+    if (!range) return null;
+    return range.text.slice(0, range.end) + suffix + range.text.slice(range.end);
+  }
 
   // A: every surface's scope can be REMOVED, and the removal is caught.
   for (const s of SURFACES) {
@@ -373,6 +454,50 @@ if (argv.includes("--self-test")) {
     } else {
       stFails += 1;
       console.error("  FAIL  a new file naming the verb was NOT caught");
+    }
+  }
+
+  // D: a clause that narrows the operation to a SUBSET turns the gate RED.
+  {
+    let caught = 0;
+    for (const s of SURFACES) {
+      const mutated = withSurfaceSuffix(s.rel, s.anchor, s.kind, " — over the `distro-*` set");
+      if (mutated === null) {
+        stFails += 1;
+        console.error(
+          `  FAIL  the surface ${s.id} could not be located — the narrowing mutation cannot be applied`,
+        );
+        continue;
+      }
+      const fs = findings(root, new Map([[s.rel, mutated]]));
+      if (fs.some((f) => f.kind === "D" && f.msg.includes(s.id))) {
+        caught += 1;
+      } else {
+        stFails += 1;
+        console.error(`  FAIL  a clause narrowing ${s.id} to a subset was NOT caught`);
+      }
+    }
+    if (caught === SURFACES.length) {
+      ok(
+        "the negative scope claim is live — a clause that narrows the operation to a subset turns the gate RED",
+      );
+    }
+  }
+
+  // D, negative control: a UNIVERSAL scope clause is not a narrowing. An arm that
+  // flagged every clause would prove nothing, so a truthful universal clause must
+  // stay GREEN.
+  {
+    const s = SURFACES.find((x) => x.rel === "README.md" && /`charly task pins` row/.test(x.id));
+    const mutated = withSurfaceSuffix(s.rel, s.anchor, s.kind, " — over every declared path");
+    const fs = mutated === null ? [] : findings(root, new Map([[s.rel, mutated]]));
+    if (fs.length !== 0) {
+      stFails += 1;
+      console.error(
+        `  FAIL  negative control (D): a universal scope clause must stay GREEN (${fs.length} finding(s))`,
+      );
+    } else {
+      ok("negative control (D) — a universal scope clause stays GREEN");
     }
   }
 
@@ -469,7 +594,7 @@ if (n) {
   process.exit(1);
 }
 console.log(
-  `check-pin-verb-scope: OK — ${SURFACES.length} claim-maker surface(s) state the pin-advance verb's scope, and every file naming the verb is classified`,
+  `check-pin-verb-scope: OK — ${SURFACES.length} claim-maker surface(s) state the pin-advance verb's scope, none narrows it to a subset, and every file naming the verb is classified`,
 );
 
 /**

@@ -268,7 +268,7 @@ map:
 # -----------------------------------------------------------------------------
 pins:
   task:
-    description: The pin-contract pin operation over the distro-* set (mode via param) — MODE=bump advances EVERY pin this repo declares, MODE=currency asks whether every pin is at the ref its intent names, and its Message IS the answer
+    description: The pin-contract pin operation over EVERY declared path (mode via param) — the `distro-*` paths are its EDGE subset (the `pin_map`), MODE=bump advances EVERY pin this repo declares, MODE=currency asks whether every pin is at the ref its intent names, and its Message IS the answer
     dir: .
     params:
       MODE:
@@ -736,7 +736,7 @@ verify:
       - check: every surface that presents the pin-advance verb states its SCOPE — it advances EVERY pin the repo declares — and every tracked file naming the verb is classified (opencharly/opencharly#501)
         command: node scripts/check-pin-verb-scope.mjs
         context: [runtime]
-      - check: the pin-verb-scope gate discriminates — dropping any surface's scope turns it RED, a moved surface turns it RED, a new file naming the verb turns it RED, and a truthful rewording that keeps the scope stays GREEN (fixtures)
+      - check: the pin-verb-scope gate discriminates — dropping any surface's scope turns it RED, a moved surface turns it RED, a new file naming the verb turns it RED, a truthful rewording that keeps the scope stays GREEN, and a clause that NARROWS the verb to a SUBSET of the declared paths turns it RED while a UNIVERSAL scope clause stays GREEN (fixtures)
         command: node scripts/check-pin-verb-scope.mjs --self-test
         context: [runtime]
       # A path argument is a PATHSPEC, not a path: git may REINTERPRET it — a glob makes it
