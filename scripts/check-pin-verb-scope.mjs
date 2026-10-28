@@ -396,34 +396,62 @@ if (argv.includes("--self-test")) {
     }
   }
 
-  // D: the classification the gate PRINTS is self-consistent. The report is a
-  // measurement a body pastes, so a count that disagrees with the list beside it
-  // is the defect class this gate exists to prevent — and it must be caught on
-  // the printed TEXT, which is where a reader sees it.
+  // D: the classification the gate PRINTS is self-consistent, and the gate
+  // REFUSES to publish one that is not. The report is a measurement a body
+  // pastes, so a count that disagrees with the list beside it is the defect
+  // class this gate exists to prevent — and it must be caught on the printed
+  // TEXT, which is where a reader sees it, AND at the PUBLISHING path, which is
+  // where that text would reach the reader.
   {
     const printed = classificationLines();
-    const clean = countFindings(printed);
-    if (clean.length) {
+    const publishedLines = [];
+    const clean = publishClassification(printed, (line) => publishedLines.push(line));
+    if (!clean.published || publishedLines.length !== printed.length) {
       stFails += 1;
       console.error(
-        `  FAIL  the classification the gate prints is not self-consistent (${clean.length} finding(s))`,
+        `  FAIL  the classification the gate prints is not self-consistent, or a truthful report was not published (${clean.findings.length} finding(s))`,
       );
     } else {
       let caught = 0;
       for (const line of printed) {
         const mutated = line.replace(/\((\d+)/, (_m, n) => `(${Number(n) + 1}`);
-        if (countFindings([mutated]).length === 0) {
+        const leaked = [];
+        const refused = publishClassification([mutated], (l) => leaked.push(l));
+        if (refused.published || leaked.length) {
           stFails += 1;
-          console.error(`  FAIL  a reported count that disagrees with its list was NOT caught: ${line.trim()}`);
+          console.error(
+            `  FAIL  a reported count that disagrees with its list was NOT caught, or was published anyway: ${line.trim()}`,
+          );
         } else {
           caught += 1;
         }
       }
       if (caught === printed.length) {
         ok(
-          "the classification the gate prints is self-consistent — a count that disagrees with the list beside it turns the gate RED",
+          "the classification the gate prints is self-consistent — a count that disagrees with the list beside it turns the gate RED and is never published",
         );
       }
+    }
+  }
+
+  // E: an EMPTY category is a well-formed report. Each of the three counts
+  // counts a thing that can go away — the day every file that names the verb
+  // becomes a claim-maker surface, the non-claim list empties — and a gate
+  // that turned RED on a healthy tree would be the false red this change
+  // exists to prevent (opencharly/opencharly#771).
+  {
+    const empty = reportLine("exempt control(s)", 0, []);
+    const wrong = reportLine("exempt control(s)", 1, []);
+    const publishedLines = [];
+    const clean = publishClassification([empty], (line) => publishedLines.push(line));
+    const refused = publishClassification([wrong], (line) => publishedLines.push(line));
+    if (!clean.published || refused.published || publishedLines.length !== 1) {
+      stFails += 1;
+      console.error(
+        "  FAIL  an empty category is not a well-formed report — it must publish at count 0 and be refused at count 1",
+      );
+    } else {
+      ok("an empty category is a well-formed report — it publishes at count 0 and is refused at count 1");
     }
   }
 
@@ -459,10 +487,32 @@ console.log(
 function classificationLines() {
   const claimMakerFiles = [...new Set(SURFACES.map((s) => s.rel))].sort();
   return [
-    `  claim-maker file(s) (${claimMakerFiles.length}, carrying ${SURFACES.length} surface(s)): ${claimMakerFiles.join(", ")}`,
-    `  non-claim mention(s) (${NON_CLAIM_MENTIONS.size}): ${[...NON_CLAIM_MENTIONS.keys()].sort().join(", ")}`,
-    `  exempt control(s) (${EXEMPT_FILES.size}): ${[...EXEMPT_FILES.keys()].sort().join(", ")}`,
+    reportLine(
+      "claim-maker file(s)",
+      claimMakerFiles.length,
+      claimMakerFiles,
+      `carrying ${SURFACES.length} surface(s)`,
+    ),
+    reportLine("non-claim mention(s)", NON_CLAIM_MENTIONS.size, [...NON_CLAIM_MENTIONS.keys()].sort()),
+    reportLine("exempt control(s)", EXEMPT_FILES.size, [...EXEMPT_FILES.keys()].sort()),
   ];
+}
+
+/**
+ * ONE line of the report.
+ *
+ * A category with no members is a well-formed report — a count of zero beside
+ * an empty list — so the line carries the count and NO list, with no trailing
+ * space (opencharly/opencharly#771). Each of the three counts counts a thing
+ * that can go away, and a gate that turned RED on a healthy tree because a
+ * category emptied would be the false red this gate exists to prevent.
+ *
+ * A populated category prints exactly what it printed before, so the shipped
+ * record's pasted measurement stays literally true.
+ */
+function reportLine(label, count, list, extra) {
+  const head = `  ${label} (${count}${extra ? `, ${extra}` : ""})`;
+  return list.length ? `${head}: ${list.join(", ")}` : `${head}:`;
 }
 
 /**
@@ -478,7 +528,10 @@ function classificationLines() {
 function countFindings(lines) {
   const out = [];
   for (const line of lines) {
-    const m = line.match(/^\s+(.+?) \((\d+)(?:, carrying (\d+) surface\(s\))?\): (.+)$/);
+    // The tail may be EMPTY: a category with no members reports a count of
+    // zero beside an empty list, and that is a well-formed report, not a
+    // malformed one (opencharly/opencharly#771).
+    const m = line.match(/^\s+(.+?) \((\d+)(?:, carrying (\d+) surface\(s\))?\):(.*)$/);
     if (!m) {
       out.push(`the reported line is not in the reporting shape: ${line.trim()}`);
       continue;
@@ -501,13 +554,32 @@ function countFindings(lines) {
   return out;
 }
 
+/**
+ * The ONE place a report is published.
+ *
+ * The report is a MEASUREMENT a body pastes, so a count that disagrees with
+ * the list beside it must never reach a reader. The CHECK and the PUBLICATION
+ * are ONE call, so there is no wiring a future edit can break with the tree
+ * still green (opencharly/opencharly#771): a report that disagrees is not
+ * published at all.
+ *
+ * `emit` is the sink — the run prints to stdout, the self-test collects into
+ * an array — so both drive the SAME path, and the self-test can assert that a
+ * refused report publishes NOTHING.
+ */
+function publishClassification(lines, emit = (line) => console.log(line)) {
+  const bad = countFindings(lines);
+  if (bad.length) return { published: false, findings: bad };
+  for (const line of lines) emit(line);
+  return { published: true, findings: [] };
+}
+
 // The measurement is checked BEFORE it is published: a count that disagrees with
 // the list beside it must never reach a reader as a pasted measurement.
 const printed = classificationLines();
-const badCounts = countFindings(printed);
-if (badCounts.length) {
-  for (const f of badCounts) console.error(`  FAIL  ${f}`);
-  console.error(`check-pin-verb-scope: ${badCounts.length} finding(s) in the classification it reports`);
+const published = publishClassification(printed);
+if (!published.published) {
+  for (const f of published.findings) console.error(`  FAIL  ${f}`);
+  console.error(`check-pin-verb-scope: ${published.findings.length} finding(s) in the classification it reports`);
   process.exit(1);
 }
-for (const line of printed) console.log(line);
