@@ -138,14 +138,33 @@ function gitOut(args, opts = {}) {
 // ./charly/bin/charly task verify whenever the diff touches a submodule" was RED. So
 // the marker fires only on an UNBOUNDED swept object: a BINDER ("of the umbrella",
 // "in that repo") ties the sweep back to one repo, and the scope's own swept form
-// requires that binder. The two sets are now DISJOINT on "each clone" / "each repo":
+// requires that binder. The two sets are DISJOINT on "each clone" / "each repo":
 // swept-and-bound is a SCOPE, swept-and-unbound is a MARKER.
+//
+// AND A BINDER BINDS ONLY A COPY (the validator's round-3 note on
+// opencharly/opencharly#779 — "Whether 'in every repo of the umbrella' should be
+// GREEN is a project doctrine call"): a binder ties a swept object back to ONE repo,
+// and only a COPY of that repo is one repo. The repos a repo HOLDS are a set of
+// their own — the umbrella holds the org's — so tying a sweep to them does not
+// narrow it. The org's own rulebook says so in its own words: AGENTS.md (Part II #3)
+// calls the umbrella's wave over its declared pins "an ORG-WIDE cutover, not a way
+// to move one pin: it advances EVERY pin the repo declares", and the umbrella
+// DECLARES the org's repos' pins (Part II #2: "the umbrella pins every OpenCharly
+// repo as gitlinks"). So "every repo of the umbrella" is the ORG's repos, and a
+// claim that names the umbrella's command over that set is false in every repo but
+// one, exactly as the unscoped form is. The word that decides it is the OBJECT: a
+// sweep over COPIES is a SCOPE, a sweep over the repos the umbrella holds is a
+// MARKER. The binder's own bound noun does not decide it — "of the org" was never
+// a binder, and "of the umbrella" binds a copy, not a member repo.
 // MEASURED on the umbrella's own tracked tree: 2 lines carry a trigger, both carry a
 // scope phrase, and NEITHER carries an org-wide marker — the umbrella's own prose
 // stays GREEN.
 const ONE_REPO_DET = "(?:a|the|this|that|your|my)";
 const EVERY_REPO_DET = "(?:every|all|any|each)";
 const REPO_OBJECT = "(?:repo|repos|repository|repositories|clone|clones)";
+// A COPY of one repo — the word for one repo's own instance ("a clone of the
+// umbrella"). It is the only swept object a binder can tie back to ONE repo.
+const COPY_OBJECT = "(?:clone|clones)";
 // A BINDER ties a swept object back to ONE repo. It is the org-wide marker's own
 // exception, and it is ONE constant, shared by the two sets (R2).
 const BOUND_TO_ONE_REPO =
@@ -157,12 +176,17 @@ const STATED_SCOPE_PHRASES =
   "|\\b(?:the|that|this|its|your)\\s+(?:umbrella|repo(?:sitory)?)(?:'s)?\\s+(?:own\\s+)?(?:pin\\s+|commit[- ]carried\\s+)?(?:gate|hook|check)\\b" +
   "|\\bin\\s+(?:" +
   ONE_REPO_DET + "\\s+(?:clone\\s+of\\s+the\\s+)?(?:umbrella|repo(?:sitory)?)\\b" +
-  "|" + EVERY_REPO_DET + "\\s+" + REPO_OBJECT + BOUND_TO_ONE_REPO +
+  "|" + EVERY_REPO_DET + "\\s+" + COPY_OBJECT + BOUND_TO_ONE_REPO +
   ")" +
   "|\\bmember\\s+repo\\b";
 
+// The REPO-WIDE sweep is a MARKER — except a bound sweep over COPIES, which is the
+// one form the scope set also admits. The exclusion is stated with the SAME binder
+// and the SAME copy object the scope set uses, so the two sets cannot drift apart
+// (R2): a sweep that the scope set calls a scope is never also a marker.
 const ORG_WIDE_MARKERS =
-  "\\b" + EVERY_REPO_DET + "\\s+(?:member\\s+)?" + REPO_OBJECT + "\\b(?!" + BOUND_TO_ONE_REPO + ")" +
+  "\\b(?!" + EVERY_REPO_DET + "\\s+" + COPY_OBJECT + BOUND_TO_ONE_REPO + ")" +
+  EVERY_REPO_DET + "\\s+(?:member\\s+)?" + REPO_OBJECT + "\\b" +
   "|\\borg(?:anization)?[ -]wide\\b" +
   "|\\bacross\\s+the\\s+org\\b" +
   "|\\b(?:in|throughout|through)\\s+the\\s+(?:whole|entire)\\s+org\\b" +
@@ -570,6 +594,16 @@ const PATTERNS = [
       "run ./charly/bin/charly task verify whenever the diff touches that submodule",
       // the BARE PLURAL object — the determiner may be absent
       "run ./charly/bin/charly task verify whenever the diff touches submodules",
+      // the SWEEP over the repos the umbrella HOLDS — the OBJECT decides, not the
+      // binder: the umbrella holds every org repo, so "every repo of the umbrella" is
+      // the ORG's repos and the sweep over them is org-wide. The org's own rulebook
+      // calls the umbrella's own wave over exactly those pins "an ORG-WIDE cutover,
+      // not a way to move one pin: it advances EVERY pin the repo declares"
+      // (AGENTS.md, Part II #3), so a claim that names the umbrella's command over
+      // that set is false in every repo but one — the retired rule in a bound-looking
+      // dress. The second is its SIBLING: the same sweep with the other determiner
+      "in every repo of the umbrella, run ./charly/bin/charly task verify whenever the diff touches a submodule",
+      "in each repo of the umbrella, run ./charly/bin/charly task verify whenever the diff touches a submodule",
     ],
     counterInstances: [
       // TRUE: the gate is the REPO's own, and the rule says whose
@@ -583,12 +617,13 @@ const PATTERNS = [
       // TRUE: the same rule, scoped by the NOUN — the umbrella's own pin gate, for the
       // umbrella's own diffs
       "the umbrella's own pin gate applies to any diff that touches a submodule",
-      // TRUE: the sweep is BOUND to the umbrella's own clones, so the rule is not
+      // TRUE: the sweep is BOUND to the umbrella's own CLONES, so the rule is not
       // org-wide and the marker must not fire on it. This is the false positive
-      // opencharly/opencharly#777 introduced, and the three below are its SIBLINGS
+      // opencharly/opencharly#777 introduced, and the sibling below is its OTHER
+      // determiner — the swept object is a COPY, which is what a binder ties back to
+      // one repo
       "in each clone of the umbrella, run ./charly/bin/charly task verify whenever the diff touches a submodule",
-      "in each repo of the umbrella, run ./charly/bin/charly task verify whenever the diff touches a submodule",
-      "in every repo of the umbrella, run ./charly/bin/charly task verify whenever the diff touches a submodule",
+      "in every clone of the umbrella, run ./charly/bin/charly task verify whenever the diff touches a submodule",
       // TRUE: the condition is NEGATED, so the pin is not touched and the class's rule
       // does not apply. The umbrella's own tree says exactly this
       "the diff touches no pin",
