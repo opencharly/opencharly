@@ -214,9 +214,29 @@ const SHAPE_COUNT_FLOOR = 10;
 // reads `.gitmodules` and compares — that number has a control that keeps it
 // true, so it needs none of its own. "unmaterialized" IS among them: it names
 // the same collection the submodule set is, in the words the tree uses for it.
+//
+// The CORPUS's shape is made of collections too, and it grows with the org:
+// the skill-bearing directories, the families behind them, the agent rosters,
+// the `SKILL.md` files. They are named in their PLURAL form only, because their
+// singular forms name a THING rather than a collection — and a family that read
+// those as counts reported this tree as broken: "the `0700` directory" is a
+// file MODE, "`skill.missing_description`" is a diagnostic NAME, and the
+// "`skill:` node" of a design table is a field name. Each of the three was a
+// live false positive in this tree while the family was blind to the shape it
+// names, so the plural form is the whole of the precision.
+//
+// A NUMBER is read whole, and a number written with a thousands separator is
+// one number: a count written as 1,000 is a thousand, not the three digits
+// after the separator. The separator used to stop the match there, so the tail
+// was judged on its own — a count of 1,000 fell under the floor and the site
+// ESCAPED the family, while a count of 3,500 was reported as 500, a finding
+// that named the wrong number. The separator is now part of the number, and the
+// number is read whole. This is the same defect as the noun list's blindness —
+// a bare count of a growing collection that the family cannot see — and it
+// reaches every noun, not only the corpus's.
 const RE_SHAPE_COUNT =
-  /(?<![\w-])(~?)(\d{1,4})\s*(?:of\s+(\d{1,4})\s*)?[- ]?(submodules?|pins?|paths?|modules?|remotes?|worktrees?|calls?|unmateriali[sz]ed|materiali[sz]ed)\b/gi;
-const RE_SHAPE_REMAINING = /\bthe remaining (\d{1,4})\b/gi;
+  /(?<![\w-])(~?)(\d{1,4}(?:,\d{3})*)\s*(?:of\s+(\d{1,4}(?:,\d{3})*)\s*)?[- ]?(submodules?|pins?|paths?|modules?|remotes?|worktrees?|calls?|unmateriali[sz]ed|materiali[sz]ed|directories|skills|families|rosters|SKILL\.md)\b/gi;
+const RE_SHAPE_REMAINING = /\bthe remaining (\d{1,4}(?:,\d{3})*)\b/gi;
 
 // A count that is a CAP ("at most N path rows") or a FLOOR ("at least N
 // submodule entries") is a policy number, not a measurement: it states a bound
@@ -428,8 +448,8 @@ function shapeFindings(surfaces) {
         while ((m = re.exec(line)) !== null) {
           const isCount = re === RE_SHAPE_COUNT;
           const rounded = m[0].trim().startsWith("~");
-          const n = isCount ? +m[2] : +m[1];
-          const total = isCount && m[3] !== undefined ? +m[3] : null;
+          const n = isCount ? +m[2].replace(/,/g, "") : +m[1].replace(/,/g, "");
+          const total = isCount && m[3] !== undefined ? +m[3].replace(/,/g, "") : null;
           const big = total !== null ? total >= SHAPE_COUNT_FLOOR : n >= SHAPE_COUNT_FLOOR;
           if (!big || rounded) continue;
           if (dated) continue;
@@ -1012,6 +1032,43 @@ function runSelfTest(readme, script, manifest, samples, measure, shapes) {
       () => withShape(`${shapeTarget.text}\n\n${shapeFixture(count)} (measured 2026-10-22)\n`),
       "a dated point figure is a measurement of a known tree, not a claim about a " +
       "moving one");
+    // The CORPUS's shape is a collection that grows like the pin count, and the
+    // noun list is what decides whether a count of it is seen at all. It was not
+    // seen: `reasonix.toml` stated "42 directories" against the 45 the list
+    // below it names, and the family was green on both.
+    expect("a shape count of the CORPUS's shape is reported",
+      () => withShape(`${shapeTarget.text}\n\nThe corpus holds ${count} skills.\n`),
+      "the corpus's shape grows with the org, and a count of it is false the day " +
+      "a family lands — the noun list is what gives the family that reach");
+    expectClean("a count whose noun names a THING is not reported",
+      () => withShape(`${shapeTarget.text}\n\nThe checkpoint dir is mode 0700 directory.\n`),
+      "the singular of a collection noun names a thing — a file mode here — and a " +
+      "family that read it as a count would report this tree as broken");
+    expectClean("a count whose noun is a diagnostic NAME is not reported",
+      () => withShape(`${shapeTarget.text}\n\n500 skill.missing_description warnings.\n`),
+      "a diagnostic's name is not a collection, and a number in front of one " +
+      "does not make it one");
+    // A number written with a thousands separator is ONE number, and the separator
+    // used to cut it in two: the digits after it were judged on their own, so a
+    // count written as 1,000 was judged as 0 and fell under the floor — the site
+    // ESCAPED the family — while a count of 3,500 was reported as 500, a finding
+    // that named the wrong number. The same defect as the noun list's blindness:
+    // a bare count of a growing collection the family cannot see.
+    // The number is a VARIABLE, so this file's own text carries no literal count:
+    // a literal one would be a site the gate reads in this very file.
+    const grouped = "1,000";
+    expect("a shape count written with a thousands separator is reported",
+      () => withShape(`${shapeTarget.text}\n\nThe corpus holds ${grouped} skills.\n`),
+      "the separator ends a number, it does not divide one — a count of the " +
+      "corpus's shape written with a separator is the count, not the count's tail");
+    expect("a shape count whose TOTAL is written with a thousands separator is reported",
+      () => withShape(`${shapeTarget.text}\n\nThe corpus holds ${count + 1} of ${grouped} skills.\n`),
+      "the total is the figure that decides a bound, so a total written with a " +
+      "separator is read whole too");
+    expectClean("a grouped number that names no collection is not reported",
+      () => withShape(`${shapeTarget.text}\n\nThe fleet grew ${grouped} nodes.\n`),
+      "a number is only this family's business when it counts a collection that " +
+      "grows — the separator must not turn every number into one");
 
     // The three ways a count used to HIDE from this family, each asserted
     // against the surface that carries it. Every one of them was a live
