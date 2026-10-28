@@ -318,6 +318,65 @@ const PATTERNS = [
     ],
     why: "the retired MECHANISM claim — that the umbrella records a path's gitlink with a BARE `git ls-tree HEAD --` pathspec. Git reads a path argument as a PATHSPEC, and a name that BEGINS WITH `:` is pathspec MAGIC: the plain form matches NOTHING, silently. The read is `git ls-tree HEAD -- ':(literal)<path>'` (opencharly/opencharly#740)",
   },
+  {
+    // THE CLASS: the pin-advance operation described as a NON-MUTATING KIND — a
+    // preview, a dry run, a read-only report. The truth: the umbrella's pin
+    // advance (`charly task sync`, the git-submodules `bump` mode) WRITES — it
+    // rolls every leaf submodule that HAS a checkout to its remote's
+    // default-branch HEAD, stages those gitlinks, and re-pins the `pin_map`
+    // edges. The retired wording introduced it as a thing that changed nothing
+    // ("bump pins per the pin contract (preview; does not commit)"), and that is
+    // what made it read like a targeted tool (opencharly/opencharly#501).
+    //
+    // WHY THIS CLASS WAS WORTH KEYING, and not just corrected in one PR: the
+    // retired wording is a SHAPE — a parenthetical beside a verb — and shapes get
+    // written again. The claim is also a PRODUCT claim (the verb's kind), not a
+    // description of the prose, so it belongs beside the other mechanism claims
+    // in this file.
+    //
+    // The ADVANCE token is what pins the class to the ADVANCE operation: the
+    // umbrella's OTHER verbs are honestly described as read-only or as a dry run
+    // (`charly task prune`'s `MODE=report`), and a key that fired on those would
+    // cry wolf. So the pattern requires an advance word — a bump or an advance —
+    // within 80 characters of the non-mutating kind, in either order, and the
+    // counter-instances below are the true wordings that must stay GREEN.
+    //
+    // The shapes are NEGATION-SAFE by construction: "it is not read-only" and
+    // "(not a preview)" do not match, because the kind word must follow
+    // "is/are/as/its" or an opening parenthesis DIRECTLY.
+    pattern:
+      "(?:\\(\\s*(?:preview|dry[ -]?run|read[ -]?only)\\b" +
+      "|\\b(?:is|are|as|its)\\s+(?:an?\\s+)?(?:preview|dry[ -]?run|read[ -]?only)\\b)" +
+      "[^\\n]{0,80}?\\b(?:bump(?:s|ed|ing)?|advanc(?:e|es|ed|ing))\\b" +
+      "|\\b(?:bump(?:s|ed|ing)?|advanc(?:e|es|ed|ing))\\b[^\\n]{0,80}?" +
+      "(?:\\(\\s*(?:preview|dry[ -]?run|read[ -]?only)\\b" +
+      "|\\b(?:is|are|as|its)\\s+(?:an?\\s+)?(?:preview|dry[ -]?run|read[ -]?only)\\b)",
+    instances: [
+      // the retired README row's wording
+      "bump pins per the pin contract (preview; does not commit)",
+      // the retired charly.yml header comment's wording
+      "bump every submodule pin per the pin contract (preview; does not commit).",
+      // the retired charly.yml description's wording
+      "Bump all submodule pins per the pin contract (preview; does not commit)",
+      // the twin wording the charly repo carries for its own task
+      "bump all submodule pins per the pin contract (preview only; does not commit)",
+      // the PREDICATE shape — the same claim, written as a kind
+      "the pin advance is a preview (it does not commit)",
+    ],
+    counterInstances: [
+      // TRUE: the advance is explicitly NOT read-only, and it moves checkouts
+      "it does not commit and does not open a PR, and it is **not read-only** — it moves checkouts",
+      // TRUE: the PRUNE verb's report mode really is a dry run — a different verb
+      "Reap merged-upstream session worktrees + branches (MODE=report is a dry run)",
+      // TRUE: "previews" is a verb here, and the pin is bumped AFTER the preview
+      "the marketplace previews the corpus before the pin is bumped",
+      // TRUE: a preview SERVICE is a noun, not a kind claim about the advance
+      "the marketplace preview service shows the corpus before the pin is bumped",
+      // TRUE: the pins task's verify mode really is read-only — a mode, not the advance
+      "the `pins` task's `verify` mode is read-only",
+    ],
+    why: "the retired claim that the pin ADVANCE is a non-mutating kind (a preview, a dry run, a read-only report) — it advances EVERY declared pin, rolls the checkouts that exist and stages their gitlinks (opencharly/opencharly#501)",
+  },
 ];
 
 const fail = (m) => {

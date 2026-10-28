@@ -201,13 +201,13 @@ installed-binary form — `charly task …`, the same shape a packaged `charly` 
 |---|---|
 | `charly task init` | materialize the umbrella's submodules on demand (the working set; `CHARLY_INIT_MODE=all\|list` and `CHARLY_INIT_PATHS` select the others) |
 | `charly task map` | list every submodule with its pin and sync state |
-| `charly task sync` | bump pins per the pin contract (preview; does not commit) |
+| `charly task sync` | advance EVERY submodule pin this repo declares, per the pin contract (it rolls the checkouts that exist to their default-branch HEAD and stages the gitlinks; it does not commit) |
 | `charly task verify` | the full pinning gate, on demand (every pin, incl. the remote branch audit) |
 | `charly task hooks` | install `hooks/pre-commit` for this clone (once) |
 | `charly task org-map` | verify the README org-map tables against the repo and `.gitmodules` |
 | `charly task skills` | splice the generated R0 dispatcher from the pinned marketplace into AGENTS.md |
 | `charly task pin-check` | assert the pin contract's consistency half — the EDGE (every `pin_map` entry equals its twin in the `pinned_from` checkout) and the CHECKOUT AUDIT (every declared path clean and at its recorded gitlink). It READS the index's gitlinks, the MANIFEST `charly.yml`'s `pins:` block and the DECLARED PATH SET `.gitmodules`, so a commit can violate it by moving a gitlink **or** by editing the manifest **or** by editing the declared path set — a commit that moves NO gitlink can still violate it. It is the half of `verify` that needs no remote (the per-submodule `git ls-remote` default-branch audit is the rest), and it is what `hooks/pre-commit` runs. Checkout DRIFT on its own — a checkout dirty or at another commit, caused by NO commit — stays with `charly task verify` |
-| `charly task pins` | the pin-contract pin operation over the `distro-*` set (mode via param) |
+| `charly task pins` | the pin-contract pin operation over the `distro-*` set (mode via param); `MODE=bump` advances EVERY pin this repo declares |
 | `charly task self-test` | self-test the committed CI body/pin-evidence builders + the dispatcher splice + the submodule initializer |
 | `charly task prune` | reap merged-upstream session worktrees + branches (MODE=report is a dry run) |
 
@@ -776,9 +776,10 @@ whole org is a single coherent snapshot:
 
 This umbrella's `.gitmodules` records `branch = <repo default>` on all of its entries,
 so a future default-branch rename keeps working. The pins are advanced with
-`charly task sync` (the pin-contract bump), run by hand and landed through the
-org's PR-only validation chain — it opens a PR and never pushes to the default branch.
-There is no scheduled workflow; `charly task sync` is the one path that moves a pin.
+`charly task sync` (the pin-contract bump — it advances EVERY pin this repo declares),
+run by hand and landed through the org's PR-only validation chain, which opens a PR and
+never pushes to the default branch. There is no scheduled workflow; `charly task sync`
+is the one path that moves a pin.
 
 A pin is a gitlink — the recorded commit, checked out detached and clean — and
 `charly task verify` asserts exactly that. A dangling pin is a failure.
@@ -805,7 +806,7 @@ that disagree, fails it.
 **The sanctioned catch-up** is one sequence, and it is the only one that moves a pin:
 
 ```sh
-charly task sync                        # the pin-contract bump — it advances the pins IN THE INDEX; it commits nothing
+charly task sync                        # the pin-contract bump — it advances EVERY pin this repo declares, in the index; it commits nothing
 charly task init                        # materialize the paths the wave advanced, AT their new pins
 charly task verify                      # judge the tree against the pins it records
 # …then land the pin wave as a PR through the org's validation chain

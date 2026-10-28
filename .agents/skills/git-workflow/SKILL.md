@@ -315,8 +315,9 @@ per-commit gate. Hard rules
 there: **never edit inside a submodule** (change lands by PR to the owning repo; the
 umbrella only records gitlinks), run submodule git through `git -C <absolute-path>`
 from the umbrella root, no worktrees inside submodules, pin only MERGED refs, run
-`charly task sync` on a base current with `origin/main` (its answer is base-relative),
-and bound every command's output (SIGPIPE is ignored — `grep` floods on `Broken
+`charly task sync` (it advances EVERY pin the umbrella declares) on a base current
+with `origin/main` (its answer is base-relative), and bound every command's output
+(SIGPIPE is ignored — `grep` floods on `Broken
 pipe`). Full detail: `references/umbrella-mechanics.md`.
 
 ## Reference Index
