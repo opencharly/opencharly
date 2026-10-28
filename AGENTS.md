@@ -622,7 +622,14 @@ Before declaring completion, answer every applicable item YES. There is one line
    as the work list:** producer PR → merge → tag → consumer pin bump → this repo's gitlink.
    Advance pins only with `./charly/bin/charly task sync` plus a PR, never with a hand-pin or
    a branch checkout — and ask **`currency`**, not consistency, when the question is whether
-   this repo is CURRENT. **A pin is the INDEX entry; the checkout follows it.** An
+   this repo is CURRENT. **That verb is an ORG-WIDE cutover, not a way to move one pin:** it
+   advances EVERY pin this repo declares, rolls the checkouts that exist to their
+   default-branch HEAD and stages the gitlinks, and it does not commit and does not open a PR.
+   Read what a `charly task` verb does BEFORE you run it — `charly task list` names the
+   verbs, and a verb's own step names are the description of its scope — and to move ONE
+   repo's pin, use the narrow mechanism that repo declares: for the corpus, its `refs` entry
+   plus `charly marketplace generate`; for the umbrella's own pins, the wave is the verb.
+   **A pin is the INDEX entry; the checkout follows it.** An
    unmaterialized path is not a broken pin: its pin is still audited from the index and
    reported as *uninitialized (pin audited, no checkout)* — a notice, not a failure.
    **A pin wave needs no full set**: the bump advances a path with no checkout IN THE

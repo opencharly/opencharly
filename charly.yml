@@ -268,11 +268,11 @@ map:
 # -----------------------------------------------------------------------------
 pins:
   task:
-    description: The pin-contract pin operation over the distro-* set (mode via param) — MODE=currency asks whether every pin is at the ref its intent names, and its Message IS the answer
+    description: The pin-contract pin operation over the distro-* set (mode via param) — MODE=bump advances EVERY pin this repo declares, MODE=currency asks whether every pin is at the ref its intent names, and its Message IS the answer
     dir: .
     params:
       MODE:
-        description: status|bump|verify|currency (the git-submodules mode)
+        description: status|bump|verify|currency (the git-submodules mode) — bump advances EVERY pin this repo declares and does not commit
         default: verify
     plan:
       - run: run git-submodules in the selected mode
@@ -423,10 +423,16 @@ init:
         context: [runtime]
 
 # -----------------------------------------------------------------------------
-# sync — bump every submodule pin per the pin contract (preview; does not commit).
-# The charly-pinned set is the six distro-* repos: charly rolls to its own
-# default-branch HEAD FIRST, and distro-* are then pinned from charly's NEW
-# gitlinks (the verb's phase order).
+# sync — advance EVERY submodule pin this repo declares, per the pin contract.
+# The wave is an ORG-WIDE cutover, not a way to move one pin: it advances EVERY
+# declared path. Phase 1 rolls every leaf submodule that HAS a checkout to its
+# remote's default-branch HEAD and stages its gitlink (a path with NO checkout is
+# advanced IN THE INDEX, because the pin IS the index entry), and phase 2
+# re-pins the `pin_map` edges — the six distro-* repos — from charly's NEW
+# gitlinks, charly rolling FIRST (the verb's phase order).
+#
+# It does not commit and does not open a PR: it moves checkouts and stages the
+# gitlinks, and the wave lands as a PR.
 #
 # A WAVE NEEDS NO FULL SET: the bump advances a path with no checkout IN THE
 # INDEX (a leaf to the tip its remote serves for its `branch=`, an edge to the
@@ -439,10 +445,10 @@ init:
 # -----------------------------------------------------------------------------
 sync:
   task:
-    description: Bump all submodule pins per the pin contract (preview; does not commit)
+    description: Advance EVERY submodule pin this repo declares, per the pin contract (it rolls the checkouts that exist to their default-branch HEAD and stages the gitlinks; it does not commit)
     dir: .
     plan:
-      - run: bump the pins (charly rolls first, then distro-* from its new gitlinks)
+      - run: advance EVERY submodule pin this repo declares (charly rolls first, then distro-* from its new gitlinks)
         # The bump rolls every leaf submodule to its remote HEAD and re-pins the
         # edge ones (distro-*) to their source's twin, so the hop's own attempt
         # carries a declared ceiling above the runner's 90s floor — a hop the floor
@@ -717,6 +723,21 @@ verify:
         context: [runtime]
       - check: the retired-claim gate discriminates — every key turns the scan RED when injected into a COPY of a tracked file, and every qualified wording leaves it GREEN (fixtures)
         command: node scripts/check-retired-claims.mjs --self-test
+        context: [runtime]
+      # The retired claim was DELETED; what keeps it deleted is the key set above. But the
+      # positive half needs its own control too: a reader must be able to read the verb's
+      # SCOPE where they read the verb, and no prose sweep can prove that — a surface can
+      # name the verb and say nothing about what it advances, and the reader is back to
+      # guessing (opencharly/opencharly#501). So every claim-maker surface is ENUMERATED
+      # and must state the scope, and every tracked file that NAMES the verb must be
+      # classified — a new claim-maker surface cannot slip in unclassified. The two gates
+      # are the two halves of ONE control and neither duplicates the other: this one owns
+      # the POSITIVE claim, the key set owns the NEGATIVE claim CLASS.
+      - check: every surface that presents the pin-advance verb states its SCOPE — it advances EVERY pin the repo declares — and every tracked file naming the verb is classified (opencharly/opencharly#501)
+        command: node scripts/check-pin-verb-scope.mjs
+        context: [runtime]
+      - check: the pin-verb-scope gate discriminates — dropping any surface's scope turns it RED, a moved surface turns it RED, a new file naming the verb turns it RED, and a truthful rewording that keeps the scope stays GREEN (fixtures)
+        command: node scripts/check-pin-verb-scope.mjs --self-test
         context: [runtime]
       # A path argument is a PATHSPEC, not a path: git may REINTERPRET it — a glob makes it
       # match SEVERAL paths, a leading ':' makes it match NOTHING, and both do it SILENTLY,
