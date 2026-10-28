@@ -112,6 +112,25 @@
 //      `CHANGELOG/` and to the diff's ADDED lines: the normal flow never adds one (the
 //      merge writes the record FROM the body), so the arm is live only for a
 //      correction, which is exactly where the class lives.
+//   I. Every 40-character id the body pastes must EXIST. A pasted id is a
+//      MEASUREMENT — it is the output of a command — and a measurement that names
+//      nothing is not a measurement: it is a fabrication, and no tree can be
+//      reconciled with it. This arm exists because a body of this repo's own
+//      carried one (opencharly/opencharly#762 — the body the org validator
+//      blocked; that PR's body half was fixed in that PR): the pasted
+//      `git ls-tree origin/main marketplace` line read
+//      `b920b01854379fb4b4d16a0d4a06b7a6a3ff1ba0`, while the tree's own line reads
+//      `b920b01854f2981d645cac45920091f0166e20ca` — the first TEN characters are the
+//      same and the rest is invented. Every other arm accepted that body, because
+//      the id is well-formed, and well-formed is not the same as true.
+//      The id is resolved in the stores this tree can SEE: this repo's own object
+//      store, the object store of every declared submodule whose checkout is here
+//      (a submodule's commits live in ITS store, not in this one), and the pin
+//      values the tree records. An id that resolves NOWHERE and that the body
+//      attributes to ONE repository the tree can see is a finding; an id the tree
+//      cannot attribute — no repository named near it, several named, or one whose
+//      checkout is not here — is REPORTED and not judged, because a false finding
+//      is worse than no report.
 //
 // NOT asserted, and why: whether the body's prose about a file is TRUE. A row that says
 // the README carries a change the README does not carry is a judgement, and judgement is
@@ -619,6 +638,253 @@ function checkEvidence(body) {
 }
 
 /**
+ * The ids that are CONVENTIONS rather than claims: git's null id — the "no such
+ * object" id — and git's empty tree. A body that pastes either is not claiming a
+ * commit, so the arm does not judge it.
+ */
+const PLACEHOLDER_IDS = new Set([
+  "0".repeat(40),
+  "4b825dc642cb6eb9a060e54bf8d69288fbee4904",
+]);
+
+/**
+ * The 40-character ids the body pastes, with the line each is on and that line's
+ * text.
+ *
+ * The match is BOUNDARY-anchored on the hex class, so a 64-character digest (a
+ * sha256) is not read as a 40-character id, and an id that is part of a longer hex
+ * run is not read either. The id is lower-cased: git's own output is lower case,
+ * and the object store holds the same object however the body spells it.
+ */
+function pastedCommitIds(body) {
+  const out = [];
+  const lines = body.split("\n");
+  for (let i = 0; i < lines.length; i += 1) {
+    for (const m of lines[i].matchAll(/(?<![0-9a-fA-F])([0-9a-fA-F]{40})(?![0-9a-fA-F])/g)) {
+      out.push({ sha: m[1].toLowerCase(), line: i + 1, text: lines[i] });
+    }
+  }
+  return out;
+}
+
+/**
+ * The repositories this tree DECLARES, read from the tree's own `.gitmodules` at the
+ * head the body is published with — so the declaration the arm reads is the one the
+ * pushed tree carries.
+ *
+ * Each entry carries the repository's PATH (its directory in this tree), its
+ * `owner/name` (parsed from the URL), and whether its CHECKOUT is here: a
+ * submodule's own commits live in ITS object store, and that store exists only when
+ * the checkout is here.
+ */
+function declaredRepositories() {
+  const raw = gitRaw("show", `${headRef}:.gitmodules`);
+  if (raw === null) return [];
+  const sections = [];
+  let current = null;
+  for (const line of raw.split("\n")) {
+    const t = line.trim();
+    if (t === "" || t.startsWith("#") || t.startsWith(";")) continue;
+    const sec = /^\[submodule\s+"(.+)"\]$/.exec(t);
+    if (sec) {
+      current = { name: sec[1] };
+      sections.push(current);
+      continue;
+    }
+    const kv = /^([A-Za-z0-9-]+)\s*=\s*(.*)$/.exec(t);
+    if (kv && current) current[kv[1]] = kv[2];
+  }
+  const out = [];
+  for (const s of sections) {
+    if (!s.path) continue;
+    const m = /[:/]([^/:]+)\/([^/:]+?)(?:\.git)?$/.exec(s.url ?? "");
+    const owner = m && /^[A-Za-z0-9_.-]+$/.test(m[1]) ? m[1] : null;
+    out.push({
+      path: s.path,
+      repo: owner ? `${owner}/${m[2]}` : null,
+      checkout: existsSync(join(root, s.path, ".git")),
+      // The path is matched on word boundaries, so `corpus` is not a mention inside
+      // `corpus-absent`, and a path that is a PREFIX of another path does not claim
+      // the other one's mentions.
+      pathRe: new RegExp(`(?<![\\w-])${s.path.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&")}(?![\\w-])`),
+    });
+  }
+  return out;
+}
+
+/**
+ * The declared repositories a text NAMES — by path or by `owner/name`. A body names
+ * a repository in the middle of a sentence, so the path is matched on word
+ * boundaries and the `owner/name` form as a literal.
+ */
+function repositoriesNamed(text, repos) {
+  const named = new Set();
+  for (const r of repos) {
+    if (r.pathRe.test(text)) named.add(r);
+    else if (r.repo && text.includes(r.repo)) named.add(r);
+  }
+  return named;
+}
+
+/**
+ * The COMMAND lines of the fenced block each body line sits in, by line number. The
+ * command is what produced the id, so it is where the repository the id belongs to
+ * is named: the output line of `git -C corpus rev-parse HEAD` names no repository
+ * by itself.
+ */
+function commandLinesOf(body) {
+  const map = new Map();
+  for (const block of fencedBlocks(body)) {
+    const cmds = block.lines.filter((l) => /^\s*\$\s/.test(l.text)).map((l) => l.text);
+    for (const l of block.lines) map.set(l.n, cmds);
+  }
+  return map;
+}
+
+/**
+ * The pin values the tree RECORDS — the gitlink ids at the head and at the base. A
+ * pin is a measured value: it is what `git ls-tree` reads for that path, and it
+ * names a real commit in the pinned repository.
+ */
+function recordedPinIds() {
+  const set = new Set();
+  for (const ref of [headRef, baseRef]) {
+    const out = gitRaw("ls-tree", "-r", ref);
+    if (out === null) continue;
+    for (const line of out.split("\n")) {
+      const m = /^160000 commit ([0-9a-f]{40})\t/.exec(line);
+      if (m) set.add(m[1]);
+    }
+  }
+  return set;
+}
+
+/**
+ * Which of `shas` exist as objects in the store at `dir` — and whether the store
+ * ANSWERED. ONE `git cat-file --batch-check` answers for the whole set, so a tree
+ * with many materialized submodules costs one call per store rather than one call
+ * per id.
+ *
+ * A store that could not answer at all — a stale gitdir, a directory that is not a
+ * repository, git itself failing — answers NOTHING, and that is not the same answer
+ * as "the id is absent". The arm may refuse an id on its ABSENCE; it may not refuse
+ * one on a store's failure, so the two answers are kept apart here.
+ */
+function objectsInStore(dir, shas) {
+  const found = new Set();
+  if (shas.length === 0) return { found, answered: true };
+  const r = spawnSync("git", ["-C", dir, "cat-file", "--batch-check"], {
+    encoding: "utf8",
+    input: `${shas.join("\n")}\n`,
+  });
+  if (r.status !== 0) return { found, answered: false };
+  for (const line of (r.stdout ?? "").split("\n")) {
+    const m = /^([0-9a-f]{40})\s+(\S+)/.exec(line);
+    if (!m || m[2] === "missing") continue;
+    found.add(m[1]);
+  }
+  return { found, answered: true };
+}
+
+/**
+ * I. Every 40-character id the body pastes must exist in a store this tree can see.
+ *
+ * The arm refuses an id only when the tree can DECIDE: the id resolves nowhere the
+ * tree can look, AND the body attributes it to one repository the tree CAN look in.
+ * An id the tree cannot attribute is reported instead — a false finding is worse
+ * than no report.
+ */
+function checkCommitIds(body) {
+  const ids = pastedCommitIds(body).filter((i) => !PLACEHOLDER_IDS.has(i.sha));
+  if (ids.length === 0) {
+    notice("the body pastes no 40-character commit id — the commit-id rule is inapplicable");
+    return;
+  }
+  const repos = declaredRepositories();
+  const pins = recordedPinIds();
+  const cmds = commandLinesOf(body);
+  const wanted = [...new Set(ids.map((i) => i.sha))];
+  const resolved = new Set();
+  for (const s of wanted) if (pins.has(s)) resolved.add(s);
+  for (const s of objectsInStore(root, wanted).found) resolved.add(s);
+  // A submodule's commits live in ITS store, so the tree looks in every declared
+  // repository whose checkout is here. The scan runs only for the ids that are still
+  // unresolved, so a body whose every id resolves costs ONE call per store. A store
+  // that could not ANSWER is recorded: the tree did not look there, so it did not
+  // decide, and an id it did not answer for may not be refused.
+  let pending = wanted.filter((s) => !resolved.has(s));
+  const unanswered = new Set();
+  for (const r of repos) {
+    if (pending.length === 0) break;
+    if (!r.checkout) continue;
+    const res = objectsInStore(join(root, r.path), pending);
+    if (!res.answered) unanswered.add(r.path);
+    for (const s of res.found) resolved.add(s);
+    pending = pending.filter((s) => !resolved.has(s));
+  }
+  let judged = 0;
+  let reported = 0;
+  let bad = 0;
+  for (const id of ids) {
+    if (resolved.has(id.sha)) {
+      judged += 1;
+      continue;
+    }
+    // The repository the id belongs to: the line the id is on, and — when that line
+    // names none — the command that produced it.
+    const own = repositoriesNamed(id.text, repos);
+    const named = own.size > 0 ? own : repositoriesNamed((cmds.get(id.line) ?? []).join("\n"), repos);
+    const list = [...named];
+    if (list.length === 1 && list[0].checkout) {
+      // The store that must hold the id could not ANSWER: the tree did not look
+      // there, so it did not decide. A store's failure is not an id's absence, and
+      // a false finding is worse than no report.
+      if (unanswered.has(list[0].path)) {
+        reported += 1;
+        notice(
+          `the body pastes the commit id ${id.sha} (line ${id.line}) as the id of \`${list[0].path}\`, whose object ` +
+            `store could not answer — the gate cannot say the id is absent, so it is reported, not judged`,
+        );
+        continue;
+      }
+      bad += 1;
+      fail(
+        `the body pastes the commit id ${id.sha} (line ${id.line}) as the id of \`${list[0].path}\`, and that ` +
+          `id is in no object store this tree can see — a pasted id must be a MEASURED 40-character id, ` +
+          `never a completed prefix`,
+      );
+      continue;
+    }
+    reported += 1;
+    if (list.length === 0) {
+      notice(
+        `the body pastes the commit id ${id.sha} (line ${id.line}) and names no repository near it — the gate ` +
+          `cannot say whose object store must hold it, so it is reported, not judged`,
+      );
+    } else if (list.length > 1) {
+      notice(
+        `the body pastes the commit id ${id.sha} (line ${id.line}) and names ${list.length} repositories near it ` +
+          `(${list.map((r) => r.path).join(", ")}) — the gate cannot say whose object store must hold it, so it is ` +
+          `reported, not judged`,
+      );
+    } else {
+      notice(
+        `the body pastes the commit id ${id.sha} (line ${id.line}) as the id of \`${list[0].path}\`, whose checkout ` +
+          `is not here — the gate cannot look in that store, so it is reported, not judged`,
+      );
+    }
+  }
+  if (bad === 0 && reported === 0) {
+    ok(`every 40-character id the body pastes resolves in a store this tree can see (${ids.length} id(s))`);
+    return;
+  }
+  notice(
+    `${judged} of ${ids.length} pasted id(s) resolve in a store this tree can see, ${reported} could not be ` +
+      `judged, ${bad} refused`,
+  );
+}
+
+/**
  * The body's lines that are NOT inside a fenced block, with their line numbers. A body
  * that PASTES a closing directive as evidence is not making one, and the gate must not
  * trip on its own quote — the same distinction the evidence arm draws, in the other
@@ -970,6 +1236,11 @@ function check() {
   // carries no table still pastes evidence, and the tree can judge it either way.
   checkEvidence(body);
 
+  // ── I. the commit ids the body pastes ────────────────────────────────────────────
+  // It runs on its own, before the base-ref check: a pasted id is a measurement, and
+  // the tree can say whether the thing it measures exists.
+  checkCommitIds(body);
+
   // ── D. the closing directives' targets ────────────────────────────────────────────
   // It runs for the same reason: a body's closing directive is a claim about what the
   // change discharges, and the tree can say what KIND of thing the number names.
@@ -1040,6 +1311,48 @@ if (argv.includes("--self-test")) {
     // number by one. The green fixture body cites its line 2, so the green run is the
     // discriminator for that off-by-one.
     writeFileSync(join(repo, "scripts/blank.sh"), "\n#!/bin/sh\n");
+    // A DECLARED SUBMODULE with its OWN object store, so the commit-id arm can be
+    // proven live in both directions: an id that lives in that store is accepted, and
+    // an invented one is refused. The nested repo is a real git repo with two
+    // commits; the superproject records its tip as a gitlink and declares it in
+    // `.gitmodules`, so the DECLARATION the arm reads is the one the pushed tree
+    // carries. The first commit is the id the green case uses: it is in the
+    // submodule's store and it is NOT the pin the tree records, so the store — and
+    // not the pin — is what resolves it.
+    const corpus = join(repo, "corpus");
+    mkdirSync(corpus, { recursive: true });
+    const cg = (...a) => spawnSync("git", a, { cwd: corpus, encoding: "utf8" });
+    cg("init", "-q", "-b", "main");
+    cg("config", "user.email", "gate@gate");
+    cg("config", "user.name", "gate");
+    writeFileSync(join(corpus, "corpus.md"), "the corpus\n");
+    cg("add", "-A");
+    cg("commit", "-q", "-m", "corpus one");
+    const corpusOld = cg("rev-parse", "HEAD").stdout.trim();
+    writeFileSync(join(corpus, "corpus.md"), "the corpus, again\n");
+    cg("add", "-A");
+    cg("commit", "-q", "-m", "corpus two");
+    const corpusHead = cg("rev-parse", "HEAD").stdout.trim();
+    // A SECOND declared repository with NO checkout here, so the arm's "cannot judge"
+    // path is proven too: the tree cannot look in that store, so it must not refuse.
+    // A THIRD, with a checkout whose object store cannot ANSWER: the tree CAN look
+    // there, and the look fails. That is a different thing from "the id is absent",
+    // and the arm must not refuse on it.
+    writeFileSync(
+      join(repo, ".gitmodules"),
+      [
+        '[submodule "corpus"]',
+        "\tpath = corpus",
+        "\turl = https://github.com/opencharly/corpus.git",
+        '[submodule "corpus-absent"]',
+        "\tpath = corpus-absent",
+        "\turl = https://github.com/opencharly/corpus-absent.git",
+        '[submodule "corpus-broken"]',
+        "\tpath = corpus-broken",
+        "\turl = https://github.com/opencharly/corpus-broken.git",
+        "",
+      ].join("\n"),
+    );
     g("add", "-A");
     // The BASE commit's subject carries a pull-request number in GitHub's own squash
     // shape — `title (#closed-issue) (#pr)`, here with the issue part absent — so the
@@ -1078,6 +1391,12 @@ if (argv.includes("--self-test")) {
     g("commit", "-q", "-F", join(scratch, "msg.txt"));
     const otherHead = g("rev-parse", "HEAD").stdout.trim();
     g("checkout", "-q", "feat");
+    // The checkout of the THIRD declared repository, made AFTER the commits, so git
+    // never sees it: its `.git` file points at a gitdir that is not there, so the
+    // store is there and cannot answer. The arm asks it, gets nothing, and must
+    // report the id rather than refuse it.
+    mkdirSync(join(repo, "corpus-broken"), { recursive: true });
+    writeFileSync(join(repo, "corpus-broken", ".git"), "gitdir: ../.git/modules/corpus-broken\n");
     // The file table the OTHER branch's diff actually has, and the evidence lines
     // that resolve in BOTH branches — the two files they share, so the evidence arm
     // is not the discriminator and the TABLE is.
@@ -1369,6 +1688,20 @@ function readCapBytes() {
         ),
         "the body's pasted output does not show it",
       ],
+      // I. The commit ids the body pastes. The id is the one the defect carried
+      // (opencharly/opencharly#762): its first TEN characters are the tree's own, and
+      // the rest is invented — so the id is well-formed and FALSE, and every other
+      // arm accepts it.
+      [
+        "the body pastes a commit id that exists in no store",
+        body(FULL_TABLE, head, "", DEFAULT_EVIDENCE, "", BACKTICK_FENCE, (t) =>
+          t.replace(
+            "\n## Rulebook compliance",
+            "\n```\n$ git -C corpus rev-parse HEAD\nb920b01854379fb4b4d16a0d4a06b7a6a3ff1ba0\n```\n\n## Rulebook compliance",
+          ),
+        ),
+        "is in no object store this tree can see",
+      ],
       [
         "the body closes a number this repo merged as a pull request",
         body(
@@ -1476,6 +1809,46 @@ function readCapBytes() {
     // fires on a quoted directive or on an issue would be a gate nobody could push
     // through.
     const greenArms = [
+      // The same shape as the red case, with the id the SUBMODULE's own store holds:
+      // the arm resolves it there, so the body stays green. This is the half that
+      // proves the arm reads a submodule's store and not only this repo's — the id
+      // is the submodule's FIRST commit, so it is in that store and it is NOT the
+      // pin the tree records, and the pin cannot be what resolved it.
+      [
+        "a commit id that lives in a submodule's own store is accepted",
+        body(FULL_TABLE, head, "", DEFAULT_EVIDENCE, "", BACKTICK_FENCE, (t) =>
+          t.replace(
+            "\n## Rulebook compliance",
+            `\n\`\`\`\n$ git -C corpus rev-parse HEAD~1\n${corpusOld}\n\`\`\`\n\n## Rulebook compliance`,
+          ),
+        ),
+      ],
+      // A repository with NO checkout here: the gate cannot look in that store, so it
+      // must NOT refuse the id — it reports it. A false finding is worse than no
+      // report, and this is the case that keeps the arm from blocking a body whose id
+      // is real and lives in a tree this clone does not carry.
+      [
+        "a commit id attributed to a repository with no checkout is reported, not judged",
+        body(FULL_TABLE, head, "", DEFAULT_EVIDENCE, "", BACKTICK_FENCE, (t) =>
+          t.replace(
+            "\n## Rulebook compliance",
+            "\n```\n$ git -C corpus-absent rev-parse HEAD\nb920b01854379fb4b4d16a0d4a06b7a6a3ff1ba0\n```\n\n## Rulebook compliance",
+          ),
+        ),
+      ],
+      // A repository whose checkout IS here, and whose object store cannot ANSWER:
+      // the tree looked there and the look failed, so the tree did not decide. The arm
+      // reports the id — it may refuse an id on its absence, never on a store's
+      // failure, or it would block a body over a broken checkout.
+      [
+        "a commit id attributed to a repository whose object store cannot answer is reported, not judged",
+        body(FULL_TABLE, head, "", DEFAULT_EVIDENCE, "", BACKTICK_FENCE, (t) =>
+          t.replace(
+            "\n## Rulebook compliance",
+            "\n```\n$ git -C corpus-broken rev-parse HEAD\nb920b01854379fb4b4d16a0d4a06b7a6a3ff1ba0\n```\n\n## Rulebook compliance",
+          ),
+        ),
+      ],
       [
         "a closing directive inside a fenced block is evidence, not a directive",
         body(
