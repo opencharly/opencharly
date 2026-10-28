@@ -396,6 +396,37 @@ if (argv.includes("--self-test")) {
     }
   }
 
+  // D: the classification the gate PRINTS is self-consistent. The report is a
+  // measurement a body pastes, so a count that disagrees with the list beside it
+  // is the defect class this gate exists to prevent — and it must be caught on
+  // the printed TEXT, which is where a reader sees it.
+  {
+    const printed = classificationLines();
+    const clean = countFindings(printed);
+    if (clean.length) {
+      stFails += 1;
+      console.error(
+        `  FAIL  the classification the gate prints is not self-consistent (${clean.length} finding(s))`,
+      );
+    } else {
+      let caught = 0;
+      for (const line of printed) {
+        const mutated = line.replace(/\((\d+)/, (_m, n) => `(${Number(n) + 1}`);
+        if (countFindings([mutated]).length === 0) {
+          stFails += 1;
+          console.error(`  FAIL  a reported count that disagrees with its list was NOT caught: ${line.trim()}`);
+        } else {
+          caught += 1;
+        }
+      }
+      if (caught === printed.length) {
+        ok(
+          "the classification the gate prints is self-consistent — a count that disagrees with the list beside it turns the gate RED",
+        );
+      }
+    }
+  }
+
   if (stFails) {
     console.error(`check-pin-verb-scope --self-test: FAIL (${stFails})`);
     process.exit(1);
@@ -414,21 +445,69 @@ console.log(
 );
 
 /**
- * The CLASSIFICATION this run made, printed.
+ * The CLASSIFICATION this run made, as the lines it prints.
  *
  * The coverage arm's claim is about the whole tracked tree, so the reader needs
  * the tree's answer, not a promise that there is one. The three classes are the
  * gate's own lists, and the file count is the count of the claim-maker files
  * that carry the surfaces — a number a body can PASTE instead of counting by
  * hand (opencharly/opencharly#767).
+ *
+ * One function, so the run and the self-test read the SAME lines: a second
+ * implementation of the report is a second place for the number to drift.
  */
-const claimMakerFiles = [...new Set(SURFACES.map((s) => s.rel))].sort();
-console.log(
-  `  claim-maker file(s) (${claimMakerFiles.length}, carrying ${SURFACES.length} surface(s)): ${claimMakerFiles.join(", ")}`,
-);
-console.log(
-  `  non-claim mention(s) (${NON_CLAIM_MENTIONS.size}): ${[...NON_CLAIM_MENTIONS.keys()].sort().join(", ")}`,
-);
-console.log(
-  `  exempt control(s) (${EXEMPT_FILES.size}): ${[...EXEMPT_FILES.keys()].sort().join(", ")}`,
-);
+function classificationLines() {
+  const claimMakerFiles = [...new Set(SURFACES.map((s) => s.rel))].sort();
+  return [
+    `  claim-maker file(s) (${claimMakerFiles.length}, carrying ${SURFACES.length} surface(s)): ${claimMakerFiles.join(", ")}`,
+    `  non-claim mention(s) (${NON_CLAIM_MENTIONS.size}): ${[...NON_CLAIM_MENTIONS.keys()].sort().join(", ")}`,
+    `  exempt control(s) (${EXEMPT_FILES.size}): ${[...EXEMPT_FILES.keys()].sort().join(", ")}`,
+  ];
+}
+
+/**
+ * A reported count that disagrees with the list it describes.
+ *
+ * The report is now a MEASUREMENT a body pastes, so the count beside a list is a
+ * claim a reader checks by eye. This reads the printed TEXT — the boundary the
+ * measurement is published at — and compares each count with the list it sits
+ * beside. It does not recompute either number: the point is that the two the
+ * reader sees agree with each other, which is the defect class opencharly/opencharly#767
+ * was about (a hand-made number beside a tool-made one).
+ */
+function countFindings(lines) {
+  const out = [];
+  for (const line of lines) {
+    const m = line.match(/^\s+(.+?) \((\d+)(?:, carrying (\d+) surface\(s\))?\): (.+)$/);
+    if (!m) {
+      out.push(`the reported line is not in the reporting shape: ${line.trim()}`);
+      continue;
+    }
+    const listed = m[4]
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (Number(m[2]) !== listed.length) {
+      out.push(
+        `the reported count ${m[2]} disagrees with the ${listed.length} file(s) it lists: ${line.trim()}`,
+      );
+    }
+    if (m[3] !== undefined && Number(m[3]) !== SURFACES.length) {
+      out.push(
+        `the reported surface count ${m[3]} disagrees with the ${SURFACES.length} surface(s) the gate enumerated: ${line.trim()}`,
+      );
+    }
+  }
+  return out;
+}
+
+// The measurement is checked BEFORE it is published: a count that disagrees with
+// the list beside it must never reach a reader as a pasted measurement.
+const printed = classificationLines();
+const badCounts = countFindings(printed);
+if (badCounts.length) {
+  for (const f of badCounts) console.error(`  FAIL  ${f}`);
+  console.error(`check-pin-verb-scope: ${badCounts.length} finding(s) in the classification it reports`);
+  process.exit(1);
+}
+for (const line of printed) console.log(line);
