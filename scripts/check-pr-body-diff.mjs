@@ -760,24 +760,30 @@ function recordedPinIds() {
 }
 
 /**
- * Which of `shas` exist as objects in the store at `dir`. ONE
- * `git cat-file --batch-check` answers for the whole set, so a tree with many
- * materialized submodules costs one call per store rather than one call per id.
+ * Which of `shas` exist as objects in the store at `dir` — and whether the store
+ * ANSWERED. ONE `git cat-file --batch-check` answers for the whole set, so a tree
+ * with many materialized submodules costs one call per store rather than one call
+ * per id.
+ *
+ * A store that could not answer at all — a stale gitdir, a directory that is not a
+ * repository, git itself failing — answers NOTHING, and that is not the same answer
+ * as "the id is absent". The arm may refuse an id on its ABSENCE; it may not refuse
+ * one on a store's failure, so the two answers are kept apart here.
  */
 function objectsInStore(dir, shas) {
   const found = new Set();
-  if (shas.length === 0) return found;
+  if (shas.length === 0) return { found, answered: true };
   const r = spawnSync("git", ["-C", dir, "cat-file", "--batch-check"], {
     encoding: "utf8",
     input: `${shas.join("\n")}\n`,
   });
-  if (r.status !== 0) return found;
+  if (r.status !== 0) return { found, answered: false };
   for (const line of (r.stdout ?? "").split("\n")) {
     const m = /^([0-9a-f]{40})\s+(\S+)/.exec(line);
     if (!m || m[2] === "missing") continue;
     found.add(m[1]);
   }
-  return found;
+  return { found, answered: true };
 }
 
 /**
@@ -800,15 +806,20 @@ function checkCommitIds(body) {
   const wanted = [...new Set(ids.map((i) => i.sha))];
   const resolved = new Set();
   for (const s of wanted) if (pins.has(s)) resolved.add(s);
-  for (const s of objectsInStore(root, wanted)) resolved.add(s);
+  for (const s of objectsInStore(root, wanted).found) resolved.add(s);
   // A submodule's commits live in ITS store, so the tree looks in every declared
   // repository whose checkout is here. The scan runs only for the ids that are still
-  // unresolved, so a body whose every id resolves costs ONE call per store.
+  // unresolved, so a body whose every id resolves costs ONE call per store. A store
+  // that could not ANSWER is recorded: the tree did not look there, so it did not
+  // decide, and an id it did not answer for may not be refused.
   let pending = wanted.filter((s) => !resolved.has(s));
+  const unanswered = new Set();
   for (const r of repos) {
     if (pending.length === 0) break;
     if (!r.checkout) continue;
-    for (const s of objectsInStore(join(root, r.path), pending)) resolved.add(s);
+    const res = objectsInStore(join(root, r.path), pending);
+    if (!res.answered) unanswered.add(r.path);
+    for (const s of res.found) resolved.add(s);
     pending = pending.filter((s) => !resolved.has(s));
   }
   let judged = 0;
@@ -825,6 +836,17 @@ function checkCommitIds(body) {
     const named = own.size > 0 ? own : repositoriesNamed((cmds.get(id.line) ?? []).join("\n"), repos);
     const list = [...named];
     if (list.length === 1 && list[0].checkout) {
+      // The store that must hold the id could not ANSWER: the tree did not look
+      // there, so it did not decide. A store's failure is not an id's absence, and
+      // a false finding is worse than no report.
+      if (unanswered.has(list[0].path)) {
+        reported += 1;
+        notice(
+          `the body pastes the commit id ${id.sha} (line ${id.line}) as the id of \`${list[0].path}\`, whose object ` +
+            `store could not answer — the gate cannot say the id is absent, so it is reported, not judged`,
+        );
+        continue;
+      }
       bad += 1;
       fail(
         `the body pastes the commit id ${id.sha} (line ${id.line}) as the id of \`${list[0].path}\`, and that ` +
@@ -1313,6 +1335,9 @@ if (argv.includes("--self-test")) {
     const corpusHead = cg("rev-parse", "HEAD").stdout.trim();
     // A SECOND declared repository with NO checkout here, so the arm's "cannot judge"
     // path is proven too: the tree cannot look in that store, so it must not refuse.
+    // A THIRD, with a checkout whose object store cannot ANSWER: the tree CAN look
+    // there, and the look fails. That is a different thing from "the id is absent",
+    // and the arm must not refuse on it.
     writeFileSync(
       join(repo, ".gitmodules"),
       [
@@ -1322,6 +1347,9 @@ if (argv.includes("--self-test")) {
         '[submodule "corpus-absent"]',
         "\tpath = corpus-absent",
         "\turl = https://github.com/opencharly/corpus-absent.git",
+        '[submodule "corpus-broken"]',
+        "\tpath = corpus-broken",
+        "\turl = https://github.com/opencharly/corpus-broken.git",
         "",
       ].join("\n"),
     );
@@ -1363,6 +1391,12 @@ if (argv.includes("--self-test")) {
     g("commit", "-q", "-F", join(scratch, "msg.txt"));
     const otherHead = g("rev-parse", "HEAD").stdout.trim();
     g("checkout", "-q", "feat");
+    // The checkout of the THIRD declared repository, made AFTER the commits, so git
+    // never sees it: its `.git` file points at a gitdir that is not there, so the
+    // store is there and cannot answer. The arm asks it, gets nothing, and must
+    // report the id rather than refuse it.
+    mkdirSync(join(repo, "corpus-broken"), { recursive: true });
+    writeFileSync(join(repo, "corpus-broken", ".git"), "gitdir: ../.git/modules/corpus-broken\n");
     // The file table the OTHER branch's diff actually has, and the evidence lines
     // that resolve in BOTH branches — the two files they share, so the evidence arm
     // is not the discriminator and the TABLE is.
@@ -1799,6 +1833,19 @@ function readCapBytes() {
           t.replace(
             "\n## Rulebook compliance",
             "\n```\n$ git -C corpus-absent rev-parse HEAD\nb920b01854379fb4b4d16a0d4a06b7a6a3ff1ba0\n```\n\n## Rulebook compliance",
+          ),
+        ),
+      ],
+      // A repository whose checkout IS here, and whose object store cannot ANSWER:
+      // the tree looked there and the look failed, so the tree did not decide. The arm
+      // reports the id — it may refuse an id on its absence, never on a store's
+      // failure, or it would block a body over a broken checkout.
+      [
+        "a commit id attributed to a repository whose object store cannot answer is reported, not judged",
+        body(FULL_TABLE, head, "", DEFAULT_EVIDENCE, "", BACKTICK_FENCE, (t) =>
+          t.replace(
+            "\n## Rulebook compliance",
+            "\n```\n$ git -C corpus-broken rev-parse HEAD\nb920b01854379fb4b4d16a0d4a06b7a6a3ff1ba0\n```\n\n## Rulebook compliance",
           ),
         ),
       ],
