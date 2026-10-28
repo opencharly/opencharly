@@ -56,8 +56,8 @@
 # call, so its nested level stays ABSENT. The umbrella's currency report judges a
 # nested twin's CURRENCY from the twin's REMOTE alone, so while that remote has
 # not moved the twin reads `cur` and the absent nested level is INVISIBLE to the
-# report — MEASURED in the reproduced defect state, it printed `0 of 411 pin(s)
-# NOT current [411 cur]`. The report needs the twin's CHECKOUT to judge its
+# report — MEASURED in the reproduced defect state: it printed `0 of 411 pin(s)
+# NOT current [411 cur]` (2026-10-26). The report needs the twin's CHECKOUT to judge its
 # ANCESTRY, and needs it only once the twin's remote HAS moved: then it
 # prints `differs (no checkout of box/cachyos to judge ancestry)` — the twin's
 # class left UNDETERMINED, and the pin's state becomes a `blocked-by` that names
@@ -72,7 +72,7 @@
 # time, after the parallel clone phase). A run that is interrupted half-way
 # therefore leaves MANY paths cloned-but-empty: HEAD is at the pin, the index is
 # empty, the worktree is empty — and `git submodule status` calls that path FINE
-# (' ' = at the recorded commit). Measured on 2026-10-22: 385 of 431 paths
+# (' ' = at the recorded commit). Measured on 2026-10-22 — 385 of 431 paths
 # reported OK under a HEAD-only criterion while not one file was on disk. The
 # criterion here is therefore three-part, and the repair pass lands the pin
 # where the checkout never arrived.
@@ -485,7 +485,7 @@ submodule_worktree_count() {
 # its index is populated, and its worktree carries the files. The HEAD
 # comparison alone is NOT enough — `git submodule status` reports a cloned-but-
 # empty path as at-the-pin, which is how a half-materialized tree once passed
-# as "OK" (observed 2026-10-22: 385 of 431 paths, no files on disk).
+# as "OK" (observed 2026-10-22 — 385 of 431 paths, no files on disk).
 is_materialized() {
   local path="$1" head recorded
   head="$(git -C "$ROOT/$path" rev-parse HEAD 2>/dev/null || true)"
@@ -908,7 +908,7 @@ run_live() {
 
   # The VERDICT counts what is really on disk, not what HEAD claims. This is
   # the control that was missing: a HEAD-only criterion called a
-  # half-materialized tree OK (observed 2026-10-22: 385 of 431 paths, no files at all).
+  # half-materialized tree OK (observed 2026-10-22 — 385 of 431 paths, no files at all).
   local total initialized
   total="$(declared_submodules | wc -l)"
   initialized=0
@@ -1246,7 +1246,7 @@ other"
   # The state a killed run leaves: HEAD at the pin, an EMPTY index, an EMPTY
   # worktree. git calls that path FINE (' ' = at the recorded commit) — which
   # is exactly how a HEAD-only criterion passed a half-materialized tree
-  # (observed 2026-10-22: 385 of 431 paths, no files on disk).
+  # (observed 2026-10-22 — 385 of 431 paths, no files on disk).
   git -C "$fixture/corpus" rm -r --cached . >/dev/null 2>&1 || true
   rm -rf "$fixture/corpus"/* 2>/dev/null || true
   local broken_state broken_index broken_files

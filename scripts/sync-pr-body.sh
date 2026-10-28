@@ -7,8 +7,8 @@ set -euo pipefail
 #
 # WHY THIS IS ITS OWN SCRIPT: the sync PR's body was once built inline in the (since
 # removed) `.github/workflows/sync.yml` as a large `printf`/`echo` block. That block had a
-# real defect (measured 2026-09-22): the org-wide ruleset cutover advanced 393 pins in one
-# sync, the body exceeded GitHub's body limit, and `gh pr create` failed "Body is
+# real defect: the org-wide ruleset cutover advanced 393 pins in one sync (measured
+# 2026-09-22) — the body exceeded GitHub's body limit, and `gh pr create` failed "Body is
 # too long". Extracting the builder here makes the bounding + the hard guard + the
 # evidence-file assembly exerciseable in-tree (`--self-test`), exactly as
 # `sync-pin-evidence.sh` is.

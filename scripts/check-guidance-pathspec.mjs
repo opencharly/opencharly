@@ -6,9 +6,9 @@
 // WHY THIS EXISTS (opencharly/opencharly#751): a path argument is a PATHSPEC, not a path.
 // Git may reinterpret it: `*`, `?` and `[` make it match SEVERAL paths, and a leading `:`
 // makes it match NOTHING — and both do it SILENTLY, with exit 0. The umbrella's guidance
-// taught the bare form at EIGHTEEN sites (MEASURED on the pre-change tree: 19 path
-// arguments over 5 files — the issue's group A enumerated seven of them by hand), so a
-// reader following it verbatim can be told the WRONG thing about a submodule's pin.
+// taught the bare form at EIGHTEEN sites (MEASURED on 2026-10-27 on the pre-change tree —
+// 19 path arguments over 5 files; the issue's group A enumerated seven of them by hand),
+// so a reader following it verbatim can be told the WRONG thing about a submodule's pin.
 //
 // MEASURED (git 2.56.0; a fixture whose declared paths are `a*b`, its sibling `a!b` and a
 // third `:colonpath`, with `a*b` and `a!b` pinned at DIFFERENT commits):

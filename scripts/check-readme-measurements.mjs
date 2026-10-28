@@ -256,11 +256,38 @@ const RE_ISO_DATE = /\b20\d{2}-\d{2}-\d{2}\b/;
 // number either way. (The example is NOT written out here, with its numbers:
 // this file is one of the surfaces the family reads, so a count written here
 // is a finding about the gate that forbids counts.)
-const RE_EMPHASIS = /(\*\*|__|\*|`)/g;
+/** A text with Markdown emphasis and code spans stripped, and the MAP back to
+ *  the original. The stripped text is the one the count family has always read
+ *  — a `**` pair, a `__` pair, a lone `*`, a lone backtick — and the map says,
+ *  for every character of it, which character of the ORIGINAL that one came
+ *  from. The map is what lets a count found in the stripped text be placed in
+ *  the ORIGINAL, which is where the clause boundaries are measured. */
+function stripEmphasis(text) {
+  let out = "";
+  const map = [];
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (ch === "*" || ch === "`") {
+      out += " ";
+      map.push(i);
+      if (ch === "*" && text[i + 1] === "*") i++;   // a pair is one marker
+      continue;
+    }
+    if (ch === "_" && text[i + 1] === "_") {
+      out += " ";
+      map.push(i);
+      i++;
+      continue;
+    }
+    out += ch;
+    map.push(i);
+  }
+  return { text: out, map };
+}
 
 /** A line's text with Markdown emphasis and code spans stripped. */
 function normaliseEmphasis(text) {
-  return text.replace(RE_EMPHASIS, " ");
+  return stripEmphasis(text).text;
 }
 
 // The surfaces: the umbrella's OWN prose and scripts, DERIVED from the tracked
@@ -426,22 +453,77 @@ function prosePlan(file, lines) {
   return items;
 }
 
+// A DATE excuses the count it was measured with, and nothing else.
+//
+// The unit a date reached used to be the BLOCK — a paragraph, a run of comment
+// lines, an indent scope — so one dated sentence excused every count the block
+// held, including counts that were never measured on that day. A count of the
+// corpus's own shape sat in a dated block and the family read the date and said
+// nothing: the count was false and the exemption was the reason nobody saw it.
+//
+// The unit a date reaches is now the CLAUSE: the text between a sentence-ending
+// mark and the colons, semicolons and commas that follow whitespace. A count is
+// excused when ITS OWN clause carries a date. The rule is about MEASUREMENT,
+// not about punctuation: a count and the day it was measured are ONE
+// measurement, and prose that states them states them in one clause. A date in
+// another clause of the same block measured something else.
+//
+// A sentence-ending mark ends a sentence only when it ENDS one: the mark in
+// "3.5" or in "charly.yml" is followed by no whitespace and is not one, and a
+// comma that is followed by no whitespace is a thousands separator, not a
+// clause boundary.
+const RE_CLAUSE_BREAK = /[.!?]/;
+
+/** The clause spans of a block's text: each is [start, end) over the text, and
+ *  a mark that ends a clause belongs to the clause it ends. */
+function clauseSpans(text) {
+  const spans = [];
+  let start = 0;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    const next = i + 1 < text.length ? text[i + 1] : null;
+    const endsSentence = RE_CLAUSE_BREAK.test(ch) && (next === null || /\s/.test(next));
+    const separates = (ch === ":" || ch === ";" || ch === ",") && next !== null && /\s/.test(next);
+    if (!endsSentence && !separates) continue;
+    spans.push({ start, end: i + 1 });
+    start = i + 1;
+  }
+  spans.push({ start, end: text.length });
+  return spans;
+}
+
+/** A block's text, the offset each of its lines starts at, and its clauses. */
+function clauseScope(block, lines) {
+  const raw = block.map((j) => lines[j]).join("\n");
+  const startOf = new Map();
+  let at = 0;
+  for (const j of block) {
+    startOf.set(j, at);
+    at += lines[j].length + 1;   // the join's newline
+  }
+  return { raw, startOf, spans: clauseSpans(raw) };
+}
+
 /** The counts that are neither derived nor dated. */
 function shapeFindings(surfaces) {
   const findings = [];
   const seen = new Set();
   for (const { file, text } of surfaces) {
     const lines = text.split("\n");
-    const datedOf = new Map();
+    const scopeOf = new Map();
     for (const item of prosePlan(file, lines)) {
       const i = item.index;
-      if (!datedOf.has(i)) {
-        datedOf.set(i, RE_ISO_DATE.test(item.block.map((j) => lines[j]).join("\n")));
+      // The scope is the block; its CLAUSES are what a date reaches.
+      let scope = scopeOf.get(item.block);
+      if (!scope) {
+        scope = clauseScope(item.block, lines);
+        scopeOf.set(item.block, scope);
       }
-      const dated = datedOf.get(i);
       // The emphasis and the code spans are stripped before the match: a count
-      // wrapped in them is the same count, and the wrapper is what hid it.
-      const line = normaliseEmphasis(lines[i]);
+      // wrapped in them is the same count, and the wrapper is what hid it. The
+      // map places the count back in the original text, where the clauses are.
+      const stripped = stripEmphasis(lines[i]);
+      const line = stripped.text;
       for (const re of [RE_SHAPE_COUNT, RE_SHAPE_REMAINING]) {
         re.lastIndex = 0;
         let m;
@@ -452,7 +534,11 @@ function shapeFindings(surfaces) {
           const total = isCount && m[3] !== undefined ? +m[3].replace(/,/g, "") : null;
           const big = total !== null ? total >= SHAPE_COUNT_FLOOR : n >= SHAPE_COUNT_FLOOR;
           if (!big || rounded) continue;
-          if (dated) continue;
+          // The count's own clause decides whether it is excused, and only that
+          // clause: a date elsewhere in the block measured something else.
+          const at = scope.startOf.get(i) + stripped.map[m.index];
+          const span = scope.spans.find((s) => at >= s.start && at < s.end);
+          if (span && RE_ISO_DATE.test(scope.raw.slice(span.start, span.end))) continue;
           // A bound ("at most N", "at least N") is a policy number, not a
           // measurement — but a bound that ALSO states a total states a
           // measurement of that total, so the total is still judged.
@@ -463,7 +549,7 @@ function shapeFindings(surfaces) {
           findings.push({
             site: `${file}:${i + 1}`,
             message: `the count "${m[0].replace(/\s+/g, " ").trim()}" states the size of a collection that grows, ` +
-              `and the block that states it carries no date — derive it from the collection, ` +
+              `and the clause that states it carries no date — derive it from the collection, ` +
               `or state the day it was measured`,
           });
         }
@@ -1029,13 +1115,25 @@ function runSelfTest(readme, script, manifest, samples, measure, shapes) {
       "a count of a collection that grows is false the day the org gains one, and " +
       "nothing in the tree says so");
     expectClean("a dated shape count is not reported",
-      () => withShape(`${shapeTarget.text}\n\n${shapeFixture(count)} (measured 2026-10-22)\n`),
+      () => withShape(`${shapeTarget.text}\n\nThe fleet holds ${count} submodules (measured 2026-10-22).\n`),
       "a dated point figure is a measurement of a known tree, not a claim about a " +
       "moving one");
+    // The date reaches the CLAUSE that carries the count, and only that clause:
+    // these two arms are the ones the block-scoped rule could not pass — under
+    // it, a date anywhere in the paragraph excused every count the paragraph
+    // held, which is how a count nobody measured escaped the family.
+    expect("a count whose OWN clause carries no date is reported, though a later clause of the same block carries one",
+      () => withShape(`${shapeTarget.text}\n\nThe fleet holds ${count} submodules. Measured on 2026-10-22, the corpus was verified.\n`),
+      "the date measured the corpus, not the fleet — a dated sentence in the same paragraph " +
+      "is not a measurement of every count that paragraph holds");
+    expect("a count whose OWN clause carries no date is reported, though an earlier clause of the same block carries one",
+      () => withShape(`${shapeTarget.text}\n\nMeasured on 2026-10-22, the corpus was verified. The fleet holds ${count} submodules.\n`),
+      "the date that precedes the count measured something else — the date reaches the count " +
+      "it was measured with, and no other");
     // The CORPUS's shape is a collection that grows like the pin count, and the
     // noun list is what decides whether a count of it is seen at all. It was not
     // seen: `reasonix.toml` stated "42 directories" against the 45 the list
-    // below it names, and the family was green on both.
+    // below it names (measured 2026-10-28), and the family was green on both.
     expect("a shape count of the CORPUS's shape is reported",
       () => withShape(`${shapeTarget.text}\n\nThe corpus holds ${count} skills.\n`),
       "the corpus's shape grows with the org, and a count of it is false the day " +

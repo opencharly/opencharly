@@ -397,11 +397,11 @@ init:
         #     one;
         #   - the plan runner ALSO expands a braced UPPER-CASE reference in the
         #     command text against the task's own merged env, and one it cannot
-        #     resolve SKIPS a `check:` step instead of failing it (observed
-        #     2026-10-22: the branch-audit step's braced
-        #     `AUDIT_JOBS:-16` read was skipped — "unresolved variables:
-        #     AUDIT_JOBS:-16" — and `charly task verify` still exited 0 while
-        #     the 431-call branch audit never ran). A braced read of the
+        #     resolve SKIPS a `check:` step instead of failing it: the
+        #     branch-audit step's braced `AUDIT_JOBS:-16` read was skipped —
+        #     "unresolved variables: AUDIT_JOBS:-16" — and `charly task verify`
+        #     still exited 0 while the 431-call branch audit never ran on
+        #     2026-10-22. A braced read of the
         #     environment would therefore be a silent no-op, not a read.
         # An ENVIRONMENT value is DATA: the shell never re-parses the result of
         # a parameter expansion, so the value cannot become source. The step
@@ -414,7 +414,7 @@ init:
         # spec's readinessPerAttemptFallback — and a full wave needs longer than
         # that: git clones every declared path in parallel and then checks them out ONE
         # AT A TIME, and a blobless checkout lazily fetches its tree's blobs
-        # from the remote. Measured on 2026-10-22: an --all wave hit that floor
+        # from the remote. Measured on 2026-10-22 — an --all wave hit that floor
         # with 385 of 431 paths cloned but never checked out — a state `git
         # submodule status` reports as at-the-pin. The timeout is raised here so
         # the wave finishes, and the script verifies and repairs the tree either
@@ -721,11 +721,12 @@ verify:
       # A path argument is a PATHSPEC, not a path: git may REINTERPRET it — a glob makes it
       # match SEVERAL paths, a leading ':' makes it match NOTHING, and both do it SILENTLY,
       # with exit 0. The umbrella's guidance taught the bare form at EIGHTEEN sites
-      # (measured: 19 path arguments over 5 files; the issue's group A enumerated seven of
-      # them by hand) and NO gate asserted the form. This gate scans the covered guidance
-      # with git's per-command GRAMMAR — a property of git, not a hand-written list of
-      # sites — and its LIVE ARM proves the literal form selects exactly the ONE intended
-      # record for a glob-named and for a colon-named path, while the bare form does not.
+      # (measured on 2026-10-27 — 19 path arguments over 5 files; the issue's group A
+      # enumerated seven of them by hand) and NO gate asserted the form. This gate scans
+      # the covered guidance with git's per-command GRAMMAR — a property of git, not a
+      # hand-written list of sites — and its LIVE ARM proves the literal form selects
+      # exactly the ONE intended record for a glob-named and for a colon-named path,
+      # while the bare form does not.
       - check: every path argument in the umbrella's guidance is in the LITERAL pathspec form, and the live arm proves the literal form selects exactly the intended record for a glob-named and a colon-named path (opencharly/opencharly#751)
         command: node scripts/check-guidance-pathspec.mjs
         context: [runtime]

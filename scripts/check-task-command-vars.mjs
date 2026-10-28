@@ -18,9 +18,9 @@
 // (plugin-command/candy/plugin-command/plugin.go). The key `AUDIT_JOBS:-16` resolved
 // against nothing, so sdk/kit/planrun.go delivered the step as StatusSkip — and A SKIP IS
 // NOT A FAILURE: `charly task verify` printed "0 failed" and exited 0 while the
-// 431-call remote-branch audit never ran. The gate was GREEN over a check that did not
-// happen, and the pre-push gate could not see it, because the fixture gate
-// (scripts/check-verify-branch-audit.mjs) exercises the step's TEXT through
+// 431-call remote-branch audit never ran (observed 2026-10-22). The gate was GREEN over a
+// check that did not happen, and the pre-push gate could not see it, because the fixture
+// gate (scripts/check-verify-branch-audit.mjs) exercises the step's TEXT through
 // spawnSync("/bin/sh", …) and therefore bypasses the plan runner entirely.
 //
 // WHY NO REFERENCE IS EVER OK IN THIS TEXT, even one that would resolve:
