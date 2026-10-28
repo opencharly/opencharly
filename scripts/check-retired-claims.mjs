@@ -128,18 +128,41 @@ function gitOut(args, opts = {}) {
 // ORG-WIDE). The markers are REPO-WIDE claims ("in every repo", "org-wide", "across
 // the org"), never claims about DIFFS — "any diff" scopes the DIFFS the gate applies
 // to, not the repos it applies in, and the umbrella's own true wording uses it.
+//
+// AND A SWEEP IS ORG-WIDE ONLY WHEN ITS OBJECT IS UNBOUNDED (the validator's round-2
+// note on opencharly/opencharly#777, and the root fix that closes it): "in every repo"
+// states the rule org-wide, but "in each clone of the umbrella" is BOUND to the
+// umbrella's own clones and is true wherever it is read — and the marker set and the
+// scope set OVERLAPPED on it, so a true, umbrella-bounded wording was flagged as the
+// retired rule. MEASURED: before this fix, "in each clone of the umbrella, run
+// ./charly/bin/charly task verify whenever the diff touches a submodule" was RED. So
+// the marker fires only on an UNBOUNDED swept object: a BINDER ("of the umbrella",
+// "in that repo") ties the sweep back to one repo, and the scope's own swept form
+// requires that binder. The two sets are now DISJOINT on "each clone" / "each repo":
+// swept-and-bound is a SCOPE, swept-and-unbound is a MARKER.
 // MEASURED on the umbrella's own tracked tree: 2 lines carry a trigger, both carry a
 // scope phrase, and NEITHER carries an org-wide marker — the umbrella's own prose
 // stays GREEN.
+const ONE_REPO_DET = "(?:a|the|this|that|your|my)";
+const EVERY_REPO_DET = "(?:every|all|any|each)";
+const REPO_OBJECT = "(?:repo|repos|repository|repositories|clone|clones)";
+// A BINDER ties a swept object back to ONE repo. It is the org-wide marker's own
+// exception, and it is ONE constant, shared by the two sets (R2).
+const BOUND_TO_ONE_REPO =
+  "\\s+(?:of|in)\\s+(?:the|this|that|your|my)\\s+(?:umbrella|repo(?:sitory)?|clone)\\b";
+
 const STATED_SCOPE_PHRASES =
   "\\b(?:the|that|this|its|your)\\s+(?:repo|repository|umbrella)(?:'s)?\\s+own\\b" +
   "|\\b(?:its|their|your)\\s+own\\b" +
   "|\\b(?:the|that|this|its|your)\\s+(?:umbrella|repo(?:sitory)?)(?:'s)?\\s+(?:own\\s+)?(?:pin\\s+|commit[- ]carried\\s+)?(?:gate|hook|check)\\b" +
-  "|\\bin\\s+(?:a|the|this|that|your|my|each)\\s+(?:clone\\s+of\\s+the\\s+)?(?:umbrella|repo(?:sitory)?)\\b" +
+  "|\\bin\\s+(?:" +
+  ONE_REPO_DET + "\\s+(?:clone\\s+of\\s+the\\s+)?(?:umbrella|repo(?:sitory)?)\\b" +
+  "|" + EVERY_REPO_DET + "\\s+" + REPO_OBJECT + BOUND_TO_ONE_REPO +
+  ")" +
   "|\\bmember\\s+repo\\b";
 
 const ORG_WIDE_MARKERS =
-  "\\b(?:every|all|any|each)\\s+(?:member\\s+)?(?:repo|repos|repository|repositories|clone|clones)\\b" +
+  "\\b" + EVERY_REPO_DET + "\\s+(?:member\\s+)?" + REPO_OBJECT + "\\b(?!" + BOUND_TO_ONE_REPO + ")" +
   "|\\borg(?:anization)?[ -]wide\\b" +
   "|\\bacross\\s+the\\s+org\\b" +
   "|\\b(?:in|throughout|through)\\s+the\\s+(?:whole|entire)\\s+org\\b" +
@@ -148,6 +171,35 @@ const ORG_WIDE_MARKERS =
 
 const STATED_SCOPE =
   "(?!(?=[^\\n]*(?:" + STATED_SCOPE_PHRASES + "))(?![^\\n]*(?:" + ORG_WIDE_MARKERS + ")))";
+
+// THE CLASS'S VERBS — each with its BASE and its three inflections (-s/-es, -ed, -ing).
+// The base is the form a PLURAL subject takes ("diffs touch a submodule"), and four
+// verbs of the class did not carry it, so the class was re-introducible in the shape a
+// plural subject forces. The group is OPTIONAL only where the BASE is the bare stem
+// (touch, edit, alter, affect); where the base carries an ending (change, modify,
+// update) that ending IS the group, so every one of the verb's four forms stays
+// visible in the pattern.
+const CLASS_VERBS =
+  "touch(?:es|ed|ing)?" +
+  "|chang(?:e|es|ed|ing)" +
+  "|edit(?:s|ed|ing)?" +
+  "|alter(?:s|ed|ing)?" +
+  "|modif(?:y|ies|ied|ying)" +
+  "|updat(?:e|es|ed|ing)" +
+  "|affect(?:s|ed|ing)?";
+
+// THE CLASS'S DETERMINER — the one before the pin-class noun. The class's shape is the
+// DIRECT OBJECT, so the determiner is the ENGLISH one, not a hand-kept list: every
+// determiner that can precede a count noun, and NONE that negates it — "the diff
+// touches NO pin" is not a claim that a pin is touched, and the umbrella's own tree
+// says exactly that (hooks/pre-commit-gate.sh). The determiner may also be ABSENT:
+// "the diff touches submodules" is the class's own condition, plural. MEASURED against
+// the tree's wordings: 9 sites carry a class verb beside a pin-class noun, and their
+// determiners are "a" (4), "the" (3), a qualifier ("version pins") and "no" (1) — so
+// the widening adds no hit to the umbrella's own prose.
+const CLASS_DETERMINERS =
+  "(?:a|an|the|this|that|these|those|my|your|its|our|their|his|her|" +
+  "some|any|each|every|one|two|three|many|several|all|both|other|another|either)";
 
 // The retired claim forms. Each entry is a CLASS of claim, matched by a pattern, together
 // with the concrete wordings that class has been written in — the instances are the
@@ -442,12 +494,20 @@ const PATTERNS = [
     // NONE of them", which are conditions on a LIST of inputs, not on a pin-class
     // input. MEASURED against the tree's 71 diff-touch wordings: 0 hits.
     //
-    // Every verb carries its own inflections — the past tense included ("the diff
-    // TOUCHED a submodule"). One verb that carried only two of its three inflections
-    // was the gap the validator named on opencharly/opencharly#776, and it was the
-    // SAME defect the class was widened for, in a smaller dress: a control that
-    // recognizes a class in only some of its own wordings recognizes it in the shape
-    // it was written in.
+    // Every verb carries its BASE and its three inflections (-s/-es, -ed, -ing) — the
+    // past tense included ("the diff TOUCHED a submodule") and the base included
+    // ("diffs TOUCH a submodule"), because a PLURAL subject takes the base and the
+    // class's own subject alternation admits the plural. MEASURED before this fix:
+    // the key matched "diffs change a submodule" but not "diffs touch a submodule",
+    // "diffs edit …", "diffs alter …" or "diffs affect …" — three of the class's seven
+    // verbs carried their base and four did not, so the class was re-introducible in
+    // the shape a plural subject forces. And the class's SUBJECT did not carry its own
+    // singular: `patches?` spells "patch" + "es" + an optional "s", so it matched
+    // "patches" and "patchess" and NEVER "patch" — the key did not match "a patch
+    // touches a submodule" AT ALL, although the issue's own shape names it ("a diff /
+    // the diff / the patch"). That is the SAME defect the class was widened for, in a
+    // smaller dress: a control that recognizes a class in only some of its own
+    // wordings recognizes it in the shape it was written in.
     //
     // THE SCOPE IS A STATED SCOPE — a PHRASE, not a stray word. The shipped guard
     // excused any claim carrying the word "umbrella" ANYWHERE, so a claim that named
@@ -471,9 +531,8 @@ const PATTERNS = [
     // wording itself carries it).
     pattern:
       "(?:^|\\n)" + STATED_SCOPE +
-      "[^\\n]*?\\b(?:diffs?|patches?)\\b[^\\n]{0,60}?\\b(?:touch(?:es|ed|ing)|chang(?:e|es|ed|ing)|edit(?:s|ed|ing)" +
-      "|alter(?:s|ed|ing)|modif(?:y|ies|ied|ying)|updat(?:e|es|ed|ing)|affect(?:s|ed|ing))\\s+" +
-      "(?:a|an|the|any|each|every|some|one)\\s+(?:submodule|gitlink|pin)s?\\b",
+      "[^\\n]*?\\b(?:diffs?|patch(?:es)?)\\b[^\\n]{0,60}?\\b(?:" + CLASS_VERBS + ")\\s+" +
+      "(?:" + CLASS_DETERMINERS + "\\s+)?(?:submodule|gitlink|pin)s?\\b",
     instances: [
       // the retired rulebook bullet
       "`./charly/bin/charly task verify` whenever the diff touches a submodule, gitlink, or pin",
@@ -494,6 +553,23 @@ const PATTERNS = [
       // org-wide, so the scope phrase and the org-wide clause cancel and the claim is
       // false in every repo but one, exactly as the unscoped form is
       "the umbrella pin gate applies in every repo whenever the diff touches a submodule",
+      // the BASE FORM under a PLURAL subject — a plural subject takes the base, and the
+      // class's own subject alternation admits the plural. This is the wording the
+      // validator named on opencharly/opencharly#777; the three below are its SIBLINGS,
+      // the same mechanism in three more verbs, and a control that recognizes a class
+      // in only some of its own wordings recognizes it in the shape it was written in
+      "run ./charly/bin/charly task verify whenever diffs touch a submodule",
+      "run ./charly/bin/charly task verify whenever diffs edit a submodule",
+      "run ./charly/bin/charly task verify whenever diffs alter a submodule",
+      "run ./charly/bin/charly task verify whenever diffs affect a submodule",
+      // the SINGULAR subject — the shape the issue itself names ("a diff / the diff /
+      // the patch"), and the spelling the shipped key could not match at all
+      "run ./charly/bin/charly task verify whenever a patch touches a submodule",
+      // the DEMONSTRATIVE object — the class's shape is the DIRECT OBJECT, and the
+      // determiner before it is the English one
+      "run ./charly/bin/charly task verify whenever the diff touches that submodule",
+      // the BARE PLURAL object — the determiner may be absent
+      "run ./charly/bin/charly task verify whenever the diff touches submodules",
     ],
     counterInstances: [
       // TRUE: the gate is the REPO's own, and the rule says whose
@@ -507,6 +583,21 @@ const PATTERNS = [
       // TRUE: the same rule, scoped by the NOUN — the umbrella's own pin gate, for the
       // umbrella's own diffs
       "the umbrella's own pin gate applies to any diff that touches a submodule",
+      // TRUE: the sweep is BOUND to the umbrella's own clones, so the rule is not
+      // org-wide and the marker must not fire on it. This is the false positive
+      // opencharly/opencharly#777 introduced, and the three below are its SIBLINGS
+      "in each clone of the umbrella, run ./charly/bin/charly task verify whenever the diff touches a submodule",
+      "in each repo of the umbrella, run ./charly/bin/charly task verify whenever the diff touches a submodule",
+      "in every repo of the umbrella, run ./charly/bin/charly task verify whenever the diff touches a submodule",
+      // TRUE: the condition is NEGATED, so the pin is not touched and the class's rule
+      // does not apply. The umbrella's own tree says exactly this
+      "the diff touches no pin",
+      "the diff touches neither a submodule nor a pin",
+      // TRUE: the DIRECTNESS — a qualifier stands between the determiner and the
+      // pin-class noun, so the noun is not the verb's direct object
+      "the diff touches a commit-carried pin",
+      // TRUE: a LIST of inputs, not a pin-class input
+      "the diff touches one of the pin contract's commit-carried inputs",
     ],
     why: "the retired ORG-WIDE rule that named the UMBRELLA's gate as the gate for any diff that touches a submodule, a gitlink or a pin, with no repo scope (opencharly/opencharly#648)",
   },
@@ -528,10 +619,16 @@ const PATTERNS = [
       "Install the clone level hook once with `./charly/bin/charly task hooks`",
       // the SAME class in the PASSIVE — the hook is what is installed
       "the clone-level hook is installed with `./charly/bin/charly task hooks`",
+      // the ORG-WIDE form — a sweep with NO binder, so the marker fires and the claim
+      // is the retired rule. This is the wording the binder fix could have broken
+      "Install the clone-level hook in every clone of the org",
     ],
     counterInstances: [
       // TRUE: the hook is scoped to the umbrella's own clone
       "The clone-level hook is the umbrella's own: install it once, in a clone of the umbrella, with `./charly/bin/charly task hooks`.",
+      // TRUE: the sweep is BOUND to the umbrella's own clones, so it is not org-wide
+      // and the marker must not fire on it
+      "The clone-level hook is the umbrella's own: install it once, in each clone of the umbrella, with `./charly/bin/charly task hooks`.",
       // TRUE: the same rule, qualified — and this one MATCHES the trigger, so it
       // exercises the scope guard itself
       "the repo's own rule: install the clone-level hook once per clone",
