@@ -197,34 +197,78 @@ function extract(lines, idx, kind) {
  * and the glob is the narrowing half — the phrase is universal over a SUBSET,
  * which is exactly the claim this arm forbids.
  *
+ * The clause is found in TWO TIERS, because a preposition governs many phrases
+ * that are not the operation's scope object. Tier 1 is a SCOPE preposition
+ * ("over", "across", "within", "among") — the verb's own object follows it, so
+ * any subset named there narrows the operation. Tier 2 is a WEAK preposition
+ * ("for", "on", "upon", "at", "to") or a restrictive adverb ("only", "just",
+ * "solely", "exclusively") — these govern durations ("for the minutes it rolls
+ * the submodules"), destinations ("to the owning repo") and generic singulars
+ * ("at those pins"), none of which is a scope object: measured, on the surfaces
+ * this arm reads, six such benign phrases IN THE TREE, every one of them a
+ * Tier-2 shape. So
+ * Tier 2 fires only when the qualifier NAMES a subset — a glob, a quoted or
+ * backticked token, a hyphenated proper name ("policy-B") or an ALL-CAPS name
+ * ("EDGE"). A Tier-2 phrase that names nothing is not a narrowing, and the arm
+ * does not cry wolf.
+ *
  * The arm reads the SURFACE text, never a whole claim-maker file: those files
  * hold prose that is not a claim about this verb (a file header's "over the org's
  * submodules"), and a whole-file scan reports those as findings — measured, on the
  * surfaces this arm reads: four such phrases in the tree, none of them in a
  * claim-maker surface. The surfaces are the claim-makers; arm C owns the files.
  */
-const NARROW_RE =
+const NARROW_SCOPE_RE =
   /\b(?:over|across|within|among)\s+(?:the\s+)?([`'"*A-Za-z0-9_.,+-]+(?:\s+[`'"*A-Za-z0-9_.,+-]+){0,3}?)\s+(?:sets?|subsets?|groups?|famil(?:y|ies)|paths?|repos?|pins?|entries|submodules?)\b/gi;
+const NARROW_WEAK_RE =
+  /\b(?:(?:only|just|solely|exclusively)\s+|(?:for|on|upon|at|to|amongst)\s+)(?:the\s+)?([`'"*A-Za-z0-9_.,+-]+(?:\s+[`'"*A-Za-z0-9_.,+-]+){0,3}?)\s+(?:sets?|subsets?|groups?|famil(?:y|ies)|paths?|repos?|pins?|entries|submodules?)\b/gi;
 const GLOB_RE = /[*?]/;
 const UNIVERSAL_RE = /\b(?:every|all|each|both|whole|full|entire|complete|total|any)\b/i;
 const DECLARE_RE = /declar/i;
 const POSSESSIVE_RE = /['’]s\b/i;
+// A qualifier that NAMES a subset: a glob, a quoted or backticked token, a
+// hyphenated proper name ("policy-B") or an ALL-CAPS name ("EDGE"). A word that
+// merely begins with a capital is not a name — the qualifier follows a
+// preposition, so a capital there is a proper name, not a sentence start.
+const QUOTED_RE = /[`'"“”]/;
+const PROPER_RE = /\b[a-z0-9][A-Za-z0-9-]*[A-Z]/;
+const CAPS_RE = /\b[A-Z]{2,}\b/g;
+// A spelled-out numeral in caps is a COUNT, not a name ("not a way to move ONE
+// repo"), so it never makes a qualifier name a subset.
+const NUMERAL_WORD_RE = /^(?:one|two|three|four|five|six|seven|eight|nine|ten|zero)$/i;
+
+/** Does this qualifier NAME a subset (as opposed to merely being a generic phrase)? */
+function namesSubset(qualifier) {
+  if (GLOB_RE.test(qualifier)) return true;
+  if (QUOTED_RE.test(qualifier)) return true;
+  if (PROPER_RE.test(qualifier)) return true;
+  const caps = qualifier.match(CAPS_RE);
+  if (caps && caps.some((w) => !NUMERAL_WORD_RE.test(w))) return true;
+  return false;
+}
 
 /** The scope clauses of a surface that name a SUBSET of the declared paths. */
 function narrowingClauses(text) {
   const out = [];
-  NARROW_RE.lastIndex = 0;
-  let m;
-  while ((m = NARROW_RE.exec(text)) !== null) {
-    const qualifier = m[1];
-    if (GLOB_RE.test(qualifier)) {
+  const tiers = [
+    [NARROW_SCOPE_RE, false],
+    [NARROW_WEAK_RE, true],
+  ];
+  for (const [re, namedOnly] of tiers) {
+    re.lastIndex = 0;
+    let m;
+    while ((m = re.exec(text)) !== null) {
+      const qualifier = m[1];
+      if (namedOnly && !namesSubset(qualifier)) continue;
+      if (GLOB_RE.test(qualifier)) {
+        out.push(m[0]);
+        continue;
+      }
+      if (UNIVERSAL_RE.test(qualifier)) continue;
+      if (DECLARE_RE.test(qualifier)) continue;
+      if (POSSESSIVE_RE.test(qualifier)) continue;
       out.push(m[0]);
-      continue;
     }
-    if (UNIVERSAL_RE.test(qualifier)) continue;
-    if (DECLARE_RE.test(qualifier)) continue;
-    if (POSSESSIVE_RE.test(qualifier)) continue;
-    out.push(m[0]);
   }
   return out;
 }
@@ -378,7 +422,7 @@ if (argv.includes("--self-test")) {
     process.exit(1);
   }
   ok(
-    `the unmutated tree is GREEN — ${SURFACES.length} claim-maker surface(s) state the scope, and none narrows it to a subset`,
+    `the unmutated tree is GREEN — ${SURFACES.length} claim-maker surface(s) state the scope, and none narrows it to a subset by a narrowing clause`,
   );
 
   /** The surface's char range in its file, so a mutation can be applied to THAT text. */
@@ -484,20 +528,120 @@ if (argv.includes("--self-test")) {
     }
   }
 
+  // D, tier 2: a WEAK preposition (or a restrictive adverb) that NAMES a subset
+  // turns the gate RED — the shapes a writer reaches for when they do not say
+  // "over". Each shape is applied to EVERY surface, so the arm is live for all of
+  // them and not only for the one that happened to be in the tree.
+  {
+    const clauses = [
+      " — for the `distro-*` paths",
+      " — only the `distro-*` paths",
+      " — limited to the `distro-*` paths",
+    ];
+    let caught = 0;
+    let tried = 0;
+    for (const s of SURFACES) {
+      for (const clause of clauses) {
+        const mutated = withSurfaceSuffix(s.rel, s.anchor, s.kind, clause);
+        if (mutated === null) {
+          stFails += 1;
+          console.error(
+            `  FAIL  the surface ${s.id} could not be located — the narrowing mutation cannot be applied`,
+          );
+          continue;
+        }
+        tried += 1;
+        const fs = findings(root, new Map([[s.rel, mutated]]));
+        if (fs.some((f) => f.kind === "D" && f.msg.includes(s.id))) {
+          caught += 1;
+        } else {
+          stFails += 1;
+          console.error(
+            `  FAIL  a clause narrowing ${s.id} to a subset (${clause.trim()}) was NOT caught`,
+          );
+        }
+      }
+    }
+    if (caught === tried && tried === SURFACES.length * clauses.length) {
+      ok(
+        "the negative scope claim is live in its second tier — a weak preposition that names a subset turns the gate RED",
+      );
+    }
+  }
+
+  // D, tier 2, negative control: a weak preposition that names NOTHING is not a
+  // narrowing. These are the four benign shapes the tier-2 rule exists for — a
+  // duration, a destination, a generic singular, a count — and a gate that
+  // flagged them would cry wolf on the umbrella's own prose.
+  //
+  // The control must be UNABLE to report OK without having tested something: if
+  // the surface cannot be located, or the mutation cannot be applied, that is a
+  // FAILURE. A control that passes because its setup broke proves nothing.
+  {
+    const benign = [
+      " — for the minutes it rolls the submodules",
+      " — at those pins",
+      " — to move ONE repo",
+      " — to the owning repo",
+    ];
+    let noisy = 0;
+    let applied = 0;
+    for (const clause of benign) {
+      const s = SURFACES.find((x) => x.rel === "README.md" && /`charly task pins` row/.test(x.id));
+      if (s === undefined) {
+        stFails += 1;
+        console.error(
+          "  FAIL  negative control (D, tier 2): the `charly task pins` surface could not be located",
+        );
+        continue;
+      }
+      const mutated = withSurfaceSuffix(s.rel, s.anchor, s.kind, clause);
+      if (mutated === null) {
+        stFails += 1;
+        console.error(
+          `  FAIL  negative control (D, tier 2): the mutation "${clause.trim()}" could not be applied`,
+        );
+        continue;
+      }
+      applied += 1;
+      const fs = findings(root, new Map([[s.rel, mutated]]));
+      if (fs.length !== 0) {
+        noisy += 1;
+        stFails += 1;
+        console.error(
+          `  FAIL  negative control (D, tier 2): "${clause.trim()}" names no subset and must stay GREEN (${fs.length} finding(s))`,
+        );
+      }
+    }
+    if (noisy === 0 && applied === benign.length) {
+      ok("negative control (D, tier 2) — a weak preposition that names no subset stays GREEN");
+    }
+  }
+
   // D, negative control: a UNIVERSAL scope clause is not a narrowing. An arm that
   // flagged every clause would prove nothing, so a truthful universal clause must
-  // stay GREEN.
+  // stay GREEN. A control that cannot be APPLIED must not report OK.
   {
     const s = SURFACES.find((x) => x.rel === "README.md" && /`charly task pins` row/.test(x.id));
-    const mutated = withSurfaceSuffix(s.rel, s.anchor, s.kind, " — over every declared path");
-    const fs = mutated === null ? [] : findings(root, new Map([[s.rel, mutated]]));
-    if (fs.length !== 0) {
+    const mutated =
+      s === undefined
+        ? null
+        : withSurfaceSuffix(s.rel, s.anchor, s.kind, " — over every declared path");
+    if (mutated === null) {
       stFails += 1;
       console.error(
-        `  FAIL  negative control (D): a universal scope clause must stay GREEN (${fs.length} finding(s))`,
+        "  FAIL  negative control (D): the universal scope clause could not be applied",
       );
     } else {
-      ok("negative control (D) — a universal scope clause stays GREEN");
+      const fs = findings(root, new Map([[s.rel, mutated]]));
+      if (fs.length !== 0) {
+        stFails += 1;
+        console.error(
+          `  FAIL  negative control (D): a universal scope clause must stay GREEN (${fs.length} finding(s))`,
+        );
+      } else {
+        ok("negative control (D) — a universal scope clause stays GREEN");
+      }
     }
   }
 
@@ -594,7 +738,7 @@ if (n) {
   process.exit(1);
 }
 console.log(
-  `check-pin-verb-scope: OK — ${SURFACES.length} claim-maker surface(s) state the pin-advance verb's scope, none narrows it to a subset, and every file naming the verb is classified`,
+  `check-pin-verb-scope: OK — ${SURFACES.length} claim-maker surface(s) state the pin-advance verb's scope, none narrows it to a subset by a narrowing clause (a scope preposition with any subset, or a weak preposition with a NAMED subset), and every file naming the verb is classified`,
 );
 
 /**
