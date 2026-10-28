@@ -32,6 +32,14 @@
 // claim CLASSES; this gate owns the POSITIVE claim (the scope), and the two
 // together are the control #501 asked for.
 //
+// The run also REPORTS its classification: the claim-maker files, the non-claim
+// mentions and the exempt controls, with the file count. The coverage arm judges
+// the whole tracked tree, so its claim is a claim about files a reader cannot see
+// from a summary line — and a body that states a FILE COUNT had no tool to copy
+// it from, which is how a hand-counted number reached a record
+// (opencharly/opencharly#767). The count and the three classes are the tool's own
+// output, so they are pasted, never counted by hand.
+//
 // SCOPE: the umbrella's OWN tracked files. A submodule is a repo of its own, with its
 // own rulebook and its own gates; this gate speaks for the umbrella's prose only.
 //
@@ -403,4 +411,24 @@ if (n) {
 }
 console.log(
   `check-pin-verb-scope: OK — ${SURFACES.length} claim-maker surface(s) state the pin-advance verb's scope, and every file naming the verb is classified`,
+);
+
+/**
+ * The CLASSIFICATION this run made, printed.
+ *
+ * The coverage arm's claim is about the whole tracked tree, so the reader needs
+ * the tree's answer, not a promise that there is one. The three classes are the
+ * gate's own lists, and the file count is the count of the claim-maker files
+ * that carry the surfaces — a number a body can PASTE instead of counting by
+ * hand (opencharly/opencharly#767).
+ */
+const claimMakerFiles = [...new Set(SURFACES.map((s) => s.rel))].sort();
+console.log(
+  `  claim-maker file(s) (${claimMakerFiles.length}, carrying ${SURFACES.length} surface(s)): ${claimMakerFiles.join(", ")}`,
+);
+console.log(
+  `  non-claim mention(s) (${NON_CLAIM_MENTIONS.size}): ${[...NON_CLAIM_MENTIONS.keys()].sort().join(", ")}`,
+);
+console.log(
+  `  exempt control(s) (${EXEMPT_FILES.size}): ${[...EXEMPT_FILES.keys()].sort().join(", ")}`,
 );
