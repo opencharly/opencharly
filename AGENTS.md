@@ -423,6 +423,11 @@ run on the final tree:
 - otherwise the gate that owns the change (`scripts/check-*.mjs`, the R10 bed), plus its
   changed paths executed live.
 
+A pasted commit id is quoted as the **40-character output of the command that produced
+it**. A prefix is quoted as a prefix, and never inside a fence that claims to be a
+command's output. A 40-character id that resolves in no object store this tree can see
+is a finding, not a citation.
+
 ### Before every update push: read everything, fix everything
 
 *Enforces: R1, R7.* This is a hard precondition of every push to an open PR and of every
