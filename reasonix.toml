@@ -64,24 +64,31 @@ compact_ratio = 0.70
 # global roots, so it resolves a dozen builtin/global skills and NOT ONE of the
 # charly procedures. See REASONIX.md for how a reference maps to a call.
 #
-# These are the 42 directories that actually CONTAIN skills — every
-# `<family>/skills/` (each holding `<skill>/SKILL.md`) plus the two
-# `<family>/agents/` roster dirs (hand-authored `<agent>.md`, loaded as skills).
-# COUNTED on 2026-10-06 at the marketplace pin this branch records (`ac7d97e5`):
-# 40 `skills/` dirs holding 351 `SKILL.md`, and 2 `agents/` rosters holding 7
-# `.md`. `kubevirt` and `qdrant` are the newest two families — the coverage
-# assertion in check 8 is what caught their absence here.
+# These are the directories that actually CONTAIN skills — every
+# `<family>/skills/` (each holding `<skill>/SKILL.md`) plus the `<family>/agents/`
+# roster dirs (hand-authored `<agent>.md`, loaded as skills). The list below is
+# DERIVED from the corpus by `scripts/sync-skill-bindings.mjs`: regenerate it
+# with that script, never hand-edit it, and never state how many entries it has
+# here — the list is the truth about its own size, and a number beside it is a
+# second copy that drifts (the shape-count family in
+# `scripts/check-readme-measurements.mjs` fails the gate on one).
+
+# COUNTED on 2026-10-28 at the corpus this branch pins: 43 `skills/` dirs
+# holding 361 `SKILL.md`, and 2 `agents/` rosters holding 7 `.md`. A family added
+# upstream with no entry in the list below is caught by check 8's coverage
+# assertion.
+
 # A single `paths = ["marketplace"]` does NOT work: `marketplace/` is a
 # multi-FAMILY root, while reasonix expects a multi-SKILL root, so pointing at
-# it makes reasonix scan family prose as skills — MEASURED (reasonix v2.28.0),
-# 389 files warn `skill.missing_description` and print ~3,500 warning lines per
-# boot (3,447 of them `marketplace/CHANGELOG/*.md`, plus the root
-# AGENTS.md/DISPATCHER.md/README.md and two family READMEs). Scoping to the
-# skill-bearing directories removes every such warning while loading the SAME
-# skills, with no skill lost — a count of 362 loaded skills at that measurement.
-# That figure is NOT re-measured here (reasonix is not installed on this host),
-# so the count of record is the on-disk one above. Keep this list in step with
-# the marketplace layout; `scripts/check-harness-config.mjs` check 8 asserts it
+# it makes reasonix scan family prose as skills — MEASURED with reasonix
+# v2.28.0 and recorded on 2026-10-06: 389 files warn `skill.missing_description`
+# and print ~3,500 warning lines per boot (3,447 of them
+# `marketplace/CHANGELOG/*.md`, plus the root AGENTS.md/DISPATCHER.md/README.md
+# and two family READMEs). Scoping to the skill-bearing directories removes
+# every such warning while loading the SAME skills, with no skill lost — a
+# count of 362 loaded skills at that measurement. That figure is NOT re-measured
+# here (reasonix is not installed on this host), so the count of record is the
+# on-disk one above. `scripts/check-harness-config.mjs` check 8 asserts the list
 # covers every skill root.
 [skills]
 paths = [
