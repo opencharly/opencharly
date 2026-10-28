@@ -205,7 +205,8 @@ function extract(lines, idx, kind) {
  * "solely", "exclusively") — these govern durations ("for the minutes it rolls
  * the submodules"), destinations ("to the owning repo") and generic singulars
  * ("at those pins"), none of which is a scope object: measured, on the surfaces
- * this arm reads, six such benign phrases, every one of them a Tier-2 shape. So
+ * this arm reads, six such benign phrases IN THE TREE, every one of them a
+ * Tier-2 shape. So
  * Tier 2 fires only when the qualifier NAMES a subset — a glob, a quoted or
  * backticked token, a hyphenated proper name ("policy-B") or an ALL-CAPS name
  * ("EDGE"). A Tier-2 phrase that names nothing is not a narrowing, and the arm
@@ -569,16 +570,41 @@ if (argv.includes("--self-test")) {
   }
 
   // D, tier 2, negative control: a weak preposition that names NOTHING is not a
-  // narrowing. These are the six benign shapes the tier-2 rule exists for — a
+  // narrowing. These are the four benign shapes the tier-2 rule exists for — a
   // duration, a destination, a generic singular, a count — and a gate that
   // flagged them would cry wolf on the umbrella's own prose.
+  //
+  // The control must be UNABLE to report OK without having tested something: if
+  // the surface cannot be located, or the mutation cannot be applied, that is a
+  // FAILURE. A control that passes because its setup broke proves nothing.
   {
-    const benign = [" — at those pins", " — to move ONE repo", " — to the owning repo"];
+    const benign = [
+      " — for the minutes it rolls the submodules",
+      " — at those pins",
+      " — to move ONE repo",
+      " — to the owning repo",
+    ];
     let noisy = 0;
+    let applied = 0;
     for (const clause of benign) {
       const s = SURFACES.find((x) => x.rel === "README.md" && /`charly task pins` row/.test(x.id));
+      if (s === undefined) {
+        stFails += 1;
+        console.error(
+          "  FAIL  negative control (D, tier 2): the `charly task pins` surface could not be located",
+        );
+        continue;
+      }
       const mutated = withSurfaceSuffix(s.rel, s.anchor, s.kind, clause);
-      const fs = mutated === null ? [] : findings(root, new Map([[s.rel, mutated]]));
+      if (mutated === null) {
+        stFails += 1;
+        console.error(
+          `  FAIL  negative control (D, tier 2): the mutation "${clause.trim()}" could not be applied`,
+        );
+        continue;
+      }
+      applied += 1;
+      const fs = findings(root, new Map([[s.rel, mutated]]));
       if (fs.length !== 0) {
         noisy += 1;
         stFails += 1;
@@ -587,25 +613,35 @@ if (argv.includes("--self-test")) {
         );
       }
     }
-    if (noisy === 0) {
+    if (noisy === 0 && applied === benign.length) {
       ok("negative control (D, tier 2) — a weak preposition that names no subset stays GREEN");
     }
   }
 
   // D, negative control: a UNIVERSAL scope clause is not a narrowing. An arm that
   // flagged every clause would prove nothing, so a truthful universal clause must
-  // stay GREEN.
+  // stay GREEN. A control that cannot be APPLIED must not report OK.
   {
     const s = SURFACES.find((x) => x.rel === "README.md" && /`charly task pins` row/.test(x.id));
-    const mutated = withSurfaceSuffix(s.rel, s.anchor, s.kind, " — over every declared path");
-    const fs = mutated === null ? [] : findings(root, new Map([[s.rel, mutated]]));
-    if (fs.length !== 0) {
+    const mutated =
+      s === undefined
+        ? null
+        : withSurfaceSuffix(s.rel, s.anchor, s.kind, " — over every declared path");
+    if (mutated === null) {
       stFails += 1;
       console.error(
-        `  FAIL  negative control (D): a universal scope clause must stay GREEN (${fs.length} finding(s))`,
+        "  FAIL  negative control (D): the universal scope clause could not be applied",
       );
     } else {
-      ok("negative control (D) — a universal scope clause stays GREEN");
+      const fs = findings(root, new Map([[s.rel, mutated]]));
+      if (fs.length !== 0) {
+        stFails += 1;
+        console.error(
+          `  FAIL  negative control (D): a universal scope clause must stay GREEN (${fs.length} finding(s))`,
+        );
+      } else {
+        ok("negative control (D) — a universal scope clause stays GREEN");
+      }
     }
   }
 
