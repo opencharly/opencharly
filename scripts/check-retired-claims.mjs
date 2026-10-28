@@ -118,12 +118,36 @@ function gitOut(args, opts = {}) {
 // homes, and the two homes drift. MEASURED: the key this file shipped excused any
 // claim carrying the word "umbrella" ANYWHERE, so a claim that named the umbrella's
 // command and then stated the rule org-wide escaped it.
-const STATED_SCOPE =
-  "(?![^\\n]*(?:\\b(?:the|that|this|its|your)\\s+(?:repo|repository|umbrella)(?:'s)?\\s+own\\b" +
+//
+// AND A STATED SCOPE IS DEFEATED BY AN ORG-WIDE MARKER (the validator's round-1 note
+// on opencharly/opencharly#776, and the root fix that closes it): a scope phrase says
+// WHOSE gate it is, and a claim that says whose gate it is AND then states the rule
+// ORG-WIDE says it org-wide — the two clauses cancel, and the claim is false in every
+// repo but one exactly as the unscoped form is. So a scope phrase excuses the trigger
+// ONLY when the claim carries NO org-wide marker: the exemption is (SCOPE AND NOT
+// ORG-WIDE). The markers are REPO-WIDE claims ("in every repo", "org-wide", "across
+// the org"), never claims about DIFFS — "any diff" scopes the DIFFS the gate applies
+// to, not the repos it applies in, and the umbrella's own true wording uses it.
+// MEASURED on the umbrella's own tracked tree: 2 lines carry a trigger, both carry a
+// scope phrase, and NEITHER carries an org-wide marker — the umbrella's own prose
+// stays GREEN.
+const STATED_SCOPE_PHRASES =
+  "\\b(?:the|that|this|its|your)\\s+(?:repo|repository|umbrella)(?:'s)?\\s+own\\b" +
   "|\\b(?:its|their|your)\\s+own\\b" +
   "|\\b(?:the|that|this|its|your)\\s+(?:umbrella|repo(?:sitory)?)(?:'s)?\\s+(?:own\\s+)?(?:pin\\s+|commit[- ]carried\\s+)?(?:gate|hook|check)\\b" +
   "|\\bin\\s+(?:a|the|this|that|your|my|each)\\s+(?:clone\\s+of\\s+the\\s+)?(?:umbrella|repo(?:sitory)?)\\b" +
-  "|\\bmember\\s+repo\\b))";
+  "|\\bmember\\s+repo\\b";
+
+const ORG_WIDE_MARKERS =
+  "\\b(?:every|all|any|each)\\s+(?:member\\s+)?(?:repo|repos|repository|repositories|clone|clones)\\b" +
+  "|\\borg(?:anization)?[ -]wide\\b" +
+  "|\\bacross\\s+the\\s+org\\b" +
+  "|\\b(?:in|throughout|through)\\s+the\\s+(?:whole|entire)\\s+org\\b" +
+  "|\\bthe\\s+(?:whole|entire)\\s+org\\b" +
+  "|\\bin\\s+the\\s+org\\b";
+
+const STATED_SCOPE =
+  "(?!(?=[^\\n]*(?:" + STATED_SCOPE_PHRASES + "))(?![^\\n]*(?:" + ORG_WIDE_MARKERS + ")))";
 
 // The retired claim forms. Each entry is a CLASS of claim, matched by a pattern, together
 // with the concrete wordings that class has been written in — the instances are the
@@ -418,6 +442,13 @@ const PATTERNS = [
     // NONE of them", which are conditions on a LIST of inputs, not on a pin-class
     // input. MEASURED against the tree's 71 diff-touch wordings: 0 hits.
     //
+    // Every verb carries its own inflections — the past tense included ("the diff
+    // TOUCHED a submodule"). One verb that carried only two of its three inflections
+    // was the gap the validator named on opencharly/opencharly#776, and it was the
+    // SAME defect the class was widened for, in a smaller dress: a control that
+    // recognizes a class in only some of its own wordings recognizes it in the shape
+    // it was written in.
+    //
     // THE SCOPE IS A STATED SCOPE — a PHRASE, not a stray word. The shipped guard
     // excused any claim carrying the word "umbrella" ANYWHERE, so a claim that named
     // the umbrella's command and then stated the rule org-wide escaped; the guard is
@@ -440,7 +471,7 @@ const PATTERNS = [
     // wording itself carries it).
     pattern:
       "(?:^|\\n)" + STATED_SCOPE +
-      "[^\\n]*?\\b(?:diffs?|patches?)\\b[^\\n]{0,60}?\\b(?:touch(?:es|ing)|chang(?:e|es|ed|ing)|edit(?:s|ed|ing)" +
+      "[^\\n]*?\\b(?:diffs?|patches?)\\b[^\\n]{0,60}?\\b(?:touch(?:es|ed|ing)|chang(?:e|es|ed|ing)|edit(?:s|ed|ing)" +
       "|alter(?:s|ed|ing)|modif(?:y|ies|ied|ying)|updat(?:e|es|ed|ing)|affect(?:s|ed|ing))\\s+" +
       "(?:a|an|the|any|each|every|some|one)\\s+(?:submodule|gitlink|pin)s?\\b",
     instances: [
@@ -456,6 +487,13 @@ const PATTERNS = [
       "the umbrella's ./charly/bin/charly task verify is the gate whenever the diff touches a submodule",
       // the SAME class in another VERB — the condition is the shape, not "touches"
       "run ./charly/bin/charly task verify whenever the diff changes a submodule",
+      // the SAME class in the PAST TENSE — every other verb of the class carries its
+      // own inflections, and one that did not was the gap the validator named on #776
+      "run ./charly/bin/charly task verify whenever the diff touched a submodule",
+      // the ORG-WIDE DEFEATER — the claim STATES whose gate it is AND states the rule
+      // org-wide, so the scope phrase and the org-wide clause cancel and the claim is
+      // false in every repo but one, exactly as the unscoped form is
+      "the umbrella pin gate applies in every repo whenever the diff touches a submodule",
     ],
     counterInstances: [
       // TRUE: the gate is the REPO's own, and the rule says whose
