@@ -247,6 +247,29 @@ const RE_SHAPE_REMAINING = /\bthe remaining (\d{1,4}(?:,\d{3})*)\b/gi;
 const RE_SHAPE_CAP =
   /(\bat most\b|\bup to\b|\ba cap of\b|\ba maximum of\b|\bmaximum of\b|\bmax of\b|\blimit of\b|\bat least\b|\bat minimum\b|\ba minimum of\b|\bno fewer than\b|[≥≤])\s*$/i;
 
+// A number's ROLE, not its adjacency to a collection noun, decides what the
+// number states. A number bound to a PORT, a UID, a GID, a PID or a MODE names
+// a VALUE, not a size: the marimo MCP server's port in front of a URL path is
+// a port and a path, and the auto-intermediate machinery's uid in front of a
+// filesystem path is a uid and a path. The adjacency is coincidental, and the
+// family read it as a count claim — a live false positive in the CORPUS's
+// tree, where both sentences are correct prose.
+//
+// The binding is read from the text IMMEDIATELY BEFORE the number, the same
+// way the cap is (see RE_SHAPE_CAP): a role word standing ALONE ("port N",
+// "uid=N"), or a COMPOUND identifier whose LAST TOKEN is a role word and
+// which is BOUND by an `=` or a `:` ("USER_UID=N", "listen_port=N").
+//
+// A plain English word that merely ENDS in a role word is NOT a role, and the
+// binding does not make it one: "export", "import", "report" and "support" all
+// end in one, so a report line that states a count of calls would be read as a
+// value, and the family would go SILENT on it — a hole in the very family this
+// arm strengthens. A word is a role only when it stands ALONE, or when the
+// identifier's own structure says it is a NAME: the role word is one TOKEN of
+// a compound, separated by `_` or `-`.
+const RE_SHAPE_ROLE =
+  /(?:\b(?:port|uid|gid|pid|mode)\b\s*[:=]?|\b[A-Za-z][A-Za-z0-9]*(?:[_-](?:port|uid|gid|pid|mode))\b\s*[:=])\s*$/i;
+
 const RE_ISO_DATE = /\b20\d{2}-\d{2}-\d{2}\b/;
 
 // Markdown EMPHASIS and CODE SPANS hide a count from a plain match: a `*`
@@ -543,6 +566,11 @@ function shapeFindings(surfaces) {
           // measurement — but a bound that ALSO states a total states a
           // measurement of that total, so the total is still judged.
           if (total === null && RE_SHAPE_CAP.test(line.slice(0, m.index))) continue;
+          // The number's ROLE decides what it states, and the role is read from
+          // the text immediately before it: a number bound to a port, a uid, a
+          // gid, a pid or a mode names a VALUE, not the size of a collection.
+          // The adjacency is coincidental, and the family read it as a count.
+          if (isCount && RE_SHAPE_ROLE.test(line.slice(0, m.index))) continue;
           const key = `${file}:${i + 1}:${m.index}`;
           if (seen.has(key)) continue;
           seen.add(key);
@@ -1146,6 +1174,31 @@ function runSelfTest(readme, script, manifest, samples, measure, shapes) {
       () => withShape(`${shapeTarget.text}\n\n500 skill.missing_description warnings.\n`),
       "a diagnostic's name is not a collection, and a number in front of one " +
       "does not make it one");
+    // The number's ROLE decides what it states, and the three siblings above
+    // fixed the NOUN; none of them read the number. A number bound to a port, a
+    // uid, a gid, a pid or a mode names a VALUE, and the noun it happens to
+    // stand next to is coincidence: the marimo MCP server's port in front of a
+    // URL path, and the auto-intermediate machinery's uid in front of a
+    // filesystem path. Both are correct prose in the CORPUS's tree, and both
+    // were reported as undated counts of a growing collection.
+    // The number is a VARIABLE, so this file's own text carries no literal
+    // count: a literal one would be a site the gate reads in this very file.
+    expectClean("a number bound to a PORT is not a count of the collection",
+      () => withShape(`${shapeTarget.text}\n\nThe marimo MCP server listens at port ${count} path /mcp/server.\n`),
+      "the number is a PORT and the noun is a URL path — the adjacency is coincidental, and a " +
+      "family that read it as a count would report a correct sentence as broken");
+    expectClean("a number bound to a UID is not a count of the collection",
+      () => withShape(`${shapeTarget.text}\n\nThe auto-intermediate machinery bakes uid=${count} paths into boxes.\n`),
+      "the number is a UID and the noun is a filesystem path — an assignment binds a VALUE, and a " +
+      "value is not a size");
+    expectClean("a number bound to a COMPOUND identifier is not a count of the collection",
+      () => withShape(`${shapeTarget.text}\n\nThe box bakes USER_UID=${count} paths into the image.\n`),
+      "the identifier is a NAME whose last token is a role — USER_UID is a uid, and a name that " +
+      "binds a value is not stating a size");
+    expect("a count whose preceding word merely ENDS in a role word is reported",
+      () => withShape(`${shapeTarget.text}\n\nThe report: ${count} calls.\n`),
+      "\"report\" ends in \"port\", and it is a plain word rather than a name — so the count is a " +
+      "count, and an arm that read the binding alone would go SILENT on it");
     // A number written with a thousands separator is ONE number, and the separator
     // used to cut it in two: the digits after it were judged on their own, so a
     // count written as 1,000 was judged as 0 and fell under the floor — the site
