@@ -418,8 +418,14 @@ One lifecycle, for every repo. *Detail:* `/charly-internals:git-workflow`.
 **The PR body is the changelog.** It has `## Summary`, `## How tested`, `## Rulebook
 compliance`, `## Change classification`, `## Filed issues` (whenever R1 filed anything),
 and the italic attribution footer LAST. *How tested* pastes the gate the diff requires,
-run on the final tree:
-- `./charly/bin/charly task verify` whenever the diff touches a submodule, gitlink, or pin;
+run on the final tree — **the gate that owns the change, in the repo the change lands in**:
+that repo's own `charly.yml` declares it, so its path and its task name are that repo's.
+- a diff that touches a submodule, a gitlink, or a pin: that repo's own pin gate. In the
+  umbrella that is `./charly/bin/charly task verify` — it composes the pin contract's
+  consistency half AND the currency question (`./charly/bin/charly task pins --param
+  MODE=currency` asks that question on its own, and `verify` runs it as a step that
+  REPORTS a behind pin rather than failing on it). In a member repo it is the gate that
+  repo's own `charly.yml` declares for that class.
 - otherwise the gate that owns the change (`scripts/check-*.mjs`, the R10 bed), plus its
   changed paths executed live.
 
@@ -528,7 +534,8 @@ with `grep: write error: Broken pipe`.
 
 Hooks guard deterministic mechanics only: bypass flags, force-push, direct-main push, and
 untokenizable commands. Agents and the fresh `pr-validator` judge policy, attribution, and
-proof. Install the clone-level hook once with `./charly/bin/charly task hooks`.
+proof. The clone-level hook is the umbrella's own: install it once, in a clone of the
+umbrella, with `./charly/bin/charly task hooks`.
 *Detail:* `/charly-internals:agents`.
 
 ## Acceptance checklist
