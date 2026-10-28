@@ -32,8 +32,9 @@
 // THE SCAN'S UNIT IS A CLAIM, NOT A LINE (opencharly/opencharly#710, review round 2 —
 // the missed control, and the root fix that closes it): a claim WRAPS. The prose in a
 // comment or a paragraph is wrapped at the column, and the wrap can fall BETWEEN the
-// two words of one phrase. MEASURED on the class's own TWO sites in `origin/main`'s
-// scripts/init-submodules.sh: the LATER of them (:622) carries it as
+// two words of one phrase. MEASURED on the class's own TWO sites in the umbrella's
+// scripts/init-submodules.sh AT 4a17a6c (origin/main as it stood at this review
+// round): the LATER of them (:622) carries it as
 //     `... the umbrella's own currency report cannot then JUDGE`
 //     `# an edge whose source is a nested pin: it prints ...`
 // — the phrase straddles a line break. A line-oriented scan sees ONE of the class's TWO
@@ -80,9 +81,22 @@
 // SCOPE: the umbrella's OWN tracked files. A submodule is a repo of its own, with its own
 // rulebook and its own gates; this gate speaks for the umbrella's prose only. A tracked
 // SYMLINK is skipped for the same reason: every one of them points into `marketplace/`,
-// another repo, whose content is not the umbrella's claim to judge.
+// another repo, whose content is not the umbrella's claim to judge. The key's OWN file
+// is skipped too, and it must be: it NAMES the retired claim forms — as the instances
+// the self-test injects — so a gate that judged its own prose would always be RED.
 //
-// usage: node scripts/check-retired-claims.mjs [--root <dir>] [--self-test]
+// WHAT IS MEASURED (--measure prints it): the figures this file's comments quote about
+//   the tree — the TRIGGER lines (the class's shape with the scope guard dropped), the
+//   CLASS-VERB SITES (a class verb taking a pin-class noun with a determiner from the
+//   class's own list) and the DIFF-TOUCH WORDINGS (a diff condition beside a class
+//   verb) — each read over the same CLAIM STREAM the scan reads, from the key's OWN
+//   constants, over the SCOPE above (the umbrella's own tracked files, minus the key's
+//   own file and CHANGELOG/). A MEASURED figure in a comment is a CLAIM, and a claim
+//   nobody can re-derive drifts: the tree grows under a moving reference. So the
+//   command that produced the figure is written down, and the figures are quoted
+//   against an immutable commit.
+//
+// usage: node scripts/check-retired-claims.mjs [--root <dir>] [--self-test] [--measure]
 
 import { execFileSync, spawnSync } from "node:child_process";
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -156,9 +170,16 @@ function gitOut(args, opts = {}) {
 // sweep over COPIES is a SCOPE, a sweep over the repos the umbrella holds is a
 // MARKER. The binder's own bound noun does not decide it — "of the org" was never
 // a binder, and "of the umbrella" binds a copy, not a member repo.
-// MEASURED on the umbrella's own tracked tree: 2 lines carry a trigger, both carry a
-// scope phrase, and NEITHER carries an org-wide marker — the umbrella's own prose
-// stays GREEN.
+// MEASURED on the umbrella's own tracked tree at 5c899c8 (origin/main, the base this
+// change is written against): ONE line carries the class's TRIGGER — AGENTS.md's own
+// bullet — and it carries a scope phrase and NO org-wide marker, so the umbrella's
+// own prose stays GREEN. The figure is REPRODUCIBLE: `node
+// scripts/check-retired-claims.mjs --measure` prints the tree's trigger lines with
+// their scope and marker classification, and it is quoted here against an IMMUTABLE
+// commit because the tree grows under a moving reference. The SUBSTANCE is not a
+// measurement at all: a trigger line with no scope, or with an org-wide marker, IS
+// the class's pattern, and this file's scan is a step of `charly task verify`, so
+// such a line turns the gate RED on the commit that grows it.
 const ONE_REPO_DET = "(?:a|the|this|that|your|my)";
 const EVERY_REPO_DET = "(?:every|all|any|each)";
 const REPO_OBJECT = "(?:repo|repos|repository|repositories|clone|clones)";
@@ -217,13 +238,32 @@ const CLASS_VERBS =
 // determiner that can precede a count noun, and NONE that negates it — "the diff
 // touches NO pin" is not a claim that a pin is touched, and the umbrella's own tree
 // says exactly that (hooks/pre-commit-gate.sh). The determiner may also be ABSENT:
-// "the diff touches submodules" is the class's own condition, plural. MEASURED against
-// the tree's wordings: 9 sites carry a class verb beside a pin-class noun, and their
-// determiners are "a" (4), "the" (3), a qualifier ("version pins") and "no" (1) — so
-// the widening adds no hit to the umbrella's own prose.
+// "the diff touches submodules" is the class's own condition, plural. MEASURED on the
+// umbrella's own tracked tree at 5c899c8 (origin/main, the base this change is written
+// against): 7 sites place a pin-class noun right after a determiner from this list, and
+// their determiners are "a" (4) and "the" (3) — the "a" sites take the pin-class noun
+// as the verb's object, and the "the" sites are the tree's own "the pin contract's
+// inputs" shape, whose direct object is a LIST of inputs. The tree's two further sites
+// of this shape are a QUALIFIER ("version pins") and a NEGATION ("no pin block"), and
+// this list admits NEITHER — so the widening adds no hit to the umbrella's own prose:
+// not one of the tree's sites uses a determiner the widening added. `node
+// scripts/check-retired-claims.mjs --measure` prints the sites and their determiners.
 const CLASS_DETERMINERS =
   "(?:a|an|the|this|that|these|those|my|your|its|our|their|his|her|" +
   "some|any|each|every|one|two|three|many|several|all|both|other|another|either)";
+
+// THE PIN-CLASS NOUNS — the class's direct objects. ONE constant, shared by the
+// class's pattern and by the MEASUREMENT below, so the two cannot name different
+// nouns (R2).
+const PIN_CLASS_NOUNS = "(?:submodule|gitlink|pin)s?";
+
+// THE CLASS'S TRIGGER — the SHAPE, with NO scope requirement: a diff condition whose
+// DIRECT OBJECT is a pin-class input. The class's PATTERN is this shape behind the
+// scope guard; the MEASUREMENT is this shape ALONE, so the two can never disagree
+// about what a trigger is (R2: one shape, two uses).
+const CLASS_TRIGGER =
+  "[^\\n]*?\\b(?:diffs?|patch(?:es)?)\\b[^\\n]{0,60}?\\b(?:" + CLASS_VERBS + ")\\s+" +
+  "(?:" + CLASS_DETERMINERS + "\\s+)?" + PIN_CLASS_NOUNS + "\\b";
 
 // The retired claim forms. Each entry is a CLASS of claim, matched by a pattern, together
 // with the concrete wordings that class has been written in — the instances are the
@@ -319,8 +359,9 @@ const PATTERNS = [
       "|an edge (?:cannot|can not|can never|is not|is never|is un) (?:be )?(?:judge|judged|judgable)",
     instances: [
       // the retired initializer sentence — WRAPPED across a comment marker, which is how
-      // the class was first written in `origin/main` (MEASURED: a line-oriented scan
-      // sees one of the class's two sites there, and misses this one)
+      // the class was FIRST written in the key (at 569effb, the key's first commit —
+      // MEASURED: a line-oriented scan sees one of the class's two sites in that tree,
+      // and misses this one)
       "# cannot then JUDGE\n# an edge whose source is a nested pin: it prints",
       "cannot JUDGE an edge whose source is a nested pin: it prints",
       // the retired .pi claim (the README, the extension's module header, its step 3b comment)
@@ -516,22 +557,40 @@ const PATTERNS = [
     // DIRECTNESS is what keeps the umbrella's own prose GREEN: the tree says "the diff
     // touches one of the pin contract's commit-carried inputs" and "a diff that touches
     // NONE of them", which are conditions on a LIST of inputs, not on a pin-class
-    // input. MEASURED against the tree's 71 diff-touch wordings: 0 hits.
+    // input. MEASURED against the tree's diff-touch wordings — a diff condition
+    // beside one of the class's own verbs — at 5c899c8 (origin/main, the base this
+    // change is written against): 58 of them. Exactly ONE of them carries the
+    // class's TRIGGER — AGENTS.md's own bullet — and it is SCOPED, so the scan's own
+    // verdict on that tree is 0 hits. The figure is REPRODUCIBLE from the key's OWN
+    // constants over the same claim stream the scan reads: `node
+    // scripts/check-retired-claims.mjs --measure` prints the wording count, the
+    // trigger lines with their scope and marker classification, and the scan's
+    // verdict under them.
     //
     // Every verb carries its BASE and its three inflections (-s/-es, -ed, -ing) — the
     // past tense included ("the diff TOUCHED a submodule") and the base included
     // ("diffs TOUCH a submodule"), because a PLURAL subject takes the base and the
-    // class's own subject alternation admits the plural. MEASURED before this fix:
-    // the key matched "diffs change a submodule" but not "diffs touch a submodule",
-    // "diffs edit …", "diffs alter …" or "diffs affect …" — three of the class's seven
-    // verbs carried their base and four did not, so the class was re-introducible in
-    // the shape a plural subject forces. And the class's SUBJECT did not carry its own
-    // singular: `patches?` spells "patch" + "es" + an optional "s", so it matched
-    // "patches" and "patchess" and NEVER "patch" — the key did not match "a patch
-    // touches a submodule" AT ALL, although the issue's own shape names it ("a diff /
-    // the diff / the patch"). That is the SAME defect the class was widened for, in a
-    // smaller dress: a control that recognizes a class in only some of its own
-    // wordings recognizes it in the shape it was written in.
+    // class's own subject alternation admits the plural. MEASURED against the key at
+    // 1681877 (the commit this class was widened in, so the key BEFORE it): it
+    // matched "diffs change a submodule" but not "diffs touch a submodule", "diffs
+    // edit …", "diffs alter …" or "diffs affect …" — three of the class's seven verbs
+    // carried their base and four did not, so the class was re-introducible in the
+    // shape a plural subject forces. And the class's SUBJECT did not carry its own
+    // singular: the spelling was `patches?`, which needs its "es" and so NEVER
+    // matched "patch" — the key did not match "a patch touches a submodule" AT ALL,
+    // although the issue's own shape names it ("a diff / the diff / the patch"). That
+    // is the SAME defect the class was widened for, in a smaller dress: a control
+    // that recognizes a class in only some of its own wordings recognizes it in the
+    // shape it was written in.
+    //
+    // That measurement is REPRODUCIBLE from that commit's own pattern, which carries
+    // the verb list, the subject spelling and the word boundary that follows it:
+    //   $ git show 1681877:scripts/check-retired-claims.mjs
+    // (its class's pattern). NOTE what the word boundary does: the spelling
+    // `patches?` matched "patches" — and it could NOT match "patchess", because the
+    // boundary after the group refuses the doubled "s". THIS claim is read off the
+    // commit it describes (1681877), and a claim about THIS tree is produced by
+    // `--measure`.
     //
     // THE SCOPE IS A STATED SCOPE — a PHRASE, not a stray word. The shipped guard
     // excused any claim carrying the word "umbrella" ANYWHERE, so a claim that named
@@ -554,9 +613,7 @@ const PATTERNS = [
     // is installed, so that adjective says nothing about WHOSE clone (and the retired
     // wording itself carries it).
     pattern:
-      "(?:^|\\n)" + STATED_SCOPE +
-      "[^\\n]*?\\b(?:diffs?|patch(?:es)?)\\b[^\\n]{0,60}?\\b(?:" + CLASS_VERBS + ")\\s+" +
-      "(?:" + CLASS_DETERMINERS + "\\s+)?(?:submodule|gitlink|pin)s?\\b",
+      "(?:^|\\n)" + STATED_SCOPE + CLASS_TRIGGER,
     instances: [
       // the retired rulebook bullet
       "`./charly/bin/charly task verify` whenever the diff touches a submodule, gitlink, or pin",
@@ -904,6 +961,104 @@ function scan(dir) {
   return hits;
 }
 
+/**
+ * The text of the STREAM line that holds this offset — the line the scope set and the
+ * org-wide marker set are read over, exactly as the class's own guard reads them.
+ */
+function streamLine(stream, index) {
+  const start = stream.lastIndexOf("\n", index) + 1;
+  const end = stream.indexOf("\n", index);
+  return stream.slice(start, end === -1 ? undefined : end);
+}
+
+/**
+ * The MEASUREMENT — the figures this file's comments quote, computed BY the key.
+ *
+ * A MEASURED figure in a comment is a CLAIM (R1), and a claim nobody can re-derive is a
+ * claim that drifts: the tree grows under a moving reference, so a figure measured once
+ * is false a year later — and the file states it in the present tense. The command that
+ * produced the figure was part of the claim, and it was NOT written down, so the figure
+ * could not be re-derived. It drifted, and nothing noticed.
+ *
+ * So the command IS written down, and it is this one. Every figure below is computed
+ * from the key's OWN constants and read over the same CLAIM STREAM the scan reads, so
+ * the measurement and the verdict can never be about different texts (R2: one shape, two
+ * uses). READ-ONLY: it never writes, and it never changes the scan's verdict.
+ */
+function measure(dir) {
+  // the class's TRIGGER, with the scope guard DROPPED — the shape alone
+  const triggerRe = new RegExp(CLASS_TRIGGER, "giu");
+  // a class verb taking a pin-class noun, with a determiner from the class's own list
+  const siteRe = new RegExp(
+    "\\b(?:" + CLASS_VERBS + ")\\s+(" + CLASS_DETERMINERS + ")\\s+" + PIN_CLASS_NOUNS + "\\b",
+    "giu",
+  );
+  // a diff condition beside a class verb — the class's condition, without its object
+  const wordingRe = new RegExp(
+    "\\b(?:diffs?|patch(?:es)?)\\b[^\\n]{0,60}?\\b(?:" + CLASS_VERBS + ")\\b",
+    "giu",
+  );
+  const scopeRe = new RegExp(STATED_SCOPE_PHRASES, "iu");
+  const markerRe = new RegExp(ORG_WIDE_MARKERS, "iu");
+  const triggers = [];
+  const sites = [];
+  const wordings = [];
+  for (const rel of trackedFiles(dir)) {
+    if (rel === SELF_REL || rel.startsWith("CHANGELOG/")) continue;
+    const text = readText(join(dir, rel));
+    if (text === null) continue;
+    const { stream, lineAt } = claimStream(text, /\.md$/i.test(rel));
+    for (const m of stream.matchAll(triggerRe)) {
+      const line = streamLine(stream, m.index);
+      triggers.push({
+        rel,
+        line: lineAt(m.index),
+        text: m[0].replace(/\s+/g, " ").trim(),
+        scope: scopeRe.test(line),
+        marker: markerRe.test(line),
+      });
+    }
+    for (const m of stream.matchAll(siteRe)) {
+      sites.push({ rel, line: lineAt(m.index), det: m[1].toLowerCase() });
+    }
+    for (const m of stream.matchAll(wordingRe)) {
+      wordings.push({ rel, line: lineAt(m.index) });
+    }
+  }
+  return { triggers, sites, wordings };
+}
+
+/** The MEASUREMENT, printed. */
+function printMeasurement(dir) {
+  const m = measure(dir);
+  const dets = new Map();
+  for (const s of m.sites) dets.set(s.det, (dets.get(s.det) || 0) + 1);
+  const hits = scan(dir);
+  console.log(`check-retired-claims --measure (tree: ${dir})`);
+  console.log(
+    `  TRIGGER lines — the class's shape with the scope guard dropped: ${m.triggers.length}`,
+  );
+  for (const t of m.triggers) {
+    console.log(
+      `    ${t.rel}:${t.line}  scope=${t.scope ? "YES" : "no "}  org-wide-marker=${t.marker ? "YES" : "no "}`,
+    );
+    console.log(`      ${t.text}`);
+  }
+  console.log(
+    `  CLASS-VERB SITES — a class verb taking a pin-class noun with a determiner from the class's list: ${m.sites.length}`,
+  );
+  for (const [det, n] of [...dets].sort((a, b) => b[1] - a[1])) {
+    console.log(`    ${JSON.stringify(det)} (${n})`);
+  }
+  console.log(
+    `  DIFF-TOUCH WORDINGS — a diff condition beside a class verb: ${m.wordings.length}`,
+  );
+  console.log(
+    `  RETIRED CLAIM FORMS in this tree — the scan's own verdict: ${hits.length}`,
+  );
+  for (const h of hits) console.log(`    ${h.line} — ${h.why}`);
+}
+
 /* The two carriers the instances are injected into. A claim's SHAPE decides where it
  * can live: a claim that is written in a comment marker is a CODE claim, and a claim
  * written in prose is a claim that can live anywhere. The carriers are COPIES of
@@ -969,6 +1124,54 @@ function selfTest() {
         fail(`the fixture is not clean before the injection (${clean.length} hit(s)) — the instance test would prove nothing`);
         return;
       }
+    }
+
+    // The MEASUREMENT must measure what the comments claim: a trigger line is FOUND, and
+    // it is classified with the key's OWN scope and marker sets. A mode that reported
+    // anything at all would satisfy a self-test that never looked at it (R7: a test
+    // that cannot fail proves nothing).
+    {
+      const { dir } = fixture(scratch);
+      const before = measure(dir);
+      if (before.triggers.length) {
+        fail(`the fixture carries ${before.triggers.length} trigger line(s) before the injection — the measurement test would prove nothing`);
+        return;
+      }
+      const scoped = "a diff that touches a submodule, a gitlink, or a pin: that repo's own pin gate.";
+      const marked =
+        "in every repo of the umbrella, run ./charly/bin/charly task verify whenever the diff touches a submodule.";
+      const dest = join(dir, "README.md");
+      writeFileSync(dest, `${readFileSync(dest, "utf8")}\n\n${scoped}\n${marked}\n`);
+      const after = measure(dir);
+      // the TRIGGER match ENDS at the pin-class noun, so the matched text is the
+      // condition and its object — the scope or marker can sit after it, and the
+      // classification is read over the whole STREAM LINE.
+      const scopedHit = after.triggers.find((t) => t.text.startsWith("a diff that touches a submodule"));
+      const markedHit = after.triggers.find((t) => t.text.includes("in every repo of the umbrella"));
+      if (!scopedHit || !scopedHit.scope || scopedHit.marker) {
+        fail(`the measurement does not classify a SCOPED trigger as scoped: ${JSON.stringify(scopedHit)}`);
+        return;
+      }
+      ok("the measurement finds a scoped trigger and classifies it with the key's own scope set");
+      if (!markedHit || markedHit.scope || !markedHit.marker) {
+        fail(`the measurement does not classify an ORG-WIDE trigger as a marker: ${JSON.stringify(markedHit)}`);
+        return;
+      }
+      ok("the measurement finds an org-wide trigger and classifies it with the key's own marker set");
+      if (after.triggers.length !== before.triggers.length + 2) {
+        fail(`the measurement does not find both trigger lines (${before.triggers.length} → ${after.triggers.length})`);
+        return;
+      }
+      if (after.sites.length !== before.sites.length + 2) {
+        fail(`the measurement does not report both class-verb sites (${before.sites.length} → ${after.sites.length})`);
+        return;
+      }
+      ok("the measurement reports the class-verb sites and their determiners");
+      if (after.wordings.length !== before.wordings.length + 2) {
+        fail(`the measurement does not count both diff-touch wordings (${before.wordings.length} → ${after.wordings.length})`);
+        return;
+      }
+      ok("the measurement counts the tree's diff-touch wordings");
     }
 
     // Every instance must be EFFECTIVE: injected into a copy of a tracked file, it turns
@@ -1052,6 +1255,8 @@ function selfTest() {
 
 if (argv.includes("--self-test")) {
   selfTest();
+} else if (argv.includes("--measure")) {
+  printMeasurement(root);
 } else {
   let hits;
   try {
