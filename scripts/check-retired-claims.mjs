@@ -390,9 +390,15 @@ const PATTERNS = [
     // ABSENCE of a scope word in the claim that carries it — which is why the qualified
     // rewrites below stay GREEN while the retired wording does not.
     //
-    // MEASURED: the umbrella's own tree names `./charly/bin/charly task …` in 15 places
-    // across 10 files, so a PATH-keyed class would cry wolf on the umbrella's own
-    // scripts. The trigger is the RULE, not the path; the path is in the instance.
+    // MEASURED on the umbrella's tree at e35485a (the base this change is written
+    // against — e35485adc1933d468d0d6ca3af66b82a1130df26): the prefix
+    // `./charly/bin/charly task` occurs in 22 places across 10 tracked files, so a
+    // PATH-keyed class would cry wolf on the umbrella's own scripts. The trigger is
+    // the RULE, not the path; the path is in the instance. The figure is pinned to
+    // an immutable commit — the tree grows under a moving reference — and the two
+    // commands that produce it are:
+    //   $ git grep -o "\./charly/bin/charly task" e35485a -- . ':!CHANGELOG' | wc -l
+    //   $ git grep -l "\./charly/bin/charly task" e35485a -- . ':!CHANGELOG' | wc -l
     //
     // "clone" is a scope word, but NOT in "clone-level": the hook is the clone-level
     // hook wherever it is installed, so that adjective says nothing about WHOSE clone
