@@ -37,8 +37,8 @@ defaults:
     registry: ghcr.io/opencharly
     # Build-speed tunables (see charly/charly.yml's own defaults for the rationale).
     jobs: 4
-    podman_jobs: 0
-    podman_jobs_cap: 8
+    stage_parallelism: 0
+    stage_parallelism_cap: 4
     # Keep the newest 3 distinct images (and at most 3 tags of each) per box after a
     # build. Without this the umbrella retained EVERY charly-labeled build image
     # indefinitely — 175 tagged images (27x arch, 27x cachyos, 27x arch-builder, ...)
