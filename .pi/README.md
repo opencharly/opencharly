@@ -46,7 +46,8 @@ nested level** — `charly`'s six `box/*` twins — materialized by the umbrella
 that post-condition (opencharly/opencharly#710). The currency report cannot SEE the absence: a
 twin's currency is judged from the twin's REMOTE alone and the report never asks whether the
 checkout EXISTS, so while that remote has not moved the twin reads `cur` and the report exits 0
-— MEASURED in the reproduced defect state (2026-10-26), `0 of 411 pin(s) NOT current [411 cur]`,
+— MEASURED in the reproduced defect state: `0 of 411 pin(s) NOT current [411 cur]`
+(2026-10-26) —
 the same verdict the healthy tree prints. The checkout is needed only to CLASSIFY a twin whose remote HAS
 moved, and only then does the report print
 `differs (no checkout of box/cachyos to judge ancestry)` — the twin's class left UNDETERMINED,
@@ -67,8 +68,8 @@ git -C <umbrella>/.worktrees/<slug> submodule update --init \
 ```
 
 Reap on landing: `charly_worktree_remove <slug>`; `charly task prune` reaps the worktrees and
-branches whose PR already merged (dry run by default — it reported 13 worktrees + 2 branches here,
-measured 2026-10-06).
+branches whose PR already merged (dry run by default — it reported 13 worktrees + 2 branches
+here (measured 2026-10-06)).
 
 Two measured NEGATIVES, recorded so they are not re-proposed:
 

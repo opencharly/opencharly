@@ -78,7 +78,7 @@ const GATE_SCRIPTS = [
  * report cannot SEE the absence: a twin's currency is judged from the twin's REMOTE
  * alone and the report never asks whether the checkout EXISTS, so while that remote
  * has not moved the twin reads `cur` and the report exits 0 (MEASURED in the
- * reproduced defect state: `0 of 411 pin(s) NOT current [411 cur]`). The checkout is
+ * reproduced defect state: `0 of 411 pin(s) NOT current [411 cur]` (2026-10-26)). The checkout is
  * needed only to CLASSIFY a twin whose remote HAS moved, and only then does the report
  * print `differs (no checkout of box/cachyos to judge ancestry)` — the twin's class
  * left UNDETERMINED — without the checkout the report cannot say whether the
@@ -448,7 +448,7 @@ export default function (pi: ExtensionAPI) {
         // absence: a twin's currency is judged from the twin's REMOTE alone and the
         // report never asks whether the checkout EXISTS, so while that remote has not
         // moved the twin reads `cur` and the report exits 0 (MEASURED in the reproduced
-        // defect state: `0 of 411 pin(s) NOT current [411 cur]`). The checkout is needed
+        // defect state: `0 of 411 pin(s) NOT current [411 cur]` (2026-10-26)). The checkout is needed
         // only to CLASSIFY a twin whose remote HAS moved, and only then does the report
         // print `differs (no checkout of box/cachyos to judge ancestry)` — the twin's
         // class left UNDETERMINED — without the checkout the report cannot say whether

@@ -22,7 +22,7 @@
 // has no parity burden — which is precisely what Part II #5's "no mirrors, no parity gate" is aimed at.
 // (The rule is not against bindings; it is against hand-maintained copies that drift.)
 //
-// MEASURED at the commit that first derived them (2026-10-16): 353 corpus skills across 41 families
+// MEASURED at the commit that first derived them (2026-10-16) — 353 corpus skills across 41 families
 // with no name collision, and 43 `marketplace/<family>/{skills,agents}` directories. The derivation
 // reproduced the hand-made farm EXACTLY — 0 entries only on disk, 0 only derivable, 0 with a different
 // target — and found exactly ONE defect in the hand-sorted list: `marketplace/pod/skills` was listed
