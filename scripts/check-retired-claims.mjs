@@ -377,6 +377,63 @@ const PATTERNS = [
     ],
     why: "the retired claim that the pin ADVANCE is a non-mutating kind (a preview, a dry run, a read-only report) — it advances EVERY declared pin, rolls the checkouts that exist and stages their gitlinks (opencharly/opencharly#501)",
   },
+  {
+    // THE CLASS: an ORG-WIDE rule that names ONE repo's command as the command a
+    // reader in ANY repo runs, with the repo's scope left unstated. The rulebook is
+    // read in every repo of the org, so a rule that says "run ./charly/bin/charly task
+    // verify" without saying "in the umbrella" is FALSE in every repo but one, and in
+    // opencharly/charly the same command exits 1 with `unknown task "verify"`.
+    //
+    // THE SCOPE WORD IS THE DISCRIMINATOR, and it is checked over the WHOLE CLAIM: a
+    // qualified wording says whose gate it is ("that repo's own", "the umbrella's
+    // own"), and an unqualified one says nobody's. So the pattern is the RULE plus the
+    // ABSENCE of a scope word in the claim that carries it — which is why the qualified
+    // rewrites below stay GREEN while the retired wording does not.
+    //
+    // MEASURED: the umbrella's own tree names `./charly/bin/charly task …` in 15 places
+    // across 10 files, so a PATH-keyed class would cry wolf on the umbrella's own
+    // scripts. The trigger is the RULE, not the path; the path is in the instance.
+    //
+    // "clone" is a scope word, but NOT in "clone-level": the hook is the clone-level
+    // hook wherever it is installed, so that adjective says nothing about WHOSE clone
+    // (and the retired wording itself carries it).
+    pattern:
+      "(?:^|\\n)(?![^\\n]*(?:\\b(?:umbrella|repo\\w*|own)\\b|\\bclone\\b(?!-level)))" +
+      "[^\\n]*?\\b(?:the diff touches|a diff that touches) an? (?:submodule|gitlink|pin)\\b",
+    instances: [
+      // the retired rulebook bullet
+      "`./charly/bin/charly task verify` whenever the diff touches a submodule, gitlink, or pin",
+    ],
+    counterInstances: [
+      // TRUE: the gate is the REPO's own, and the rule says whose
+      "a diff that touches a submodule, a gitlink, or a pin: that repo's own pin gate",
+      // TRUE: the same rule, qualified — the scope word carries the claim, and this
+      // one MATCHES the trigger, so it exercises the scope guard itself
+      "run the repo's own gate whenever the diff touches a submodule",
+    ],
+    why: "the retired ORG-WIDE rule that named the UMBRELLA's gate as the gate for any diff that touches a submodule, a gitlink or a pin, with no repo scope (opencharly/opencharly#648)",
+  },
+  {
+    // THE CLASS, TWIN: the same defect in the imperative voice — a rule that tells
+    // EVERY repo to run the UMBRELLA's command. The clone-level hook is the umbrella's
+    // own: a member repo has no `hooks/` and no such task, and the command it names is
+    // the umbrella's. Same discriminator, same scope guard.
+    pattern:
+      "(?:^|\\n)(?![^\\n]*(?:\\b(?:umbrella|repo\\w*|own)\\b|\\bclone\\b(?!-level)))" +
+      "[^\\n]*?\\binstall(?:s|ed|ing)? the clone-level hook\\b",
+    instances: [
+      // the retired Hooks-doctrine sentence
+      "Install the clone-level hook once with `./charly/bin/charly task hooks`",
+    ],
+    counterInstances: [
+      // TRUE: the hook is scoped to the umbrella's own clone
+      "The clone-level hook is the umbrella's own: install it once, in a clone of the umbrella, with `./charly/bin/charly task hooks`.",
+      // TRUE: the same rule, qualified — and this one MATCHES the trigger, so it
+      // exercises the scope guard itself
+      "the repo's own rule: install the clone-level hook once per clone",
+    ],
+    why: "the retired ORG-WIDE imperative that told EVERY repo to install the UMBRELLA's clone-level hook, with no repo scope (opencharly/opencharly#648)",
+  },
 ];
 
 const fail = (m) => {
