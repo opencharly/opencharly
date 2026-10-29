@@ -429,6 +429,21 @@ that repo's own `charly.yml` declares it, so its path and its task name are that
 - otherwise the gate that owns the change (`scripts/check-*.mjs`, the R10 bed), plus its
   changed paths executed live.
 
+**The `!` marker and the body's breaking-change answer are two halves of ONE question.**
+A subject that carries the Conventional Commits `!` marker (`chore(pins)!: …`) declares a
+**hard cutover** — the whole phase lands in one change, with no shim, no dual path and no
+follow-up (`/charly-internals:cutover-policy`). The body's `## Change classification`
+answers the other half: **what breaks for THIS repo's consumers, and how to roll it
+back**. So under a `!` the body MUST carry a `**Breaking change + rollback:**` line, and
+a bare `none` is not an answer — a cutover that breaks nothing HERE must say WHY it
+breaks nothing here (for example: *"none — the pointers move to commits the org has
+already merged"*). Without a `!` the line is optional, and a body that declares a
+breakage without the marker is judged on its own merits. The umbrella's own reconciler
+checks the relation mechanically: `scripts/check-pr-body-diff.mjs` reads the head's
+subject and the body's `## Change classification`, and blocks a bang-marked head whose
+body carries no answer, or a bare `none`. *Detail:*
+`/charly-internals:git-workflow`.
+
 A pasted commit id is quoted as the **40-character output of the command that produced
 it**. A prefix is quoted as a prefix, and never inside a fence that claims to be a
 command's output. A 40-character id that resolves in no object store this tree can see
