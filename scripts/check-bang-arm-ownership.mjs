@@ -38,6 +38,13 @@
 // The two arms are the two halves of ONE claim: "the canonical linter is the sole
 // implementation of the rule, and it enforces what this repo says it enforces."
 //
+// And a third check ties the ARMS to this repo's own PROSE: the `charly.yml` step
+// description that tells a reader what the self-test proves must name every
+// discrimination case the self-test exercises. The description is prose and the self-test
+// is a mechanism, and until now the two never compared themselves — a description that
+// enumerated two cases while the self-test proved three was nobody's error and everybody's
+// reading (opencharly/opencharly#811).
+//
 // A corpus that is NOT checked out (a light session worktree — Part II #2) makes ARM 2
 // SKIP VISIBLY. It never passes silently: the umbrella's own rulebook forbids a skip
 // nobody can see.
@@ -84,6 +91,31 @@ const RETIRED = [
   "changeClassification",
 ];
 const RETIRED_RE = new RegExp(`\\b(?:${RETIRED.join("|")})\\b`);
+
+// --- the discrimination cases, ONCE -----------------------------------------------
+//
+// The cases this gate's self-test exercises, and the phrases this repo's own `charly.yml`
+// step description must carry. The description is PROSE and the self-test is a MECHANISM,
+// and until now the two never met: the description read "a linter that refuses nothing and
+// a linter that refuses everything" while the self-test proved a THIRD case as well, and
+// nothing noticed — the description is read by a human, the self-test's output by a
+// machine, and the two never compared themselves. So they compare themselves HERE: one
+// list, one source, and the gate goes RED when the shipped description stops naming a case
+// the self-test still exercises.
+//
+// `scenario` is the phrase the DESCRIPTION must carry; `proven` is the sentence the
+// self-test prints when it has proven the case. They are deliberately separate — the
+// description is a summary and need not repeat the gate's whole sentence — but the
+// description must NAME the case, and the list says which case is which.
+const CASES = [
+  { id: "arm1-red", arm: "ARM 1", scenario: "a tree carrying a retired identifier", proven: "a tree carrying a retired identifier is RED" },
+  { id: "arm1-green", arm: "ARM 1", scenario: "a tree with no retired identifier", proven: "a tree with no retired identifier stays GREEN" },
+  { id: "arm2-refuses-nothing", arm: "ARM 2", scenario: "a linter that refuses nothing", proven: "a linter that refuses nothing is RED" },
+  { id: "arm2-refuses-everything", arm: "ARM 2", scenario: "a linter that refuses everything", proven: "a linter that refuses everything is RED" },
+  { id: "arm2-no-rule", arm: "ARM 2", scenario: "a linter that implements no marker rule at all", proven: "a linter that implements no marker rule at all is RED" },
+];
+/** The same list, keyed — the self-test names its case, so no case depends on its INDEX. */
+const CASE = Object.fromEntries(CASES.map((c) => [c.id, c]));
 
 /** The tracked FILES of a tree — gitlinks excluded: another repo's tree is not this repo's. */
 function trackedFiles(dir) {
@@ -269,6 +301,63 @@ function canonicalArm(linterPath, { quiet = false } = {}) {
   return { good, problems };
 }
 
+// --- the DESCRIPTION arm: the shipped step description names the cases it exercises ---
+
+/**
+ * The `check:` description of the step in `charly.yml` whose command runs THIS gate's
+ * self-test — the prose that tells a reader what the self-test proves. `null` when the
+ * manifest carries no such step.
+ */
+function selfTestDescription(dir) {
+  const manifest = join(dir, "charly.yml");
+  if (!existsSync(manifest)) return null;
+  const lines = readFileSync(manifest, "utf8").split("\n");
+  for (let i = 0; i < lines.length; i++) {
+    const cmd = lines[i].trim();
+    if (!cmd.startsWith("command:")) continue;
+    if (!cmd.includes(`${SELF_REL} --self-test`)) continue;
+    for (let k = i - 1; k >= 0; k--) {
+      const m = lines[k].match(/^\s*-\s+check:\s*(.+)$/);
+      if (m) return m[1].trim();
+      if (/^\s*-\s+[A-Za-z0-9_.-]+:/.test(lines[k])) return null; // a different step owns it
+    }
+  }
+  return null;
+}
+
+/** The cases the description fails to name. ONE implementation of the rule. */
+function descriptionProblems(description) {
+  return CASES.filter((c) => !description.includes(c.scenario)).map(
+    (c) => `the step's description does not name the ${c.arm} discrimination case "${c.scenario}"`,
+  );
+}
+
+function descriptionArm(dir) {
+  const description = selfTestDescription(dir);
+  if (description === null) {
+    if (!existsSync(join(dir, "charly.yml"))) {
+      skip("charly.yml is not present in this tree — the step description was NOT checked");
+      return true;
+    }
+    fail(
+      "charly.yml carries no step whose command runs this gate's self-test — the step description " +
+        "was NOT checked, so this arm proves nothing here",
+    );
+    return false;
+  }
+  const problems = descriptionProblems(description);
+  if (problems.length === 0) {
+    ok(
+      `the step's description names every discrimination case this gate's self-test exercises ` +
+        `(${CASES.length} case(s))`,
+    );
+    return true;
+  }
+  for (const p of problems) fail(p);
+  fail(`${problems.length} discrimination case(s) this gate's self-test exercises are missing from the step's description`);
+  return false;
+}
+
 // --- the self-test: every arm must be able to go RED (R7) ---------------------------
 
 function gitFixture(files) {
@@ -309,57 +398,90 @@ function selfTest() {
     scratchDirs.push(dirty);
     const dirtyHits = scanForRetired(dirty);
     if (dirtyHits.length === 0) {
-      fail("ARM 1 is VACUOUS: a tree carrying a retired identifier was scanned clean");
+      fail(`ARM 1 is VACUOUS: ${CASE["arm1-red"].scenario} was scanned clean`);
     } else {
-      ok(`ARM 1 discriminates: a tree carrying "${dirtyHits[0].text.slice(0, 60)}" is RED`);
+      ok(
+        `ARM 1 discriminates: ${CASE["arm1-red"].proven} — the tree carried ` +
+          `"${dirtyHits[0].text.slice(0, 60)}"`,
+      );
     }
 
     const clean = gitFixture({ "scripts/check-pr-body-diff.mjs": "export const arms = 44;\n" });
     scratchDirs.push(clean);
     if (scanForRetired(clean).length !== 0) {
-      fail("ARM 1 cries wolf: a tree with no retired identifier was scanned dirty");
+      fail(`ARM 1 cries wolf: ${CASE["arm1-green"].scenario} was scanned dirty`);
     } else {
-      ok("ARM 1 is sound: a tree with no retired identifier stays GREEN");
+      ok(`ARM 1 is sound: ${CASE["arm1-green"].proven}`);
     }
 
-    // ARM 2 discriminates: a linter that refuses nothing, and a linter that refuses
-    // everything, each turn the arm RED. Without both, the arm could not tell a pinned
-    // linter that enforces the rule from one that enforces nothing.
-    const silent = linterFixture("def bang_findings(section_lines, subject):\n    return []\n");
-    scratchDirs.push(silent.dir);
-    const silentRun = deliberateRed(() => canonicalArm(silent.path, { quiet: true }));
-    if (silentRun.good || !silentRun.caused) {
-      fail("ARM 2 is VACUOUS: a linter that refuses nothing was judged GREEN");
-    } else {
-      ok("ARM 2 discriminates: a linter that refuses nothing is RED");
+    // ARM 2 discriminates: a linter that refuses nothing, a linter that refuses
+    // everything, and a linter that implements NO marker rule at all — the shape this
+    // repo's own BASE pins — each turn the arm RED, and in its own words rather than in a
+    // traceback. Without all three, the arm could not tell a pinned linter that enforces
+    // the rule from one that enforces nothing, nor one that does not implement the rule
+    // at all.
+    const ARM2_FIXTURES = [
+      {
+        id: "arm2-refuses-nothing",
+        body: "def bang_findings(section_lines, subject):\n    return []\n",
+      },
+      {
+        id: "arm2-refuses-everything",
+        body: 'def bang_findings(section_lines, subject):\n    return ["stub: refused"]\n',
+      },
+      {
+        id: "arm2-no-rule",
+        body: "def subject_carries_marker(subject):\n    return False\n",
+      },
+    ];
+    for (const fixture of ARM2_FIXTURES) {
+      const stub = linterFixture(fixture.body);
+      scratchDirs.push(stub.dir);
+      const run = deliberateRed(() => canonicalArm(stub.path, { quiet: true }));
+      if (run.good || !run.caused) {
+        fail(`ARM 2 is VACUOUS: ${CASE[fixture.id].scenario} was judged GREEN`);
+      } else {
+        ok(`ARM 2 discriminates: ${CASE[fixture.id].proven}`);
+      }
     }
 
-    const deaf = linterFixture(
-      'def bang_findings(section_lines, subject):\n    return ["stub: refused"]\n',
-    );
-    scratchDirs.push(deaf.dir);
-    const deafRun = deliberateRed(() => canonicalArm(deaf.path, { quiet: true }));
-    if (deafRun.good || !deafRun.caused) {
-      fail("ARM 2 is VACUOUS: a linter that refuses everything was judged GREEN");
+    // The DESCRIPTION arm discriminates: the SHIPPED description names every case the
+    // self-test exercises, and a description with one case removed goes RED. A check that
+    // cannot fail reads GREEN forever, so the mutation IS the proof.
+    const shipped = selfTestDescription(join(here, ".."));
+    if (shipped === null) {
+      fail(
+        "the description arm is VACUOUS: charly.yml carries no step whose command runs this gate's " +
+          "self-test, so there is no shipped description to judge",
+      );
     } else {
-      ok("ARM 2 discriminates: a linter that refuses everything is RED");
-    }
-
-    // A linter that implements NO marker rule at all — the shape this repo's own BASE
-    // pins — is RED too, and in its own words rather than in a traceback.
-    const ruleless = linterFixture(
-      "def subject_carries_marker(subject):\n    return False\n",
-    );
-    scratchDirs.push(ruleless.dir);
-    const rulelessRun = deliberateRed(() => canonicalArm(ruleless.path, { quiet: true }));
-    if (rulelessRun.good || !rulelessRun.caused) {
-      fail("ARM 2 is VACUOUS: a linter that implements no marker rule was judged GREEN");
-    } else {
-      ok("ARM 2 discriminates: a linter that implements no marker rule at all is RED");
+      const missing = descriptionProblems(shipped);
+      if (missing.length !== 0) {
+        for (const p of missing) fail(`the shipped step description is short: ${p}`);
+        fail("the description arm is VACUOUS: the shipped description does not name every case");
+      } else {
+        ok(
+          `the description arm is sound: the shipped step description names all ${CASES.length} case(s) ` +
+            "the self-test exercises",
+        );
+      }
+      const dropped = CASE["arm2-no-rule"];
+      const mutated = shipped.replace(dropped.scenario, "a case the description does not carry");
+      if (mutated === shipped) {
+        fail(
+          `the description arm is VACUOUS: the mutation changed nothing — the shipped description does ` +
+            `not carry "${dropped.scenario}" for the mutation to remove`,
+        );
+      } else if (descriptionProblems(mutated).length === 0) {
+        fail("the description arm is VACUOUS: a description missing a case was judged GREEN");
+      } else {
+        ok(`the description arm discriminates: a description that omits "${dropped.scenario}" is RED`);
+      }
     }
 
     console.log(
-      `check-bang-arm-ownership --self-test: OK (${RETIRED.length} retired identifier(s), ${SHAPES.length} shape(s))`,
+      `check-bang-arm-ownership --self-test: OK (${RETIRED.length} retired identifier(s), ` +
+        `${SHAPES.length} shape(s), ${CASES.length} discrimination case(s))`,
     );
   } finally {
     for (const d of scratchDirs) rmSync(d, { recursive: true, force: true });
@@ -372,6 +494,7 @@ if (argv.includes("--self-test")) {
   selfTest();
 } else {
   ownershipArm(root);
+  descriptionArm(root);
 
   const linter = argVal("--linter") ?? join(root, "marketplace", "scripts", "pr_body_lint.py");
   if (!existsSync(linter)) {
