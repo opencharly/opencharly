@@ -652,8 +652,14 @@ verify:
       - check: the cited-version gate discriminates — a stale citation, an advanced pin and a moved owner each turn it RED, a version naming another module stays GREEN, a broken pin is RED, an unmaterialized checkout is a visible SKIP, and a tracked set over the old 1 MiB default is judged rather than fatal (fixtures)
         command: node scripts/check-cited-plugin-task-version.mjs --self-test
         context: [runtime]
-      - check: the body/diff reconciliation gate discriminates — a file table that omits a changed file, one that lists an unchanged file, a pasted `git rev-parse HEAD` that is not the head, a stale count of the diff's new files, a pasted evidence line that does not resolve in the tree being pushed, a pasted 40-character commit id that exists in no object store this tree can see and that the body attributes to one repository the tree can look in, a body whose fences do not pair, a body that hides a required section inside a fenced block, a body over the size cap, a bang-marked subject whose body carries no breaking-change answer, a bang-marked subject whose body answers with a bare `none`, and a diff that two diff algorithms count differently, each turn it RED (fixtures)
+      - check: the body/diff reconciliation gate discriminates — a file table that omits a changed file, one that lists an unchanged file, a pasted `git rev-parse HEAD` that is not the head, a stale count of the diff's new files, a pasted evidence line that does not resolve in the tree being pushed, a pasted 40-character commit id that exists in no object store this tree can see and that the body attributes to one repository the tree can look in, a body whose fences do not pair, a body that hides a required section inside a fenced block, a body over the size cap, and a diff that two diff algorithms count differently, each turn it RED (fixtures)
         command: node scripts/check-pr-body-diff.mjs --self-test
+        context: [runtime]
+      - check: the umbrella holds NO copy of the `!`-marker rule, and the PINNED corpus linter is the implementation that enforces it — none of the retired arm's five identifiers survives in the umbrella's tracked tree, and the pinned linter refuses every shape of silence this repo's prose names (no answer, a bare `none`, an EMPTY value) and accepts every shape it calls an answer (a reasoned `none`, a real answer, a head with no marker); an unmaterialized corpus is a visible SKIP (fixtures)
+        command: node scripts/check-bang-arm-ownership.mjs
+        context: [runtime]
+      - check: the marker-rule ownership gate discriminates — a tree carrying a retired identifier is RED and a clean tree stays GREEN, and a linter that refuses nothing and a linter that refuses everything each turn the parity arm RED (fixtures)
+        command: node scripts/check-bang-arm-ownership.mjs --self-test
         context: [runtime]
       - check: the pre-push body gate's FIRED assertions hold — a body whose fences do not pair, and a body over the size cap, are each BLOCKED at the push by a finding that names the cause (fixtures)
         command: node scripts/check-pr-body-gate.mjs

@@ -132,24 +132,6 @@
 //      checkout is not here — is REPORTED and not judged, because a false finding
 //      is worse than no report.
 //
-//   M. The head's SUBJECT's breaking-change marker and the body's ANSWER agree. The
-//      `!` on a subject says the change is part of a HARD CUTOVER (the org rulebook,
-//      `/charly-internals:cutover-policy`); the body's `## Change classification` says
-//      what breaks for THIS repo's consumers and how to roll it back. Under a `!` the
-//      answer is REQUIRED — a body that does not carry it leaves the merged changelog
-//      holding the subject and the body side by side, with one of them silent
-//      (opencharly/opencharly#802). Measured org-wide: of the 53 bang-marked merged
-//      pull requests in the scanned window, 51 carry NO answer at all; the two that
-//      do (opencharly/opencharly#801 and opencharly/plugin-box#66) both answer with a
-//      REASONED `none`, and not one of the 53 carries a bare `none` — so the bare
-//      `none` refusal below is PROPHYLACTIC: it forbids a shape the org has not yet
-//      written, because a rule has to hold before the first instance. A bare `none` is
-//      not an answer: a cutover that breaks nothing HERE must say WHY it breaks
-//      nothing here. The marker is read from the head's subject, which is the sentence
-//      the PR title carries: measured over the umbrella's last 24 merged pull
-//      requests, the title and the head subject agree on the MARKER in every one —
-//      although all 24 differ in wording, the merged subject carrying the pull
-//      request's number or the tag-on-merge rewording.
 //
 // NOT asserted, and why: whether the body's prose about a file is TRUE. A row that says
 // the README carries a change the README does not carry is a judgement, and judgement is
@@ -1197,124 +1179,6 @@ function checkSectionVisibility(body) {
   ok(`every required section the body carries is prose (${prose.size} section(s))`);
 }
 
-/**
- * The body's `## Change classification` section, as prose lines.
- *
- * The section is the body's own answer about the change's class. The arm below
- * reads ONE fact out of it: whether the body says what breaks for this repo's
- * consumers and how to roll it back. Fenced lines are dropped by `proseLines`, so a
- * heading quoted inside a fence is not a section.
- */
-function changeClassification(body) {
-  const lines = proseLines(body);
-  const start = lines.findIndex((l) => /^##\s+change classification\s*$/i.test(l.text));
-  if (start === -1) return null;
-  const out = [];
-  for (let i = start + 1; i < lines.length; i += 1) {
-    if (/^##\s+/.test(lines[i].text)) break;
-    out.push(lines[i]);
-  }
-  return out;
-}
-
-/**
- * The body's breaking-change ANSWER: the line under `## Change classification` that
- * OPENS with the key, so a prose mention of the words is not read as an answer.
- *
- * The key is the org's own — `**Breaking change + rollback:**` — the form the corpus's
- * refresh bot writes and the form the org rulebook names. The value is what follows
- * the first colon after the key.
- */
-function breakingChangeAnswer(body) {
-  const section = changeClassification(body);
-  if (section === null) return null;
-  for (const l of section) {
-    const m = /^\s*(?:[-*+]\s+)?\**\s*breaking change\b/i.exec(l.text);
-    if (!m) continue;
-    const after = l.text.slice(m.index + m[0].length);
-    const colon = after.indexOf(":");
-    const value = (colon === -1 ? after : after.slice(colon + 1)).trim();
-    return { line: l.n, value, text: l.text };
-  }
-  return null;
-}
-
-/**
- * The head's SUBJECT carries the breaking-change marker.
- *
- * Only the Conventional Commits HEADER is read — the part before the first colon —
- * because a subject's PROSE may carry a colon and a bang of its own: `docs: correct
- * the 2026.299.0822 entry's false clause about the FAIL: marker` is a documentation
- * fix, not a cutover. The marker sits at the END of the header, where Conventional
- * Commits puts it: `feat(scope)!: …`.
- */
-function subjectCarriesMarker(subject) {
-  const header = subject.split(":")[0];
-  return /!\s*$/.test(header);
-}
-
-/**
- * Is the answer a "none", and does it say WHY?
- *
- * "none" alone is not an answer under a marker: the merged changelog carries the
- * subject and the body side by side, and a bare "none" next to a `!` is exactly the
- * sentence a reader cannot resolve. "none — this change only carries another repo's
- * cutover" is an answer, because it names the reason. Returns "bare", "reasoned", or
- * null when the answer is not a "none" at all.
- */
-function noneAnswer(plain) {
-  const m = /^(none|no|nothing)\b/i.exec(plain);
-  if (!m) return null;
-  const rest = plain.slice(m[0].length).replace(/^[\s.,:;—–-]+/, "").trim();
-  return rest === "" ? "bare" : "reasoned";
-}
-
-/**
- * M. The head's subject's breaking-change marker and the body's ANSWER agree.
- *
- * The subject's `!` says this change is part of a HARD CUTOVER (the org rulebook,
- * `/charly-internals:cutover-policy`); the body's `## Change classification` says
- * what breaks for THIS repo's consumers and how to roll it back. Those are two
- * questions, and the second one has no answer in a body that does not carry it — so
- * a `!`-marked subject with no answer leaves the merged changelog holding two signals
- * and one of them silent (opencharly/opencharly#802).
- */
-function checkMarkerRelation(body, headRef) {
-  const subject = git("log", "-1", "--format=%s", headRef);
-  if (!subject) {
-    notice("the head's subject could not be read — the marker rule is inapplicable");
-    return;
-  }
-  const marked = subjectCarriesMarker(subject);
-  const answer = breakingChangeAnswer(body);
-  if (!marked) {
-    ok(
-      answer === null
-        ? "the head's subject carries no breaking-change marker and the body declares no breaking change"
-        : `the head's subject carries no breaking-change marker; the body's own answer (line ${answer.line}) stands on its own`,
-    );
-    return;
-  }
-  if (answer === null) {
-    fail(
-      `the head's subject carries the breaking-change marker (\`${subject}\`) and the body's ` +
-        `\`## Change classification\` carries NO breaking-change answer — the marker says this change is part ` +
-        `of a hard cutover, so the body must say what breaks for this repo's consumers and how to roll it back`,
-    );
-    return;
-  }
-  const plain = answer.value.replace(/[*_`]/g, "").trim();
-  if (noneAnswer(plain) === "bare") {
-    fail(
-      `the head's subject carries the breaking-change marker (\`${subject}\`) and the body's answer is a bare ` +
-        `\`none\` (line ${answer.line}) — a cutover that breaks nothing HERE must say WHY it breaks nothing here ` +
-        `(for example: this change only carries another repo's cutover)`,
-    );
-    return;
-  }
-  ok(`the head's subject carries the breaking-change marker and the body answers it (line ${answer.line})`);
-}
-
 function check() {
   if (!existsSync(bodyPath)) {
     notice(`no body at ${bodyPath} — nothing to reconcile`);
@@ -1350,11 +1214,6 @@ function check() {
 
   // ── S. the required sections are prose ───────────────────────────────────────────
   checkSectionVisibility(body);
-
-  // ── M. the subject's breaking-change marker and the body's answer ───────────────
-  // It reads the section the S arm just proved is prose, and the head's SUBJECT — the
-  // sentence that becomes the changelog's permanent heading.
-  checkMarkerRelation(body, headRef);
 
   // ── H. the pasted head evidence ───────────────────────────────────────────────────
   const heads = pastedHeads(body);
@@ -1532,22 +1391,6 @@ if (argv.includes("--self-test")) {
     writeFileSync(join(scratch, "msg.txt"), "other\n");
     g("commit", "-q", "-F", join(scratch, "msg.txt"));
     const otherHead = g("rev-parse", "HEAD").stdout.trim();
-    // A branch whose SUBJECT carries the breaking-change marker, with a tree that is
-    // IDENTICAL to the `feat` branch's — so every arm that reads the diff is green
-    // and the marker arm is the ONLY thing that differs between the two branches.
-    g("checkout", "-q", "-b", "bang", "main");
-    writeFileSync(join(repo, "a.txt"), "a2\n");
-    writeFileSync(join(repo, "c.txt"), "c\n");
-    writeFileSync(join(repo, "scripts/two.sh"), "#!/bin/sh\n");
-    mkdirSync(join(repo, "CHANGELOG"), { recursive: true });
-    writeFileSync(
-      join(repo, "CHANGELOG/2026.001.0001.md"),
-      "## Summary\n\nThe gate script `scripts/one.sh` grew by 2 lines.\n",
-    );
-    g("add", "-A");
-    writeFileSync(join(scratch, "msg.txt"), "feat!: the fixture's breaking change\n");
-    g("commit", "-q", "-F", join(scratch, "msg.txt"));
-    const bangHead = g("rev-parse", "HEAD").stdout.trim();
     g("checkout", "-q", "feat");
     // The checkout of the THIRD declared repository, made AFTER the commits, so git
     // never sees it: its `.git` file points at a gitdir that is not there, so the
@@ -1755,25 +1598,6 @@ function readCapBytes() {
       return { code: r.status, out: `${r.stdout ?? ""}${r.stderr ?? ""}` };
     };
     const arms = [
-      // M. A subject that carries the breaking-change marker, and a body that does
-      // not answer it. The body is the GREEN body of every other arm — only the
-      // branch (and so the head's subject) and the Change classification differ.
-      [
-        "a bang-marked subject whose body carries no breaking-change answer",
-        body(FULL_TABLE, bangHead, "Test fixture, not a real change."),
-        "carries NO breaking-change answer",
-        ["--head", "bang"],
-      ],
-      // M. The marker is present and the body answers — with a bare `none`. No org
-      // pull request produces that shape today (0 of the 53 measured), so the arm
-      // forbids a form the org has not yet written: a marker beside a sentence that
-      // leaves the reader without a reason.
-      [
-        "a bang-marked subject whose body answers with a bare none",
-        body(FULL_TABLE, bangHead, "**Breaking change + rollback:** none"),
-        "a bare `none`",
-        ["--head", "bang"],
-      ],
       [
         "the table omits a file the diff changes",
         body("| `a.txt` | a change |", head),
@@ -1986,18 +1810,6 @@ function readCapBytes() {
     // fires on a quoted directive or on an issue would be a gate nobody could push
     // through.
     const greenArms = [
-      // M. The marker is present, the body answers, and the answer carries the
-      // REASON it breaks nothing here — the shape a pointer advance that carries
-      // another repo's cutover must take.
-      [
-        "a bang-marked subject whose body answers with none AND the reason",
-        body(
-          FULL_TABLE,
-          bangHead,
-          "**Breaking change + rollback:** none — the fixture only carries another repo's cutover.",
-        ),
-        ["--head", "bang"],
-      ],
       // The same shape as the red case, with the id the SUBMODULE's own store holds:
       // the arm resolves it there, so the body stays green. This is the half that
       // proves the arm reads a submodule's store and not only this repo's — the id
