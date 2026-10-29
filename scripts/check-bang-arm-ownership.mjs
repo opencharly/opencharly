@@ -96,12 +96,18 @@ const RETIRED_RE = new RegExp(`\\b(?:${RETIRED.join("|")})\\b`);
 //
 // The cases this gate's self-test exercises, and the phrases this repo's own `charly.yml`
 // step description must carry. The description is PROSE and the self-test is a MECHANISM,
-// and until now the two never met: the description read "a linter that refuses nothing and
-// a linter that refuses everything" while the self-test proved a THIRD case as well, and
-// nothing noticed — the description is read by a human, the self-test's output by a
-// machine, and the two never compared themselves. So they compare themselves HERE: one
-// list, one source, and the gate goes RED when the shipped description stops naming a case
-// the self-test still exercises.
+// and until now the two never met: the description named only TWO of the THREE ARM 2
+// cases the self-test proves, and nothing noticed — the description is read by a human,
+// the self-test's output by a machine, and the two never compared themselves. So they
+// compare themselves HERE: one list, one source, and the gate goes RED when the shipped
+// description stops naming a case the self-test still exercises.
+//
+// The retired wording is NOT quoted here, and deliberately so: a quotation is a COPY of the
+// retired phrasing, and R5 deletes copies in the same phase that names the new wording.
+// This comment says HOW MANY cases the old description named; the CASE list below says
+// what each case is. (Round 1 of opencharly/opencharly#812 quoted the old phrasing here,
+// and the claim-keyed sweep could not see it — a retired phrasing that survives a line
+// break is invisible to a line-based grep, so the sweep was proof of nothing.)
 //
 // `scenario` is the phrase the DESCRIPTION must carry; `proven` is the sentence the
 // self-test prints when it has proven the case. They are deliberately separate — the
