@@ -443,8 +443,9 @@ breakage without the marker is judged on its own merits. The org's body linter c
 relation mechanically: the corpus's `scripts/pr_body_lint.py` — the umbrella reaches it as
 `marketplace/scripts/pr_body_lint.py` — reads the head's subject and the body's
 `## Change classification`, and reports a bang-marked head whose body carries no answer
-line at all, or a bare `none`. The umbrella's pre-push gate runs it, so a finding blocks
-the push before it can cost a review round. *Detail:*
+line at all, whose answer value is EMPTY, or whose answer is a bare `none`. The umbrella's
+pre-push gate runs it, so a finding blocks the push before it can cost a review round.
+*Detail:*
 `/charly-internals:git-workflow`.
 
 A pasted commit id is quoted as the **40-character output of the command that produced
