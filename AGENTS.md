@@ -435,13 +435,16 @@ A subject that carries the Conventional Commits `!` marker (`chore(pins)!: …`)
 follow-up (`/charly-internals:cutover-policy`). The body's `## Change classification`
 answers the other half: **what breaks for THIS repo's consumers, and how to roll it
 back**. So under a `!` the body MUST carry a `**Breaking change + rollback:**` line, and
-a bare `none` is not an answer — a cutover that breaks nothing HERE must say WHY it
-breaks nothing here (for example: *"none — the pointers move to commits the org has
-already merged"*). Without a `!` the line is optional, and a body that declares a
-breakage without the marker is judged on its own merits. The umbrella's own reconciler
-checks the relation mechanically: `scripts/check-pr-body-diff.mjs` reads the head's
-subject and the body's `## Change classification`, and blocks a bang-marked head whose
-body carries no answer, or a bare `none`. *Detail:*
+the line must CARRY AN ANSWER: a bare `none` is not an answer, and an EMPTY value is not
+an answer either — a cutover that breaks nothing HERE must say WHY it breaks nothing
+here (for example: *"none — the pointers move to commits the org has already
+merged"*). Without a `!` the line is optional, and a body that declares a
+breakage without the marker is judged on its own merits. The org's body linter checks the
+relation mechanically: the corpus's `scripts/pr_body_lint.py` — the umbrella reaches it as
+`marketplace/scripts/pr_body_lint.py` — reads the head's subject and the body's
+`## Change classification`, and reports a bang-marked head whose body carries no answer
+line at all, or a bare `none`. The umbrella's pre-push gate runs it, so a finding blocks
+the push before it can cost a review round. *Detail:*
 `/charly-internals:git-workflow`.
 
 A pasted commit id is quoted as the **40-character output of the command that produced
