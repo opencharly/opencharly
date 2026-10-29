@@ -730,6 +730,54 @@ const PATTERNS = [
     ],
     why: "the retired ORG-WIDE imperative that told EVERY repo to install the UMBRELLA's clone-level hook, with no repo scope (opencharly/opencharly#648)",
   },
+  {
+    // THE CLASS: a claim that the `!`-marker gate's parity arm refuses on TWO shapes.
+    // The truth: it refuses on THREE — the gate's own case list names all three, and
+    // its ARM 2 goes RED on each of them. The retired wording named only the first
+    // two, joined by "and", so it read as the COMPLETE enumeration of the shapes that
+    // turn the parity arm RED.
+    //
+    // WHY THIS CLASS WAS WORTH KEYING, and not just deleted in one PR: the wording was
+    // retired by opencharly/opencharly#812, and the change that retired it QUOTED it in
+    // the gate's own explanatory comment — split across two lines, behind a comment
+    // marker, which is exactly where a LINE-oriented sweep cannot see it (MEASURED: the
+    // line-based sweep in #812's own body reported 0 on a tree that carried the copy).
+    // A retired wording that comes back in a comment comes back in a comment, so the
+    // class needs a COMMITTED key — which is what this file is for.
+    //
+    // The shape is the TWO shapes' ADJACENCY: the pair joined by "and", with no third
+    // shape between them. The THIRD shape is the GUARD, and it stands on BOTH sides of
+    // the pair, because a claim that names the third shape is TRUE — the parity arm
+    // really does refuse on it — whatever order it names it in. The counter-instances
+    // below are those TRUE wordings, in all three orders: the shipped comma-separated
+    // one, the "and"-joined one, and the third-shape-first one. A key that cries wolf
+    // on a true wording is a gate that gets switched off.
+    pattern:
+      "a linter that refuses nothing and a linter that refuses everything" +
+      "(?<![^\\n]*a linter that implements no marker rule at all[^\\n]*)" +
+      "(?![^\\n]*a linter that implements no marker rule at all)",
+    instances: [
+      // the retired description's own ARM 2 clause, as it shipped
+      "a linter that refuses nothing and a linter that refuses everything each turn the parity arm RED",
+      // the SAME wording WRAPPED across a comment marker — the shape a line-oriented
+      // sweep cannot see, and the shape the class was written in
+      "# a linter that refuses nothing and a linter\n# that refuses everything each turn the parity arm RED",
+      // the copy that actually landed in opencharly/opencharly#812: the retired clause
+      // QUOTED inside the gate's own explanatory comment
+      "the description read \"a linter that refuses nothing and a linter that refuses everything\" while the self-test proved a THIRD case as well",
+    ],
+    counterInstances: [
+      // TRUE: the shipped description names all THREE shapes, comma-separated
+      "a linter that refuses nothing, a linter that refuses everything, and a linter that implements no marker rule at all each turn the parity arm RED (fixtures)",
+      // TRUE: the same three shapes joined with "and" — the pair is ADJACENT here too,
+      // and the third shape stands AFTER it
+      "a linter that refuses nothing and a linter that refuses everything and a linter that implements no marker rule at all each turn the parity arm RED",
+      // TRUE: the same three shapes with the third one FIRST — the pair is adjacent and
+      // the third shape stands BEFORE it, which is why the guard is on both sides
+      "a linter that implements no marker rule at all, a linter that refuses nothing and a linter that refuses everything",
+    ],
+    why: "the retired TWO-shape ARM 2 enumeration — the parity arm refuses on THREE shapes, so a copy of the two-shape form reads as the complete one (opencharly/opencharly#812)",
+  },
 ];
 
 const fail = (m) => {
