@@ -32,6 +32,9 @@
 //     shape the prose calls an answer. A prose that outruns its enforcement is the same
 //     defect the review found, in the other direction, and it is RED here.
 //
+//     A linter that implements NO marker rule at all is RED too — the rule is simply
+//     unenforced there — and the arm says so in its own words, not in a traceback.
+//
 // The two arms are the two halves of ONE claim: "the canonical linter is the sole
 // implementation of the rule, and it enforces what this repo says it enforces."
 //
@@ -169,11 +172,17 @@ spec = importlib.util.spec_from_file_location("charly_pr_body_lint", sys.argv[1]
 mod = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(mod)
 cases = json.load(sys.stdin)
+# A linter that does not implement the marker rule AT ALL is a RED, not a crash: the
+# rule is simply not enforced there, and the arm has to say so in its own words.
+fn = getattr(mod, "bang_findings", None)
+if fn is None:
+    json.dump({"implemented": False, "results": []}, sys.stdout)
+    raise SystemExit(0)
 out = []
 for c in cases:
-    findings = mod.bang_findings(c["section"], c["subject"])
+    findings = fn(c["section"], c["subject"])
     out.append({"name": c["name"], "count": len(findings), "first": findings[0] if findings else ""})
-json.dump(out, sys.stdout)
+json.dump({"implemented": True, "results": out}, sys.stdout)
 `;
 
 /** Run the pinned linter's rule over the shapes; returns the per-shape finding counts. */
@@ -214,15 +223,26 @@ function ownershipArm(dir) {
 
 function canonicalArm(linterPath, { quiet = false } = {}) {
   const problems = [];
-  let results;
+  let probed;
   try {
-    results = probeLinter(linterPath);
+    probed = probeLinter(linterPath);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     problems.push(msg);
     if (!quiet) fail(msg);
     return { good: false, problems };
   }
+  if (!probed.implemented) {
+    // The linter this repo pins implements no marker rule at all. That is the rule being
+    // UNENFORCED here, and it is RED in its own words — not a traceback, and not a skip.
+    const msg =
+      "the pinned linter does not implement the `!`-marker rule at all — it exposes no `bang_findings`, " +
+      "so nothing enforces the marker relation in this tree";
+    problems.push(msg);
+    if (!quiet) fail(msg);
+    return { good: false, problems };
+  }
+  const results = probed.results;
   let good = true;
   for (const shape of SHAPES) {
     const got = results.find((r) => r.name === shape.name);
@@ -323,6 +343,19 @@ function selfTest() {
       fail("ARM 2 is VACUOUS: a linter that refuses everything was judged GREEN");
     } else {
       ok("ARM 2 discriminates: a linter that refuses everything is RED");
+    }
+
+    // A linter that implements NO marker rule at all — the shape this repo's own BASE
+    // pins — is RED too, and in its own words rather than in a traceback.
+    const ruleless = linterFixture(
+      "def subject_carries_marker(subject):\n    return False\n",
+    );
+    scratchDirs.push(ruleless.dir);
+    const rulelessRun = deliberateRed(() => canonicalArm(ruleless.path, { quiet: true }));
+    if (rulelessRun.good || !rulelessRun.caused) {
+      fail("ARM 2 is VACUOUS: a linter that implements no marker rule was judged GREEN");
+    } else {
+      ok("ARM 2 discriminates: a linter that implements no marker rule at all is RED");
     }
 
     console.log(
