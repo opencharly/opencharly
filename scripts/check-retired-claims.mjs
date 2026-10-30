@@ -98,11 +98,13 @@
 //
 // usage: node scripts/check-retired-claims.mjs [--root <dir>] [--self-test] [--measure]
 
-import { execFileSync, spawnSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+
+import { trackedFiles } from "./lib/tracked-tree.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const SELF_REL = "scripts/check-retired-claims.mjs";
@@ -113,14 +115,9 @@ const root = rootIdx === -1 ? resolve(here, "..") : resolve(argv[rootIdx + 1]);
 /* The tracked set's own `git ls-files -s -z` grows with the repo, and the default
  * 1 MiB exec buffer throws ENOBUFS on a large tree — a gate that stops judging is a
  * gate that fails silently. ONE ceiling, raised ONCE, and no call may set another
- * (R2: one canonical implementation per behaviour). The ceiling is placed AFTER the
- * spread, so a caller's own `maxBuffer` cannot replace it. */
-const MAX_EXEC_BYTES = 64 * 1024 * 1024;
+ * (R2: one canonical implementation per behaviour): the ceiling now lives with the
+ * walk it belongs to, in scripts/lib/tracked-tree.mjs. */
 
-/** Every git call goes through here, so the ceiling above is raised ONCE. */
-function gitOut(args, opts = {}) {
-  return execFileSync("git", args, { ...opts, maxBuffer: MAX_EXEC_BYTES });
-}
 
 // WHY A STATED SCOPE, NOT A STRAY WORD (opencharly/opencharly#775 — the missed
 // control, and the root fix that closes it): a claim that STATES whose gate or hook it
@@ -786,27 +783,13 @@ const fail = (m) => {
 };
 const ok = (m) => console.log(`  PASS  ${m}`);
 
-/**
- * The tracked REGULAR files of a tree — derived from the INDEX, never hand-kept.
- *
- *   - a gitlink (mode 160000) is another repo's content, and is skipped;
- *   - a symlink (mode 120000) is skipped too: every tracked symlink in this umbrella
- *     points into `marketplace/`, another repo, whose prose is not the umbrella's claim
- *     to judge (SCOPE, above).
- */
-function trackedFiles(rootDir) {
-  const raw = gitOut(["ls-files", "-s", "-z"], { cwd: rootDir, encoding: "utf8" });
-  const out = [];
-  for (const rec of raw.split("\0")) {
-    if (!rec) continue;
-    const tab = rec.indexOf("\t");
-    if (tab === -1) continue;
-    const mode = rec.slice(0, tab).split(" ")[0];
-    if (mode === "160000" || mode === "120000") continue;
-    out.push(rec.slice(tab + 1));
-  }
-  return out;
-}
+/* The tracked REGULAR files of a tree — derived from the INDEX, never hand-kept —
+ * live in scripts/lib/tracked-tree.mjs, the ONE implementation of that walk (R2).
+ * This gate used to carry its own copy, and the umbrella's copies had DRIFTED: one of
+ * them read through a symlink and judged another repo's content under this repo's
+ * rulebook. A copy of a walk is a walk with two homes, and the second home is the one
+ * that forgets an exclusion. The scope of the walk — a gitlink is another repo's tree,
+ * a symlink is another path's content — is stated in the library's header. */
 
 /** A file's WORKING-TREE text, or null when it is unreadable or binary. */
 function readText(abs) {
