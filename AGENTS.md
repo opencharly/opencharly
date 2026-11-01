@@ -777,6 +777,13 @@ Before declaring completion, answer every applicable item YES. There is one line
       how to proceed, instead of narrating an ending. The round driver blocks hard at the
       cap and **disarms** the goal with no warning phase (`round-limit`).
 
+    - **A disarmed-but-active goal means the REARM is broken — say so; do not ask the
+      operator for a word.** Activation is process-local and never persisted
+      (`@deepseek-ai/dsh-goal/README.md:99`), and positive rounds advance only on
+      goal-sourced `user/message` events (`:100`) — the same event the org plugin's
+      re-arm seam keys on. So an `active` goal whose continuation was armed but which
+      reads `disarmed` is a defect in the re-arm, not a request for consent.
+
     *Detail:* `/charly-internals:agents` (goal budget).
 
 11. **Keep other sessions informed.** *(R6)* Coordination is a duty you perform, not
