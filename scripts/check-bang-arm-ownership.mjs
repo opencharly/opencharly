@@ -52,11 +52,13 @@
 // Usage: node scripts/check-bang-arm-ownership.mjs [--root <dir>] [--linter <path>] [--self-test]
 // exit 0 clean · 1 finding
 
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+
+import { gitFixture, trackedFiles } from "./lib/tracked-tree.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const argv = process.argv.slice(2);
@@ -129,24 +131,6 @@ const CASES = [
 /** The same list, keyed — the self-test names its case, so no case depends on its INDEX. */
 const CASE = Object.fromEntries(CASES.map((c) => [c.id, c]));
 
-/** The tracked FILES of a tree — gitlinks excluded: another repo's tree is not this repo's. */
-function trackedFiles(dir) {
-  const out = spawnSync("git", ["-C", dir, "ls-files", "-s", "-z"], {
-    encoding: "utf8",
-    maxBuffer: 64 * 1024 * 1024,
-  });
-  if (out.status !== 0) throw new Error(`git ls-files failed in ${dir}: ${out.stderr}`);
-  const files = [];
-  for (const rec of out.stdout.split("\0")) {
-    if (!rec) continue;
-    const tab = rec.indexOf("\t");
-    if (tab === -1) continue;
-    if (rec.slice(0, tab).split(/\s+/)[0] === "160000") continue;
-    files.push(rec.slice(tab + 1));
-  }
-  return files;
-}
-
 /** Every surviving occurrence of a retired identifier in the tree's own tracked files. */
 function scanForRetired(dir) {
   const hits = [];
@@ -200,7 +184,12 @@ const SHAPES = [
   {
     name: "a real answer",
     subject: "feat(scope)!: a hard cutover",
-    section: ["**Breaking change + rollback:** the flag moves from `--podman-jobs` to `--stage-parallelism`"],
+    // The example names NO withdrawn identifier: this repo's tree is swept against the
+    // contract's list of withdrawn names, and a fixture that spelled one would make
+    // the umbrella's own gate RED on the umbrella's own tree (the retired-identifier
+    // sweep, opencharly/opencharly#799). The shape is what the probe needs — an answer
+    // that names what moved — and the names in it are illustrative.
+    section: ["**Breaking change + rollback:** the flag moves from `--old-flag` to `--new-flag`"],
     refuse: false,
   },
   {
@@ -371,18 +360,6 @@ function descriptionArm(dir) {
 }
 
 // --- the self-test: every arm must be able to go RED (R7) ---------------------------
-
-function gitFixture(files) {
-  const dir = mkdtempSync(join(tmpdir(), "charly-bang-fixture-"));
-  spawnSync("git", ["-C", dir, "init", "-q"], { encoding: "utf8" });
-  for (const [rel, content] of Object.entries(files)) {
-    const abs = join(dir, rel);
-    mkdirSync(dirname(abs), { recursive: true });
-    writeFileSync(abs, content);
-  }
-  spawnSync("git", ["-C", dir, "add", "-A"], { encoding: "utf8" });
-  return dir;
-}
 
 function linterFixture(body) {
   const dir = mkdtempSync(join(tmpdir(), "charly-bang-linter-"));
