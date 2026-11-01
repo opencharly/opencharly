@@ -29,6 +29,12 @@
 // The canonical list lives HERE, in the gate, and is not derived from any of the copies:
 // a copy that drifts is a finding, not the new truth.
 //
+// The TRACKED SET this gate sweeps is the library's (`scripts/lib/tracked-tree.mjs`): what a
+// tracked file IS, and which tracked files are this repo's own to judge, are stated once
+// there. This gate narrows what it judges — its own CHANGELOG/ exclusion, its own extra
+// surfaces — and it does not re-answer the walk (R2). Its fixtures are real git trees
+// through the same library, so the self-test exercises the walk production takes.
+//
 // A surface that is not checked out (a submodule in a session worktree) SKIPS visibly;
 // a silent pass is forbidden. A surface whose file IS present but whose locator no longer
 // matches FAILS: a copy that changed shape must be noticed, not skipped.
@@ -40,11 +46,13 @@
 // checks, FROM THE OUTSIDE, that the child left no fixture directory behind. The child
 // mode is `--self-test-arms`; it is internal, and the observer is what calls it.
 
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+
+import { gitTrackTree, trackedFiles } from "./lib/tracked-tree.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const argv = process.argv.slice(2);
@@ -374,27 +382,12 @@ function lineOf(text, offset) {
 /** The files this gate reads: the repo's own tracked files, plus every surface's file. */
 export function scanFiles(dir) {
   const files = new Set();
-  const tracked = spawnSync("git", ["-C", dir, "ls-files", "-z"], { encoding: "utf8" });
-  if (tracked.status === 0) {
-    for (const f of tracked.stdout.split("\0")) {
-      if (!f || f.startsWith("CHANGELOG/")) continue;
-      try {
-        if (statSync(join(dir, f)).isFile()) files.add(f);
-      } catch {
-        /* a gitlink whose target is not checked out */
-      }
-    }
-  } else {
-    // Not a git repository — the self-test's fixture. Walk it instead.
-    const walk = (d, prefix) => {
-      for (const entry of readdirSync(d, { withFileTypes: true })) {
-        if (entry.name === ".git" || entry.name === "node_modules" || entry.name === "CHANGELOG") continue;
-        const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
-        if (entry.isDirectory()) walk(join(d, entry.name), rel);
-        else if (entry.isFile()) files.add(rel);
-      }
-    };
-    walk(dir, "");
+  // The tracked set, and the rule of what a tracked file IS, come from the library that
+  // owns them (R2) — this gate narrows what it judges (its own CHANGELOG/ exclusion,
+  // its own extra surfaces) but it does not re-answer the walk.
+  for (const rel of trackedFiles(dir)) {
+    if (rel.startsWith("CHANGELOG/")) continue; // history
+    files.add(rel);
   }
   for (const s of SURFACES) files.add(s.file);
   return [...files];
@@ -515,6 +508,11 @@ function selfTest() {
       mkdirSync(join(d, "scripts"), { recursive: true });
       writeFileSync(join(d, "scripts/check-opencode-coord.mjs"), pluginGate(set));
     };
+    // A fixture is a TRACKED git tree, because the sweep reads the tracked set through
+    // git: a plain directory would prove the matcher and not the walk, and the walk is
+    // what this gate changed (R7). The tree is made AFTER every file is written —
+    // including the ones an arm mutates in — so the arm's copy is tracked too.
+    const track = (d) => gitTrackTree(d);
     const cases = [
       ["the canonical set", CANONICAL.join(" · "), true],
       ["a set that lost CLEARED", CANONICAL.filter((l) => l !== "CLEARED").join(" · "), false],
@@ -527,6 +525,7 @@ function selfTest() {
       const d = mkdtempSync(join(tmpdir(), "check-coord-verb-set-case-"));
       try {
         writeFixture(d, set);
+        track(d);
         const r = spawnSync(process.execPath, [fileURLToPath(import.meta.url), "--root", d], {
           encoding: "utf8",
         });
@@ -571,6 +570,7 @@ function selfTest() {
         const set = CANONICAL.join(" · ");
         writeFixture(d, set);
         mutate(d, set);
+        track(d);
         const r = spawnSync(process.execPath, [fileURLToPath(import.meta.url), "--root", d], {
           encoding: "utf8",
         });
@@ -594,6 +594,7 @@ function selfTest() {
         const set = CANONICAL.join(" · ");
         writeFixture(d, set);
         writeFileSync(join(d, "NOTES.md"), "# notes\n\nA comment may open with CLAIM, OWNING or STATUS.\n");
+        track(d);
         const r = spawnSync(process.execPath, [fileURLToPath(import.meta.url), "--root", d], {
           encoding: "utf8",
         });
@@ -649,6 +650,7 @@ function selfTest() {
           writeFixture(d, CANONICAL.join(" · "));
           mkdirSync(join(d, dirname(refFile)), { recursive: true });
           writeFileSync(join(d, refFile), coordRef(alternation));
+          track(d);
           const r = spawnSync(process.execPath, [fileURLToPath(import.meta.url), "--root", d], {
             encoding: "utf8",
           });

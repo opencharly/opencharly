@@ -34,7 +34,9 @@
 //      from the pinned commit (the gitlink the index records), never transcribed here.
 //   C. COVERAGE: the scan is derived from the tracked file set — never a hand-kept
 //      list, because a list of files is itself a claim about a collection that grows —
-//      and it skips the gitlinks (another repo's content) and `CHANGELOG/` (history is
+//      and it skips the gitlinks (another repo's content), the symlinks (another
+//      PATH's content — the umbrella's own `.dsh/skills/*` farm points into the
+//      corpus, which has its own gate) and `CHANGELOG/` (history is
 //      immutable, and a changelog entry may name any old version). A citation is a
 //      version literal on a line that NAMES plugin-task; a line naming a different
 //      module is not a citation of this one, so the plugin-candy example in the
@@ -83,11 +85,13 @@
 // Usage: node scripts/check-cited-plugin-task-version.mjs [--root <dir>] [--self-test]
 // exit 0 clean · 1 finding
 
-import { readFileSync, statSync, writeFileSync, mkdtempSync, mkdirSync, rmSync } from "node:fs";
+import { readFileSync, statSync, writeFileSync, mkdtempSync, mkdirSync, rmSync, symlinkSync } from "node:fs";
 import { execFileSync, spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+
+import { textFromBytes, trackedFiles } from "./lib/tracked-tree.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const argv = process.argv.slice(2);
@@ -148,22 +152,6 @@ function citationsIn(text) {
   return out;
 }
 
-/** The tracked REGULAR files of this repo — derived from the index, never hand-kept.
- *  A gitlink is another repo's content, and is skipped. */
-function trackedFiles(rootDir) {
-  const raw = gitOut(["ls-files", "-s", "-z"], { cwd: rootDir, encoding: "utf8" });
-  const out = [];
-  for (const rec of raw.split("\0")) {
-    if (!rec) continue;
-    const tab = rec.indexOf("\t");
-    if (tab === -1) continue;
-    const mode = rec.slice(0, tab).split(" ")[0];
-    if (mode === "160000") continue;
-    out.push(rec.slice(tab + 1));
-  }
-  return out;
-}
-
 /** The files whose WORKING-TREE copy differs from the INDEX copy. For these the
  *  index is the tree a commit ships, so the index is the tree that is judged. */
 function differingFiles(rootDir) {
@@ -202,8 +190,7 @@ function indexContent(rootDir, rel) {
     return null;
   }
   if (buf.length > MAX_BYTES) return null;
-  if (buf.includes(0)) return null; // binary
-  return buf.toString("utf8");
+  return textFromBytes(buf);
 }
 
 /** The content this gate judges for a path: the INDEX's copy where the worktree and
@@ -225,8 +212,7 @@ function contentOf(rootDir, rel, differing) {
   } catch {
     return null;
   }
-  if (buf.includes(0)) return null; // binary
-  return buf.toString("utf8");
+  return textFromBytes(buf);
 }
 
 /** Every plugin-task version the umbrella's own prose cites. `overrides` replaces a
@@ -505,6 +491,20 @@ function bigTrackedSetFixture() {
   return dir;
 }
 
+/** A fixture repo whose tracked set carries a SYMLINK to a file that cites a version:
+ *  the shape of the umbrella's own `.dsh/skills/*` farm, whose links point into the
+ *  corpus — another repo's tree, with its own gate. A symlink is another PATH's
+ *  content, so this repo's rule does not judge what it points at, and the FILE it
+ *  points at is still judged on its own. Returns what the scan finds there, so the
+ *  self-test can prove the link is not read THROUGH. */
+function symlinkCitationFixture(staleVersion) {
+  const { dir, git } = fixtureRepo("symlink");
+  writeFileSync(join(dir, "target.md"), `# a citation of plugin-task\nplugin-task ${staleVersion}\n`);
+  symlinkSync("target.md", join(dir, "link.md"));
+  git("add", "-A");
+  return scanCitations(dir);
+}
+
 /** The gate's own exit code and output on a fixture tree, run as a SUBPROCESS so the
  *  whole gate is exercised the way the verify task runs it. */
 function gateOn(rootDir) {
@@ -589,6 +589,28 @@ if (selfTest) {
         `  FAIL  the version shape — ${why}: ${v} was ${matched ? "matched" : "not matched"}, expected ${want ? "matched" : "not matched"}`,
       );
     }
+  }
+
+  // C. The SYMLINK exclusion, proved by a fixture that CAN fail: a tracked symlink
+  //    points at a file that cites a version, and the scan must report the FILE and
+  //    NOT the link. Before the walk was the library's, the link was walked and read
+  //    THROUGH, so the link's own copy of the citation was reported too — one
+  //    citation counted twice, and a second repo's content judged under this repo's
+  //    rulebook. The assertion names the FILE SET, so it cannot pass on a vacuous
+  //    scan, and the version it writes is the PINNED one — the assertion is about
+  //    which files are read, not about which version is current.
+  const linkCitations = symlinkCitationFixture(pinned.version);
+  const linkFiles = linkCitations.map((c) => c.file).sort();
+  const linkWanted = ["target.md"];
+  if (JSON.stringify(linkFiles) === JSON.stringify(linkWanted)) {
+    console.log(
+      `  PASS  a symlink is not read THROUGH — the citation is reported for the file (${linkWanted.join(", ")}), not for the link that points at it`,
+    );
+  } else {
+    stFails += 1;
+    console.error(
+      `  FAIL  a symlink is read THROUGH — the scan reported [${linkFiles.join(", ")}], expected [${linkWanted.join(", ")}]`,
+    );
   }
 
   // V, mutation 1: THE DEFECT THIS GATE EXISTS FOR — a citation naming a version the

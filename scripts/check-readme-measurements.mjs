@@ -64,11 +64,11 @@
 //                                                 [--self-test]
 // exit 0 clean · 1 finding
 
-import { mkdtempSync, readFileSync, writeFileSync, mkdirSync, lstatSync } from "node:fs";
-import { execFileSync } from "node:child_process";
-import { tmpdir } from "node:os";
+import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+
+import { readTextFile, trackedFiles } from "./lib/tracked-tree.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const argv = process.argv.slice(2);
@@ -105,12 +105,10 @@ function collapse(text) {
   return { text: out, lineOf, lines };
 }
 
+/** A file's text, or null when it is unreadable or not prose — the library's one
+ *  reading rule, so a file is read the same way everywhere in this repo (R2). */
 function read(rootDir, rel) {
-  try {
-    return readFileSync(join(rootDir, rel), "utf8");
-  } catch {
-    return null;
-  }
+  return readTextFile(join(rootDir, rel));
 }
 
 // --- the table's rows ---------------------------------------------------------
@@ -324,44 +322,22 @@ function normaliseEmphasis(text) {
 // at all, and the allowlist skipped it in silence. The set is the FILE SET, and
 // the file set is derived, never written down.
 
-/** A tracked file's text, or null when the file is not text. A NUL byte is
- *  git's own signal for binary, and a binary file carries no prose. */
-function readTextSurface(path) {
-  let buf;
-  try {
-    buf = readFileSync(path);
-  } catch {
-    return null;
-  }
-  if (buf.includes(0)) return null;
-  return buf.toString("utf8");
-}
-
-/** The umbrella's own prose and script surfaces, read from the tracked file set. */
+/** The umbrella's own prose and script surfaces, read from the tracked file set.
+ *
+ *  The FILE SET is the library's — `trackedFiles` — so the gitlink and symlink
+ *  exclusions are the umbrella's one rule and not this gate's (R2). What this gate
+ *  adds is its OWN narrowing: `CHANGELOG/` is history, not prose it judges. */
 function listShapeSurfaces(rootDir) {
-  let listing;
+  let files;
   try {
-    listing = execFileSync("git", ["-C", rootDir, "ls-files", "-s", "-z"], { encoding: "utf8" });
+    files = trackedFiles(rootDir);
   } catch (e) {
-    return { surfaces: [], error: `the tracked file set could not be read — git failed in ${rootDir}: ${e.message}` };
+    return { surfaces: [], error: `the tracked file set could not be read — ${e.message}` };
   }
   const surfaces = [];
-  for (const entry of listing.split("\0")) {
-    if (!entry) continue;
-    const tab = entry.indexOf("\t");
-    if (tab === -1) continue;
-    const file = entry.slice(tab + 1);
-    if (entry.slice(0, tab).slice(0, 6) === "160000") continue;   // a gitlink
+  for (const file of files) {
     if (file.startsWith("CHANGELOG/")) continue;                    // history
-    const path = join(rootDir, file);
-    let st;
-    try {
-      st = lstatSync(path);
-    } catch {
-      continue;
-    }
-    if (st.isSymbolicLink()) continue;                             // a projection
-    const text = readTextSurface(path);
+    const text = readTextFile(join(rootDir, file));
     if (text === null) continue;                                   // not text
     surfaces.push({ file, text });
   }

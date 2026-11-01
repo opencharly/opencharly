@@ -74,10 +74,12 @@
 // is a path only when a pattern was given BEFORE it.
 
 import { execFileSync, spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync, mkdirSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync, writeFileSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+
+import { readTextFile, trackedFiles } from "./lib/tracked-tree.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const argv = process.argv.slice(2);
@@ -402,31 +404,15 @@ function scanText(rel, text) {
   return findings;
 }
 
-// The umbrella's tracked files, as the house gate derives them: `git ls-files -s -z`,
-// skipping the gitlinks (160000) and the symlinks (120000).
-function trackedFiles(dir) {
-  const out = execFileSync("git", ["ls-files", "-s", "-z"], { cwd: dir, maxBuffer: 1 << 28 })
-    .toString("utf8")
-    .split("\0")
-    .filter(Boolean);
-  const files = [];
-  for (const rec of out) {
-    const tab = rec.indexOf("\t");
-    const meta = rec.slice(0, tab);
-    const path = rec.slice(tab + 1);
-    const mode = meta.split(" ")[0];
-    if (mode === "160000" || mode === "120000") continue;
-    files.push(path);
-  }
-  return files;
-}
-
 const isExcluded = (rel) => EXCLUSIONS.find((e) => rel.startsWith(e.prefix));
 
-// The covered surface: the tracked markdown, minus the declared exclusions.
+// The covered surface: the tracked markdown, minus the declared exclusions. The FILE
+// SET is the library's — the gitlink and symlink exclusions are the umbrella's one
+// rule (R2), not this gate's.
 function coveredSurface(dir) {
-  const files = trackedFiles(dir).filter((f) => f.endsWith(".md") && !isExcluded(f));
-  const excluded = trackedFiles(dir).filter((f) => f.endsWith(".md") && isExcluded(f));
+  const all = trackedFiles(dir);
+  const files = all.filter((f) => f.endsWith(".md") && !isExcluded(f));
+  const excluded = all.filter((f) => f.endsWith(".md") && isExcluded(f));
   return { files, excluded };
 }
 
@@ -612,7 +598,9 @@ if (argv.includes("--self-test")) {
   for (const rel of files) {
     const abs = join(root, rel);
     if (!existsSync(abs)) continue;
-    findings.push(...scanText(rel, readFileSync(abs, "utf8")));
+    const text = readTextFile(abs);
+    if (text === null) continue; // unreadable or not prose
+    findings.push(...scanText(rel, text));
   }
   for (const f of findings) {
     fail(`${f.rel}:${f.line} — ${f.key} names the path argument \`${f.arg}\`, which git may REINTERPRET: write it in the literal form \`:(literal)<path>\``);

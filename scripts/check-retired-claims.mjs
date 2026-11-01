@@ -104,7 +104,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { trackedFiles } from "./lib/tracked-tree.mjs";
+import { readTextFile, trackedFiles } from "./lib/tracked-tree.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const SELF_REL = "scripts/check-retired-claims.mjs";
@@ -789,19 +789,13 @@ const ok = (m) => console.log(`  PASS  ${m}`);
  * them read through a symlink and judged another repo's content under this repo's
  * rulebook. A copy of a walk is a walk with two homes, and the second home is the one
  * that forgets an exclusion. The scope of the walk — a gitlink is another repo's tree,
- * a symlink is another path's content — is stated in the library's header. */
-
-/** A file's WORKING-TREE text, or null when it is unreadable or binary. */
-function readText(abs) {
-  let buf;
-  try {
-    buf = readFileSync(abs);
-  } catch {
-    return null;
-  }
-  if (buf.includes(0)) return null; // binary
-  return buf.toString("utf8");
-}
+ * a symlink is another path's content — is stated in the library's header. The library
+ * also owns the TEXT of a tracked file, or null when it is unreadable or binary: the
+ * rule "a NUL byte makes a file binary" was written SEVEN times over this repo's gates,
+ * in two shapes (over a decoded string, and over the bytes). The copies did NOT disagree
+ * about any file — UTF-8 never encodes a NUL inside a multi-byte sequence, so the two
+ * shapes answer identically (MEASURED, ten cases) — but they were seven places to look,
+ * and seven places to forget. */
 
 // A comment marker, at the START of a line, in a code file. The set is the markers the
 // languages in this tree actually use: `//` (JS/TS), `#` (shell, YAML, Python), `*`
@@ -978,7 +972,7 @@ function scan(dir) {
   const hits = [];
   for (const rel of trackedFiles(dir)) {
     if (rel === SELF_REL || rel.startsWith("CHANGELOG/")) continue;
-    const text = readText(join(dir, rel));
+    const text = readTextFile(join(dir, rel));
     if (text === null) continue;
     const { stream, lineAt } = claimStream(text, /\.md$/i.test(rel));
     for (const { pattern, why } of PATTERNS) {
@@ -1036,7 +1030,7 @@ function measure(dir) {
   const wordings = [];
   for (const rel of trackedFiles(dir)) {
     if (rel === SELF_REL || rel.startsWith("CHANGELOG/")) continue;
-    const text = readText(join(dir, rel));
+    const text = readTextFile(join(dir, rel));
     if (text === null) continue;
     const { stream, lineAt } = claimStream(text, /\.md$/i.test(rel));
     for (const m of stream.matchAll(triggerRe)) {

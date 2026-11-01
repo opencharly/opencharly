@@ -58,7 +58,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { gitFixture, trackedFiles } from "./lib/tracked-tree.mjs";
+import { gitFixture, readTextFile, trackedFiles } from "./lib/tracked-tree.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const argv = process.argv.slice(2);
@@ -137,13 +137,9 @@ function scanForRetired(dir) {
   for (const rel of trackedFiles(dir)) {
     if (rel === SELF_REL) continue;
     if (rel.startsWith("CHANGELOG/")) continue;
-    let text;
-    try {
-      text = readFileSync(join(dir, rel), "utf8");
-    } catch {
-      continue;
-    }
-    if (text.includes("\0")) continue; // binary
+    const text = readTextFile(join(dir, rel));
+    if (text === null) continue; // unreadable or binary
+
     text.split("\n").forEach((ln, i) => {
       if (RETIRED_RE.test(ln)) hits.push({ file: rel, line: i + 1, text: ln.trim() });
     });

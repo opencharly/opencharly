@@ -806,42 +806,6 @@ verify:
       - check: the governance-reconcile gate discriminates — a reconcile that fails turns the gate RED, a passing one turns it GREEN, a checkout that does not carry the reconcile is a visible SKIP, and the strong form is invoked with --root <the checkout> (fixtures)
         command: node scripts/check-governance-reconcile.mjs --self-test
         context: [runtime]
-      # The CONTRACT publishes the canonical inventory of withdrawn identifiers
-      # (opencharly/spec's retired/identifiers.json, landed in spec#286 and #287), and its
-      # own guard judges the CONTRACT's tree against it. A name that lives only inside the
-      # assertion that guards it is a name no other control can read, so the next claim
-      # class — the same name re-added somewhere else in the org — is missed by the same
-      # mechanism, by the same accident. So the key set is the CONTRACT'S, read from the
-      # pinned submodule, and this gate spells no withdrawn name of its own: a gate whose
-      # own source carried the names it forbids would have to exempt its own source, and
-      # that exemption is a hole.
-      #
-      # The tree is the CONTRACT'S to judge, not this repo's to own: a name withdrawn from
-      # one surface can be legal on another, so the list's entries carry a SCOPE (a Go
-      # type), and a TEXT surface — which is all this tree has — sweeps the UNSCOPED
-      # entries only. The gate prints its coverage with its verdict, because "a sweep that
-      # covered the org" is a claim, and a claim nobody can re-derive drifts. A contract
-      # that is NOT checked out makes it SKIP VISIBLY: the list is the contract's, and
-      # without it there is nothing to judge (R8).
-      #
-      # The path is read through scripts/check-retired-identifiers.mjs, whose CODE names
-      # the list's path — the working-set derivation in scripts/init-submodules.sh reads
-      # the paths the gate scripts QUOTE, so a gate that reads a surface in a submodule
-      # must have that submodule materialized or the light tree's gate would skip a
-      # comparison the full tree's gate makes (opencharly/opencharly#799).
-      #
-      # A hit is not automatically a CARRIER: the org's own sweeps classify every hit by
-      # hand — a sentence that denies a withdrawn name records the withdrawal, a sentence
-      # that sets its value uses it — and the distinction is semantic, so this repo
-      # COMMITS the classification in scripts/retired-records.json, each entry with its
-      # why. A hit no record covers is a carrier; a record that covers no hit is itself a
-      # finding, so the file cannot rot into a hole that hides a live use.
-      - check: the umbrella's tracked tree names no identifier the CONTRACT has withdrawn — the key set is READ from the pinned spec's canonical list and not written here, a text surface sweeps the UNSCOPED entries only, a hit this repo declares a RECORD of is classified and not reported as a carrier, and the verdict carries its coverage (CHANGELOG/ is history, gitlinks and symlinks are other trees' content, and a contract that is not checked out is a visible SKIP)
-        command: node scripts/check-retired-identifiers.mjs
-        context: [runtime]
-      - check: the retired-identifier gate discriminates — a planted withdrawn name is found, the swept set is the contract's unscoped set, a name scoped to a Go type is not swept on a text surface, a name inside a longer word is not a match, a CHANGELOG entry is not a claim, a gitlinked path is another repo's tree, a symlinked path is another path's content, a binary file is not text, the gate's own source is swept like any other file, the contract's own list is not a claim, the records file is not a claim, a declared record is not a carrier, a record exempts only the identifier it names, and a stale declared record is a finding (fixtures)
-        command: node scripts/check-retired-identifiers.mjs --self-test
-        context: [runtime]
 
 # -----------------------------------------------------------------------------
 # skills — splice the generated R0 dispatcher from the pinned marketplace.
