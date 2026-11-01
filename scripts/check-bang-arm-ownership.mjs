@@ -181,10 +181,12 @@ const SHAPES = [
     name: "a real answer",
     subject: "feat(scope)!: a hard cutover",
     // The example names NO withdrawn identifier: this repo's tree is swept against the
-    // contract's list of withdrawn names, and a fixture that spelled one would make
-    // the umbrella's own gate RED on the umbrella's own tree (the retired-identifier
-    // sweep, opencharly/opencharly#799). The shape is what the probe needs — an answer
-    // that names what moved — and the names in it are illustrative.
+    // contract's list of withdrawn names by the ORG's arm — the contract's canonical
+    // binary, run over every repo (opencharly/.github#262, the required
+    // `validate / validate` check) — and a fixture that spelled one would make that
+    // arm RED on this repo's own tree, because this file IS in that tree. The shape is
+    // what the probe needs — an answer that names what moved — and the names in it are
+    // illustrative.
     section: ["**Breaking change + rollback:** the flag moves from `--old-flag` to `--new-flag`"],
     refuse: false,
   },
