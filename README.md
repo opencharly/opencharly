@@ -699,7 +699,7 @@ agent runtimes and terminals charly speaks.
 | `pod-chrome-headless/` | [opencharly/pod-chrome-headless](https://github.com/opencharly/pod-chrome-headless) | pod / deployment bundle |
 | `pod-cloud-init/` | [opencharly/pod-cloud-init](https://github.com/opencharly/pod-cloud-init) | pod / deployment bundle |
 | `pod-comfyui/` | [opencharly/pod-comfyui](https://github.com/opencharly/pod-comfyui) | pod / deployment bundle |
-| `pod-crabbox/` | [opencharly/pod-crabbox](https://github.com/opencharly/pod-crabbox) | pod / deployment bundle |
+| `pod-crabbox-coordinator/` | [opencharly/pod-crabbox-coordinator](https://github.com/opencharly/pod-crabbox-coordinator) | pod / deployment bundle |
 | `pod-cstream/` | [opencharly/pod-cstream](https://github.com/opencharly/pod-cstream) | charly candy: the charly-streamer transport spine — streamer/gateway/broker/leader services, PAM stack, PipeW… |
 | `pod-dbus/` | [opencharly/pod-dbus](https://github.com/opencharly/pod-dbus) | charly candy: pod-dbus (standalone repo of the candy de-submodule cutover) |
 | `pod-dsh/` | [opencharly/pod-dsh](https://github.com/opencharly/pod-dsh) | pod / deployment bundle |
