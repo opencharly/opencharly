@@ -12,7 +12,7 @@
 #   2 lists    the word lists that mirror definitions equal them (the pairs in LIST_PAIRS), the
 #              @ref kind lists and type-table `ref` lists of DESIGN.cue equal the `want:` lists of
 #              design/example/rules.cue,
-#              and the two verb tables #FactVerb and #ProtocolVerb share no word (D-VERB-6)
+#              and the verb tables #FactVerb and #ProtocolVerb share no word (D-VERB-6)
 #   3 rules    every `// D-…` tag in DESIGN.cue names a requirement of DESIGN.md and has a
 #              negative case; every negative names a tag or a §12.4 rule; rules.cue emits exactly
 #              the §12.4 rules marked `rules.cue`, each with a negative; every §12.4 owner is an
@@ -20,11 +20,11 @@
 #   4 ids      requirement IDs are unique and numbered 1..n per area in order of appearance;
 #              every ID (ranges D-X-a..b included) in DESIGN.md, TODO.md, DESIGN.cue, the design/
 #              files and the parity ledger resolves, and every § reference in DESIGN.md, TODO.md,
-#              DESIGN.cue and design/parity.tsv; the ledger's mechanism column is M1–M8,
-#              workflow or authoring (§1.1)
+#              DESIGN.cue and design/parity.tsv; the ledger's mechanism column is a §1.1
+#              mechanism id, workflow or authoring
 #   5 words    no "Not" term of the §2 registry (or its plural) appears outside §2; every key in DESIGN.cue is
 #              singular (keys ending in `s` must be listed in D-NAME-1); every S<n> pattern
-#              reference is defined in §10.1 and a range S1–S<n> ends at the last; a backticked
+#              reference is defined in §10.1; no prose states a set's size (A.6); a backticked
 #              protocol method is spelled as its word list spells it; kind words,
 #              directives and the field names of node-bearing bodies are disjoint (D-SCH-6); every
 #              backticked `#…`/`_…` name in DESIGN.md prose is a definition of DESIGN.cue
@@ -33,7 +33,7 @@
 #              #Opaque marks itself `// S10` — no first-party word is left untyped (D-KIND-5)
 #   7 shape    every table row of DESIGN.md and TODO.md has its header's cell count and ends with |
 #   8 grammar  DESIGN.cue vets as a package; every list comprehension is one of the derivation forms
-#              D1–D6 (D-GEN-8); no word beside a word union, and a default word is a row of its table;
+#              of D-GEN-8; no word beside a word union, and a default word is a row of its table;
 #              no inline enum of 3+ words, no @go(, no retired suffix; every table has an @vocab owner;
 #              schema words are snake_case; no inline struct with named fields besides its S4 tag, at
 #              any depth (C1); no row writes an inline struct into a shape slot (S11)
@@ -225,10 +225,12 @@ for f in "$md" "$root/TODO.md" "$schema" "$root/design/parity.tsv"; do
 done > "$work/secrefs"
 if [[ -s "$work/secrefs" ]]; then cat "$work/secrefs"; fail=1; fi
 
-# the ledger's `mechanism` column names a mechanism of §1.1, or one of the two things on top of them
+# the ledger's `mechanism` column names a mechanism of §1.1's table, or what sits on top of them
 if [[ -f "$root/design/parity.tsv" ]]; then
-	awk -F'\t' '!/^#/ && $1 != "current" && $5 !~ /^(M[1-8]|workflow|authoring)$/ {
-		printf "FAIL design/parity.tsv:%d: mechanism %s is not M1–M8, workflow or authoring (§1.1)\n", NR, $5 }' \
+	mech="$(awk '/^### 1\.1 /{s=1; next} s && /^#{2,3} /{s=0} s && /^\| M[0-9]+ \|/ { print $2 }' "$md" | paste -sd'|')"
+	[[ -n "$mech" ]] || bad "DESIGN.md: §1.1 has no mechanism table"
+	awk -F'\t' -v ok="^($mech|workflow|authoring)$" '!/^#/ && $1 != "current" && $5 !~ ok {
+		printf "FAIL design/parity.tsv:%d: mechanism %s is not a §1.1 mechanism, workflow or authoring\n", NR, $5 }' \
 		"$root/design/parity.tsv" > "$work/mechcol"
 	if [[ -s "$work/mechcol" ]]; then cat "$work/mechcol"; fail=1; fi
 fi
@@ -329,21 +331,30 @@ for w in $(words _methodWord; words _hostMethodWord; words _pluginMethodWord); d
 done > "$work/spelling"
 if [[ -s "$work/spelling" ]]; then cat "$work/spelling"; fail=1; fi
 
-# schema-pattern references: every S<n> is a pattern §10.1 defines; a range S1–S<n> ends at the last
+# schema-pattern references: every S<n> is a pattern §10.1 defines
 awk '/^### [0-9.]+ The schema patterns$/{s=1; next} s && /^#{2,3} /{s=0} s && /^\| S[0-9]+ \|/ { sub(/^\| S/, ""); sub(/ \|.*/, ""); print }' "$md" | sort -n > "$work/patterns"
-last="$(tail -1 "$work/patterns")"
 for f in "$md" "$schema" "$root/TODO.md"; do
 	[[ -f "$f" ]] || continue
-	g -no 'S[0-9][0-9]*\(–S[0-9][0-9]*\)\?' "$f" | while IFS=: read -r ln ref; do
-		for n in $(sed 's/S//g; s/–/ /' <<<"$ref"); do
-			grep -qx "$n" "$work/patterns" || echo "FAIL ${f#"$root"/}:$ln: S$n is not a schema pattern of §10.1"
-		done
-		if [[ "$ref" == *–* && "${ref##*S}" != "$last" ]]; then
-			echo "FAIL ${f#"$root"/}:$ln: $ref — the pattern range ends at S$last (§10.1)"
-		fi
+	g -no 'S[0-9][0-9]*' "$f" | while IFS=: read -r ln ref; do
+		grep -qx "${ref#S}" "$work/patterns" || echo "FAIL ${f#"$root"/}:$ln: $ref is not a schema pattern of §10.1"
 	done
 done > "$work/patref"
 if [[ -s "$work/patref" ]]; then cat "$work/patref"; fail=1; fi
+
+# no set size (A.6): a set that can grow is its table, so prose never counts it — no number word
+# before a set noun ("eight mechanisms") and no id range from the first row ("M1–M8")
+sizes='two|three|four|five|six|seven|eight|nine|ten|eleven|twelve'
+sets='mechanisms|kinds|roles|intents|phases|channels|patterns|forms|checks|stages|roots|actions|principles|laws|rules|verbs|tables|services|types|keys|parts|ways|things|instances|modules|variables|parties|methods|sections|layers|placements|families|words'
+for f in "$md" "$schema" "$root/TODO.md"; do
+	[[ -f "$f" ]] || continue
+	[[ "$f" == "$root/TODO.md" ]] || g -noiE "\b($sizes)\s+([a-z-]+\s+)?($sets)\b" "$f" | while IFS=: read -r ln what; do
+		echo "FAIL ${f#"$root"/}:$ln: '$what' states the size of a set; name the set and its table (A.6)"
+	done
+	g -noE '\b[A-Z]+1`?[–-]`?[A-Z]+[0-9]+\b' "$f" | while IFS=: read -r ln what; do
+		echo "FAIL ${f#"$root"/}:$ln: '$what' spans a whole set; name the set and its table (A.6)"
+	done
+done > "$work/setsize"
+if [[ -s "$work/setsize" ]]; then cat "$work/setsize"; fail=1; fi
 
 # disjointness (D-SCH-6)
 words _kindWord | sort -u > "$work/k"
@@ -415,7 +426,7 @@ g -n '' "$schema" | sed 's|//.*$||' > "$work/code"
 	# a word list is derived from its table, never written out (S3)
 	g '^[0-9]*:_[a-zA-Z]*Word: \[' "$work/code" | g -v '\[for ' |
 		while IFS=: read -r ln _; do echo "FAIL DESIGN.cue:$ln: a hand-written word list; derive it from its table: [for w, _ in _x {w}] (S3)"; done
-	# every list comprehension is one of the derivation forms D1–D6 (D-GEN-8): strip each form where
+	# every list comprehension is one of the derivation forms of D-GEN-8: strip each form where
 	# it may stand, and whatever comprehension is left is spelled some other way
 	sed -E \
 		-e 's/^([0-9]+):_[a-zA-Z]+Word: \[for w, _ in [_#][a-zA-Z]+ \{w\}\][[:space:]]*$/\1:D1/' \
@@ -424,7 +435,7 @@ g -n '' "$schema" | sed 's|//.*$||' > "$work/code"
 		-e 's/or\(\[for _, a in #[A-Za-z]+Alt \{a\}\]\)/D4/g' \
 		-e 's/or\(\[for ([a-z]) in r\.[a-z_]+ \{[_#A-Za-z]+(\[[a-z]\])?\[\1\]\}\]\)/D6/g' \
 		"$work/code" | g -E '\[(for|if) ' |
-		while IFS=: read -r ln _; do echo "FAIL DESIGN.cue:$ln: a list comprehension outside the derivation forms D1–D6; name the filter as a D2 or D3 word list (D-GEN-8)"; done
+		while IFS=: read -r ln _; do echo "FAIL DESIGN.cue:$ln: a list comprehension outside the derivation forms of D-GEN-8; name the filter as a D2 or D3 word list (D-GEN-8)"; done
 	# a word union admits only its table's words: no word written beside it, and a default is a row (S3)
 	g -nE '(^|[^*])"[a-z_]+" *\| *or\(_|or\(_[^)]*\) *\| *"' "$work/code" |
 		while IFS=: read -r ln _; do echo "FAIL DESIGN.cue:$ln: a word written beside a word union; make it a row of the table (S3)"; done
@@ -436,7 +447,7 @@ g -n '' "$schema" | sed 's|//.*$||' > "$work/code"
 	# no inline enum of three or more words: a closed set of words is a table (S3)
 	g -n '"[a-z_]*" *| *"[a-z_]*" *| *"' "$schema" | g -v '^[0-9]*:[[:space:]]*//' |
 		while IFS=: read -r ln _; do echo "FAIL DESIGN.cue:$ln: an inline enum of three or more words; make it a vocabulary table (S3)"; done
-	# no Go annotation: Go names and types derive from the shapes (§13, C1–C7)
+	# no Go annotation: Go names and types derive from the shapes (§13)
 	g -n '@go(' "$schema" | while IFS=: read -r ln _; do echo "FAIL DESIGN.cue:$ln: an @go attribute; Go names and types derive from the shapes (§13)"; done
 	# a definition's name ends in a suffix of the closed set (D-NAME-4)
 	g -no '^#[A-Za-z0-9]\+\(Body\|Only\|Type\|IO\|Entry\|Attr\|Reply\|Info\|Spec\):' "$schema" |
