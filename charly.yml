@@ -919,6 +919,16 @@ prune:
         default: report
     plan:
       - run: prune merged-upstream worktrees and branches across the umbrella + submodules
+        # The runner's per-attempt never-hang floor is 90s, and this verb's cost scales
+        # with the SESSION DEBT it reaps: it scans the umbrella root plus every
+        # initialized submodule and asks GitHub for each repo's PRs, so a tree carrying
+        # accumulated merged session worktrees is minutes of work — the floor killed a
+        # dry run at 1m30s on 2026-11-01 after it had rendered its whole plan (that
+        # run's own counts are in the PR body, dated, not restated here where they would
+        # drift). A step the floor cuts short is KILLED mid-run, so the ceiling is
+        # declared here — the mechanism's own parameter, not a sleep and not a retry.
+        # With it, the reap completed on 2026-11-01 (opencharly/opencharly#827).
+        timeout: 30m
         prune:
           mode: "${MODE}"
         context: [runtime]
