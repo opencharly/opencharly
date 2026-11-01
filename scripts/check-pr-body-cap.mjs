@@ -39,6 +39,8 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { readTextFile, trackedFiles } from "./lib/tracked-tree.mjs";
+
 const here = dirname(fileURLToPath(import.meta.url));
 const argv = process.argv.slice(2);
 const rootIdx = argv.indexOf("--root");
@@ -246,35 +248,21 @@ function armHeaderStatesTheRule() {
 }
 
 /**
- * The umbrella's own TRACKED text files, as the umbrella's other tracked-file gates
- * read them: gitlinks (mode 160000) are another repo's content and are skipped, and
- * so are symlinks (mode 120000) — every one of them points into `marketplace/`.
- * `CHANGELOG/` is the record of what happened, not a current claim, and this gate
- * excludes ITSELF, because it must NAME the wording it forbids.
+ * The umbrella's own TRACKED text files. The FILE SET is the library's — the
+ * gitlink and symlink exclusions are the umbrella's one rule (R2) — and what this
+ * gate adds is its OWN narrowing: `CHANGELOG/` is the record of what happened, not
+ * a current claim, and this gate excludes ITSELF, because it must NAME the wording
+ * it forbids.
  */
 function trackedTextFiles(tree) {
-  const r = spawnSync("git", ["ls-files", "-s", "-z"], {
-    cwd: tree,
-    encoding: "utf8",
-    maxBuffer: 64 * 1024 * 1024,
-  });
-  if (r.status !== 0) {
-    fail(`the tracked set cannot be read from ${tree} — git ls-files exited ${r.status}`);
+  let files;
+  try {
+    files = trackedFiles(tree);
+  } catch (e) {
+    fail(`the tracked set cannot be read from ${tree} — ${e.message}`);
     return [];
   }
-  const out = [];
-  for (const entry of (r.stdout ?? "").split("\0")) {
-    if (entry === "") continue;
-    const tab = entry.indexOf("\t");
-    if (tab === -1) continue;
-    const mode = entry.slice(0, tab).split(" ")[0];
-    if (mode === "160000" || mode === "120000") continue;
-    const rel = entry.slice(tab + 1);
-    if (rel === SELF_REL) continue;
-    if (rel.startsWith("CHANGELOG/")) continue;
-    out.push(rel);
-  }
-  return out;
+  return files.filter((rel) => rel !== SELF_REL && !rel.startsWith("CHANGELOG/"));
 }
 
 /**
@@ -291,13 +279,8 @@ function armRetiredWordingGone() {
   const rels = trackedTextFiles(root);
   const hits = [];
   for (const rel of rels) {
-    let text;
-    try {
-      text = readFileSync(join(root, rel), "utf8");
-    } catch {
-      continue;
-    }
-    if (text.includes("\0")) continue;
+    const text = readTextFile(join(root, rel));
+    if (text === null) continue; // unreadable or not prose
     const lines = text.split("\n");
     for (let i = 0; i < lines.length; i++) {
       if (lines[i].toLowerCase().includes(RETIRED_PROMISE)) hits.push(`${rel}:${i + 1}`);

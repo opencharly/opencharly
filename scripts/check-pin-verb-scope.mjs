@@ -55,10 +55,10 @@
 // usage: node scripts/check-pin-verb-scope.mjs [--root <dir>] [--self-test]
 // exit 0 clean · 1 finding
 
-import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+
+import { readTextFile, trackedFiles } from "./lib/tracked-tree.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const argv = process.argv.slice(2);
@@ -67,11 +67,6 @@ const root = rootIdx === -1 ? resolve(here, "..") : resolve(argv[rootIdx + 1]);
 
 const SELF_REL = "scripts/check-pin-verb-scope.mjs";
 const RETIRED_GATE_REL = "scripts/check-retired-claims.mjs";
-
-/* The tracked set's own `git ls-files -s -z` grows with the repo, and the default
- * 1 MiB exec buffer throws ENOBUFS on a large tree — a gate that stops judging is a
- * gate that fails silently. ONE ceiling, raised ONCE (R2: one canonical ceiling). */
-const MAX_EXEC_BYTES = 64 * 1024 * 1024;
 
 /**
  * The SCOPE claim: the verb advances EVERY pin the repo declares.
@@ -273,44 +268,13 @@ function narrowingClauses(text) {
   return out;
 }
 
-/** The tracked REGULAR files of a tree — derived from the INDEX, never hand-kept. */
-function trackedFiles(rootDir) {
-  const raw = execFileSync("git", ["ls-files", "-s", "-z"], {
-    cwd: rootDir,
-    encoding: "utf8",
-    maxBuffer: MAX_EXEC_BYTES,
-  });
-  const out = [];
-  for (const rec of raw.split("\0")) {
-    if (!rec) continue;
-    const tab = rec.indexOf("\t");
-    if (tab === -1) continue;
-    const mode = rec.slice(0, tab).split(" ")[0];
-    if (mode === "160000" || mode === "120000") continue;
-    out.push(rec.slice(tab + 1));
-  }
-  return out;
-}
-
-/** A file's text, or null when it is unreadable or binary. */
-function readText(abs) {
-  let buf;
-  try {
-    buf = readFileSync(abs);
-  } catch {
-    return null;
-  }
-  if (buf.includes(0)) return null;
-  return buf.toString("utf8");
-}
-
 /**
  * The findings, over the files the run sees: the tree's tracked files, with
  * `overrides` replacing or adding one (the --self-test's mutations).
  */
 function findings(rootDir, overrides = new Map()) {
   const out = [];
-  const textOf = (rel) => (overrides.has(rel) ? overrides.get(rel) : readText(join(rootDir, rel)));
+  const textOf = (rel) => (overrides.has(rel) ? overrides.get(rel) : readTextFile(join(rootDir, rel)));
 
   // A + B: every claim-maker surface exists, is unique, and states the scope.
   for (const s of SURFACES) {
@@ -427,7 +391,7 @@ if (argv.includes("--self-test")) {
 
   /** The surface's char range in its file, so a mutation can be applied to THAT text. */
   function surfaceRange(rel, anchor, kind) {
-    const text = readText(join(root, rel));
+    const text = readTextFile(join(root, rel));
     const lines = text.split("\n");
     let idx = -1;
     for (let i = 0; i < lines.length; i++) if (anchor.test(lines[i])) { idx = i; break; }
