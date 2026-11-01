@@ -5,9 +5,14 @@
 # This is repo configuration, not the `git -c core.hooksPath=… commit` bypass that
 # .claude/hooks/gitcmd.py blocks (AGENTS.md R6).
 #
-# The gate is TWO parts:
+# The gate is THREE parts:
 #
-#   1. the change-class legs — `hooks/pre-commit-gate.sh`, called ONCE. They are the
+#   1. the default-branch guard — `scripts/check-default-branch.mjs`, called FIRST. Every
+#      other leg judges the DIFF, and none of them can make a commit on the default branch
+#      visible to the org: the clone-level guards are push-only, so a commit made on `main`
+#      is reviewed by nothing and announced by nothing (charly#842). It needs no binary, no
+#      project and no submodule, so it runs even where the rest is skipped.
+#   2. the change-class legs — `hooks/pre-commit-gate.sh`, called ONCE. They are the
 #      umbrella's own builders' self-tests (cheap: 3.4 s measured 2026-10-24, and they
 #      need no binary, no project and no submodule) and the pin check (29 s measured
 #      2026-10-24 over the umbrella's whole pin set, so it is decided by CHANGE CLASS:
@@ -20,7 +25,7 @@
 #      decision can be fired in isolation (`node scripts/check-pre-commit-gate.mjs`)
 #      and so that the charly-backed pair has ONE owner — it used to run TWICE per
 #      commit (opencharly/opencharly#645).
-#   2. the pure-node gates below — each one a claim about a file in this repo, and
+#   3. the pure-node gates below — each one a claim about a file in this repo, and
 #      each one cheap enough to run on every commit.
 #
 # The node gates, in order:
@@ -105,6 +110,13 @@ ROOT="$(git rev-parse --show-toplevel)"
 COMMIT_INDEX="${GIT_INDEX_FILE:-}"
 unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES
 cd "$ROOT"
+
+# FIRST, before any other leg: every check below judges the DIFF, and none of them can
+# make a commit on the default branch visible to the org. The clone-level guards are
+# push-only, so without this a commit made on `main` is reviewed by nothing and announced
+# by nothing (charly#842). No charly binary and no `task` verb is involved, so it runs
+# even where the rest is skipped.
+node "$ROOT/scripts/check-default-branch.mjs"
 
 # The change-class legs — ONCE, in their own file, so the decision can be fired in
 # isolation and the charly-backed pair cannot be duplicated back into this hook.
