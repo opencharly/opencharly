@@ -8,8 +8,9 @@
 // answers, and the second one to be written is the one that forgets an exclusion.
 //
 // The umbrella already carries this lesson in its own gates, and it carried it in NINE of
-// its thirty-five gates before this library became the one home (MEASURED on the tree
-// this landed on — `git show HEAD:scripts/…`, per file):
+// its thirty `scripts/check-*.mjs` gates — 29 after this cutover, which deletes one —
+// before this library became the one home (MEASURED on the tree BEFORE this cutover —
+// `git show 2aeef6c:scripts/…`, per file; `2aeef6c` is the merge-base with `origin/main`):
 //
 //   - the WALK — "the tracked files of this tree" — was written out SIX times: in
 //     check-cited-plugin-task-version.mjs, check-coord-verb-set.mjs,
@@ -92,16 +93,19 @@ export function trackedFiles(dir) {
  * WHY IT LIVES HERE AND NOT IN A GATE. A sweep reads prose, and a BINARY's bytes are
  * not prose: a NUL byte in a file is not a character any reader can match, so a gate
  * that reads a binary as text judges a picture's bytes for a name. The rule was written
- * out SEVEN times over this repo's gates — as `text.includes("\0")` over a decoded
- * string, as `buf.includes(0)` over the bytes, and as a `statSync` size gate — and the
- * copies disagreed on WHICH question they answered, not on any file: a NUL byte is the only
- * thing that makes a file binary, whether it is looked for in the bytes or in the
- * decoded string, because UTF-8 never encodes a NUL inside a multi-byte sequence
- * (MEASURED: the two variants agree on every case — plain text, an ASCII NUL, a NUL
- * after a truncated multi-byte sequence, a BOM then NUL, UTF-16LE, and two overlong
- * encodings — so the divergence was never a file; it was a second place to look).
- * One implementation, one rule: the bytes are read, and a NUL byte is what makes a file
- * binary (R2).
+ * out SEVEN times over this repo's gates, in EIGHT sites, in TWO shapes: over a decoded
+ * string (`text.includes("\0")` — three sites) and over the bytes (`buf.includes(0)` —
+ * five sites). The two shapes answer identically about every file: UTF-8 never encodes
+ * a NUL inside a multi-byte sequence, so a NUL is in the bytes exactly when it is in
+ * the decoded string (MEASURED over ten cases — plain text, an ASCII NUL, a NUL after
+ * a truncated multi-byte sequence, a BOM then NUL, UTF-16LE, and two overlong
+ * encodings). So the copies never disagreed about a FILE; they disagreed about WHERE to
+ * look, which is seven places to look and seven places to forget. One implementation,
+ * one rule: the bytes are read, and a NUL byte is what makes a file binary (R2).
+ *
+ * WHAT IS NOT THIS RULE. A SIZE ceiling on the read is a different question — how much
+ * a gate pulls into memory — and it stayed where it was: exactly one gate carried one,
+ * and it carries it still.
  */
 export function textFromBytes(buf) {
   if (buf.includes(0)) return null; // binary
