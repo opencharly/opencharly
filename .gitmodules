@@ -1622,9 +1622,9 @@
 	path = plugin-crabbox
 	url = https://github.com/opencharly/plugin-crabbox.git
 	branch = main
-[submodule "pod-crabbox"]
-	path = pod-crabbox
-	url = https://github.com/opencharly/pod-crabbox.git
+[submodule "pod-crabbox-coordinator"]
+	path = pod-crabbox-coordinator
+	url = https://github.com/opencharly/pod-crabbox-coordinator.git
 	branch = main
 [submodule "plugin-media"]
 	path = plugin-media
