@@ -287,7 +287,7 @@ _subsystemDefaultDriver: {for k, _ in _subsystem {(k): [for w, r in _driver if r
 // deployment; every other verb observes only a deployment.
 #ArtifactPhase:   {phase: *"artifact" | or(_phaseWord)} // D-VERB-7
 #DeploymentPhase: {phase: *"deployment" | "ready"}             // D-VERB-7
-// M7 — every check verb and its input (§23), in exactly two tables. A fact verb observes the state
+// M7 — every check verb and its input (§23), in the fact-verb and protocol-verb tables. A fact verb observes the state
 // of the system its venue reaches; a protocol verb speaks one generic protocol to an endpoint.
 #FactVerbAlt: {
 	command:      {command!: #Text, #ArtifactPhase...}
@@ -838,7 +838,7 @@ _deploymentKind: {
 // The deployment kinds (§2, §17.1).
 _deploymentKindWord: [for w, _ in _deploymentKind {w}]
 
-// The body every placement of a kind shares, and its two placements: created where written (the
+// The body every placement of a kind shares, and its placements: created where written (the
 // default entry, with the kind's fields) or connected (`connect:`, without them).
 _#Body: {for k, r in _deploymentKind {(k): {
 	#DeploymentFields...
