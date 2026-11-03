@@ -36,7 +36,7 @@ ADMISSION_HEADER=$'path\tadmits\ttoday\tguideline\tcan_add_without_amending\tver
 # isolated copies instead of the repository's files.
 check_all() {
 	local dulling="$1" admission="$2" out="$3" root="$4" defs
-	local parity="$root/design/parity.tsv" md="$root/DESIGN.md" schema="$root/DESIGN.cue" md_lines
+	local parity="$root/design/parity.tsv" md="$root/DESIGN.md" schema="$root/DESIGN.cue"
 	: >"$out"
 
 	local f
@@ -87,8 +87,8 @@ check_all() {
 	}' "$admission" >>"$out"
 
 	# 5 citations + 6 provenance
-	cite_check "$dulling" 2 6 "$out"
-	cite_check "$admission" 3 7 "$out"
+	cite_check "$dulling" 6 "$out"
+	cite_check "$admission" 7 "$out"
 	defs="$out.defs"
 	grep -oE '^#[A-Za-z0-9]+:' "$schema" | tr -d ':' | sort >"$defs.all"
 	sort -u "$defs.all" >"$defs"
@@ -131,11 +131,11 @@ def_names_check() {
 	done < <(grep -v '^#' "$file")
 }
 
-# cite_check <file> <guideline-index> <evidence-index> <out> (indices are 0-based)
+# cite_check <file> <evidence-index> <out> (index is 0-based)
 # A DESIGN.md citation names a REQUIREMENT (D-X-n) or a SECTION (§N), never a line: a line number
 # drifts on every edit of this document, and the ledger is edited alongside it.
 cite_check() {
-	local file="$1" gidx="$2" eidx="$3" out="$4" cap ev seg n
+	local file="$1" eidx="$2" out="$3" cap ev seg n
 	while IFS=$'\t' read -r -a f; do
 		[[ "${f[0]}" == "capability" || "${f[0]}" == "path" ]] && continue
 		cap="${f[0]}"; ev="${f[$eidx]:-}"
