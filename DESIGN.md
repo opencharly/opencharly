@@ -2380,6 +2380,9 @@ validated with `cue vet -d '#Document' DESIGN.cue charly.yml`, and a user config
 | `design/example/rules.cue` | the §12.4 rules that a single document can show, in CUE |
 | `design/negative/*.yaml` | one document per rule that breaks exactly that rule |
 | `design/parity.tsv` | the parity ledger: every current capability and the mechanism that absorbs it (A.7) |
+| `scripts/design-ledger.sh` | checks the capability ledger: coverage, verdicts, citations (A.8) |
+| `design/dulling.tsv` | the capability ledger: every current capability, and whether the target form lands it whole (A.8) |
+| `design/dulling-admission.tsv` | the new-capability paths of the capability ledger (A.8) |
 
 ### A.2 `scripts/design-check.sh`
 
@@ -2388,9 +2391,10 @@ bash scripts/design-check.sh
 ```
 
 Runs in the repository root, in order, and stops at the first failure: the toolchain (A.3), the
-consistency check (A.4) and the example check (A.5). It has no logic of its own; each control lives
-in exactly one script, and no check writes to the repository. The committed negative cases (A.5)
-are the proof that each check can fail.
+consistency check (A.4), the example check (A.5) and the ledger check (A.8). It has no logic of
+its own; each control lives in exactly one script, and no check writes to the repository. The
+committed negative cases (A.5) and the ledger check's own `--self-test` mutations (A.8) are the
+proof that each check can fail.
 
 ### A.3 `scripts/design-cue.sh` — the toolchain
 
@@ -2441,9 +2445,10 @@ Each check below names, on failure, the file, the line, and both disagreeing sid
    and the case's expected text is for.
 4. **Identifiers.** Requirement IDs are unique and numbered `1..n` per area in order of
    appearance. Every ID mentioned in DESIGN.md, TODO.md, DESIGN.cue and the `design/` files —
-   ranges `D-X-a..b` included, the parity ledger `design/parity.tsv` among them (A.7) — is defined
-   here, and every `§` reference in DESIGN.md, TODO.md, DESIGN.cue and the ledger's `home` column
-   names a section.
+   ranges `D-X-a..b` included, the parity ledger `design/parity.tsv` (A.7) and the capability
+   ledgers `design/dulling.tsv` and `design/dulling-admission.tsv` (A.8) among them — is defined
+   here, and every `§` reference in DESIGN.md, TODO.md, DESIGN.cue and in a ledger's requirement
+   column (`home` in A.7, `guideline` in A.8) names a section.
 5. **Words.** No "Not" term of the §2 registry, nor its plural, appears outside §2, in this
    document or in DESIGN.cue (only the text is matched, never a file path). A backticked protocol
    method is spelled as its word list spells it. Every key in DESIGN.cue — fields, tag-table
@@ -2564,3 +2569,48 @@ document, and the ledger's job is to name what exists today.
 
 The ledger is the check, not the structure: a capability with no home amends a mechanism here, first
 (D-LAW-8); it never gains a special case.
+
+### A.8 `design/dulling.tsv` — the capability ledger
+
+`design/parity.tsv` (A.7) proves *where* a capability lands. It cannot ask *whether* it lands whole:
+a `merged` disposition says which row absorbs a word, never that the row keeps every operation,
+guarantee and freedom the word has today. The capability ledger asks the second question, and is
+the standing evidence that the target loses a capability only where the document says so.
+
+`design/dulling.tsv` has **one row per `design/parity.tsv` capability, in parity order**, and
+seven columns beside the capability:
+
+| Column | Holds |
+|---|---|
+| `today` | what the capability does on the current tree, and the artifact that shows it |
+| `guideline` | the requirement that governs it (`D-…`) or the section (`§…`), or `—` |
+| `target_form` | what the target design allows for it |
+| `verdict` | `sharp`, `dulled`, `forbidden` or `unknown` |
+| `dulling` | the one clause that blunts it, quoted; `—` when the row is `sharp` |
+| `evidence` | the `DESIGN.md` and `DESIGN.cue` lines that carry the rule, and the path that shows today |
+| `action` | `none`, `amend <id or §>`, `accept retirement` or `verify live` |
+
+A **verdict** is `sharp` when every operation, guarantee and freedom survives — a rename, a merge
+into a row, or a re-homing under a namespace is sharp when the union is preserved — `dulled` when
+the target form is weaker: an operation gone, a guarantee narrower, a freedom withdrawn, or the
+capability reachable only as a row of a closed table where today it needed no amendment. It is
+`forbidden` when the target has no form for it, and `unknown` when this document does not govern
+it or today's surface could not be evidenced.
+
+`design/dulling-admission.tsv` carries the other half: one row per way a **new** capability enters
+the system — a kind, a verb, an operation, a driver row, a capability type, a stage — and whether
+that path can be taken without amending this document. It uses the same verdict vocabulary.
+
+`scripts/design-ledger.sh` is the check, and A.2 runs it. It fails, naming the file and the row,
+when the ledger does not cover `design/parity.tsv` exactly (one row per capability, in parity order,
+no duplicate, no extra), when a verdict or an action is outside its enum, when a row is short or
+has an empty cell, when a cited line is not a line of the document it names, or when a row names a
+requirement that none of its cited `DESIGN.md` lines contains. Its `--self-test` mutates each of
+those invariants and fails unless the check reports the mutation, so the control is proven able to
+fail — the same role the committed negative cases play for A.5.
+
+Both ledgers are written in **current** vocabulary, exactly as A.7 is: this document's terms (§2)
+bind the design, and a ledger's job is to name what exists today. A capability therefore lands
+`dulled` only with a quoted clause and a resolving citation, and its `action` either accepts the
+trade or names the amendment it owes; a capability with no home still amends a mechanism here,
+first (D-LAW-8).
