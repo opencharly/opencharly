@@ -97,6 +97,17 @@ check_all() {
 	done
 	def_names_check "$dulling" 6 "$out" "$defs"
 	def_names_check "$admission" 7 "$out" "$defs"
+
+	# a line citation in ANY column is a failure: columns other than `evidence` carry prose, and a
+	# mechanical sweep that only reads `evidence` leaves dangling references behind (round 3).
+	awk -F'\t' '!/^#/ && $1 != "capability" && $1 != "path" {
+		for (i = 1; i <= NF; i++)
+			if ($i ~ /DESIGN\.(md|cue):[0-9]/) { printf "FAIL %s:%d: column %d cites a document by line; name it instead (A.8)\n", FILENAME, FNR, i; next }
+	}' "$dulling" >>"$out"
+	awk -F'\t' '!/^#/ && $1 != "capability" && $1 != "path" {
+		for (i = 1; i <= NF; i++)
+			if ($i ~ /DESIGN\.(md|cue):[0-9]/) { printf "FAIL %s:%d: column %d cites a document by line; name it instead (A.8)\n", FILENAME, FNR, i; next }
+	}' "$admission" >>"$out"
 }
 
 # def_names_check <file> <evidence-index> <out> <defs> — the definitions a row NAMES are real,
@@ -252,6 +263,12 @@ if [[ "${1:-}" == "--self-test" ]]; then
 		$1 == "verb:http" { $7 = $7 "; DESIGN.cue:596"; print; next } { print }' \
 		"$dulling" >"$work/design/dulling.tsv"
 	expect "a cue line citation" 'cites DESIGN.cue by line'
+
+	# a line citation hidden in target_form -> every column is read
+	awk -F'\t' 'BEGIN { OFS = "\t" } /^#/ || $1 == "capability" { print; next }
+		$1 == "verb:http" { $4 = $4 " (DESIGN.md:2321)"; print; next } { print }' \
+		"$dulling" >"$work/design/dulling.tsv"
+	expect "a line citation in target_form" 'cites a document by line'
 
 	# a requirement DESIGN.md does not define -> requirement
 	awk -F'\t' 'BEGIN { OFS = "\t" } /^#/ || $1 == "capability" { print; next }
