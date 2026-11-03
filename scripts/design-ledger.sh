@@ -148,8 +148,6 @@ if [[ "${1:-}" == "--self-test" ]]; then
 	cp "$schema" "$work/DESIGN.cue"
 	cp "$dulling" "$work/design/dulling.tsv"
 	cp "$admission" "$work/design/dulling-admission.tsv"
-	save_dulling="$(cat "$dulling")"
-	save_admission="$(cat "$admission")"
 	cases=0
 
 	# the harness itself: unmutated copies must pass
