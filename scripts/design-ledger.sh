@@ -35,7 +35,7 @@ ADMISSION_HEADER=$'path\tadmits\ttoday\tguideline\tcan_add_without_amending\tver
 # <root> is the tree the supporting files are read from, so the self-test can judge its own
 # isolated copies instead of the repository's files.
 check_all() {
-	local dulling="$1" admission="$2" out="$3" root="$4"
+	local dulling="$1" admission="$2" out="$3" root="$4" defs
 	local parity="$root/design/parity.tsv" md="$root/DESIGN.md" schema="$root/DESIGN.cue" md_lines cue_lines
 	: >"$out"
 
@@ -91,34 +91,22 @@ check_all() {
 	cue_lines=$(awk 'END { print NR }' "$schema")
 	cite_check "$dulling" 2 6 "$out"
 	cite_check "$admission" 3 7 "$out"
-	cue_content_check "$dulling" 3 5 6 "$out"
-	cue_content_check "$admission" 1 6 7 "$out"
+	defs="$out.defs"
+	grep -oE '^#[A-Za-z0-9]+:' "$schema" | tr -d ':' | sort -u >"$defs"
+	def_names_check "$dulling" "$out" "$defs"
+	def_names_check "$admission" "$out" "$defs"
 }
 
-# cue_content_check <file> <target-index> <dulling-index> <evidence-index> <out>
-# A line number in bounds is not a citation: the cited DESIGN.cue line (or range) must carry one
-# of the identifiers the row itself names, so a definition that moved cannot be cited by a stale
-# offset.
-cue_content_check() {
-	local file="$1" tcol="$2" dcol="$3" ecol="$4" out="$5" cap ev toks
+# def_names_check <file> <out> — every #Definition a row names is a definition of DESIGN.cue.
+# A name cannot drift the way a line number can, so the ledger cites definitions by name (A.8).
+def_names_check() {
+	local file="$1" out="$2" tok n defs="$3"
 	while IFS=$'\t' read -r -a f; do
 		[[ "${f[0]}" == "capability" || "${f[0]}" == "path" ]] && continue
-		cap="${f[0]}"; ev="${f[$ecol]:-}"
-		[[ -n "$ev" ]] || continue
-		grep -qE 'DESIGN\.cue:[0-9]' <<<"$ev" || continue
-		toks="$(grep -oE '`#[A-Za-z0-9]+`' <<<"${f[$tcol]:-} ${f[$dcol]:-}" | tr -d '`' | sort -u)"
-		[[ -n "$toks" ]] || continue
-		local matched=0 cite n1 n2 tok
-		while IFS= read -r cite; do
-			n1="${cite#DESIGN.cue:}"; n2="${n1##*-}"; n1="${n1%%-*}"
-			(( n1 < 1 || n2 > cue_lines || n1 > n2 )) && continue # bounds are reported elsewhere
-			while IFS= read -r tok; do
-				[[ -n "$tok" ]] || continue
-				if sed -n "${n1},${n2}p" "$schema" | grep -qiF -- "$tok"; then matched=1; break 2; fi
-			done <<<"$toks"
-		done < <(grep -oE 'DESIGN\.cue:[0-9]+(-[0-9]+)?' <<<"$ev")
-		(( matched )) || printf 'FAIL %s:%s: no cited DESIGN.cue line names what the row claims\n' \
-			"$(basename "$file")" "$cap" >>"$out"
+		for tok in $(printf '%s\n' "${f[*]}" | grep -oE '`#[A-Za-z0-9]+`' | tr -d '`' | sort -u); do
+			grep -qx -- "$tok" "$defs" || printf 'FAIL %s:%s: %s is not a definition of DESIGN.cue\n' \
+				"$(basename "$file")" "${f[0]}" "$tok" >>"$out"
+		done
 	done < <(grep -v '^#' "$file")
 }
 
@@ -138,7 +126,11 @@ cite_check() {
 			line_scope="${cite#*:}"
 			local lo="${line_scope%%-*}" hi="${line_scope##*-}" max
 			max="$md_lines"
-			[[ "$cite" == DESIGN.cue:* ]] && max="$cue_lines"
+			if [[ "$cite" == DESIGN.cue:* ]]; then
+				printf 'FAIL %s:%s: cites DESIGN.cue by line; name the definition instead (A.8)\n' \
+					"$(basename "$file")" "$cap" >>"$out"
+				continue
+			fi
 			if (( lo < 1 || hi > max || lo > hi )); then
 				printf 'FAIL %s:%s: %s cites a line outside the file (%s lines)\n' \
 					"$(basename "$file")" "$cap" "$cite" "$max" >>"$out"
@@ -237,11 +229,17 @@ if [[ "${1:-}" == "--self-test" ]]; then
 		!done { $7 = $7 "; DESIGN.md:999999"; done = 1 } { print }' "$dulling" >"$work/design/dulling.tsv"
 	expect "a citation past the end of DESIGN.md" 'outside the file'
 
-	# a DESIGN.cue citation that points at an unrelated definition -> content
+	# a definition name that does not exist -> names
 	awk -F'\t' 'BEGIN { OFS = "\t" } /^#/ || $1 == "capability" { print; next }
-		$1 == "verb:http" { $7 = "DESIGN.cue:592; DESIGN.md:2321"; print; next } { print }' \
+		$1 == "verb:http" { $6 = $6 " `#NoSuchDefinition`"; print; next } { print }' \
 		"$dulling" >"$work/design/dulling.tsv"
-	expect "a cue citation naming another definition" 'no cited DESIGN.cue line names'
+	expect "a nonexistent definition name" 'is not a definition of DESIGN.cue'
+
+	# a cue line citation reintroduced -> line citations are refused
+	awk -F'\t' 'BEGIN { OFS = "\t" } /^#/ || $1 == "capability" { print; next }
+		$1 == "verb:http" { $7 = $7 "; DESIGN.cue:596"; print; next } { print }' \
+		"$dulling" >"$work/design/dulling.tsv"
+	expect "a cue line citation" 'cites DESIGN.cue by line'
 
 	# guideline ID that no cited line contains -> provenance
 	awk -F'\t' 'BEGIN { OFS = "\t" } /^#/ || $1 == "capability" { print; next }
