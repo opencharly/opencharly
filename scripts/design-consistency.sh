@@ -19,9 +19,9 @@
 #              owner in the §3.1 ownership table
 #   4 ids      requirement IDs are unique and numbered 1..n per area in order of appearance;
 #              every ID (ranges D-X-a..b included) in DESIGN.md, TODO.md, DESIGN.cue, the design/
-#              files and the parity ledger resolves, and every § reference in DESIGN.md, TODO.md,
-#              DESIGN.cue and design/parity.tsv; the ledger's mechanism column is a §1.1
-#              mechanism id, workflow or authoring
+#              files and the parity and capability ledgers resolves, and every § reference in
+#              DESIGN.md, TODO.md, DESIGN.cue and each ledger's requirement column; the parity
+#              ledger's mechanism column is a §1.1 mechanism id, workflow or authoring
 #   5 words    no "Not" term of the §2 registry (or its plural) appears outside §2; every key in DESIGN.cue is
 #              singular (keys ending in `s` must be listed in D-NAME-1); every S<n> pattern
 #              reference is defined in §10.1; no prose states a set's size (A.6); a backticked
@@ -199,6 +199,8 @@ cut -d: -f2 "$work/defs" | sort -u > "$work/ids"
 refs_in=("$md" "$schema" "$root"/design/example/*.cue "$root"/design/negative/*.yaml)
 [[ -f "$root/TODO.md" ]] && refs_in+=("$root/TODO.md")
 [[ -f "$root/design/parity.tsv" ]] && refs_in+=("$root/design/parity.tsv")
+[[ -f "$root/design/dulling.tsv" ]] && refs_in+=("$root/design/dulling.tsv")
+[[ -f "$root/design/dulling-admission.tsv" ]] && refs_in+=("$root/design/dulling-admission.tsv")
 for f in "${refs_in[@]}"; do
 	rel="${f#"$root"/}"
 	g -no 'D-[A-Z]*-[0-9][0-9]*\(\.\.[0-9][0-9]*\)\?' "$f" | while IFS=: read -r ln ref; do
@@ -214,11 +216,16 @@ done > "$work/refs"
 if [[ -s "$work/refs" ]]; then cat "$work/refs"; fail=1; fi
 
 g -o '^#\{2,3\} [0-9][0-9]*\(\.[0-9][0-9]*\)\?' "$md" | sed 's/^#* //' | sort -u > "$work/sections"
-for f in "$md" "$root/TODO.md" "$schema" "$root/design/parity.tsv"; do
+for f in "$md" "$root/TODO.md" "$schema" "$root/design/parity.tsv" "$root/design/dulling.tsv" "$root/design/dulling-admission.tsv"; do
 	[[ -f "$f" ]] || continue
-	# the ledger's evidence column cites sections of other documents; its `home` column cites DESIGN.md
+	# a ledger's EVIDENCE column cites sections of other documents; its requirement column —
+	# `home` in the parity ledger (A.7), `guideline` in the capability ledgers (A.8) — cites DESIGN.md
 	src="$f"
-	if [[ "$f" == */parity.tsv ]]; then awk -F'\t' '{ print $6 }' "$f" > "$work/parity-home"; src="$work/parity-home"; fi
+	case "$f" in
+	*/parity.tsv) awk -F'\t' '{ print $6 }' "$f" >"$work/reqcol" && src="$work/reqcol" ;;
+	*/dulling.tsv) awk -F'\t' '{ print $3 }' "$f" >"$work/reqcol" && src="$work/reqcol" ;;
+	*/dulling-admission.tsv) awk -F'\t' '{ print $4 }' "$f" >"$work/reqcol" && src="$work/reqcol" ;;
+	esac
 	g -no '§[0-9][0-9]*\(\.[0-9][0-9]*\)\?' "$src" | while IFS=: read -r ln ref; do
 		grep -qx "${ref#§}" "$work/sections" || echo "FAIL ${f#"$root"/}:$ln: $ref names no section of DESIGN.md"
 	done
