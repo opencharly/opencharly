@@ -91,6 +91,35 @@ check_all() {
 	cue_lines=$(awk 'END { print NR }' "$schema")
 	cite_check "$dulling" 2 6 "$out"
 	cite_check "$admission" 3 7 "$out"
+	cue_content_check "$dulling" 3 5 6 "$out"
+	cue_content_check "$admission" 1 6 7 "$out"
+}
+
+# cue_content_check <file> <target-index> <dulling-index> <evidence-index> <out>
+# A line number in bounds is not a citation: the cited DESIGN.cue line (or range) must carry one
+# of the identifiers the row itself names, so a definition that moved cannot be cited by a stale
+# offset.
+cue_content_check() {
+	local file="$1" tcol="$2" dcol="$3" ecol="$4" out="$5" cap ev toks
+	while IFS=$'\t' read -r -a f; do
+		[[ "${f[0]}" == "capability" || "${f[0]}" == "path" ]] && continue
+		cap="${f[0]}"; ev="${f[$ecol]:-}"
+		[[ -n "$ev" ]] || continue
+		grep -qE 'DESIGN\.cue:[0-9]' <<<"$ev" || continue
+		toks="$(grep -oE '`#[A-Za-z0-9]+`' <<<"${f[$tcol]:-} ${f[$dcol]:-}" | tr -d '`' | sort -u)"
+		[[ -n "$toks" ]] || continue
+		local matched=0 cite n1 n2 tok
+		while IFS= read -r cite; do
+			n1="${cite#DESIGN.cue:}"; n2="${n1##*-}"; n1="${n1%%-*}"
+			(( n1 < 1 || n2 > cue_lines || n1 > n2 )) && continue # bounds are reported elsewhere
+			while IFS= read -r tok; do
+				[[ -n "$tok" ]] || continue
+				if sed -n "${n1},${n2}p" "$schema" | grep -qiF -- "$tok"; then matched=1; break 2; fi
+			done <<<"$toks"
+		done < <(grep -oE 'DESIGN\.cue:[0-9]+(-[0-9]+)?' <<<"$ev")
+		(( matched )) || printf 'FAIL %s:%s: no cited DESIGN.cue line names what the row claims\n' \
+			"$(basename "$file")" "$cap" >>"$out"
+	done < <(grep -v '^#' "$file")
 }
 
 # cite_check <file> <guideline-index> <evidence-index> <out> (indices are 0-based)
@@ -136,7 +165,7 @@ report() { # report <out>
 		printf 'design-ledger: FAILED (%s finding(s))\n' "$(wc -l <"$1" | tr -d ' ')"
 		return 1
 	fi
-	printf 'design-ledger: %s rows vs %s parity capabilities; citations resolve; enums hold\n' \
+	printf 'design-ledger: %s rows vs %s parity capabilities; citations resolve and name their subject; enums hold\n' \
 		"$(awk -F'\t' '!/^#/ && $1 != "capability"' "$dulling" | wc -l | tr -d ' ')" \
 		"$(awk -F'\t' '!/^#/ && $1 != "current"' "$parity" | wc -l | tr -d ' ')"
 	return 0
@@ -207,6 +236,12 @@ if [[ "${1:-}" == "--self-test" ]]; then
 	awk -F'\t' 'BEGIN { OFS = "\t" } /^#/ || $1 == "capability" { print; next }
 		!done { $7 = $7 "; DESIGN.md:999999"; done = 1 } { print }' "$dulling" >"$work/design/dulling.tsv"
 	expect "a citation past the end of DESIGN.md" 'outside the file'
+
+	# a DESIGN.cue citation that points at an unrelated definition -> content
+	awk -F'\t' 'BEGIN { OFS = "\t" } /^#/ || $1 == "capability" { print; next }
+		$1 == "verb:http" { $7 = "DESIGN.cue:592; DESIGN.md:2321"; print; next } { print }' \
+		"$dulling" >"$work/design/dulling.tsv"
+	expect "a cue citation naming another definition" 'no cited DESIGN.cue line names'
 
 	# guideline ID that no cited line contains -> provenance
 	awk -F'\t' 'BEGIN { OFS = "\t" } /^#/ || $1 == "capability" { print; next }

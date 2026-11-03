@@ -2604,8 +2604,9 @@ that path can be taken without amending this document. It uses the same verdict 
 `scripts/design-ledger.sh` is the check, and A.2 runs it. It fails, naming the file and the row,
 when the ledger does not cover `design/parity.tsv` exactly (one row per capability, in parity order,
 no duplicate, no extra), when a verdict or an action is outside its enum, when a row is short or
-has an empty cell, when a cited line is not a line of the document it names, or when a row names a
-requirement that none of its cited `DESIGN.md` lines contains. Its `--self-test` mutates each of
+has an empty cell, when a cited line is not a line of the document it names, when a cited `DESIGN.cue` line does
+not carry any definition the row itself names (a line number in bounds is not a citation), or
+when a row names a requirement that none of its cited `DESIGN.md` lines contains. Its `--self-test` mutates each of
 those invariants and fails unless the check reports the mutation, so the control is proven able to
 fail — the same role the committed negative cases play for A.5.
 
