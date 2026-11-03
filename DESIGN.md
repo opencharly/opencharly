@@ -2587,7 +2587,7 @@ seven columns beside the capability:
 | `target_form` | what the target design allows for it |
 | `verdict` | `sharp`, `dulled`, `forbidden` or `unknown` |
 | `dulling` | the one clause that blunts it, quoted; `—` when the row is `sharp` |
-| `evidence` | the `DESIGN.md` line that carries the rule, the `DESIGN.cue` definition the row names, and the path that shows today |
+| `evidence` | the `DESIGN.md` line that carries the rule, the `DESIGN.cue` definition the row names (where it names one), and the path that shows today |
 | `action` | `none`, `amend <id or §>`, `accept retirement` or `verify live` |
 
 A **verdict** is `sharp` when every operation, guarantee and freedom survives — a rename, a merge
@@ -2606,7 +2606,7 @@ when the ledger does not cover `design/parity.tsv` exactly (one row per capabili
 no duplicate, no extra), when a verdict or an action is outside its enum, when a row is short or
 has an empty cell, when a cited line is not a line of the document it names, when a row cites `DESIGN.cue` by line
 rather than naming the definition (a line number drifts on every insertion; a name cannot), when a
-row names a definition that `DESIGN.cue` does not define, or when a row names a requirement that
+row names a definition that `DESIGN.cue` does not define, or defines more than once, or when a row names a requirement that
 none of its cited `DESIGN.md` lines contains. Its `--self-test` mutates each of
 those invariants and fails unless the check reports the mutation, so the control is proven able to
 fail — the same role the committed negative cases play for A.5.

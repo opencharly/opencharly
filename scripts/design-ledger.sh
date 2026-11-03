@@ -36,7 +36,7 @@ ADMISSION_HEADER=$'path\tadmits\ttoday\tguideline\tcan_add_without_amending\tver
 # isolated copies instead of the repository's files.
 check_all() {
 	local dulling="$1" admission="$2" out="$3" root="$4" defs
-	local parity="$root/design/parity.tsv" md="$root/DESIGN.md" schema="$root/DESIGN.cue" md_lines cue_lines
+	local parity="$root/design/parity.tsv" md="$root/DESIGN.md" schema="$root/DESIGN.cue" md_lines
 	: >"$out"
 
 	local f
@@ -88,11 +88,14 @@ check_all() {
 
 	# 5 citations + 6 provenance
 	md_lines=$(awk 'END { print NR }' "$md")
-	cue_lines=$(awk 'END { print NR }' "$schema")
 	cite_check "$dulling" 2 6 "$out"
 	cite_check "$admission" 3 7 "$out"
 	defs="$out.defs"
-	grep -oE '^#[A-Za-z0-9]+:' "$schema" | tr -d ':' | sort -u >"$defs"
+	grep -oE '^#[A-Za-z0-9]+:' "$schema" | tr -d ':' | sort >"$defs.all"
+	sort -u "$defs.all" >"$defs"
+	uniq -d "$defs.all" | while read -r dup; do
+		printf 'FAIL DESIGN.cue: %s is defined more than once\n' "$dup" >>"$out"
+	done
 	def_names_check "$dulling" "$out" "$defs"
 	def_names_check "$admission" "$out" "$defs"
 }
@@ -262,6 +265,17 @@ if [[ "${1:-}" == "--self-test" ]]; then
 	fi
 	cp "$md" "$work/DESIGN.md"
 	printf '  self-test %-38s fails as designed\n' "a truncated self-test DESIGN.md"
+
+	# a definition name that is defined twice -> uniqueness
+	cases=$((cases + 1))
+	{ cat "$schema"; grep -m1 -E '^#[A-Za-z0-9]+:' "$schema"; } >"$work/DESIGN.cue"
+	check_all "$work/design/dulling.tsv" "$work/design/dulling-admission.tsv" "$work/out.$cases" "$work"
+	if [[ ! -s "$work/out.$cases" ]] || ! grep -qE 'defined more than once' "$work/out.$cases"; then
+		printf 'FAIL self-test: a duplicated definition did not fail the check\n'
+		exit 1
+	fi
+	cp "$schema" "$work/DESIGN.cue"
+	printf '  self-test %-38s fails as designed\n' "a duplicated definition"
 
 	printf 'design-ledger: self-test passed (%s mutations, every one failed the check)\n' "$cases"
 	exit 0
