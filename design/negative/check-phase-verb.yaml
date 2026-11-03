@@ -4,6 +4,6 @@ x:
   description: A candy.
   package: {curl: {}}
   step:
-    - check: the port is open
+    - check: the endpoint answers
       phase: artifact
-      port: {port: 8080}
+      http: {url: "http://127.0.0.1:8080/"}

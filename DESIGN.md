@@ -1524,8 +1524,8 @@ A check observes either the artifact a box builds or a deployment brought to lif
 | | `artifact` | `ready` | `deployment` |
 |---|---|---|---|
 | Observes | the built artifact | a realized deployment | a realized deployment |
-| Runs in | an instance of the artifact that starts no init and no service, binds no capability, publishes no port and reaches no other node; destroyed afterwards | the deployment's venue | the deployment's venue, the host's, or another node's (`on:`) |
-| Sees | files, packages, users, groups and the artifact's own binaries | everything a deployment has | everything the artifact has, plus running services, bound capabilities, published ports, the network and granted host capabilities |
+| Runs in | an instance of the artifact in a disposable container: it starts the init and services the content declares, binds no capability, publishes no port and reaches no other node; destroyed afterwards | the deployment's venue | the deployment's venue, the host's, or another node's (`on:`) |
+| Sees | files, packages, users, groups, the artifact's own binaries, and the running state of the init and services the content declares | everything a deployment has | everything the artifact has, plus running services, bound capabilities, published ports, the network and granted host capabilities |
 | Runs | at the end of `charly box build`, before the artifact is stored; `charly check box` runs them on an existing artifact | during `realize`, until it passes or its `retry` deadline ends: realization waits on it (D-LAW-5) | after the deployment is ready, in every command that realizes it |
 | Failing means | the artifact is not stored | the realization fails | the command fails |
 
@@ -2322,6 +2322,9 @@ sshd-account:
           file: {path: /etc/ssh/sshd_config, sha256: {matches: "^[0-9a-f]{64}$"}, group_of: root}
         - check: the ssh daemon is enabled and the machine is otherwise healthy
           service: {name: sshd, scope: system, none_failed: true, ignore: [getty-tty1]}
+        - check: the ssh daemon is enabled in the artifact before it is stored
+          phase: artifact
+          service: {name: sshd, scope: system}
 ```
 
 | ID | Requirement |
@@ -2332,7 +2335,7 @@ sshd-account:
 | D-VERB-4 | A verb with several operations takes one operation key (`kube: {resource: …}`), never a `method:` string; operation inputs use plain field names, and a wait is the `retry` modifier, never an operation. |
 | D-VERB-5 | A step has exactly one intent, and the step table (`#StepAlt`) has one alternative per intent. A `run` step carries its `command` and its `guard` and no verb (D-VERB-1, D-IR-2); a `check` step carries exactly one verb (`#Verb`); `harness_run` and `harness_check` carry none, and a `harness_check` names the venue accesses it may read as `evidence`. |
 | D-VERB-6 | A verb is a fact verb or a protocol verb (`#FactVerbAlt`, `#ProtocolVerbAlt`), never both. An application's own checks are `http` with JSON-path matchers, `command`, or a namespaced verb of its non-first-party plugin (D-PLUG-7); a plugin's internal operation is an `api` method (D-ROLE-3), never a verb. |
-| D-VERB-7 | Only a check has a phase (§16.5). Each verb declares the phases it can observe: `command`, `file`, `package`, `user` and `group` observe an artifact and a deployment; every other verb observes only a deployment. A check's phase is `artifact` when its verb can observe one and `deployment` otherwise, unless the check writes `ready` or `deployment`; a `harness_check` observes a deployment. A phase the verb cannot observe is a load error. |
+| D-VERB-7 | Only a check has a phase (§16.5). Each verb declares the phases it can observe: every fact verb observes an artifact and a deployment, because the artifact's instance starts the init and services it declares; only a protocol verb observes a deployment alone. A check's phase is `artifact` when its verb can observe one and `deployment` otherwise, unless the check writes `ready` or `deployment`; a `harness_check` observes a deployment. A phase the verb cannot observe is a load error. |
 
 ## 24. Repositories
 

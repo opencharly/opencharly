@@ -286,8 +286,9 @@ _subsystemDefaultDriver: {for k, _ in _subsystem {(k): [for w, r in _driver if r
 #Node: or([for _, a in #NodeAlt {a}])
 
 // D-VERB-7: each verb arm declares the phases it can observe, and the first is a check's phase
-// unless the check writes another. A verb that can observe the built artifact also observes a
-// deployment; every other verb observes only a deployment.
+// unless the check writes another. Every fact verb observes the built artifact as well as a
+// deployment, because the artifact's instance starts the init and services it declares; only a
+// protocol verb is pinned to a deployment, its endpoint existing nowhere before realize.
 #ArtifactPhase:   {phase: *"artifact" | or(_phaseWord)} // D-VERB-7
 #DeploymentPhase: {phase: *"deployment" | "ready"}             // D-VERB-7
 // M7 — every check verb and its input (§23), in the fact-verb and protocol-verb tables. A fact verb observes the state
@@ -296,15 +297,15 @@ _subsystemDefaultDriver: {for k, _ in _subsystem {(k): [for w, r in _driver if r
 	command:      {command!: #Text, #ArtifactPhase...}
 	file:         {file!: #FileCheck, #ArtifactPhase...}
 	package:      {package!: #PackageCheck, #ArtifactPhase...}
-	service:      {service!: #ServiceCheck, #DeploymentPhase...}
-	process:      {process!: #ProcessCheck, #DeploymentPhase...}
-	port:         {port!: #PortCheck, #DeploymentPhase...}
+	service:      {service!: #ServiceCheck, #ArtifactPhase...}
+	process:      {process!: #ProcessCheck, #ArtifactPhase...}
+	port:         {port!: #PortCheck, #ArtifactPhase...}
 	user:         {user!: #UserCheck, #ArtifactPhase...}
 	group:        {group!: #GroupCheck, #ArtifactPhase...}
-	mount:        {mount!: #MountCheck, #DeploymentPhase...}
-	kernel_param: {kernel_param!: #KernelParamCheck, #DeploymentPhase...}
-	dns:          {dns!: #DnsCheck, #DeploymentPhase...}
-	interface:    {interface!: #InterfaceCheck, #DeploymentPhase...}
+	mount:        {mount!: #MountCheck, #ArtifactPhase...}
+	kernel_param: {kernel_param!: #KernelParamCheck, #ArtifactPhase...}
+	dns:          {dns!: #DnsCheck, #ArtifactPhase...}
+	interface:    {interface!: #InterfaceCheck, #ArtifactPhase...}
 }
 #ProtocolVerbAlt: {
 	http:    {http!: #HttpCheck, #DeploymentPhase...}
