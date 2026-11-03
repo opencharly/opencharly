@@ -87,7 +87,6 @@ check_all() {
 	}' "$admission" >>"$out"
 
 	# 5 citations + 6 provenance
-	md_lines=$(awk 'END { print NR }' "$md")
 	cite_check "$dulling" 2 6 "$out"
 	cite_check "$admission" 3 7 "$out"
 	defs="$out.defs"
@@ -104,7 +103,7 @@ check_all() {
 # and its `evidence` cell cites each of them. A name that is real but uncited is the defect this
 # control exists for: the reader is told which definition the row is about and cannot verify it.
 def_names_check() {
-	local file="$1" eidx="$2" out="$3" defs="$4" tok ev name
+	local file="$1" eidx="$2" out="$3" defs="$4" ev name
 	while IFS=$'\t' read -r -a f; do
 		[[ "${f[0]}" == "capability" || "${f[0]}" == "path" ]] && continue
 		ev="${f[$eidx]:-}"
@@ -122,42 +121,38 @@ def_names_check() {
 }
 
 # cite_check <file> <guideline-index> <evidence-index> <out> (indices are 0-based)
+# A DESIGN.md citation names a REQUIREMENT (D-X-n) or a SECTION (§N), never a line: a line number
+# drifts on every edit of this document, and the ledger is edited alongside it.
 cite_check() {
-	local file="$1" gidx="$2" eidx="$3" out="$4" cap gcol_v ecol_v line_scope
+	local file="$1" gidx="$2" eidx="$3" out="$4" cap ev seg n
 	while IFS=$'\t' read -r -a f; do
 		[[ "${f[0]}" == "capability" || "${f[0]}" == "path" ]] && continue
-		cap="${f[0]}"
-		gcol_v="${f[$gidx]:-}"; ecol_v="${f[$eidx]:-}"
-		[[ -z "$ecol_v" ]] && continue # a short row is already a shape FAIL; do not index past it
-		local hit=0
-		# every cited document line resolves
-		local cite
-		while IFS= read -r cite; do
-			[[ -z "$cite" ]] && continue
-			line_scope="${cite#*:}"
-			local lo="${line_scope%%-*}" hi="${line_scope##*-}" max
-			max="$md_lines"
-			if [[ "$cite" == DESIGN.cue:* ]]; then
-				printf 'FAIL %s:%s: cites DESIGN.cue by line; name the definition instead (A.8)\n' \
+		cap="${f[0]}"; ev="${f[$eidx]:-}"
+		[[ -n "$ev" ]] || continue
+		for seg in $(tr ';' '\n' <<<"$ev" | sed 's/^ *//; s/ *$//' | grep -E '^DESIGN\.(md|cue):'); do
+			case "$seg" in
+			DESIGN.md:D-*)
+				n=$(grep -cE "^\| ${seg#DESIGN.md:} \|" "$md")
+				[[ "$n" == "1" ]] || printf 'FAIL %s:%s: %s is not a requirement of DESIGN.md\n' \
+					"$(basename "$file")" "$cap" "${seg#DESIGN.md:}" >>"$out"
+				;;
+			DESIGN.md:§*)
+				grep -qE "^#{2,3} ${seg#DESIGN.md:§}([. ]|$)" "$md" ||
+					printf 'FAIL %s:%s: %s names no section of DESIGN.md\n' \
+						"$(basename "$file")" "$cap" "${seg#DESIGN.md:}" >>"$out"
+				;;
+			DESIGN.cue:#*)
+				: # a definition citation; def_names_check validates it
+				;;
+			DESIGN.cue:*)
+				printf 'FAIL %s:%s: cites DESIGN.cue by line; name the definition (A.8)\n' \
 					"$(basename "$file")" "$cap" >>"$out"
-				continue
-			fi
-			if (( lo < 1 || hi > max || lo > hi )); then
-				printf 'FAIL %s:%s: %s cites a line outside the file (%s lines)\n' \
-					"$(basename "$file")" "$cap" "$cite" "$max" >>"$out"
-			fi
-		done < <(grep -oE 'DESIGN\.(md|cue):[0-9]+(-[0-9]+)?' <<<"$ecol_v")
-		# a cited requirement must appear on a cited DESIGN.md line
-		local id
-		for id in $(grep -oE 'D-[A-Z]+-[0-9]+' <<<"$gcol_v" | sort -u); do
-			hit=0
-			while IFS= read -r cite; do
-				[[ -z "$cite" ]] && continue
-				line_scope="${cite#*:}"
-				if sed -n "${line_scope/-/,}p" "$md" | grep -qE "$id([^0-9]|$)"; then hit=1; break; fi
-			done < <(grep -oE 'DESIGN\.md:[0-9]+(-[0-9]+)?' <<<"$ecol_v")
-			(( hit )) || printf 'FAIL %s:%s: guideline names %s but no cited DESIGN.md line contains it\n' \
-				"$(basename "$file")" "$cap" "$id" >>"$out"
+				;;
+			*)
+				printf 'FAIL %s:%s: cites DESIGN.md by line; name the requirement or section (A.8)\n' \
+					"$(basename "$file")" "$cap" >>"$out"
+				;;
+			esac
 		done
 	done < <(grep -v '^#' "$file")
 }
@@ -235,10 +230,10 @@ if [[ "${1:-}" == "--self-test" ]]; then
 		!done { $6 = ""; done = 1 } { print }' "$dulling" >"$work/design/dulling.tsv"
 	expect "an empty cell" 'empty column'
 
-	# out-of-range citation -> citation
+	# a DESIGN.md line citation (out of range or not) -> line citations are refused
 	awk -F'\t' 'BEGIN { OFS = "\t" } /^#/ || $1 == "capability" { print; next }
 		!done { $7 = $7 "; DESIGN.md:999999"; done = 1 } { print }' "$dulling" >"$work/design/dulling.tsv"
-	expect "a citation past the end of DESIGN.md" 'outside the file'
+	expect "a DESIGN.md line citation" 'cites DESIGN.md by line'
 
 	# a definition name that does not exist -> names
 	awk -F'\t' 'BEGIN { OFS = "\t" } /^#/ || $1 == "capability" { print; next }
@@ -258,10 +253,11 @@ if [[ "${1:-}" == "--self-test" ]]; then
 		"$dulling" >"$work/design/dulling.tsv"
 	expect "a cue line citation" 'cites DESIGN.cue by line'
 
-	# guideline ID that no cited line contains -> provenance
+	# a requirement DESIGN.md does not define -> requirement
 	awk -F'\t' 'BEGIN { OFS = "\t" } /^#/ || $1 == "capability" { print; next }
-		!done { $3 = "D-NOPE-9"; done = 1 } { print }' "$dulling" >"$work/design/dulling.tsv"
-	expect "a guideline ID no cited line contains" 'no cited DESIGN.md line contains it'
+		$1 == "verb:file" { $7 = $7 "; DESIGN.md:D-NOPE-9"; print; next } { print }' \
+		"$dulling" >"$work/design/dulling.tsv"
+	expect "a requirement DESIGN.md does not define" 'is not a requirement of DESIGN.md'
 
 	# wrong column count in the admission file -> shape
 	awk -F'\t' 'BEGIN { OFS = "\t" } /^#/ || $1 == "path" { print; next }
@@ -273,7 +269,7 @@ if [[ "${1:-}" == "--self-test" ]]; then
 	cases=$((cases + 1))
 	head -n 200 "$md" >"$work/DESIGN.md"
 	check_all "$work/design/dulling.tsv" "$work/design/dulling-admission.tsv" "$work/out.$cases" "$work"
-	if [[ ! -s "$work/out.$cases" ]] || ! grep -qE 'outside the file' "$work/out.$cases"; then
+	if [[ ! -s "$work/out.$cases" ]] || ! grep -qE 'is not a requirement of DESIGN.md' "$work/out.$cases"; then
 		printf 'FAIL self-test: a truncated work DESIGN.md did not fail the check — the self-test is not isolated\n'
 		exit 1
 	fi
