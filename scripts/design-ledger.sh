@@ -96,19 +96,27 @@ check_all() {
 	uniq -d "$defs.all" | while read -r dup; do
 		printf 'FAIL DESIGN.cue: %s is defined more than once\n' "$dup" >>"$out"
 	done
-	def_names_check "$dulling" "$out" "$defs"
-	def_names_check "$admission" "$out" "$defs"
+	def_names_check "$dulling" 6 "$out" "$defs"
+	def_names_check "$admission" 7 "$out" "$defs"
 }
 
-# def_names_check <file> <out> — every #Definition a row names is a definition of DESIGN.cue.
-# A name cannot drift the way a line number can, so the ledger cites definitions by name (A.8).
+# def_names_check <file> <evidence-index> <out> <defs> — the definitions a row NAMES are real,
+# and its `evidence` cell cites each of them. A name that is real but uncited is the defect this
+# control exists for: the reader is told which definition the row is about and cannot verify it.
 def_names_check() {
-	local file="$1" out="$2" tok defs="$3"
+	local file="$1" eidx="$2" out="$3" defs="$4" tok ev name
 	while IFS=$'\t' read -r -a f; do
 		[[ "${f[0]}" == "capability" || "${f[0]}" == "path" ]] && continue
-		for tok in $(printf '%s\n' "${f[*]}" | grep -oE '`#[A-Za-z0-9]+`' | tr -d '`' | sort -u); do
-			grep -qx -- "$tok" "$defs" || printf 'FAIL %s:%s: %s is not a definition of DESIGN.cue\n' \
-				"$(basename "$file")" "${f[0]}" "$tok" >>"$out"
+		ev="${f[$eidx]:-}"
+		for name in $(printf '%s\n' "${f[*]}" | grep -oE '`?#[A-Z][A-Za-z0-9]*`?' | tr -d '`' | sort -u); do
+			if ! grep -qx -- "$name" "$defs"; then
+				printf 'FAIL %s:%s: %s is not a definition of DESIGN.cue\n' \
+					"$(basename "$file")" "${f[0]}" "$name" >>"$out"
+				continue
+			fi
+			grep -qF -- "DESIGN.cue:$name" <<<"$ev" ||
+				printf 'FAIL %s:%s: names %s but its evidence does not cite it\n' \
+					"$(basename "$file")" "${f[0]}" "$name" >>"$out"
 		done
 	done < <(grep -v '^#' "$file")
 }
@@ -237,6 +245,12 @@ if [[ "${1:-}" == "--self-test" ]]; then
 		$1 == "verb:http" { $6 = $6 " `#NoSuchDefinition`"; print; next } { print }' \
 		"$dulling" >"$work/design/dulling.tsv"
 	expect "a nonexistent definition name" 'is not a definition of DESIGN.cue'
+
+	# a named definition its evidence does not cite -> placement
+	awk -F'\t' 'BEGIN { OFS = "\t" } /^#/ || $1 == "capability" { print; next }
+		$1 == "verb:file" { n = split($7, parts, "; "); out = ""; for (i = 1; i <= n; i++) if (parts[i] !~ /^DESIGN\.cue:/) out = out (out == "" ? "" : "; ") parts[i]; $7 = out; print; next } { print }' \
+		"$dulling" >"$work/design/dulling.tsv"
+	expect "a named definition its evidence omits" 'evidence does not cite it'
 
 	# a cue line citation reintroduced -> line citations are refused
 	awk -F'\t' 'BEGIN { OFS = "\t" } /^#/ || $1 == "capability" { print; next }
