@@ -1549,6 +1549,10 @@ web-server:
           retry: {until: 30s}
         - check: the server answers
           http: {url: "http://127.0.0.1:8080/", body: {contains: hello}}
+        - check: the server accepts a POST with a body and does not follow redirects
+          http: {url: "http://127.0.0.1:8080/", request_method: post, request_body: "ping", follow_redirect: false, body: {contains: pong}}
+        - check: the TLS endpoint answers with the local CA and a self-signed certificate
+          http: {url: "https://127.0.0.1:8443/", allow_insecure: true, ca_file: /etc/ssl/local-ca.pem}
         - check: the page is served to a client in the guest
           phase: deployment
           command: curl -fsS http://127.0.0.1:8080/
@@ -2300,18 +2304,24 @@ sshd-account:
     user:
         sshd: {group: [sshd]}
     step:
-        - check: the sshd account exists
-          user: {name: sshd}
+        - check: the sshd account exists with its own group, home, shell and linger
+          user: {name: sshd, gid: 74, home: /run/sshd, shell: /usr/sbin/nologin, not_group: [wheel], linger: false}
         - check: the sshd group holds the account
-          group: {name: sshd, user: [sshd]}
-        - check: the loopback interface is up
-          interface: {name: lo}
-        - check: localhost resolves
-          dns: {name: localhost}
+          group: {name: sshd, gid: 74, user: [sshd]}
+        - check: the loopback interface is up with a known MTU
+          interface: {name: lo, mtu: {equals: 65536}}
+        - check: localhost resolves through the local resolver
+          dns: {name: localhost, server: 127.0.0.53}
         - check: the guest does not forward packets
           kernel_param: {name: net.ipv4.ip_forward, value: {equals: "0"}}
-        - check: the root filesystem is mounted
-          mount: {path: /}
+        - check: the root filesystem is mounted from a known source with known options
+          mount: {path: /, source: /dev/vda1, opt: [rw, relatime]}
+        - check: the timezone link resolves into the zoneinfo tree
+          file: {path: /etc/localtime, filetype: symlink, link_target: {contains: zoneinfo}}
+        - check: the sshd config is the pinned one and belongs to root
+          file: {path: /etc/ssh/sshd_config, sha256: {matches: "^[0-9a-f]{64}$"}, group_of: root}
+        - check: the ssh daemon is enabled and the machine is otherwise healthy
+          service: {name: sshd, scope: system, none_failed: true, ignore: [getty-tty1]}
 ```
 
 | ID | Requirement |
@@ -2587,7 +2597,7 @@ seven columns beside the capability:
 | `target_form` | what the target design allows for it |
 | `verdict` | `sharp`, `dulled`, `forbidden` or `unknown` |
 | `dulling` | the one clause that blunts it, quoted; `—` when the row is `sharp` |
-| `evidence` | the `DESIGN.md` and `DESIGN.cue` lines that carry the rule, and the path that shows today |
+| `evidence` | the `DESIGN.md` requirement or section that carries the rule (`D-…`/`§…`, never a line), the `DESIGN.cue` definition the row names (where it names one), and the path that shows today |
 | `action` | `none`, `amend <id or §>`, `accept retirement` or `verify live` |
 
 A **verdict** is `sharp` when every operation, guarantee and freedom survives — a rename, a merge
@@ -2604,10 +2614,10 @@ that path can be taken without amending this document. It uses the same verdict 
 `scripts/design-ledger.sh` is the check, and A.2 runs it. It fails, naming the file and the row,
 when the ledger does not cover `design/parity.tsv` exactly (one row per capability, in parity order,
 no duplicate, no extra), when a verdict or an action is outside its enum, when a row is short or
-has an empty cell, when a cited line is not a line of the document it names, or when a row names a
-requirement that none of its cited `DESIGN.md` lines contains. Its `--self-test` mutates each of
-those invariants and fails unless the check reports the mutation, so the control is proven able to
-fail — the same role the committed negative cases play for A.5.
+has an empty cell, when a row cites `DESIGN.md` or `DESIGN.cue` by line rather than naming the requirement, section or
+definition (a line drifts on every edit of this document; a name cannot), when a cited requirement
+or section is not one this document defines, when a row names a definition that `DESIGN.cue` does
+not define or defines more than once, or when a row names a definition its `evidence` does not cite.
 
 Both ledgers are written in **current** vocabulary, exactly as A.7 is: this document's terms (§2)
 bind the design, and a ledger's job is to name what exists today. A capability therefore lands

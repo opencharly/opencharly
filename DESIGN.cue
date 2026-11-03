@@ -159,6 +159,9 @@ _buildManagerWord: [for w, r in _manager if r.time == "build" {w}]
 _packageManager: {dnf: {}, apt: {}, pacman: {}, apk: {}, zypper: {}} @vocab(registry)
 _packageManagerWord: [for w, _ in _packageManager {w}]
 _serviceFormat: {systemd: {}, supervisord: {}} @vocab(build)
+// a file observation's node type: the artifact phase can see the files an image carries
+_fileType: {file: {}, directory: {}, symlink: {}} @vocab(check)
+_fileTypeWord: [for w, _ in _fileType {w}]
 _serviceFormatWord: [for w, _ in _serviceFormat {w}]
 _initRole: {container: {}, system: {}} @vocab(build)
 _initRoleWord: [for w, _ in _initRole {w}]
@@ -588,23 +591,27 @@ _leasableWord: [for w, r in _capability if r.lease {w}]
 // `present` (exists and is active: installed, running, mounted, resolvable, up, listening), and a
 // matcher per attribute it observes (D-ROLE-5).
 #PresenceFields: {present: *true | bool}
-#FileCheck:        {path!: #AbsPath, #PresenceFields..., content?: #Matcher, mode?: #FileMode, owner?: #Name}
+#FileCheck:        {path!: #AbsPath, #PresenceFields..., content?: #Matcher, mode?: #FileMode, owner?: #Name, group_of?: #Name, sha256?: #Matcher, link_target?: #Matcher, filetype?: or(_fileTypeWord)}
 #PackageCheck:     {name!: #Package, #PresenceFields..., version?: #Matcher} // an OS or a manager package
-#ServiceCheck:     {name!: #Name, #PresenceFields..., enabled?: bool}
+#ServiceCheck:     {name!: #Name, #PresenceFields..., enabled?: bool, scope?: *"system" | or(_scopeWord), none_failed?: bool, ignore?: #NameSet}
 #ProcessCheck:     {name!: #Text, #PresenceFields...}
 #PortCheck:        {port!: #Port, host?: #Hostname, #PresenceFields..., reachable?: bool}
-#UserCheck:        {name!: #Name, #PresenceFields..., uid?: #Count, group?: #NameSet}
-#GroupCheck:       {name!: #Name, #PresenceFields..., user?: #NameSet}
-#MountCheck:       {path!: #AbsPath, #PresenceFields..., fstype?: #Matcher, writable?: bool}
+#UserCheck:        {name!: #Name, #PresenceFields..., uid?: #Count, gid?: #Count, group?: #NameSet, not_group?: #NameSet, home?: #AbsPath, shell?: #AbsPath, linger?: bool}
+#GroupCheck:       {name!: #Name, #PresenceFields..., gid?: #Count, user?: #NameSet}
+#MountCheck:       {path!: #AbsPath, #PresenceFields..., fstype?: #Matcher, writable?: bool, opt?: #TextSet, source?: #Text}
 #KernelParamCheck: {name!: #Text, #PresenceFields..., value?: #Matcher}
-#DnsCheck:         {name!: #Hostname, #PresenceFields..., address?: #Matcher}
-#InterfaceCheck:   {name!: #Name, #PresenceFields..., address?: #Matcher}
+#DnsCheck:         {name!: #Hostname, #PresenceFields..., address?: #Matcher, server?: #Text}
+#InterfaceCheck:   {name!: #Name, #PresenceFields..., address?: #Matcher, mtu?: #Matcher}
 #HttpCheck: {
 	url!:           #Url
 	request_method: *"get" | or(_requestMethodWord)
 	status?:        int
 	body?:          #Matcher
 	header?:        {[#HeaderName]: #Matcher}
+	request_body?:  #Text
+	allow_insecure?: bool
+	follow_redirect?: bool
+	ca_file?:       #AbsPath
 }
 
 // D-VERB-4: one operation key per multi-operation verb; a wait is the `retry` modifier.
