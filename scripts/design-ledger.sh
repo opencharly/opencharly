@@ -103,7 +103,7 @@ check_all() {
 # def_names_check <file> <out> — every #Definition a row names is a definition of DESIGN.cue.
 # A name cannot drift the way a line number can, so the ledger cites definitions by name (A.8).
 def_names_check() {
-	local file="$1" out="$2" tok n defs="$3"
+	local file="$1" out="$2" tok defs="$3"
 	while IFS=$'\t' read -r -a f; do
 		[[ "${f[0]}" == "capability" || "${f[0]}" == "path" ]] && continue
 		for tok in $(printf '%s\n' "${f[*]}" | grep -oE '`#[A-Za-z0-9]+`' | tr -d '`' | sort -u); do
