@@ -2308,10 +2308,10 @@ sshd-account:
           user: {name: sshd, gid: 74, home: /run/sshd, shell: /usr/sbin/nologin, not_group: [wheel], linger: false}
         - check: the sshd group holds the account
           group: {name: sshd, gid: 74, user: [sshd]}
-        - check: the loopback interface is up with a known MTU
-          interface: {name: lo, mtu: {equals: 65536}}
-        - check: localhost resolves through the local resolver
-          dns: {name: localhost, server: 127.0.0.53}
+        - check: the loopback interface is up with a known MTU and both of its addresses
+          interface: {name: lo, mtu: {equals: 65536}, address: [{equals: 127.0.0.1}, {contains: "::1"}]}
+        - check: localhost resolves to every address it must
+          dns: {name: localhost, server: 127.0.0.53, address: [{equals: 127.0.0.1}, {matches: "^::1$"}]}
         - check: the guest does not forward packets
           kernel_param: {name: net.ipv4.ip_forward, value: {equals: "0"}}
         - check: the root filesystem is mounted from a known source with known options

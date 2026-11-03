@@ -522,6 +522,7 @@ _leasableWord: [for w, r in _capability if r.lease {w}]
 	json:     {json!: #JsonMatch}
 }
 #Matcher: or([for _, a in #MatcherAlt {a}])
+#AddressChecks: (#Matcher | [...#Matcher]) // one comparison or a list of required addresses
 #JsonMatch: {path!: #Text, match?: #Matcher} // no `match`: the path exists
 
 #StepFields: {
@@ -600,8 +601,8 @@ _leasableWord: [for w, r in _capability if r.lease {w}]
 #GroupCheck:       {name!: #Name, #PresenceFields..., gid?: #Count, user?: #NameSet}
 #MountCheck:       {path!: #AbsPath, #PresenceFields..., fstype?: #Matcher, writable?: bool, opt?: #TextSet, source?: #Text}
 #KernelParamCheck: {name!: #Text, #PresenceFields..., value?: #Matcher}
-#DnsCheck:         {name!: #Hostname, #PresenceFields..., address?: #Matcher, server?: #Text}
-#InterfaceCheck:   {name!: #Name, #PresenceFields..., address?: #Matcher, mtu?: #Matcher}
+#DnsCheck:         {name!: #Hostname, #PresenceFields..., address?: #AddressChecks, server?: #Text}
+#InterfaceCheck:   {name!: #Name, #PresenceFields..., address?: #AddressChecks, mtu?: #Matcher}
 #HttpCheck: {
 	url!:           #Url
 	request_method: *"get" | or(_requestMethodWord)
