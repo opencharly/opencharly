@@ -31,9 +31,12 @@ schema="$root/DESIGN.cue"
 DULLING_HEADER=$'capability\ttoday\tguideline\ttarget_form\tverdict\tdulling\tevidence\taction'
 ADMISSION_HEADER=$'path\tadmits\ttoday\tguideline\tcan_add_without_amending\tverdict\twhy\tevidence'
 
-# check_all <dulling> <admission> <out> — writes FAIL lines to <out>; returns 0 when clean.
+# check_all <dulling> <admission> <out> <root> — writes FAIL lines to <out>; returns 0 when clean.
+# <root> is the tree the supporting files are read from, so the self-test can judge its own
+# isolated copies instead of the repository's files.
 check_all() {
-	local dulling="$1" admission="$2" out="$3" md_lines cue_lines
+	local dulling="$1" admission="$2" out="$3" root="$4"
+	local parity="$root/design/parity.tsv" md="$root/DESIGN.md" schema="$root/DESIGN.cue" md_lines cue_lines
 	: >"$out"
 
 	local f
@@ -151,7 +154,7 @@ if [[ "${1:-}" == "--self-test" ]]; then
 	cases=0
 
 	# the harness itself: unmutated copies must pass
-	if ! check_all "$work/design/dulling.tsv" "$work/design/dulling-admission.tsv" "$work/out.clean"; then :; fi
+	if ! check_all "$work/design/dulling.tsv" "$work/design/dulling-admission.tsv" "$work/out.clean" "$work"; then :; fi
 	if [[ -s "$work/out.clean" ]]; then
 		printf 'FAIL self-test: the unmutated copies do not pass — the harness is broken, not the data\n'
 		cat "$work/out.clean"
@@ -160,7 +163,7 @@ if [[ "${1:-}" == "--self-test" ]]; then
 
 	expect() { # expect <name> <pattern>
 		cases=$((cases + 1))
-		check_all "$work/design/dulling.tsv" "$work/design/dulling-admission.tsv" "$work/out.$cases"
+		check_all "$work/design/dulling.tsv" "$work/design/dulling-admission.tsv" "$work/out.$cases" "$work"
 		if [[ ! -s "$work/out.$cases" ]]; then
 			printf 'FAIL self-test: %s did NOT fail the check\n' "$1"
 			exit 1
@@ -215,11 +218,23 @@ if [[ "${1:-}" == "--self-test" ]]; then
 		!done { NF = 7; done = 1 } { print }' "$admission" >"$work/design/dulling-admission.tsv"
 	expect "a seven-column admission row" 'columns, expected 8'
 
+	# supporting-file isolation: a check that read the REPOSITORY's DESIGN.md would not notice
+	# a change to the work copy, so truncating the copy proves the self-test judges its own tree.
+	cases=$((cases + 1))
+	head -n 200 "$md" >"$work/DESIGN.md"
+	check_all "$work/design/dulling.tsv" "$work/design/dulling-admission.tsv" "$work/out.$cases" "$work"
+	if [[ ! -s "$work/out.$cases" ]] || ! grep -qE 'outside the file' "$work/out.$cases"; then
+		printf 'FAIL self-test: a truncated work DESIGN.md did not fail the check — the self-test is not isolated\n'
+		exit 1
+	fi
+	cp "$md" "$work/DESIGN.md"
+	printf '  self-test %-38s fails as designed\n' "a truncated self-test DESIGN.md"
+
 	printf 'design-ledger: self-test passed (%s mutations, every one failed the check)\n' "$cases"
 	exit 0
 fi
 
 out="$(mktemp)"
 trap 'rm -f "$out" "${out}".*' EXIT
-check_all "$dulling" "$admission" "$out"
+check_all "$dulling" "$admission" "$out" "$root"
 report "$out"
