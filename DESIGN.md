@@ -1994,16 +1994,28 @@ check-android-device:
 
 check-android-emulator:
     android:
-        description: Checks an app on an emulator this deployment creates.
+        description: Checks an app on an emulator this deployment builds from a box.
         device: pixel
         api_level: 36
-        serial: emulator-5554
+        box: search-box
         google_account: {email: lab@example.com, token: google-token}
         require: [fdroid]
         disposable: true
         step:
             - check: the emulator answers
               command: getprop ro.build.version.release
+
+check-android-serial:
+    android:
+        description: Checks an app on a device that already exists, reached by its serial.
+        device: pixel
+        api_level: 36
+        serial: emulator-5554
+        require: [fdroid]
+        disposable: true
+        step:
+            - check: the named device answers
+              command: getprop ro.serialno
 ```
 
 ### 17.6 Drivers
