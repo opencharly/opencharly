@@ -108,7 +108,7 @@ fails when this file and the ledger disagree (A.10).
 | kind:firecracker | dulled | amend D-DEP-1 | owes D-DEP-1 |
 | kind:group | unknown | verify live | unsettled |
 | kind:hook | dulled | amend D-KIND-1 | owes D-KIND-1 |
-| kind:init | dulled | amend D-KIND-2 | owes D-KIND-2 |
+| kind:init | dulled | accept retirement | retired (A.9) |
 | kind:jetkvm | dulled | amend D-VENUE-2 | owes D-VENUE-2 |
 | kind:kindcluster | dulled | amend D-DEP-1 | owes D-DEP-1 |
 | kind:kubernetes | dulled | amend D-DEP-1 | owes D-DEP-1 |
@@ -141,20 +141,20 @@ fails when this file and the ledger disagree (A.10).
 | step:shell-snippet | sharp | none | kept whole |
 | step:system-packages | sharp | none | kept whole |
 | terminal:tmux | dulled | amend D-VENUE-1 | owes D-VENUE-1 |
-| verb:adb | dulled | amend D-VERB-6 | owes D-VERB-6 |
+| verb:adb | dulled | accept retirement | retired (A.9) |
 | verb:addr | sharp | none | kept whole |
 | verb:ade | dulled | amend D-VERB-5 | owes D-VERB-5 |
 | verb:agent | dulled | amend D-VERB-5 | owes D-VERB-5 |
 | verb:agentteams | sharp | none | kept whole |
 | verb:appium | dulled | amend D-VERB-4 | owes D-VERB-4 |
-| verb:arbiter | dulled | amend D-VERB-6 | owes D-VERB-6 |
+| verb:arbiter | dulled | accept retirement | retired (A.9) |
 | verb:bpf | sharp | none | kept whole |
 | verb:cdp | dulled | amend D-VERB-4 | owes D-VERB-4 |
 | verb:command | dulled | amend D-VERB-3 | owes D-VERB-3 |
-| verb:containerd | dulled | amend D-CLI-3 | owes D-CLI-3 |
+| verb:containerd | dulled | accept retirement | retired (A.9) |
 | verb:crabbox | sharp | none | kept whole |
 | verb:credential | dulled | amend D-CAP-4 | owes D-CAP-4 |
-| verb:cstream | dulled | amend D-VERB-1 | owes D-VERB-1 |
+| verb:cstream | dulled | accept retirement | retired (A.9) |
 | verb:cua | dulled | amend D-VERB-4 | owes D-VERB-4 |
 | verb:dbus | dulled | amend D-VERB-4 | owes D-VERB-4 |
 | verb:dns | sharp | none | kept whole |
@@ -168,10 +168,10 @@ fails when this file and the ledger disagree (A.10).
 | verb:gate | sharp | none | kept whole |
 | verb:generate | dulled | amend D-CLI-3 | owes D-CLI-3 |
 | verb:gh | dulled | amend D-SDK-1 | owes D-SDK-1 |
-| verb:git-submodules | dulled | amend D-VERB-1 | owes D-VERB-1 |
-| verb:gpu | dulled | amend D-VERB-6 | owes D-VERB-6 |
+| verb:git-submodules | dulled | accept retirement | retired (A.9) |
+| verb:gpu | dulled | accept retirement | retired (A.9) |
 | verb:helm | dulled | amend D-VERB-3 | owes D-VERB-3 |
-| verb:herdr | dulled | amend D-VERB-1 | owes D-VERB-1 |
+| verb:herdr | dulled | accept retirement | retired (A.9) |
 | verb:http | sharp | none | kept whole |
 | verb:interface | sharp | none | kept whole |
 | verb:jetkvm | dulled | amend D-VERB-4 | owes D-VERB-4 |
@@ -179,7 +179,7 @@ fails when this file and the ledger disagree (A.10).
 | verb:kernel-param | sharp | none | kept whole |
 | verb:kube | sharp | none | kept whole |
 | verb:kubevirt | sharp | none | kept whole |
-| verb:libvirt | dulled | amend D-VERB-6 | owes D-VERB-6 |
+| verb:libvirt | dulled | accept retirement | retired (A.9) |
 | verb:matching | dulled | amend D-VERB-3 | owes D-VERB-3 |
 | verb:mcp | dulled | amend D-VERB-4 | owes D-VERB-4 |
 | verb:media | dulled | amend D-DEP-8 | owes D-DEP-8 |
@@ -187,24 +187,24 @@ fails when this file and the ledger disagree (A.10).
 | verb:module-pins | forbidden | accept retirement | retired (A.9) |
 | verb:mount | sharp | none | kept whole |
 | verb:oci | sharp | none | kept whole |
-| verb:omarchy | dulled | amend D-VERB-1 | owes D-VERB-1 |
+| verb:omarchy | dulled | accept retirement | retired (A.9) |
 | verb:openclaw | sharp | none | kept whole |
 | verb:package | dulled | amend D-VERB-3 | owes D-VERB-3 |
 | verb:pipeline | sharp | none | kept whole |
 | verb:port | sharp | none | kept whole |
 | verb:probe | dulled | amend D-VERB-5 | owes D-VERB-5 |
 | verb:process | sharp | none | kept whole |
-| verb:prune | dulled | amend D-VERB-1 | owes D-VERB-1 |
-| verb:punktfunk | dulled | amend D-VERB-1 | owes D-VERB-1 |
-| verb:qdrant | dulled | amend D-VERB-1 | owes D-VERB-1 |
-| verb:quickshell | dulled | amend D-VERB-1 | owes D-VERB-1 |
-| verb:record | dulled | amend D-VERB-6 | owes D-VERB-6 |
+| verb:prune | dulled | accept retirement | retired (A.9) |
+| verb:punktfunk | dulled | accept retirement | retired (A.9) |
+| verb:qdrant | dulled | accept retirement | retired (A.9) |
+| verb:quickshell | dulled | accept retirement | retired (A.9) |
+| verb:record | dulled | accept retirement | retired (A.9) |
 | verb:retention | sharp | none | kept whole |
 | verb:service | sharp | none | kept whole |
 | verb:spice | dulled | amend D-VERB-4 | owes D-VERB-4 |
 | verb:splice-region | forbidden | accept retirement | retired (A.9) |
 | verb:task | dulled | amend D-FLOW-1 | owes D-FLOW-1 |
-| verb:transcode | dulled | amend D-VERB-6 | owes D-VERB-6 |
+| verb:transcode | dulled | accept retirement | retired (A.9) |
 | verb:tunnel | dulled | amend D-VENUE-1 | owes D-VENUE-1 |
 | verb:unit | sharp | none | kept whole |
 | verb:unix_group | sharp | none | kept whole |
