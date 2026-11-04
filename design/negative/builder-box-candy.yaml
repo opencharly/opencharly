@@ -1,5 +1,5 @@
 # rule: D-VAL-2
-# expect: builder.manager.box: c is a candy, want box
+# expect: c is a candy, want box
 c:
   description: A candy, not a box.
   package: {jq: {}}
@@ -8,5 +8,5 @@ c:
       command: jq --version
 b:
   builder:
-    description: A builder whose box is a candy.
-    manager: {name: npm, box: c}
+    description: A builder whose manager names a candy.
+    manager: {npm: c}

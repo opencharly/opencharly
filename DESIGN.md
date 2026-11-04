@@ -1499,15 +1499,14 @@ pixi-env:
     builder:
         description: Provides the pixi environment a pixi-managed build runs in.
         manager:
-            name: pixi
-            box: arch-build-box
+            pixi: arch-build-box
 
 mise-env:
     builder:
-        description: Provides the mise toolchain a mise-managed build runs in.
+        description: Provides the mise toolchain and the pixi environment a build runs in.
         manager:
-            name: mise
-            box: arch-build-box
+            mise: arch-build-box
+            pixi: arch-build-box
 
 supervisord:
     init:

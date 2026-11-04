@@ -62,8 +62,11 @@ _refs: [
 	for c in _candies for f, nd in c.value if f == "need" || f == "use" for t, m in nd if t == "harness" for a, _ in m {
 		{node: c.at, field: "\(f).harness", ref: a, want: ["harness"]}
 	},
-	for n, v in _node for k, b in v if k == "builder" for arm, p in b if arm == "bootstrap" || arm == "manager" for f, r in p if f == "box" {
-		{node: n, field: "builder.\(arm).box", ref: r, want: ["box"]}
+	for n, v in _node for k, b in v if k == "builder" for arm, p in b if arm == "bootstrap" for _f, r in p if _f == "box" {
+		{node: n, field: "builder.bootstrap.box", ref: r, want: ["box"]}
+	},
+	for n, v in _node for k, b in v if k == "builder" for arm, p in b if arm == "manager" for w, r in p {
+		{node: n, field: "builder.manager.\(w)", ref: r, want: ["box"]}
 	},
 	for n, v in _node for k, b in v if k == "pipeline" for f, st in b if f == "stage" for sn, x in st for g, l in x if g == "deployment" for r in l {
 		{node: n, field: "pipeline.stage.\(sn).deployment", ref: r, want: ["pod", "vm", "local", "android", "kubernetes"]}

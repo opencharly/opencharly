@@ -769,7 +769,8 @@ _leasableWord: [for w, r in _capability if r.lease {w}]
 }
 #Builder: or([for _, a in #BuilderAlt {a}])
 #BuilderBootstrap: {command!: #Text, box?: #Ref @ref(box)}
-#BuilderManager:   {name!: #BuildManager, box!: #Ref @ref(box)}
+// The authored shape: one entry per manager word, each naming the box that provides it.
+#BuilderManager:   {[or(_buildManagerWord)]: #Ref @ref(box)}
 
 // ════ workflow, harness and documentation kinds (§15) ════
 #Harness: {
