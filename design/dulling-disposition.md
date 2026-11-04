@@ -156,7 +156,7 @@ fails when this file and the ledger disagree (A.10).
 | verb:credential | dulled | amend D-CAP-4 | owes D-CAP-4 |
 | verb:cstream | dulled | accept retirement | retired (A.9) |
 | verb:cua | dulled | amend D-VERB-4 | owes D-VERB-4 |
-| verb:dbus | dulled | amend D-VERB-4 | owes D-VERB-4 |
+| verb:dbus | dulled | accept retirement | retired (A.9) |
 | verb:dns | sharp | none | kept whole |
 | verb:dsh | sharp | none | kept whole |
 | verb:egress | sharp | none | kept whole |
@@ -210,7 +210,7 @@ fails when this file and the ledger disagree (A.10).
 | verb:unix_group | sharp | none | kept whole |
 | verb:user | sharp | none | kept whole |
 | verb:vision | dulled | amend D-VERB-6 | owes D-VERB-6 |
-| verb:vnc | dulled | amend D-VERB-4 | owes D-VERB-4 |
+| verb:vnc | sharp | none | kept whole |
 | verb:wl | sharp | none | kept whole |
 | workflow:lobster | dulled | amend D-LAW-8 | owes D-LAW-8 |
 | vm snapshot create\|create-consistent\|capture-declared | sharp | none | kept whole |
