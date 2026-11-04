@@ -818,12 +818,15 @@ _leasableWord: [for w, r in _capability if r.lease {w}]
 	category:     *"development" | or(_skillCategoryWord)
 	trigger?:     #TextSet
 	agent?:       #SkillAgent
+	owner?:       #Name // the candy whose composed chain carries the skill's label (CollectSkills)
 }
 #SkillAgent: {model: *"inherit" | #Text, tool?: #TextSet}
 #Hook: {
 	description!: #Text
 	event!:       or(_hookEventWord)
 	matcher?:     #Text
+	when?:        #Matcher // the extra settings.json condition the emitted hook carries
+	mode?:        #FileMode // the mode of the file the hook is emitted as
 	language:     *"sh" | or(_hookLanguageWord)
 }
 #Marketplace: {
