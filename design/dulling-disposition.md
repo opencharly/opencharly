@@ -143,7 +143,7 @@ fails when this file and the ledger disagree (A.10).
 | terminal:tmux | dulled | amend D-VENUE-1 | owes D-VENUE-1 |
 | verb:adb | dulled | accept retirement | retired (A.9) |
 | verb:addr | sharp | none | kept whole |
-| verb:ade | dulled | amend D-VERB-5 | owes D-VERB-5 |
+| verb:ade | sharp | none | kept whole |
 | verb:agent | dulled | amend D-VERB-5 | owes D-VERB-5 |
 | verb:agentteams | sharp | none | kept whole |
 | verb:appium | sharp | none | kept whole |
