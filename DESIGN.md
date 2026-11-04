@@ -2035,6 +2035,10 @@ desk-session:
           display: {minimize: {target: initialtitle:Settings}}
         - check: the settings window is closed
           display: {close: {target: initialtitle:Settings}}
+        - check: the bar's surface is on screen at a known size
+          display: {surface: {name: omarchy-bar, present: true, width: 1280, height: 32}}
+        - check: the primary output is 1280x800
+          display: {screen: {name: eDP-1, width: 1280, height: 800}}
 
 lab-workstation:
     local:
