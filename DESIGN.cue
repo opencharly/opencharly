@@ -779,6 +779,12 @@ _leasableWord: [for w, r in _capability if r.lease {w}]
 	model?:       #Text
 	need?:        #Need
 	use?:         #Use
+	prompt_via:   *"argv" | "file" // how the prompt reaches the CLI: on its argv, or through a file it reads
+	version_command?: [...#Text]   // how the CLI reports its own version
+	timeout?:     #Duration
+	env?:         {[#EnvName]: #Text}
+	working_dir?: #AbsPath
+	output_format?: #Text          // the shape the tool's own output is parsed as (e.g. a line-delimited stream)
 }
 // The one workflow kind (D-FLOW-1): a named set of stages run in the host venue. A named host
 // routine is a pipeline of one stage; a gate over deployments and an agent loop over a run are pipelines.
@@ -837,7 +843,7 @@ _leasableWord: [for w, r in _capability if r.lease {w}]
 }
 #MarketplaceSettings: {enabled_plugin?: #NameSet}
 // One entry of a family's `.mcp.json`: the server's own launch spec.
-#McpServerRow: {command?: #Text, arg?: #TextSet, env?: {[#Name]: #Text}, url?: #Url}
+#McpServerRow: {command?: #Text, arg?: #TextSet, env?: {[#EnvName]: #Text}, url?: #Url}
 #MarketplaceFamily: {
 	category:     *"development" | or(_skillCategoryWord)
 	mcp_server?:  {[#Name]: #McpServerRow}

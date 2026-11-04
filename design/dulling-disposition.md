@@ -96,7 +96,7 @@ fails when this file and the ledger disagree (A.10).
 | deploy:pod | sharp | none | kept whole |
 | deploy:vm | sharp | none | kept whole |
 | engine:containerd | dulled | amend D-DRV-3 | owes D-DRV-3 |
-| kind:agent | dulled | amend D-KIND-2 | owes D-KIND-2 |
+| kind:agent | sharp | none | kept whole |
 | kind:agent-team | dulled | accept retirement | retired (A.9) |
 | kind:android | dulled | amend D-DEP-1 | owes D-DEP-1 |
 | kind:builder | sharp | none | kept whole |
