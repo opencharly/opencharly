@@ -56,23 +56,35 @@ def definition_fields(schema_text):
 
 
 def top_level_fields(body):
-    """Field names at brace depth 1: a one-line body keeps them inline, a multi-line one indents them."""
+    """Field names at brace depth 1: a one-line body keeps them inline, a multi-line one indents them.
+
+    Only the token immediately before a `:` is a field name. Everything after it is the VALUE, and a
+    value that happens to be a bare identifier (`a: int`) is not a field of its own — round 5 of batch
+    22 caught the extractor reading it as one.
+    """
     fields, depth, buffer = set(), 0, ""
+    in_value = False
     for char in body:
         if char == "{":
             depth += 1
             continue
         if char == "}":
             depth -= 1
-            buffer = ""
+            buffer, in_value = "", False
             continue
-        if depth == 1:
-            buffer += char
-            if char in "\n,:":
-                match = re.match(r"\s*([a-z_][a-z0-9_]*)[!?]?:?\s*$", buffer)
-                if match:
-                    fields.add(match.group(1))
-                buffer = ""
+        if depth != 1:
+            continue
+        if char in "\n,":
+            buffer, in_value = "", False
+            continue
+        if in_value:
+            continue
+        buffer += char
+        if char == ":":
+            match = re.match(r"\s*([a-z_][a-z0-9_]*)[!?]?:\s*$", buffer)
+            if match:
+                fields.add(match.group(1))
+            buffer, in_value = "", True
     return fields
 
 
