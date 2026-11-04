@@ -161,7 +161,11 @@ _packageManagerWord: [for w, _ in _packageManager {w}]
 _serviceFormat: {systemd: {}, supervisord: {}} @vocab(build)
 // a file observation's node type: the artifact phase can see the files an image carries
 _fileType: {file: {}, directory: {}, symlink: {}} @vocab(check)
+_displayButton: {left: {}, right: {}, middle: {}} @vocab(check)
+_clipboardAction: {get: {}, set: {}, clear: {}} @vocab(check)
 _fileTypeWord: [for w, _ in _fileType {w}]
+_displayButtonWord: [for w, _ in _displayButton {w}]
+_clipboardActionWord: [for w, _ in _clipboardAction {w}]
 _serviceFormatWord: [for w, _ in _serviceFormat {w}]
 _initRole: {container: {}, system: {}} @vocab(build)
 _initRoleWord: [for w, _ in _initRole {w}]
@@ -655,12 +659,37 @@ _leasableWord: [for w, r in _capability if r.lease {w}]
 // One observation of a screen, over whatever display transport the venue serves (VNC, SPICE, a
 // compositor, an IP-KVM): its pixels or a window. A recording is `instrument`; a judgement about a
 // screen is a `harness_check` whose `evidence` includes `display`.
+// D-VERB-4: one operation key per arm. These are the operations authored documents dispatch
+// through the display check; a compositor-specific operation stays with the compositor that owns it.
 #DisplayCheckAlt: {
-	screenshot: {screenshot!: {}}
-	window:     {window!: #DisplayCheckWindow}
+	status:     {status!: {}}
+	screenshot: {screenshot!: #DisplayScreenshot}
+	window:     {window!: #DisplayWindow}
+	key:        {key!: #DisplayKey}
+	type:       {type!: #DisplayText}
+	click:      {click!: #DisplayPointer}
+	mouse:      {mouse!: #DisplayPointer}
+	focus:      {focus!: #DisplayTarget}
+	close:      {close!: #DisplayTarget}
+	minimize:   {minimize!: #DisplayTarget}
+	clipboard:  {clipboard!: #DisplayClipboard}
+	exec:       {exec!: #DisplayCommand}
 }
 #DisplayCheck: or([for _, a in #DisplayCheckAlt {a}])
-#DisplayCheckWindow: {app_id?: #Text, title?: #Text}
+#DisplayWindow:  {app_id?: #Text, title?: #Text}
+#DisplayScreenshot: {
+	artifact?:            #AbsPath
+	artifact_min_bytes?:  #Count
+	artifact_min_dimensions?: #Text
+	artifact_not_uniform?:    bool
+	artifact_contains_text?:  #Text
+}
+#DisplayKey:      {key!: #Text, combo?: #Text}
+#DisplayText:     {text!: #Text}
+#DisplayPointer:  {x!: int & >=0, y!: int & >=0, button?: _displayButtonWord}
+#DisplayTarget:   {target!: #Text}
+#DisplayClipboard: {action!: *"get" | or(_clipboardActionWord), text?: #Text}
+#DisplayCommand:  {command!: #Text}
 
 // ════ data nodes: sources, operating systems, inits, builders (§15, §16) ════
 #SourceFields: {description!: #Text, os!: #Ref @ref(os)} // D-SRC-2
