@@ -333,7 +333,7 @@ _subsystemDefaultDriver: {for k, _ in _subsystem {(k): [for w, r in _driver if r
 // inside CUE, so these lists are written out; design-consistency.sh checks them against the
 // definitions.
 _candyField: ["description", "from", "step", "require", "need", "use", "provide", "package", "os_override", "file", "package_repo", "path_append", "service", "user", "volume", "export", "module", "packaging", "platform", "build_with", "entrypoint", "tag", "capture"]
-_deployField: ["description", "step", "disposable", "preemptible", "update_gate", "concurrency", "instrument", "ephemeral", "need", "use", "provide", "require", "create", "connect", "from", "publish", "node", "device", "api_level", "config"]
+_deployField: ["description", "step", "disposable", "preemptible", "update_gate", "concurrency", "instrument", "ephemeral", "need", "use", "provide", "require", "create", "connect", "from", "publish", "node", "device", "api_level", "config", "env", "install_opt"]
 
 _kindWord: [for w, _ in #KindAlt {w}]
 _verbWord: [for w, _ in #VerbAlt {w}]
@@ -907,7 +907,19 @@ _leasableWord: [for w, r in _capability if r.lease {w}]
 #KubernetesFields: {node?: {[#Name]: #ClusterNode}}
 #ClusterNode: {control_plane: *false | bool}
 #AndroidFields: {device!: #Text, api_level!: #Count}
-#LocalFields: {}
+#LocalFields: {
+	// The host install's own gates: what this machine lets a deploy do to it.
+	install_opt?: #LocalInstallOpt
+	env?:         {[#EnvName]: #Text}
+}
+#LocalInstallOpt: {
+	with_service?:      bool // install and start the deployment's services
+	allow_repo_change?: bool // let the host's package repository be changed
+	allow_root_task?:   bool // let a step run as root
+	skip_incompatible?: bool // keep going past a package the host cannot satisfy
+	verify?:            bool // verify the install after it lands
+	builder_image?:     #ImageRef // the image the host build runs in
+}
 #AgentFields: {
 	from!:   #Ref @ref(box, source) // the agent is deployed from a box, like any machine
 	config?: #Opaque                // S10: the agent runtime's own configuration
@@ -927,13 +939,16 @@ _placementWord: [for w, _ in _placement {w}]
 	admit:    *[] | [...string]
 	beside:   *[] | [...string]
 	content:  *false | bool
+	// A connected deployment that ALSO carries the fields its kind defines for creating it: a local
+	// deployment installs onto the host it reached, so its install gates are not a create-only matter.
+	connect_create: *false | bool
 }
 _deploymentKind: [#Word]: #DeploymentKindRow
 _deploymentKind: {
 	pod:        {create: #MachineFields, top: ["create"], admit: ["pod", "vm", "local", "kubernetes", "android", "agent"], beside: ["pod", "vm", "local"]}
 	vm:         {create: #MachineFields, top: ["create"], admit: ["pod", "vm", "local", "kubernetes", "android", "agent"], beside: ["pod", "vm", "local"]}
 	kubernetes: {create: #KubernetesFields, connect: ["kube"], top: ["create", "connect"], admit: ["pod", "vm", "agent"]}
-	local:      {create: #LocalFields, connect: ["shell", "ssh", "kvm"], top: ["connect"], admit: ["candy", "kubernetes", "android"], content: true}
+	local:      {create: #LocalFields, connect: ["shell", "ssh", "kvm"], top: ["connect"], admit: ["candy", "kubernetes", "android"], content: true, connect_create: true}
 	android:    {create: #AndroidFields, connect: ["adb"], top: ["create", "connect"], admit: ["candy"], content: true}
 	agent:      {create: #AgentFields, top: []}
 } @vocab(registry)
@@ -949,7 +964,9 @@ _#Body: {for k, r in _deploymentKind {(k): {
 }}}
 _#Placed: {for k, r in _deploymentKind {(k): {
 	create: {_#Body[k]..., r.create...}
-	if len(r.connect) > 0 {connect: {_#Body[k]..., connect!: or([for v in r.connect {#VenueAlt[v]}])}} // D-DEP-6
+	if len(r.connect) > 0 {
+		connect: {_#Body[k]..., connect!: or([for v in r.connect {#VenueAlt[v]}]), if r.connect_create {r.create...}} // D-DEP-6
+	}
 }}}
 // A node inside a body is created there (D-NEST-6); a top-level or alongside node is
 // placed as its row's `top` says, and a node that admits nodes beside it holds them.
