@@ -674,6 +674,8 @@ _leasableWord: [for w, r in _capability if r.lease {w}]
 	minimize:   {minimize!: #DisplayTarget}
 	clipboard:  {clipboard!: #DisplayClipboard}
 	exec:       {exec!: #DisplayCommand}
+	surface:    {surface!: #DisplaySurface}
+	screen:     {screen!: #DisplayScreen}
 }
 #DisplayCheck: or([for _, a in #DisplayCheckAlt {a}])
 #DisplayWindow:  {app_id?: #Text, title?: #Text}
@@ -690,6 +692,12 @@ _leasableWord: [for w, r in _capability if r.lease {w}]
 #DisplayTarget:   {target!: #Text}
 #DisplayClipboard: {action!: *"get" | or(_clipboardActionWord), text?: #Text}
 #DisplayCommand:  {command!: #Text}
+// The compositor's own surfaces, named as CONCEPTS rather than as one compositor's operations: a
+// layer-shell surface (a bar, a background, an overlay, a launcher) and an output. The operation
+// that lists them is the compositor's; what the design asserts is the surface itself.
+#DisplaySurface:  {name?: #Text, #PresenceFields..., width?: #Count, height?: #Count}
+#DisplayScreen:   {name?: #Text, #PresenceFields..., width?: #Count, height?: #Count}
+
 
 // ════ data nodes: sources, operating systems, inits, builders (§15, §16) ════
 #SourceFields: {description!: #Text, os!: #Ref @ref(os)} // D-SRC-2
