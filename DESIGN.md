@@ -1259,6 +1259,7 @@ reviewer:
         env: {CLAUDE_NO_UPDATE: "1"}
         working_dir: /srv/review
         output_format: stream-json
+        progress: {interval: 30s, no_improvement: 10m}
         need:
             env: {ANTHROPIC_API_KEY: {}}
 

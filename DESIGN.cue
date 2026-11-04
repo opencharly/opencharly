@@ -785,6 +785,7 @@ _leasableWord: [for w, r in _capability if r.lease {w}]
 	env?:         {[#EnvName]: #Text}
 	working_dir?: #AbsPath
 	output_format?: #Text          // the shape the tool's own output is parsed as (e.g. a line-delimited stream)
+	progress?:    #HarnessProgress // how often progress is sampled, and how long with none ends the run
 }
 // The one workflow kind (D-FLOW-1): a named set of stages run in the host venue. A named host
 // routine is a pipeline of one stage; a gate over deployments and an agent loop over a run are pipelines.
@@ -844,6 +845,9 @@ _leasableWord: [for w, r in _capability if r.lease {w}]
 #MarketplaceSettings: {enabled_plugin?: #NameSet}
 // One entry of a family's `.mcp.json`: the server's own launch spec.
 #McpServerRow: {command?: #Text, arg?: #TextSet, env?: {[#EnvName]: #Text}, url?: #Url}
+// A grader needs a liveness signal as well as a deadline: the interval it is sampled at, and the window
+// without progress that ends the run.
+#HarnessProgress: {interval?: #Duration, no_improvement?: #Duration}
 #MarketplaceFamily: {
 	category:     *"development" | or(_skillCategoryWord)
 	mcp_server?:  {[#Name]: #McpServerRow}
