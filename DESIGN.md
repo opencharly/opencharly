@@ -2700,4 +2700,35 @@ Both ledgers are written in **current** vocabulary, exactly as A.7 is: this docu
 bind the design, and a ledger's job is to name what exists today. A capability therefore lands
 `dulled` only with a quoted clause and a resolving citation, and its `action` either accepts the
 trade or names the amendment it owes; a capability with no home still amends a mechanism here,
-first (D-LAW-8).
+first (D-LAW-8). A capability this document **retires** is recorded once, with its rule and its
+count, in A.9 — and its row cites it.
+
+### A.9 What this document retires, and why
+
+A capability the target drops on purpose is a **decision**, and a decision belongs in this document
+where it can be read and checked — not in a review thread. This section is that record. Every row
+below has `accept retirement` in its ledger `action` and cites `§A.9`.
+
+| Capability | Retired by | The count that makes it dead |
+|---|---|---|
+| `kind:agent-team` | D-KIND-1: the first-party kind set is closed, and a team is a workload the cluster kind already carries | 0 of 148 authored manifests |
+| `kind:desktopentry` | D-IR-4: a `file:` entry has exactly one effect, so an entry that both writes and registers is two entries | 0 of 148 |
+| `kind:displaymanager` | D-IR-4 with `service:`: a candy's service names one unit's exec and user; a manager-specific render is the manager's own file | 0 of 148 |
+| `kind:session` | D-IR-4: the same one-effect rule; a session is files and a service, not a node | 0 of 148 |
+| `kind:theme` | D-IR-4: a `file:` writes literal bytes, so a closed token vocabulary has no home | 0 of 148 |
+| `verb:file-parity` | D-LAW-2: retired with zero authored uses, and no arm of `#FactVerbAlt`/`#ProtocolVerbAlt` remains | 0 of 148 |
+| `verb:module-pins` | D-LAW-2: retired with zero authored uses, no verb arm remains | 0 of 148 |
+| `verb:splice-region` | D-LAW-2: retired with zero authored uses, no verb arm remains | 0 of 148 |
+
+The count column is D-LAW-2's test, not a description: a capability retires when nothing authored
+uses it. It was measured by grepping every authored `.yml`/`.yaml` outside `CHANGELOG/`, `docs/` and
+generated `.build/` trees for the capability's own key (the transcript is in the change that recorded
+the retirements); a capability that gains a use later is a capability this document no longer
+retires, and its ledger row must say so.
+
+The same rule covers a **deliberate narrowing** that is not a retirement: an operation the design
+routes elsewhere rather than drops. `D-VERB-6` is the largest — a plugin's internal operation is an
+`api` method reached by `Host.call`, never a verb, so the vendor-internal operation tables (`adb`,
+`containerd`, `libvirt`, `kubevirt`, ...) are not verbs the target owes. A row that records one of
+those says so in its `dulling` cell and its `action` names `D-VERB-6`; this section does not list them
+again, because the requirement itself is the home.
