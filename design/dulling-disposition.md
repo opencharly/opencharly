@@ -206,7 +206,7 @@ fails when this file and the ledger disagree (A.10).
 | verb:task | dulled | amend D-FLOW-1 | owes D-FLOW-1 |
 | verb:transcode | dulled | amend D-VERB-6 | owes D-VERB-6 |
 | verb:tunnel | dulled | amend D-VENUE-1 | owes D-VENUE-1 |
-| verb:unit | dulled | amend D-VERB-1 | owes D-VERB-1 |
+| verb:unit | sharp | none | kept whole |
 | verb:unix_group | sharp | none | kept whole |
 | verb:user | sharp | none | kept whole |
 | verb:vision | dulled | amend D-VERB-6 | owes D-VERB-6 |
