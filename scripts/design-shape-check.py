@@ -10,7 +10,13 @@ Reads a ledger and the schema, and prints one FAIL line per row whose quoted fie
 definition's own. A bare citation (`DESIGN.cue:#Name`) and the `#Name is {a}` phrasing are not shape
 quotes and are not checked here.
 
-Usage: design-shape-check.py <ledger> <schema>
+Usage:
+  design-shape-check.py <ledger> <schema>   -- report rows whose quoted shape is stale
+  design-shape-check.py --count <schema>    -- declared vs registered definitions, and fail if any is missed
+
+The `--count` mode exists because a parser that quietly skips a definition fails in the SILENT direction:
+a row quoting the skipped definition is never checked, and a green gate proves nothing. Counting the
+schema's `^#Name:` lines against what the parser registered is the one check that makes the gap visible.
 """
 import re
 import sys
@@ -88,7 +94,25 @@ def top_level_fields(body):
     return fields
 
 
+def count(argv):
+    """Print declared / registered / missed for one schema, and fail when anything is missed."""
+    if len(argv) != 3:
+        print("usage: design-shape-check.py --count <schema>", file=sys.stderr)
+        return 2
+    schema = argv[2]
+    text = open(schema, encoding="utf-8").read()
+    declared = re.findall(r"^#([A-Za-z0-9]+):", text, re.M)
+    defs = definition_fields(text)
+    missed = [name for name in declared if name not in defs]
+    print("declared %d | registered %d | missed %d" % (len(declared), len(defs), len(missed)))
+    for name in missed:
+        print("MISSED #%s" % name)
+    return 1 if missed else 0
+
+
 def main(argv):
+    if len(argv) > 1 and argv[1] == "--count":
+        return count(argv)
     if len(argv) != 3:
         print("usage: design-shape-check.py <ledger> <schema>", file=sys.stderr)
         return 2

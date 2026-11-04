@@ -104,6 +104,12 @@ check_all() {
 	# resolves (batch 21 shipped exactly that).
 	python3 "$SCRIPT_DIR/design-shape-check.py" "$dulling" "$schema" >>"$out"
 	python3 "$SCRIPT_DIR/design-shape-check.py" "$admission" "$schema" >>"$out"
+	# and the parser itself: a definition it skips is silently unchecked, so the count is a control.
+	# Its output is a REPORT, not a finding -- only a missed definition reaches the finding file.
+	if ! count_out=$(python3 "$SCRIPT_DIR/design-shape-check.py" --count "$schema" 2>&1); then
+		printf 'FAIL DESIGN.cue: the shape check skipped a definition\n' >>"$out"
+		printf '%s\n' "$count_out" >>"$out"
+	fi
 
 	# a line citation in ANY column is a failure: columns other than `evidence` carry prose, and a
 	# mechanical sweep that only reads `evidence` leaves dangling references behind (round 3).
