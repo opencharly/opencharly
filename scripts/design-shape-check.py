@@ -29,9 +29,14 @@ def definition_fields(schema_text):
         body, depth = [], 0
         opened = False
         # Walk forward until the opening brace's depth returns to zero, so a definition that spills
-        # across lines (or nests) is captured whole and a one-line one is not over-read.
+        # across lines (or nests) is captured whole and a one-line one is not over-read. The walk also
+        # stops at the NEXT definition: a brace-less definition (`#Text: string`, `#Port: int & ...`)
+        # must not consume the body of the braced one that follows it, or that one would be skipped and
+        # every row quoting it would go unchecked (round 2 of batch 22).
         cursor = index
         while cursor < len(lines):
+            if cursor > index and re.match(r"^#[A-Za-z0-9]+:", lines[cursor]):
+                break
             text = lines[cursor] if cursor > index else rest
             for char in text:
                 if char == "{":
@@ -45,7 +50,8 @@ def definition_fields(schema_text):
                     break
             cursor += 1
         defs[name] = top_level_fields("\n".join(body))
-        index = cursor + 1
+        # A walk that stopped ON the next definition has not consumed it: resume there, not past it.
+        index = cursor if (cursor > index and re.match(r"^#[A-Za-z0-9]+:", lines[cursor])) else cursor + 1
     return defs
 
 

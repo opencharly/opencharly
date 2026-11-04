@@ -103,6 +103,7 @@ check_all() {
 	# row copying the old shape false, and the citation check cannot see it because the citation still
 	# resolves (batch 21 shipped exactly that).
 	python3 "$SCRIPT_DIR/design-shape-check.py" "$dulling" "$schema" >>"$out"
+	python3 "$SCRIPT_DIR/design-shape-check.py" "$admission" "$schema" >>"$out"
 
 	# a line citation in ANY column is a failure: columns other than `evidence` carry prose, and a
 	# mechanical sweep that only reads `evidence` leaves dangling references behind (round 3).
