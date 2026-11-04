@@ -2492,8 +2492,10 @@ validated with `cue vet -d '#Document' DESIGN.cue charly.yml`, and a user config
 | `design/example/load.cue` | the loader's view of a document (§11.1 stage 3, D-LOAD-5), in CUE |
 | `design/example/rules.cue` | the §12.4 rules that a single document can show, in CUE |
 | `design/negative/*.yaml` | one document per rule that breaks exactly that rule |
+| `design/dulling-disposition.md` | the ledger's readable face, generated (A.10) |
+| `scripts/design-disposition.sh` | renders `design/dulling-disposition.md` from the ledger |
 | `design/parity.tsv` | the parity ledger: every current capability and the mechanism that absorbs it (A.7) |
-| `scripts/design-ledger.sh` | checks the capability ledger: coverage, verdicts, citations (A.8) |
+| `scripts/design-ledger.sh` | checks the capability ledger: coverage, verdicts, citations, and the disposition table's currency (A.8, A.10) |
 | `design/dulling.tsv` | the capability ledger: every current capability, and whether the target form lands it whole (A.8) |
 | `design/dulling-admission.tsv` | the new-capability paths of the capability ledger (A.8) |
 
@@ -2758,3 +2760,15 @@ routes elsewhere rather than drops. `D-VERB-6` is the largest — a plugin's int
 `containerd`, `libvirt`, `kubevirt`, ...) are not verbs the target owes. A row that records one of
 those says so in its `dulling` cell and its `action` names `D-VERB-6`; this section does not list them
 again, because the requirement itself is the home.
+
+### A.10 `design/dulling-disposition.md` — the ledger's readable face
+
+The capability ledger (A.8) is 264 rows of tab-separated fact; a reader who wants to know **what
+happens to a capability** should not have to parse it. `design/dulling-disposition.md` is that
+answer: one line per capability, naming its verdict, its action and, in plain words, what happens —
+`kept whole`, `owes <the amendment>`, `retired (A.9)`, or `unsettled`.
+
+It is **generated** by `scripts/design-disposition.sh` from the ledger and never edited by hand, so
+the two cannot disagree by construction; `scripts/design-ledger.sh` regenerates it on every run and
+fails when the committed copy differs. The table is therefore evidence, not a claim: a stale row is
+a red gate, exactly as a stale citation is.

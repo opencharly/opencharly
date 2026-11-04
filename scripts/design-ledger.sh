@@ -108,6 +108,18 @@ check_all() {
 		for (i = 1; i <= NF; i++)
 			if ($i ~ /DESIGN\.(md|cue):[0-9]/) { printf "FAIL %s:%d: column %d cites a document by line; name it instead (A.8)\n", FILENAME, FNR, i; next }
 	}' "$admission" >>"$out"
+
+	# the disposition table is GENERATED from this ledger; a stale copy describes a state the ledger
+	# does not have, so it is a failure like any other (A.10).
+	local gen
+	gen="$(mktemp)"
+	if bash "$root/scripts/design-disposition.sh" "$root" >"$gen" 2>/dev/null; then
+		diff -q "$gen" "$root/design/dulling-disposition.md" >/dev/null 2>&1 ||
+			printf 'FAIL design/dulling-disposition.md: stale; regenerate with scripts/design-disposition.sh (A.10)\n' >>"$out"
+	else
+		printf 'FAIL design/dulling-disposition.md: the generator failed\n' >>"$out"
+	fi
+	rm -f "$gen"
 }
 
 # def_names_check <file> <evidence-index> <out> <defs> — the definitions a row NAMES are real,
@@ -189,6 +201,9 @@ if [[ "${1:-}" == "--self-test" ]]; then
 	cp "$schema" "$work/DESIGN.cue"
 	cp "$dulling" "$work/design/dulling.tsv"
 	cp "$admission" "$work/design/dulling-admission.tsv"
+	mkdir -p "$work/scripts"
+	cp "$root/scripts/design-disposition.sh" "$work/scripts/"
+	cp "$root/design/dulling-disposition.md" "$work/design/dulling-disposition.md"
 	cases=0
 
 	# the harness itself: unmutated copies must pass
@@ -280,6 +295,10 @@ if [[ "${1:-}" == "--self-test" ]]; then
 	awk -F'\t' 'BEGIN { OFS = "\t" } /^#/ || $1 == "path" { print; next }
 		!done { NF = 7; done = 1 } { print }' "$admission" >"$work/design/dulling-admission.tsv"
 	expect "a seven-column admission row" 'columns, expected 8'
+
+	# a stale disposition table -> current (it is generated, so it must match the ledger)
+	printf '| a-capability | sharp | none | kept whole |\n' >>"$work/design/dulling-disposition.md"
+	expect "a stale disposition table" 'stale; regenerate'
 
 	# supporting-file isolation: a check that read the REPOSITORY's DESIGN.md would not notice
 	# a change to the work copy, so truncating the copy proves the self-test judges its own tree.
