@@ -2761,6 +2761,19 @@ generated `.build/` trees for the capability's own key (the transcript is in the
 the retirements); a capability that gains a use later is a capability this document no longer
 retires, and its ledger row must say so.
 
+A capability the target keeps but **narrows on purpose** is the same kind of decision, and this
+section records those too:
+
+| Narrowing | The rule that holds it | What it means for an author |
+|---|---|---|
+| a plugin's internal operation | D-VERB-6 — a plugin's internal operation is an `api` method reached by `Host.call`, never a verb | the operation still exists, for plugins; an author does not call it as a step verb |
+| a state-changing operation | D-VERB-1 — a verb observes and never changes state; a state change is a field (§14.4), and the one step that changes state is a `run:` step | the same action is a field on a node or a `run:` step's command, not a typed verb operation |
+| a per-init rendering vocabulary | D-KIND-2 with the renderer rule — one renderer per unit format serves every init | a new init format is a renderer, not a vocabulary an author writes |
+
+Each narrowing is a trade the document makes once and states once; a ledger row that records one says
+`accept retirement` in its action and cites this section, so a reader can see the rule rather than a
+lone `dulled`.
+
 The same rule covers a **deliberate narrowing** that is not a retirement: an operation the design
 routes elsewhere rather than drops. `D-VERB-6` is the largest — a plugin's internal operation is an
 `api` method reached by `Host.call`, never a verb, so the vendor-internal operation tables (`adb`,
