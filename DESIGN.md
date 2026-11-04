@@ -166,7 +166,7 @@ forms included). A registered term has one meaning; a second meaning gets its ow
 
 | ID | Requirement |
 |---|---|
-| D-NAME-1 | Every authored key is singular: kind words, verb words, operation names, directives, field names, capability types, namespaces, protocol words. A list-valued field is still singular (`package:`, `step:`). Keys ending in `s` that are singular nouns, names or predicates: `os`, `kubernetes`, `dbus`, `dns`, `bus`, `status`, `exit_status`, `process`, `progress`, `run_as`, `address`, `access`, `contains`, `matches`, `equals`, `creates`, `unless`, `harness`, `focus`, `artifact_min_bytes`, `artifact_min_dimensions`. |
+| D-NAME-1 | Every authored key is singular: kind words, verb words, operation names, directives, field names, capability types, namespaces, protocol words. A list-valued field is still singular (`package:`, `step:`). Keys ending in `s` that are singular nouns, names or predicates: `os`, `kubernetes`, `dbus`, `dns`, `bus`, `status`, `exit_status`, `process`, `progress`, `run_as`, `address`, `access`, `contains`, `matches`, `equals`, `creates`, `unless`, `harness`, `focus`, `artifact_min_bytes`, `artifact_min_dimensions`, `caps`, `fps`. |
 | D-NAME-2 | **Who chose a name decides its case.** A word charly or a plugin defines — a field, a kind, verb, intent, operation, capability-type, enum or driver word — is snake_case (`#Word`: `kernel_param`, `harness_check`, `on_failure`). A name the user chooses — a node, a namespace, an endpoint, a secret, a volume, a parameter — is kebab-case (`#Name`). Neither admits the other's separator, so a schema word never collides with a node name. Environment variable names keep their own case. |
 | D-NAME-3 | A name says what the thing is in the user's terms. A tool name or an external system's own identifier appears only as a row value — a driver's `tool`, a word's `native` (`vhost_net: {native: "/dev/vhost-net"}`) — never as a word. |
 | D-NAME-4 | One term per concept everywhere: CLI, schema, Go identifiers, labels, documentation (§2). A definition's name says its shape (§13), by a closed set of suffixes: a value (`#Os`), a tag table (`#SourceAlt`), a fragment (`#StepFields`), a row schema (`#DriverRow`), a unique list (`#RefSet`), a verb input (`#FileCheck`), a protocol message (`#BuildInput`, `#BuildOutput`); a vocabulary table (`_phase`) and its derived words (`_phaseWord`); a derived definition internal to the schema (`_#Body`). |
@@ -2047,6 +2047,42 @@ lab-workstation:
         step:
             - harness_check: a login screen is shown
               evidence: [display]
+```
+
+<!-- example: protocol-verbs -->
+```yaml
+browser-venue:
+    description: A browser venue, its tool server and its session bus.
+    package: {curl: {}}
+    step:
+        - check: the browser is up
+          cdp: {status: {}}
+        - check: the browser lists its tabs
+          cdp: {tab: {}}
+        - check: the browser opens the local page
+          cdp: {open: {url: "http://127.0.0.1:8080/"}}
+        - check: the page renders the greeting
+          cdp: {text: {url: "http://127.0.0.1:8080/"}}
+        - check: a screencast session starts
+          cdp: {session: {action: start, fps: 5}}
+        - check: the tool server answers
+          mcp: {ping: {endpoint: toolkit}}
+        - check: the tool server lists its tools
+          mcp: {tool: {endpoint: toolkit}}
+        - check: the named tool is served
+          mcp: {tool: {endpoint: toolkit, name: read-file}}
+        - check: the filesystem tool answers a call
+          mcp: {call: {endpoint: toolkit, tool: read-file, config: {path: /etc/hostname}}}
+        - check: a mobile session is created
+          appium: {session: {action: create, caps: "{\"platformName\": \"Android\"}"}}
+        - check: the settings activity is in the foreground
+          appium: {activity: {app_id: com.android.settings, activity: .Settings}}
+        - check: the settings list element is found
+          appium: {element: {strategy: accessibility id, selector: settings}}
+        - check: the session bus lists its names
+          dbus: {name: {bus: session}}
+        - check: the session's own name owns the bus
+          dbus: {name: {bus: session, name: org.charly.Tools}}
 ```
 
 Every venue is one alternative of `#VenueAlt`: `container`, `ssh`, `shell`, `kvm`, `adb` and `kube`.

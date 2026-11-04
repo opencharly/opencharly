@@ -163,9 +163,13 @@ _serviceFormat: {systemd: {}, supervisord: {}} @vocab(build)
 _fileType: {file: {}, directory: {}, symlink: {}} @vocab(check)
 _displayButton: {left: {}, right: {}, middle: {}} @vocab(check)
 _clipboardAction: {get: {}, set: {}, clear: {}} @vocab(check)
+_sessionAction: {start: {}, stop: {}, status: {}} @vocab(check)
+_appiumSessionAction: {create: {}, delete: {}} @vocab(check)
 _fileTypeWord: [for w, _ in _fileType {w}]
 _displayButtonWord: [for w, _ in _displayButton {w}]
 _clipboardActionWord: [for w, _ in _clipboardAction {w}]
+_sessionActionWord: [for w, _ in _sessionAction {w}]
+_appiumSessionActionWord: [for w, _ in _appiumSessionAction {w}]
 _serviceFormatWord: [for w, _ in _serviceFormat {w}]
 _initRole: {container: {}, system: {}} @vocab(build)
 _initRoleWord: [for w, _ in _initRole {w}]
@@ -633,28 +637,45 @@ _leasableWord: [for w, r in _capability if r.lease {w}]
 #AppiumCheckAlt: {
 	status:      {status!: {}}
 	page_source: {page_source!: {}}
+	session:     {session!: #AppiumCheckSession}
+	activity:    {activity!: #AppiumCheckActivity}
+	element:     {element!: #AppiumCheckElement}
 }
 #AppiumCheck: or([for _, a in #AppiumCheckAlt {a}])
+#AppiumCheckSession:  {action!: *"create" | or(_appiumSessionActionWord), caps?: #Text, session?: #Text}
+#AppiumCheckActivity: {app_id!: #Text, activity!: #Text}
+#AppiumCheckElement:  {strategy!: #Text, selector!: #Text}
 #CdpCheckAlt: {
+	status:     {status!: {}}
+	tab:        {tab!: {}}
+	open:       {open!: #CdpCheckOpen}
 	text:       {text!: #CdpCheckText}
 	screenshot: {screenshot!: #CdpCheckScreenshot}
+	session:    {session!: #CdpCheckSession}
 }
 #CdpCheck: or([for _, a in #CdpCheckAlt {a}])
 #CdpCheckText:       {url!: #Url}
 #CdpCheckScreenshot: {url?: #Url}
+#CdpCheckOpen:       {url!: #Url}
+#CdpCheckSession:    {action!: *"start" | or(_sessionActionWord), fps?: #Count, tab?: #Text}
 #DbusCheckAlt: {
 	name:     {name!: #DbusCheckName}
 	property: {property!: #DbusCheckProperty}
 }
 #DbusCheck: or([for _, a in #DbusCheckAlt {a}])
-#DbusCheckName:     {bus: *"session" | or(_busWord), name!: #Text}
+// `name` absent lists the bus's names; present asserts that name owns the bus (D-NAME-1).
+#DbusCheckName:     {bus: *"session" | or(_busWord), name?: #Text}
 #DbusCheckProperty: {bus: *"session" | or(_busWord), service!: #Text, path!: #AbsPath, interface!: #Text, name!: #Text}
 #McpCheckAlt: {
+	ping: {ping!: #McpCheckEndpoint}
 	tool: {tool!: #McpCheckTool}
 	call: {call!: #McpCheckCall}
 }
 #McpCheck: or([for _, a in #McpCheckAlt {a}])
-#McpCheckTool: {endpoint!: #Name, name!: #Name}
+#McpCheckEndpoint: {endpoint!: #Name}
+// `name` absent lists the server's tools; present asserts that tool exists (D-NAME-1: a list-valued
+// observation keeps its singular key).
+#McpCheckTool: {endpoint!: #Name, name?: #Name}
 #McpCheckCall: {endpoint!: #Name, tool!: #Name, config?: #Opaque} // S10: the tool's own input
 // One observation of a screen, over whatever display transport the venue serves (VNC, SPICE, a
 // compositor, an IP-KVM): its pixels or a window. A recording is `instrument`; a judgement about a
