@@ -905,7 +905,13 @@ _leasableWord: [for w, r in _capability if r.lease {w}]
 	publish?: {[#Name]: #Port} // the host port of each provided endpoint it publishes
 }
 #KubernetesFields: {node?: {[#Name]: #ClusterNode}}
-#ClusterNode: {control_plane: *false | bool}
+#ClusterNode: {
+	control_plane: *false | bool
+	image?:        #ImageRef   // this node's image, where it differs from the deployment's `from:`
+	port?:         #ClusterPort // an extra port the cluster maps into the node -- the ingress/NodePort reach path
+}
+// A port the cluster maps into a node: the container port and the host port the reach path publishes.
+#ClusterPort: {container!: #Port, host: *0 | #Port}
 #AndroidFields: {device!: #Text, api_level!: #Count}
 #LocalFields: {
 	// The host install's own gates: what this machine lets a deploy do to it.

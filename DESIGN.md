@@ -1952,7 +1952,9 @@ check-host-tools:
 check-kind-workload:
     kubernetes:
         description: Checks a box deploys as a workload into a disposable cluster.
-        node: {control: {control_plane: true}}
+        node:
+            control: {control_plane: true}
+            worker: {image: "kindest/node:v1.31.0", port: {container: 30080, host: 30080}}
         disposable: true
         app:
             pod:
