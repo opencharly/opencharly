@@ -686,7 +686,7 @@ _leasableWord: [for w, r in _capability if r.lease {w}]
 }
 #DisplayKey:      {key!: #Text, combo?: #Text}
 #DisplayText:     {text!: #Text}
-#DisplayPointer:  {x!: int & >=0, y!: int & >=0, button?: _displayButtonWord}
+#DisplayPointer:  {x!: int & >=0, y!: int & >=0, button?: or(_displayButtonWord)}
 #DisplayTarget:   {target!: #Text}
 #DisplayClipboard: {action!: *"get" | or(_clipboardActionWord), text?: #Text}
 #DisplayCommand:  {command!: #Text}

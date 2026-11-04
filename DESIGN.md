@@ -2019,6 +2019,22 @@ desk-session:
           display: {key: {key: Return}}
         - check: a line is typed into the terminal
           display: {type: {text: "echo hello"}}
+        - check: the display is up
+          display: {status: {}}
+        - check: a right-click lands on the top-right corner
+          display: {click: {x: 1280, y: 40, button: right}}
+        - check: the pointer moves to the centre
+          display: {mouse: {x: 640, y: 360, button: left}}
+        - check: the clipboard answers and is then set
+          display: {clipboard: {action: get}}
+        - check: the clipboard holds the copied line
+          display: {clipboard: {action: set, text: "echo hello"}}
+        - check: a desktop notification is raised
+          display: {exec: {command: "notify-send done"}}
+        - check: the settings window is minimised
+          display: {minimize: {target: initialtitle:Settings}}
+        - check: the settings window is closed
+          display: {close: {target: initialtitle:Settings}}
 
 lab-workstation:
     local:
