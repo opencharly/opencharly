@@ -1253,6 +1253,13 @@ reviewer:
     harness:
         description: The review harness, a coding agent's command line.
         argv: [claude, --print]
+        prompt_via: file
+        version_command: [claude, --version]
+        timeout: 25m
+        env: {CLAUDE_NO_UPDATE: "1"}
+        working_dir: /srv/review
+        output_format: stream-json
+        progress: {interval: 30s, no_improvement: 10m}
         need:
             env: {ANTHROPIC_API_KEY: {}}
 
