@@ -155,7 +155,7 @@ fails when this file and the ledger disagree (A.10).
 | verb:crabbox | sharp | none | kept whole |
 | verb:credential | dulled | amend D-CAP-4 | owes D-CAP-4 |
 | verb:cstream | dulled | accept retirement | retired (A.9) |
-| verb:cua | dulled | amend D-VERB-4 | owes D-VERB-4 |
+| verb:cua | dulled | accept retirement | retired (A.9) |
 | verb:dbus | dulled | accept retirement | retired (A.9) |
 | verb:dns | sharp | none | kept whole |
 | verb:dsh | sharp | none | kept whole |
@@ -174,7 +174,7 @@ fails when this file and the ledger disagree (A.10).
 | verb:herdr | dulled | accept retirement | retired (A.9) |
 | verb:http | sharp | none | kept whole |
 | verb:interface | sharp | none | kept whole |
-| verb:jetkvm | dulled | amend D-VERB-4 | owes D-VERB-4 |
+| verb:jetkvm | dulled | accept retirement | retired (A.9) |
 | verb:k8sgen | sharp | none | kept whole |
 | verb:kernel-param | sharp | none | kept whole |
 | verb:kube | sharp | none | kept whole |
