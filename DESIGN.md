@@ -166,7 +166,7 @@ forms included). A registered term has one meaning; a second meaning gets its ow
 
 | ID | Requirement |
 |---|---|
-| D-NAME-1 | Every authored key is singular: kind words, verb words, operation names, directives, field names, capability types, namespaces, protocol words. A list-valued field is still singular (`package:`, `step:`). Keys ending in `s` that are singular nouns, names or predicates: `os`, `kubernetes`, `dbus`, `dns`, `bus`, `status`, `exit_status`, `process`, `progress`, `run_as`, `address`, `access`, `contains`, `matches`, `equals`, `creates`, `unless`, `harness`. |
+| D-NAME-1 | Every authored key is singular: kind words, verb words, operation names, directives, field names, capability types, namespaces, protocol words. A list-valued field is still singular (`package:`, `step:`). Keys ending in `s` that are singular nouns, names or predicates: `os`, `kubernetes`, `dbus`, `dns`, `bus`, `status`, `exit_status`, `process`, `progress`, `run_as`, `address`, `access`, `contains`, `matches`, `equals`, `creates`, `unless`, `harness`, `focus`, `artifact_min_bytes`, `artifact_min_dimensions`. |
 | D-NAME-2 | **Who chose a name decides its case.** A word charly or a plugin defines — a field, a kind, verb, intent, operation, capability-type, enum or driver word — is snake_case (`#Word`: `kernel_param`, `harness_check`, `on_failure`). A name the user chooses — a node, a namespace, an endpoint, a secret, a volume, a parameter — is kebab-case (`#Name`). Neither admits the other's separator, so a schema word never collides with a node name. Environment variable names keep their own case. |
 | D-NAME-3 | A name says what the thing is in the user's terms. A tool name or an external system's own identifier appears only as a row value — a driver's `tool`, a word's `native` (`vhost_net: {native: "/dev/vhost-net"}`) — never as a word. |
 | D-NAME-4 | One term per concept everywhere: CLI, schema, Go identifiers, labels, documentation (§2). A definition's name says its shape (§13), by a closed set of suffixes: a value (`#Os`), a tag table (`#SourceAlt`), a fragment (`#StepFields`), a row schema (`#DriverRow`), a unique list (`#RefSet`), a verb input (`#FileCheck`), a protocol message (`#BuildInput`, `#BuildOutput`); a vocabulary table (`_phase`) and its derived words (`_phaseWord`); a derived definition internal to the schema (`_#Body`). |
@@ -2009,6 +2009,32 @@ desk-session:
           retry: {until: 60s}
         - check: the terminal window is open
           display: {window: {app_id: foot}}
+        - check: the terminal has focus and its clipboard answers
+          display: {focus: {target: initialtitle:foot}}
+        - check: a screenshot of the desktop is not blank
+          display: {screenshot: {artifact: /tmp/desktop.png, artifact_min_bytes: 4096, artifact_not_uniform: true}}
+        - check: the shell prompt is on screen
+          display: {screenshot: {artifact: /tmp/prompt.png, artifact_contains_text: "user@host"}}
+        - check: a key press and a typed line reach the focused window
+          display: {key: {key: Return}}
+        - check: a line is typed into the terminal
+          display: {type: {text: "echo hello"}}
+        - check: the display is up
+          display: {status: {}}
+        - check: a right-click lands on the top-right corner
+          display: {click: {x: 1280, y: 40, button: right}}
+        - check: the pointer moves to the centre
+          display: {mouse: {x: 640, y: 360, button: left}}
+        - check: the clipboard answers and is then set
+          display: {clipboard: {action: get}}
+        - check: the clipboard holds the copied line
+          display: {clipboard: {action: set, text: "echo hello"}}
+        - check: a desktop notification is raised
+          display: {exec: {command: "notify-send done"}}
+        - check: the settings window is minimised
+          display: {minimize: {target: initialtitle:Settings}}
+        - check: the settings window is closed
+          display: {close: {target: initialtitle:Settings}}
 
 lab-workstation:
     local:
