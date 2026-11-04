@@ -1979,6 +1979,8 @@ fdroid:
     step:
         - check: F-Droid is installed
           package: {name: "android:https://f-droid.org/F-Droid.apk"}
+        - check: the SSH server is installed under the name this operating system uses
+          package: {name: openssh-server, package_map: {arch: openssh, fedora: openssh-server, debian: openssh-server}}
 
 check-android-device:
     android:

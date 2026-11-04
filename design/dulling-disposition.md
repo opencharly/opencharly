@@ -189,7 +189,7 @@ fails when this file and the ledger disagree (A.10).
 | verb:oci | sharp | none | kept whole |
 | verb:omarchy | dulled | accept retirement | retired (A.9) |
 | verb:openclaw | sharp | none | kept whole |
-| verb:package | dulled | amend D-VERB-3 | owes D-VERB-3 |
+| verb:package | sharp | none | kept whole |
 | verb:pipeline | sharp | none | kept whole |
 | verb:port | sharp | none | kept whole |
 | verb:probe | dulled | amend D-VERB-5 | owes D-VERB-5 |
