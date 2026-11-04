@@ -531,6 +531,10 @@ _leasableWord: [for w, r in _capability if r.lease {w}]
 	matches:  {matches!: #Text}
 	not:      {not!: #Matcher}
 	json:     {json!: #JsonMatch}
+	lt:       {lt!: number}
+	le:       {le!: number}
+	gt:       {gt!: number}
+	ge:       {ge!: number}
 }
 #Matcher: or([for _, a in #MatcherAlt {a}])
 #AddressChecks: (#Matcher | [...#Matcher]) // one comparison or a list of required addresses
@@ -564,6 +568,8 @@ _leasableWord: [for w, r in _capability if r.lease {w}]
 	exit_status: *0 | int
 	stdout?:     #Matcher
 	stderr?:     #Matcher
+	expect_non_zero?: bool // the command must FAIL: assert any non-zero exit
+	skip_exit?:  int        // the code that means "ran nothing", so the step is skipped rather than failed
 }
 // D-IR-2: an install step declares its idempotence: `creates` or `unless`.
 #GuardAlt: {
@@ -571,7 +577,7 @@ _leasableWord: [for w, r in _capability if r.lease {w}]
 	unless:  {unless!: #Text}
 }
 #Guard: or([for _, a in #GuardAlt {a}])
-#RunFields: {command!: #Text, guard!: #Guard, #StepFields...}
+#RunFields: {command!: #Text, guard!: #Guard, background?: bool, #StepFields...}
 // What a harness is shown besides the deployment's state: the venue accesses it may read.
 #HarnessStepFields: {
 	harness?:  #Ref @ref(harness)

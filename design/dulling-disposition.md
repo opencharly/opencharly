@@ -150,7 +150,7 @@ fails when this file and the ledger disagree (A.10).
 | verb:arbiter | dulled | accept retirement | retired (A.9) |
 | verb:bpf | sharp | none | kept whole |
 | verb:cdp | sharp | none | kept whole |
-| verb:command | dulled | amend D-VERB-3 | owes D-VERB-3 |
+| verb:command | sharp | none | kept whole |
 | verb:containerd | dulled | accept retirement | retired (A.9) |
 | verb:crabbox | sharp | none | kept whole |
 | verb:credential | dulled | amend D-CAP-4 | owes D-CAP-4 |
@@ -180,7 +180,7 @@ fails when this file and the ledger disagree (A.10).
 | verb:kube | sharp | none | kept whole |
 | verb:kubevirt | sharp | none | kept whole |
 | verb:libvirt | dulled | accept retirement | retired (A.9) |
-| verb:matching | dulled | amend D-VERB-3 | owes D-VERB-3 |
+| verb:matching | dulled | accept retirement | retired (A.9) |
 | verb:mcp | sharp | none | kept whole |
 | verb:media | dulled | amend D-DEP-8 | owes D-DEP-8 |
 | verb:mise | dulled | amend D-PLUG-2 | owes D-PLUG-2 |

@@ -2423,12 +2423,24 @@ sshd-account:
           dns: {name: localhost, server: 127.0.0.53, address: [{equals: 127.0.0.1}, {matches: "^::1$"}]}
         - check: the guest does not forward packets
           kernel_param: {name: net.ipv4.ip_forward, value: {equals: "0"}}
+        - check: the socket backlog is at least 128
+          kernel_param: {name: net.core.somaxconn, value: {ge: 128}}
         - check: the root filesystem is mounted from a known source with known options
           mount: {path: /, source: /dev/vda1, opt: [rw, relatime]}
         - check: the timezone link resolves into the zoneinfo tree
           file: {path: /etc/localtime, filetype: symlink, link_target: {contains: zoneinfo}}
         - check: the sshd config is the pinned one and belongs to root
           file: {path: /etc/ssh/sshd_config, sha256: {matches: "^[0-9a-f]{64}$"}, group_of: root}
+        - check: the key exchange list has at least one modern algorithm
+          file: {path: /etc/ssh/sshd_config, content: {matches: "chacha20-poly1305"}}
+          expect_non_zero: false
+        - run: the host key directory is created if it is not there
+          command: install -d -m 0755 /etc/ssh/keys
+          guard: {creates: /etc/ssh/keys}
+        - run: a one-shot host key refresh runs in the background
+          command: ssh-keygen -A
+          background: true
+          guard: {unless: "test -f /etc/ssh/ssh_host_ed25519_key"}
         - check: the ssh daemon is enabled and the machine is otherwise healthy
           service: {name: sshd, scope: system, none_failed: true, ignore: [getty-tty1]}
         - check: the ssh daemon is enabled in the artifact before it is stored
@@ -2771,6 +2783,7 @@ section records those too:
 | a plugin's internal operation | D-VERB-6 — a plugin's internal operation is an `api` method reached by `Host.call`, never a verb | the operation still exists, for plugins; an author does not call it as a step verb |
 | a state-changing operation | D-VERB-1 — a verb observes and never changes state; a state change is a field (§14.4), and the one step that changes state is a `run:` step | the same action is a field on a node or a `run:` step's command, not a typed verb operation |
 | a per-init rendering vocabulary | D-KIND-2 with the renderer rule — one renderer per unit format serves every init | a new init format is a renderer, not a vocabulary an author writes |
+| a list of matchers on one assertion | D-VERB-3 — a matcher is exactly one comparison, and `not`/`json` compose any matcher | several comparisons are several steps, or one composed matcher |
 
 Each narrowing is a trade the document makes once and states once; a ledger row that records one says
 `accept retirement` in its action and cites this section, so a reader can see the rule rather than a
