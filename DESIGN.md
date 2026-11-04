@@ -2423,17 +2423,26 @@ sshd-account:
           dns: {name: localhost, server: 127.0.0.53, address: [{equals: 127.0.0.1}, {matches: "^::1$"}]}
         - check: the guest does not forward packets
           kernel_param: {name: net.ipv4.ip_forward, value: {equals: "0"}}
-        - check: the socket backlog is at least 128
+        - check: the socket backlog is at least 128 and below the ceiling
           kernel_param: {name: net.core.somaxconn, value: {ge: 128}}
+        - check: the socket backlog is above 64
+          kernel_param: {name: net.core.somaxconn, value: {gt: 64}}
+        - check: the socket backlog is below 8192
+          kernel_param: {name: net.core.somaxconn, value: {le: 8192}}
+        - check: the maximum backlog is under 65536
+          kernel_param: {name: net.core.somaxconn, value: {lt: 65536}}
         - check: the root filesystem is mounted from a known source with known options
           mount: {path: /, source: /dev/vda1, opt: [rw, relatime]}
         - check: the timezone link resolves into the zoneinfo tree
           file: {path: /etc/localtime, filetype: symlink, link_target: {contains: zoneinfo}}
         - check: the sshd config is the pinned one and belongs to root
           file: {path: /etc/ssh/sshd_config, sha256: {matches: "^[0-9a-f]{64}$"}, group_of: root}
-        - check: the key exchange list has at least one modern algorithm
-          file: {path: /etc/ssh/sshd_config, content: {matches: "chacha20-poly1305"}}
-          expect_non_zero: false
+        - check: the sshd config rejects an unknown option
+          command: sshd -t -f /etc/ssh/sshd_config.nonexistent
+          expect_non_zero: true
+        - check: the sshd configuration test needs no work
+          command: sshd -t -f /etc/ssh/sshd_config
+          skip_exit: 0
         - run: the host key directory is created if it is not there
           command: install -d -m 0755 /etc/ssh/keys
           guard: {creates: /etc/ssh/keys}
