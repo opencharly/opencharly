@@ -647,11 +647,14 @@ _leasableWord: [for w, r in _capability if r.lease {w}]
 	session:     {session!: #AppiumCheckSession}
 	activity:    {activity!: #AppiumCheckActivity}
 	element:     {element!: #AppiumCheckElement}
+	record:      {record!: #AppiumCheckRecord}
 }
 #AppiumCheck: or([for _, a in #AppiumCheckAlt {a}])
 #AppiumCheckSession:  {action!: *"create" | or(_appiumSessionActionWord), caps?: #Text, session?: #Text}
 #AppiumCheckActivity: {app_id!: #Text, activity!: #Text}
 #AppiumCheckElement:  {strategy!: #Text, selector!: #Text}
+// The recorder: start, stop or ask for the status of the screen capture the appium session writes.
+#AppiumCheckRecord:   {action!: *"start" | or(_sessionActionWord), artifact?: #AbsPath}
 #CdpCheckAlt: {
 	status:     {status!: {}}
 	tab:        {tab!: {}}

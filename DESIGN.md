@@ -2116,6 +2116,8 @@ browser-venue:
           mcp: {call: {endpoint: toolkit, tool: read-file, config: {path: /etc/hostname}}}
         - check: a mobile session is created
           appium: {session: {action: create, caps: "{\"platformName\": \"Android\"}"}}
+        - check: the appium screen recorder is started
+          appium: {record: {action: start, artifact: /tmp/appium.mp4}}
         - check: the settings activity is in the foreground
           appium: {activity: {app_id: com.android.settings, activity: .Settings}}
         - check: the settings list element is found

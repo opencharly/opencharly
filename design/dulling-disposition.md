@@ -146,10 +146,10 @@ fails when this file and the ledger disagree (A.10).
 | verb:ade | dulled | amend D-VERB-5 | owes D-VERB-5 |
 | verb:agent | dulled | amend D-VERB-5 | owes D-VERB-5 |
 | verb:agentteams | sharp | none | kept whole |
-| verb:appium | dulled | amend D-VERB-4 | owes D-VERB-4 |
+| verb:appium | sharp | none | kept whole |
 | verb:arbiter | dulled | accept retirement | retired (A.9) |
 | verb:bpf | sharp | none | kept whole |
-| verb:cdp | dulled | amend D-VERB-4 | owes D-VERB-4 |
+| verb:cdp | sharp | none | kept whole |
 | verb:command | dulled | amend D-VERB-3 | owes D-VERB-3 |
 | verb:containerd | dulled | accept retirement | retired (A.9) |
 | verb:crabbox | sharp | none | kept whole |
@@ -181,7 +181,7 @@ fails when this file and the ledger disagree (A.10).
 | verb:kubevirt | sharp | none | kept whole |
 | verb:libvirt | dulled | accept retirement | retired (A.9) |
 | verb:matching | dulled | amend D-VERB-3 | owes D-VERB-3 |
-| verb:mcp | dulled | amend D-VERB-4 | owes D-VERB-4 |
+| verb:mcp | sharp | none | kept whole |
 | verb:media | dulled | amend D-DEP-8 | owes D-DEP-8 |
 | verb:mise | dulled | amend D-PLUG-2 | owes D-PLUG-2 |
 | verb:module-pins | forbidden | accept retirement | retired (A.9) |
@@ -201,7 +201,7 @@ fails when this file and the ledger disagree (A.10).
 | verb:record | dulled | accept retirement | retired (A.9) |
 | verb:retention | sharp | none | kept whole |
 | verb:service | sharp | none | kept whole |
-| verb:spice | dulled | amend D-VERB-4 | owes D-VERB-4 |
+| verb:spice | sharp | none | kept whole |
 | verb:splice-region | forbidden | accept retirement | retired (A.9) |
 | verb:task | dulled | amend D-FLOW-1 | owes D-FLOW-1 |
 | verb:transcode | dulled | accept retirement | retired (A.9) |
@@ -211,7 +211,7 @@ fails when this file and the ledger disagree (A.10).
 | verb:user | sharp | none | kept whole |
 | verb:vision | dulled | amend D-VERB-6 | owes D-VERB-6 |
 | verb:vnc | dulled | amend D-VERB-4 | owes D-VERB-4 |
-| verb:wl | dulled | amend D-VERB-4 | owes D-VERB-4 |
+| verb:wl | sharp | none | kept whole |
 | workflow:lobster | dulled | amend D-LAW-8 | owes D-LAW-8 |
 | vm snapshot create\|create-consistent\|capture-declared | sharp | none | kept whole |
 | vm snapshot revert\|revert-and-start\|promote\|list\|delete | sharp | none | kept whole |
