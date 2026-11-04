@@ -582,8 +582,13 @@ _leasableWord: [for w, r in _capability if r.lease {w}]
 #HarnessStepFields: {
 	harness?:  #Ref @ref(harness)
 	evidence?: [...or(_accessWord)] & list.UniqueItems()
+	fail_on?:  [...#Name] // the outcome names that count as a failure; anything else is a pass
+	redo?:     #Redo      // what to do when the step fails: re-run it, and when to escalate
 	#StepFields...
 }
+// The redo policy a harness step may carry: which outcomes trigger a re-run, how many times, and after
+// how many failures the run escalates instead of repeating itself.
+#Redo: {on_fail?: [...#Name], max?: #Count, escalate_after?: #Count}
 
 // D-VERB-5, D-VERB-1: one step alternative per intent (`_intent`): `run` carries its `command` and
 // `guard`; a check carries exactly one verb; the harness intents carry no verb. The loader selects

@@ -2094,6 +2094,8 @@ lab-workstation:
         step:
             - harness_check: a login screen is shown
               evidence: [display]
+              fail_on: [timeout, unparseable]
+              redo: {on_fail: [timeout], max: 3, escalate_after: 2}
 ```
 
 <!-- example: protocol-verbs -->
