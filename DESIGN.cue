@@ -150,6 +150,8 @@ _manager: {
 	pip:     {time: "build"}
 	aur:     {time: "build"}
 	flatpak: {time: "build"}
+	pixi:    {time: "build"}
+	mise:    {time: "build"}
 	helm:    {time: "apply"}
 	android: {time: "apply"}
 } @vocab(registry)

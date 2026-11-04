@@ -1488,6 +1488,24 @@ pacstrap:
         bootstrap:
             command: pacstrap -c -G -M /rootfs base
 
+arch-build-box:
+    from: arch-image
+    description: The Arch base a language-manager build runs in.
+
+pixi-env:
+    builder:
+        description: Provides the pixi environment a pixi-managed build runs in.
+        manager:
+            name: pixi
+            box: arch-build-box
+
+mise-env:
+    builder:
+        description: Provides the mise toolchain a mise-managed build runs in.
+        manager:
+            name: mise
+            box: arch-build-box
+
 supervisord:
     init:
         description: supervisord as the container init.
