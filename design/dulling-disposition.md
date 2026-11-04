@@ -213,15 +213,15 @@ fails when this file and the ledger disagree (A.10).
 | verb:vnc | dulled | amend D-VERB-4 | owes D-VERB-4 |
 | verb:wl | dulled | amend D-VERB-4 | owes D-VERB-4 |
 | workflow:lobster | dulled | amend D-LAW-8 | owes D-LAW-8 |
-| vm snapshot create|create-consistent|capture-declared | sharp | none | kept whole |
-| vm snapshot revert|revert-and-start|promote|list|delete | sharp | none | kept whole |
-| vm console|ssh|scp | sharp | none | kept whole |
-| vm screenshot|sendkey|type | sharp | none | kept whole |
-| vm gpu status|list|mode | dulled | amend D-HW-9 | owes D-HW-9 |
-| vm bake|build|import|import-container-disk|clone|cp-box|retag|seed | dulled | amend D-CLI-2 | owes D-CLI-2 |
-| vm create|start|stop|destroy|list | sharp | none | kept whole |
-| kubevirt create|build|start|stop|restart|destroy|console|ssh|snapshot|migrate|gpu | dulled | amend D-VERB-1 | owes D-VERB-1 |
-| check read|append | sharp | none | kept whole |
+| vm snapshot create\|create-consistent\|capture-declared | sharp | none | kept whole |
+| vm snapshot revert\|revert-and-start\|promote\|list\|delete | sharp | none | kept whole |
+| vm console\|ssh\|scp | sharp | none | kept whole |
+| vm screenshot\|sendkey\|type | sharp | none | kept whole |
+| vm gpu status\|list\|mode | dulled | amend D-HW-9 | owes D-HW-9 |
+| vm bake\|build\|import\|import-container-disk\|clone\|cp-box\|retag\|seed | dulled | amend D-CLI-2 | owes D-CLI-2 |
+| vm create\|start\|stop\|destroy\|list | sharp | none | kept whole |
+| kubevirt create\|build\|start\|stop\|restart\|destroy\|console\|ssh\|snapshot\|migrate\|gpu | dulled | amend D-VERB-1 | owes D-VERB-1 |
+| check read\|append | sharp | none | kept whole |
 | check plan | dulled | amend §22 | owes §22 |
 | check run-local | sharp | none | kept whole |
 | check list-agent | sharp | none | kept whole |
@@ -229,25 +229,25 @@ fails when this file and the ledger disagree (A.10).
 | check run --anchor | sharp | none | kept whole |
 | check-roster (a set of beds as one gate) | sharp | none | kept whole |
 | iterate (an agent loop over a bed) | sharp | none | kept whole |
-| deploy path|show|status | sharp | none | kept whole |
+| deploy path\|show\|status | sharp | none | kept whole |
 | deploy reset | sharp | none | kept whole |
-| deploy from-box|export|import | sharp | none | kept whole |
-| cache status|clear|refresh|bypass|push|pull|ingest | dulled | amend D-STORE-3 | owes D-STORE-3 |
-| secrets get|set|list|delete|import|export|gpg|encrypt|decrypt|edit|env|recipients|setup|show|unset|doctor | dulled | amend D-SEC-1 | owes D-SEC-1 |
+| deploy from-box\|export\|import | sharp | none | kept whole |
+| cache status\|clear\|refresh\|bypass\|push\|pull\|ingest | dulled | amend D-STORE-3 | owes D-STORE-3 |
+| secrets get\|set\|list\|delete\|import\|export\|gpg\|encrypt\|decrypt\|edit\|env\|recipients\|setup\|show\|unset\|doctor | dulled | amend D-SEC-1 | owes D-SEC-1 |
 | ssh tunnel | sharp | none | kept whole |
-| ssh spice|vnc | sharp | none | kept whole |
-| tunnel start|stop|setup|plan | sharp | none | kept whole |
-| marketplace generate|drift|extract | sharp | none | kept whole |
-| pipeline run|validate|resume|schedule|agent|probe | dulled | amend D-FLOW-1 | owes D-FLOW-1 |
-| lobster doctor|import | sharp | none | kept whole |
-| agent runtime|session|run|followup|steer|dispatch|delegate|team|federation|terminal|incident|rca|recover|new|launch|show | sharp | none | kept whole |
-| tmux attach|capture|cmd|kill|list|run|send|shell | sharp | none | kept whole |
-| alias add|install|list|remove|uninstall | sharp | none | kept whole |
-| udev generate|install|remove|status | dulled | amend D-CLI-2 | owes D-CLI-2 |
-| candy set|params | dulled | amend §16.1 | owes §16.1 |
-| feature list|pending|validate | sharp | none | kept whole |
-| preempt status|restore | sharp | none | kept whole |
-| settings get|set|list|path|reset | sharp | none | kept whole |
+| ssh spice\|vnc | sharp | none | kept whole |
+| tunnel start\|stop\|setup\|plan | sharp | none | kept whole |
+| marketplace generate\|drift\|extract | sharp | none | kept whole |
+| pipeline run\|validate\|resume\|schedule\|agent\|probe | dulled | amend D-FLOW-1 | owes D-FLOW-1 |
+| lobster doctor\|import | sharp | none | kept whole |
+| agent runtime\|session\|run\|followup\|steer\|dispatch\|delegate\|team\|federation\|terminal\|incident\|rca\|recover\|new\|launch\|show | sharp | none | kept whole |
+| tmux attach\|capture\|cmd\|kill\|list\|run\|send\|shell | sharp | none | kept whole |
+| alias add\|install\|list\|remove\|uninstall | sharp | none | kept whole |
+| udev generate\|install\|remove\|status | dulled | amend D-CLI-2 | owes D-CLI-2 |
+| candy set\|params | dulled | amend §16.1 | owes §16.1 |
+| feature list\|pending\|validate | sharp | none | kept whole |
+| preempt status\|restore | sharp | none | kept whole |
+| settings get\|set\|list\|path\|reset | sharp | none | kept whole |
 | runtime handler crun/krun (one switch to a microVM) | sharp | none | kept whole |
 | krun annotations ram_mib/cpus | dulled | amend D-HW-4 | owes D-HW-4 |
 | krun VM backend (OCI image boot) | dulled | amend D-DRV-2 | owes D-DRV-2 |

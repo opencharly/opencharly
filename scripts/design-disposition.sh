@@ -20,6 +20,7 @@ awk -F'\t' '
   /^#/ || $1 == "capability" { next }
   {
     cap = $1; verdict = $5; action = $8; disp = ""
+    gsub(/\|/, "\\|", cap)   # a capability name may contain a pipe; escape it or the row splits
     if (verdict == "sharp") disp = "kept whole"
     else if (action == "accept retirement") disp = "retired (A.9)"
     else if (action ~ /^amend /) { a = action; sub(/^amend /, "", a); disp = "owes " a }
