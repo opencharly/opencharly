@@ -15,9 +15,6 @@ Usage: design-shape-check.py <ledger> <schema>
 import re
 import sys
 
-TOP_FIELD = re.compile(r"^\t([a-z_][a-z0-9_]*)[!?]?:", re.M)
-
-
 def definition_fields(schema_text):
     """Top-level field names of every top-level `#Name: { ... }` definition, by brace depth."""
     defs = {}
