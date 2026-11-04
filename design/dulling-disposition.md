@@ -113,7 +113,7 @@ fails when this file and the ledger disagree (A.10).
 | kind:kindcluster | dulled | amend D-DEP-1 | owes D-DEP-1 |
 | kind:kubernetes | dulled | amend D-DEP-1 | owes D-DEP-1 |
 | kind:kubevirt | dulled | amend D-DEP-1 | owes D-DEP-1 |
-| kind:local | dulled | amend D-DEP-1 | owes D-DEP-1 |
+| kind:local | sharp | none | kept whole |
 | kind:marketplace | sharp | none | kept whole |
 | kind:pipeline | dulled | amend D-FLOW-1 | owes D-FLOW-1 |
 | kind:pod | sharp | none | kept whole |

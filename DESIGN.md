@@ -1938,6 +1938,8 @@ check-host-tools:
         connect: {shell: {}}
         require: [devtool.ripgrep]
         disposable: true
+        env: {HOST_GATE: "1"}
+        install_opt: {allow_root_task: false, with_service: false, verify: true}
         step:
             - check: ripgrep runs on the host
               command: rg --version
