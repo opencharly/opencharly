@@ -833,9 +833,14 @@ _leasableWord: [for w, r in _capability if r.lease {w}]
 #Marketplace: {
 	description!: #Text
 	family!:      {[#Name]: #MarketplaceFamily}
+	settings?:    #MarketplaceSettings
 }
+#MarketplaceSettings: {enabled_plugin?: #NameSet}
+// One entry of a family's `.mcp.json`: the server's own launch spec.
+#McpServerRow: {command?: #Text, arg?: #TextSet, env?: {[#Name]: #Text}, url?: #Url}
 #MarketplaceFamily: {
 	category:     *"development" | or(_skillCategoryWord)
+	mcp_server?:  {[#Name]: #McpServerRow}
 	description?: #Text
 	keyword?:     #TextSet
 	profile?:     [...or(_profileWord)] & list.UniqueItems()
