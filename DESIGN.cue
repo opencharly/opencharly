@@ -625,14 +625,19 @@ _leasableWord: [for w, r in _capability if r.lease {w}]
 }
 
 // D-VERB-4: one operation key per multi-operation verb; a wait is the `retry` modifier.
+// D-VERB-4: the cluster check's operations are observations. A wait is the `retry` modifier and a
+// transition is a run step; what remains is the node list, a pod list, any resource the API serves
+// (an ingress, a storage pool, a service, a VirtualMachine, a DataVolume ...) and a raw read.
 #KubeCheckAlt: {
 	node:     {node!: #KubeCheckNode}
-	resource: {resource!: #KubeCheckResource}
 	pod:      {pod!: #KubeCheckPod}
+	resource: {resource!: #KubeCheckResource}
+	raw:      {raw!: #KubeCheckRaw}
 }
 #KubeCheck: or([for _, a in #KubeCheckAlt {a}])
 #KubeCheckNode:     {count?: #Count}
-#KubeCheckResource: {kind!: #Text, name!: #Text, namespace?: #Label, ready: *true | bool}
+#KubeCheckResource: {kind!: #Text, name!: #Text, namespace?: #Label, ready: *true | bool, value?: #Matcher}
+#KubeCheckRaw:      {path!: #Text, value?: #Matcher}
 #KubeCheckPod:      {namespace?: #Label}
 #AppiumCheckAlt: {
 	status:      {status!: {}}

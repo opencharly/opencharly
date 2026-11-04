@@ -1882,6 +1882,14 @@ check-k3s-vm:
                     - check: coredns is ready
                       kube: {resource: {kind: deployment, namespace: kube-system, name: coredns}}
                       retry: {until: 180s}
+                    - check: the coredns pods are listed
+                      kube: {pod: {namespace: kube-system}}
+                    - check: the default storage pool exists
+                      kube: {resource: {kind: storageclass, name: local-path}}
+                    - check: the Traefik service publishes an address
+                      kube: {resource: {kind: service, namespace: kube-system, name: traefik, value: {contains: 10.0.0.1}}}
+                    - check: the API serves the node list on a raw path
+                      kube: {raw: {path: /api/v1/nodes}}
 ```
 
 The `kube` steps run against the cluster of the node they are written in; its kube context is
