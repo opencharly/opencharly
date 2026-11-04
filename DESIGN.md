@@ -1204,12 +1204,15 @@ deploy-skill:
         description: How to bring a box to life with `charly deploy add`.
         family: core
         trigger: [charly deploy add]
+        owner: charly
 
 guard-push:
     hook:
         description: Refuses a force-push before it reaches the remote.
         event: pre_tool_use
         matcher: Bash
+        when: {contains: "git push"}
+        mode: "0755"
 
 site:
     doc:
