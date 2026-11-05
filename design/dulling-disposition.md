@@ -38,7 +38,7 @@ fails when this file and the ledger disagree (A.10).
 | command:feature | sharp | none | kept whole |
 | command:feature:box | sharp | none | kept whole |
 | command:fetch:box | sharp | none | kept whole |
-| command:firecracker | unknown | verify live | unsettled |
+| command:firecracker | dulled | accept retirement | retired (A.9) |
 | command:generate-packages | sharp | none | kept whole |
 | command:generate-podcast | unknown | verify live | unsettled |
 | command:generate:box | sharp | none | kept whole |
@@ -88,7 +88,7 @@ fails when this file and the ledger disagree (A.10).
 | command:volume | sharp | none | kept whole |
 | command:write:box | sharp | none | kept whole |
 | deploy:android | sharp | none | kept whole |
-| deploy:firecracker | unknown | verify live | unsettled |
+| deploy:firecracker | dulled | accept retirement | retired (A.9) |
 | deploy:kindcluster | sharp | none | kept whole |
 | deploy:kubernetes | sharp | none | kept whole |
 | deploy:kubevirt | dulled | amend D-ROLE-1 | owes D-ROLE-1 |
@@ -164,7 +164,7 @@ fails when this file and the ledger disagree (A.10).
 | verb:enc | sharp | none | kept whole |
 | verb:file | sharp | none | kept whole |
 | verb:file-parity | forbidden | accept retirement | retired (A.9) |
-| verb:firecracker | unknown | verify live | unsettled |
+| verb:firecracker | dulled | accept retirement | retired (A.9) |
 | verb:gate | sharp | none | kept whole |
 | verb:generate | dulled | amend D-CLI-3 | owes D-CLI-3 |
 | verb:gh | dulled | amend D-SDK-1 | owes D-SDK-1 |
