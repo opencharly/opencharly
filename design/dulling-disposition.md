@@ -140,7 +140,7 @@ fails when this file and the ledger disagree (A.10).
 | step:shell-hook | sharp | none | kept whole |
 | step:shell-snippet | sharp | none | kept whole |
 | step:system-packages | sharp | none | kept whole |
-| terminal:tmux | dulled | amend D-VENUE-1 | owes D-VENUE-1 |
+| terminal:tmux | dulled | accept retirement | retired (A.9) |
 | verb:adb | dulled | accept retirement | retired (A.9) |
 | verb:addr | sharp | none | kept whole |
 | verb:ade | sharp | none | kept whole |
@@ -205,7 +205,7 @@ fails when this file and the ledger disagree (A.10).
 | verb:splice-region | forbidden | accept retirement | retired (A.9) |
 | verb:task | dulled | amend D-FLOW-1 | owes D-FLOW-1 |
 | verb:transcode | dulled | accept retirement | retired (A.9) |
-| verb:tunnel | dulled | amend D-VENUE-1 | owes D-VENUE-1 |
+| verb:tunnel | dulled | accept retirement | retired (A.9) |
 | verb:unit | sharp | none | kept whole |
 | verb:unix_group | sharp | none | kept whole |
 | verb:user | sharp | none | kept whole |
