@@ -58,7 +58,7 @@ fails when this file and the ledger disagree (A.10).
 | command:new:box | sharp | none | kept whole |
 | command:ollama | sharp | none | kept whole |
 | command:pipeline | sharp | none | kept whole |
-| command:preempt | dulled | amend D-PLUG-5 | owes D-PLUG-5 |
+| command:preempt | sharp | none | kept whole |
 | command:pull:box | sharp | none | kept whole |
 | command:qdrant | sharp | none | kept whole |
 | command:reconcile:box | sharp | none | kept whole |

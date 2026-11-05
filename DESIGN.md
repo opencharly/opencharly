@@ -552,7 +552,7 @@ plugin:
 | ID | Requirement |
 |---|---|
 | D-PLUG-4 | A project declares every plugin it uses in `plugin:` (same shape as an import). The registry is exactly the words of the declared plugins of the project and its imports; an undeclared word is an error at its `file:line`. Placement never changes which plugin runs: a declared plugin runs in-process only on the exact match of D-CORE-4; otherwise it is fetched as a prebuilt binary for the host platform, or built from source for a `path:` declaration. |
-| D-PLUG-5 | Commands that run without a project (`secret`, `config`, `doctor` without a node, `clean`, `cache`) use the `plugin:` list of the user configuration, or of the system configuration a native package installs. |
+| D-PLUG-5 | Commands that run without a project (`secret`, `config`, `doctor` without a node, `clean`, `cache`, `preempt`) use the `plugin:` list of the user configuration, or of the system configuration a native package installs. |
 | D-PLUG-6 | `charly box validate` reports every declared plugin, the words it provides, whether each is used, and how it runs; a declared plugin whose words are never used is an error (D-LAW-2). |
 | D-PLUG-7 | A word of a plugin outside the first-party set — kind, verb, command, type or api — is written under the namespace its project binds the plugin to (`strata.status`, `qdrant.collection`), so it never shadows a first-party word. |
 
