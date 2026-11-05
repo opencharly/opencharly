@@ -133,7 +133,7 @@ fails when this file and the ledger disagree (A.10).
 | step:local-pkg-install | sharp | none | kept whole |
 | step:op | sharp | none | kept whole |
 | step:plugin-tree | dulled | accept retirement | retired (A.9) |
-| step:reboot | dulled | amend D-IR-2 | owes D-IR-2 |
+| step:reboot | dulled | accept retirement | retired (A.9) |
 | step:repo-change | sharp | none | kept whole |
 | step:service-custom | sharp | none | kept whole |
 | step:service-packaged | sharp | none | kept whole |
