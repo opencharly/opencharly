@@ -1978,7 +1978,7 @@ check-kind-workload:
         storage: {name: local-path}
         ingress: {name: traefik, issuer: letsencrypt}
         image_default: {pull_policy: IfNotPresent, pull_secret: [lab-registry]}
-        pod_default: {priority: batch, node_selector: {os: linux}}
+        pod_default: {priority: batch, node_selector: {os: linux}, toleration: [{key: dedicated, operator: Equal, value: lab, effect: NoSchedule}]}
         label: {team: lab}
         annotation: {owner: charly}
         disposable: true
