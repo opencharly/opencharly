@@ -2856,6 +2856,7 @@ section records those too:
 | a step that runs several verbs | D-VERB-1 — a check carries exactly one verb | several checks, one per verb; a shared `input` is a parameter and an `output` is a capture |
 | an umbrella maintenance verb in the authored model | D-FLOW-1 — every action is a named set of stages of a loaded project's pipeline | the umbrella's own maintenance verbs run where no project exists yet, so they are outside the authored model — the design describes documents, not the tool that materialises them |
 | a project-declared host-resource token | D-HW-4 with D-HW-5 — a resource is one listed in the user configuration's `resource:`, and a raw vendor id is a raw runtime setting | the machine's owner lists its resources; a project names one of them by a closed name (`nvidia`, `amd`, `intel`) and never a vendor id |
+| an application's own interaction path | D-VENUE-1 — a venue access is one of `exec`, `copy`, `log`, `console`, `display`, `forward`, `power`, and no kind, driver or application has one of its own | a tunnel is `forward`, a terminal channel is `console`, and the operations a channel offers are the venue's, shared by everything that reaches it that way |
 
 Each narrowing is a trade the document makes once and states once; a ledger row that records one says
 `accept retirement` in its action and cites this section, so a reader can see the rule rather than a
