@@ -333,7 +333,7 @@ _subsystemDefaultDriver: {for k, _ in _subsystem {(k): [for w, r in _driver if r
 // inside CUE, so these lists are written out; design-consistency.sh checks them against the
 // definitions.
 _candyField: ["description", "from", "step", "require", "need", "use", "provide", "package", "os_override", "file", "package_repo", "path_append", "service", "user", "volume", "export", "module", "packaging", "platform", "build_with", "entrypoint", "tag", "capture"]
-_deployField: ["description", "step", "disposable", "preemptible", "update_gate", "concurrency", "instrument", "ephemeral", "need", "use", "provide", "require", "create", "connect", "from", "publish", "node", "device", "api_level", "config", "env", "install_opt"]
+_deployField: ["description", "step", "disposable", "preemptible", "update_gate", "concurrency", "instrument", "ephemeral", "need", "use", "provide", "require", "create", "connect", "from", "publish", "node", "device", "api_level", "config", "env", "install_opt", "box", "serial", "google_account"]
 
 _kindWord: [for w, _ in #KindAlt {w}]
 _verbWord: [for w, _ in #VerbAlt {w}]
@@ -919,7 +919,14 @@ _leasableWord: [for w, r in _capability if r.lease {w}]
 }
 // A port the cluster maps into a node: the container port and the host port the reach path publishes.
 #ClusterPort: {container!: #Port, host: *0 | #Port}
-#AndroidFields: {device!: #Text, api_level!: #Count}
+#AndroidFields: {
+	device!:    #Text
+	api_level!: #Count
+	box?:       #Ref @ref(box, source) // the emulator image this node boots, built from a box
+	serial?:    #Text                  // the serial of a device that already exists, reached instead of creating one
+	google_account?: #GoogleAccount // the sign-in, the token naming the `secret:` need entry that carries it
+}
+#GoogleAccount: {email!: #Text, token!: #Name}
 #LocalFields: {
 	// The host install's own gates: what this machine lets a deploy do to it.
 	install_opt?: #LocalInstallOpt

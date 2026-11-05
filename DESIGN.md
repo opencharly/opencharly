@@ -1611,7 +1611,7 @@ form: a container from the image, or the disk's root filesystem with nothing boo
 | `vm` | `from:` a box or source, `publish:` | the form its hypervisor boots, copy-on-write | `ssh` |
 | `kubernetes` | `node:` to create a cluster where it is written, by the configured cluster driver, or `connect: {kube}` to an existing one | a cluster; workloads are inner nodes | `kube` |
 | `local` | `require:` candies; at top level, `connect:` to its host through `shell`, `ssh` or `kvm` | the IR applied to that host | `shell`, `ssh` or `kvm` |
-| `android` | `require:` candies; `device:` and `api_level:` to create an emulator, or `connect: {adb}` to a device | `android:` packages applied to the device | `adb` |
+| `android` | `require:` candies; `device:`, `api_level:`, `box:` and `google_account:` to create an emulator, or `serial:` to reach a device that already exists, or `connect: {adb}` to an adb endpoint | `android:` packages applied to the device | `adb` |
 | `agent` | `from:` a box or a source, the runtime's own `config` | a workload, deployed and observed like any other | the machine it runs on |
 
 Each kind is one row of `_deploymentKind` (S11): `create` is what creating it takes, `connect` the
@@ -1991,6 +1991,31 @@ check-android-device:
         step:
             - check: the device answers
               command: getprop ro.build.version.release
+
+check-android-emulator:
+    android:
+        description: Checks an app on an emulator this deployment builds from a box.
+        device: pixel
+        api_level: 36
+        box: search-box
+        google_account: {email: lab@example.com, token: google-token}
+        require: [fdroid]
+        disposable: true
+        step:
+            - check: the emulator answers
+              command: getprop ro.build.version.release
+
+check-android-serial:
+    android:
+        description: Checks an app on a device that already exists, reached by its serial.
+        device: pixel
+        api_level: 36
+        serial: emulator-5554
+        require: [fdroid]
+        disposable: true
+        step:
+            - check: the named device answers
+              command: getprop ro.serialno
 ```
 
 ### 17.6 Drivers

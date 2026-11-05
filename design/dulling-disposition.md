@@ -98,7 +98,7 @@ fails when this file and the ledger disagree (A.10).
 | engine:containerd | dulled | amend D-DRV-3 | owes D-DRV-3 |
 | kind:agent | sharp | none | kept whole |
 | kind:agent-team | dulled | accept retirement | retired (A.9) |
-| kind:android | dulled | amend D-DEP-1 | owes D-DEP-1 |
+| kind:android | sharp | none | kept whole |
 | kind:builder | sharp | none | kept whole |
 | kind:candy | sharp | none | kept whole |
 | kind:cua | dulled | amend D-KIND-1 | owes D-KIND-1 |
