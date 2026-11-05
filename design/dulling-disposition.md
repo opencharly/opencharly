@@ -251,12 +251,12 @@ fails when this file and the ledger disagree (A.10).
 | runtime handler crun/krun (one switch to a microVM) | sharp | none | kept whole |
 | krun annotations ram_mib/cpus | dulled | amend D-HW-4 | owes D-HW-4 |
 | krun VM backend (OCI image boot) | dulled | amend D-DRV-2 | owes D-DRV-2 |
-| Firecracker rootfs + kernel | dulled | amend D-DRV-2 | owes D-DRV-2 |
+| Firecracker rootfs + kernel | dulled | accept retirement | retired (A.9) |
 | rootful vs rootless daemon | dulled | accept retirement | retired (A.9) |
 | containerd namespace per deployment | dulled | accept retirement | retired (A.9) |
 | narrow seccomp profile for userns sandboxes | sharp | none | kept whole |
 | snapshot and revert of a container's layer, the store, a microVM | dulled | accept retirement | retired (A.9) |
-| CRIU process checkpoint (rootful runc; krun in-guest) | dulled | amend D-DRV-3 | owes D-DRV-3 |
+| CRIU process checkpoint (rootful runc; krun in-guest) | dulled | accept retirement | retired (A.9) |
 | k3s datadir snapshot, backup and restore | sharp | none | kept whole |
 | k3s on the shared containerd store | sharp | none | kept whole |
 | NVIDIA CDI rootful and rootless | sharp | none | kept whole |
@@ -268,4 +268,4 @@ fails when this file and the ledger disagree (A.10).
 | BuildKit as the one image builder | sharp | none | kept whole |
 | local registry mirror for build inputs | sharp | none | kept whole |
 | pooled fan-out (lanes) | dulled | amend D-FLOW-1 | owes D-FLOW-1 |
-| skill and agent bodies under .agents/ | dulled | amend D-KIND-5 | owes D-KIND-5 |
+| skill and agent bodies under .agents/ | dulled | accept retirement | retired (A.9) |
