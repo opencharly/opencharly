@@ -2831,6 +2831,7 @@ section records those too:
 | a state-changing operation | D-VERB-1 — a verb observes and never changes state; a state change is a field (§14.4), and the one step that changes state is a `run:` step | the same action is a field on a node or a `run:` step's command, not a typed verb operation |
 | a per-init rendering vocabulary | D-KIND-2 with the renderer rule — one renderer per unit format serves every init | a new init format is a renderer, not a vocabulary an author writes |
 | a list of matchers on one assertion | D-VERB-3 — a matcher is exactly one comparison, and `not`/`json` compose any matcher | several comparisons are several steps, or one composed matcher |
+| printing a secret's value | D-SEC-1 — a secret never enters the store, artifacts, labels, IR, state or output | there is no `get`: a value reaches a consumer as a `secret:` need, never as text on a terminal |
 
 Each narrowing is a trade the document makes once and states once; a ledger row that records one says
 `accept retirement` in its action and cites this section, so a reader can see the rule rather than a
