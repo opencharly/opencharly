@@ -2494,6 +2494,8 @@ sshd-account:
           file: {path: /etc/localtime, filetype: symlink, link_target: {contains: zoneinfo}}
         - check: the sshd config is the pinned one and belongs to root
           file: {path: /etc/ssh/sshd_config, sha256: {matches: "^[0-9a-f]{64}$"}, group_of: root}
+        - check: the recorded session is a real capture and not an empty file
+          file: {path: /tmp/session.mp4, size: {ge: 1048576}}
         - check: the sshd config rejects an unknown option
           command: sshd -t -f /etc/ssh/sshd_config.nonexistent
           expect_non_zero: true
