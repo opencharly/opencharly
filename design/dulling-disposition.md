@@ -107,7 +107,7 @@ fails when this file and the ledger disagree (A.10).
 | kind:distro | dulled | amend D-KIND-2 | owes D-KIND-2 |
 | kind:firecracker | dulled | amend D-DEP-1 | owes D-DEP-1 |
 | kind:group | unknown | verify live | unsettled |
-| kind:hook | dulled | amend D-KIND-1 | owes D-KIND-1 |
+| kind:hook | sharp | none | kept whole |
 | kind:init | dulled | accept retirement | retired (A.9) |
 | kind:jetkvm | dulled | amend D-VENUE-2 | owes D-VENUE-2 |
 | kind:kindcluster | dulled | amend D-DEP-1 | owes D-DEP-1 |

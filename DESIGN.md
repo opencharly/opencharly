@@ -1214,6 +1214,14 @@ guard-push:
         when: {contains: "git push"}
         mode: "0755"
 
+check-run-helper:
+    hook:
+        description: A helper script the harness never calls; a command runs it by path.
+        event: pre_tool_use
+        matcher: Bash
+        mode: "0755"
+        wire: false
+
 site:
     doc:
         description: The generated half of the documentation site.
