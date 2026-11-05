@@ -260,8 +260,8 @@ _driver: {
 	firecracker:    {subsystem: "vm", form: ["disk"], access: ["exec", "copy", "log", "console", "forward", "power"], capture: ["filesystem", "process"]}
 	kind:           {subsystem: "kubernetes", default: true, tool: "kind"}
 	k3s:            {subsystem: "kubernetes", tool: "k3s"}
-	pi:             {subsystem: "agent", default: true}
-	tmux:           {subsystem: "agent", tool: "tmux"}
+	pi:             {subsystem: "agent", default: true, tool: "pi", form: ["image"], access: ["exec", "console"]}
+	tmux:           {subsystem: "agent", tool: "tmux", form: ["image"], access: ["exec", "console"]}
 	secret_service: {subsystem: "secret", default: true}
 	gpg:            {subsystem: "secret", tool: "gpg"}
 	file:           {subsystem: "secret"}

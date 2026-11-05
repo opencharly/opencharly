@@ -5,8 +5,8 @@ fails when this file and the ledger disagree (A.10).
 
 | capability | verdict | action | what happens |
 |---|---|---|---|
-| agent-runtime:pi | dulled | amend D-DRV-3 | owes D-DRV-3 |
-| agent-runtime:tmux | dulled | amend D-DRV-3 | owes D-DRV-3 |
+| agent-runtime:pi | dulled | accept retirement | retired (A.9) |
+| agent-runtime:tmux | dulled | accept retirement | retired (A.9) |
 | build:box | sharp | none | kept whole |
 | build:ensure | sharp | none | kept whole |
 | build:generate | sharp | none | kept whole |
@@ -95,7 +95,7 @@ fails when this file and the ledger disagree (A.10).
 | deploy:local | sharp | none | kept whole |
 | deploy:pod | sharp | none | kept whole |
 | deploy:vm | sharp | none | kept whole |
-| engine:containerd | dulled | amend D-DRV-3 | owes D-DRV-3 |
+| engine:containerd | dulled | accept retirement | retired (A.9) |
 | kind:agent | sharp | none | kept whole |
 | kind:agent-team | dulled | accept retirement | retired (A.9) |
 | kind:android | sharp | none | kept whole |
