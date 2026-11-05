@@ -333,7 +333,7 @@ _subsystemDefaultDriver: {for k, _ in _subsystem {(k): [for w, r in _driver if r
 // inside CUE, so these lists are written out; design-consistency.sh checks them against the
 // definitions.
 _candyField: ["description", "from", "step", "require", "need", "use", "provide", "package", "os_override", "file", "package_repo", "path_append", "service", "user", "volume", "export", "module", "packaging", "platform", "build_with", "entrypoint", "tag", "capture"]
-_deployField: ["description", "step", "disposable", "preemptible", "update_gate", "concurrency", "instrument", "ephemeral", "need", "use", "provide", "require", "create", "connect", "from", "publish", "node", "device", "api_level", "config", "env", "install_opt", "box", "serial", "google_account"]
+_deployField: ["description", "step", "disposable", "preemptible", "update_gate", "concurrency", "instrument", "ephemeral", "need", "use", "provide", "require", "create", "connect", "from", "publish", "node", "device", "api_level", "config", "env", "install_opt", "box", "serial", "google_account", "default_namespace", "admission_policy", "kubeconfig_context", "storage", "ingress"]
 
 _kindWord: [for w, _ in #KindAlt {w}]
 _verbWord: [for w, _ in #VerbAlt {w}]
@@ -911,7 +911,17 @@ _leasableWord: [for w, r in _capability if r.lease {w}]
 	from!:    #Ref @ref(box, source)
 	publish?: {[#Name]: #Port} // the host port of each provided endpoint it publishes
 }
-#KubernetesFields: {node?: {[#Name]: #ClusterNode}}
+#KubernetesFields: {
+	node?: {[#Name]: #ClusterNode}
+	// The cluster's own policy: where a workload lands and what the cluster enforces by default.
+	default_namespace?:  #Name            // the namespace a workload lands in when it names none
+	admission_policy?:   [...#Name]       // the policy names the cluster enforces on admission
+	kubeconfig_context?: #Name            // the context this cluster's kubeconfig selects
+	storage?:            #ClusterStorage  // the default storage the cluster provisions from
+	ingress?:            #ClusterIngress  // the reach path a workload's service takes
+}
+#ClusterStorage: {name?: #Name}           // the storage provisioner a claim gets when it names none
+#ClusterIngress: {name?: #Name, issuer?: #Name} // the ingress provisioner, and the cert issuer that signs for it
 #ClusterNode: {
 	control_plane: *false | bool
 	image?:        #ImageRef   // this node's image, where it differs from the deployment's `from:`
