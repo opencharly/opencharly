@@ -119,7 +119,7 @@ fails when this file and the ledger disagree (A.10).
 | kind:pod | sharp | none | kept whole |
 | kind:resource | dulled | accept retirement | retired (A.9) |
 | kind:session | dulled | accept retirement | retired (A.9) |
-| kind:sidecar | dulled | amend D-HW-5 | owes D-HW-5 |
+| kind:sidecar | dulled | accept retirement | retired (A.9) |
 | kind:skill | sharp | none | kept whole |
 | kind:task | dulled | amend D-FLOW-1 | owes D-FLOW-1 |
 | kind:theme | dulled | accept retirement | retired (A.9) |
