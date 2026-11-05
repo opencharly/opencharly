@@ -2419,7 +2419,7 @@ needed, then captures it. The interaction commands — `shell`, `cmd`, `cp`, `lo
 | ID | Requirement |
 |---|---|
 | D-CLI-1 | One command per operation, valid for every deployment kind and every driver; no kind- or driver-specific command groups (an application's commands: D-CLI-3). |
-| D-CLI-2 | Only `box new`, `box set`, `box add-candy`, `box rm-candy`, `box write`, `box reconcile`, `deploy adopt` and `migrate` write authored files, and each prints what it changed. |
+| D-CLI-2 | Only `box new`, `box set`, `box add-candy`, `box rm-candy`, `box write`, `box reconcile`, `candy set`, `candy add-<fmt>`, `candy params`, `config setup`, `deploy adopt`, `udev install`, `vm clone`, `vm import`, `vm import-container-disk` and `migrate` write authored files, and each prints what it changed. |
 | D-CLI-3 | Tools inside a deployment are reached with `charly cmd <deployment> <tool>`, and an application's own commands under its plugin's namespace (D-PLUG-7); there are no first-party per-application commands. |
 | D-CLI-4 | Every command supports `--format json`; help and MCP tools are generated from the same command definitions. |
 | D-CLI-5 | Every command works with only the `charly` binary installed, for projects whose plugins are released `{repo, release, digest}` references; the OS packages a plugin declares (D-CANDY-6) are the one further requirement, met by the operator's own package manager or by `charly local-install` under D-STORE-9. |
