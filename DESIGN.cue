@@ -852,6 +852,7 @@ _leasableWord: [for w, r in _capability if r.lease {w}]
 	when?:        #Matcher // the extra settings.json condition the emitted hook carries
 	mode?:        #FileMode // the mode of the file the hook is emitted as
 	language:     *"sh" | or(_hookLanguageWord)
+	wire:         *true | bool // false emits the script WITHOUT wiring it into the harness's settings: an auxiliary script
 }
 #Marketplace: {
 	description!: #Text
