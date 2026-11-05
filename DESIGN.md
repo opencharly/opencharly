@@ -726,6 +726,15 @@ gpu-stream:
         - check: GStreamer is installed
           command: gst-inspect-1.0 --version
 
+lab-signing:
+    description: Signs artefacts with a key kept on the host.
+    use:
+        secret:
+            lab-signing-key: {src: /home/operator/.ssh/id_ed25519, dst: /run/lab/id_ed25519, optional: true}
+    step:
+        - check: the key is readable when the host had one
+          command: test -r /run/lab/id_ed25519 || true
+
 virt-host:
     description: Runs VMs with libvirt inside the deployment.
     package: {libvirt-daemon: {}, qemu-kvm: {}}

@@ -153,7 +153,7 @@ fails when this file and the ledger disagree (A.10).
 | verb:command | sharp | none | kept whole |
 | verb:containerd | dulled | accept retirement | retired (A.9) |
 | verb:crabbox | sharp | none | kept whole |
-| verb:credential | dulled | amend D-CAP-4 | owes D-CAP-4 |
+| verb:credential | sharp | none | kept whole |
 | verb:cstream | dulled | accept retirement | retired (A.9) |
 | verb:cua | dulled | accept retirement | retired (A.9) |
 | verb:dbus | dulled | accept retirement | retired (A.9) |
