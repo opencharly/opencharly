@@ -40,7 +40,7 @@ fails when this file and the ledger disagree (A.10).
 | command:fetch:box | sharp | none | kept whole |
 | command:firecracker | dulled | accept retirement | retired (A.9) |
 | command:generate-packages | sharp | none | kept whole |
-| command:generate-podcast | unknown | verify live | unsettled |
+| command:generate-podcast | sharp | none | kept whole |
 | command:generate:box | sharp | none | kept whole |
 | command:gh | dulled | amend D-SDK-1 | owes D-SDK-1 |
 | command:herdr | sharp | none | kept whole |
