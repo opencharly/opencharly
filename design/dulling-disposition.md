@@ -183,7 +183,7 @@ fails when this file and the ledger disagree (A.10).
 | verb:matching | dulled | accept retirement | retired (A.9) |
 | verb:mcp | sharp | none | kept whole |
 | verb:media | sharp | none | kept whole |
-| verb:mise | dulled | amend D-PLUG-2 | owes D-PLUG-2 |
+| verb:mise | dulled | accept retirement | retired (A.9) |
 | verb:module-pins | forbidden | accept retirement | retired (A.9) |
 | verb:mount | sharp | none | kept whole |
 | verb:oci | sharp | none | kept whole |
