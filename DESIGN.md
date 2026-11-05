@@ -2843,6 +2843,7 @@ section records those too:
 | an alternative loader | D-CORE-1 — the loader and linker are core's own | there is one loader, named once; a plugin does not swap it |
 | a swappable repository-fetching backend | D-SDK-1 — repository fetching is one shared `sdk` mechanism | one implementation, not a registry word an author can swap |
 | a raw runtime setting on a node | D-HW-5 — no candy, box or deployment carries raw runtime settings (capability lists, security options, device paths) | the setting is a capability type with a plugin behind it, never a free field |
+| a driver's own command surface | D-DRV-1 — a driver is a row, never a plugin, kind, field or command of its own | a driver declares what it serves (`form`, `access`, `capture`); the operations it needs are verbs and capability types, never fields on its row |
 
 Each narrowing is a trade the document makes once and states once; a ledger row that records one says
 `accept retirement` in its action and cites this section, so a reader can see the rule rather than a
