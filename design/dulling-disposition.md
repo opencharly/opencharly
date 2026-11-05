@@ -78,7 +78,7 @@ fails when this file and the ledger disagree (A.10).
 | command:status | sharp | none | kept whole |
 | command:stop | sharp | none | kept whole |
 | command:strata | sharp | none | kept whole |
-| command:task | dulled | amend D-PLUG-5 | owes D-PLUG-5 |
+| command:task | dulled | accept retirement | retired (A.9) |
 | command:tmux | sharp | none | kept whole |
 | command:tui | sharp | none | kept whole |
 | command:udev | sharp | none | kept whole |
@@ -192,7 +192,7 @@ fails when this file and the ledger disagree (A.10).
 | verb:package | sharp | none | kept whole |
 | verb:pipeline | sharp | none | kept whole |
 | verb:port | sharp | none | kept whole |
-| verb:probe | dulled | amend D-VERB-5 | owes D-VERB-5 |
+| verb:probe | dulled | accept retirement | retired (A.9) |
 | verb:process | sharp | none | kept whole |
 | verb:prune | dulled | accept retirement | retired (A.9) |
 | verb:punktfunk | dulled | accept retirement | retired (A.9) |
