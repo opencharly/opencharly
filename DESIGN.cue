@@ -333,7 +333,7 @@ _subsystemDefaultDriver: {for k, _ in _subsystem {(k): [for w, r in _driver if r
 // inside CUE, so these lists are written out; design-consistency.sh checks them against the
 // definitions.
 _candyField: ["description", "from", "step", "require", "need", "use", "provide", "package", "os_override", "file", "package_repo", "path_append", "service", "user", "volume", "export", "module", "packaging", "platform", "build_with", "entrypoint", "tag", "capture"]
-_deployField: ["description", "step", "disposable", "preemptible", "update_gate", "concurrency", "instrument", "ephemeral", "need", "use", "provide", "require", "create", "connect", "from", "publish", "node", "device", "api_level", "config", "env", "install_opt", "box", "serial", "google_account", "default_namespace", "admission_policy", "kubeconfig_context", "storage", "ingress"]
+_deployField: ["description", "step", "disposable", "preemptible", "update_gate", "concurrency", "instrument", "ephemeral", "need", "use", "provide", "require", "create", "connect", "from", "publish", "node", "device", "api_level", "config", "env", "install_opt", "box", "serial", "google_account", "default_namespace", "admission_policy", "kubeconfig_context", "storage", "ingress", "image_default", "pod_default", "label", "annotation"]
 
 _kindWord: [for w, _ in #KindAlt {w}]
 _verbWord: [for w, _ in #VerbAlt {w}]
@@ -929,9 +929,15 @@ _leasableWord: [for w, r in _capability if r.lease {w}]
 	kubeconfig_context?: #Name            // the context this cluster's kubeconfig selects
 	storage?:            #ClusterStorage  // the default storage the cluster provisions from
 	ingress?:            #ClusterIngress  // the reach path a workload's service takes
+	image_default?:      #ClusterImageDefault // how the cluster pulls a workload's image when the workload names no policy
+	pod_default?:        #ClusterPodDefault // where the cluster schedules a workload when the workload names no selector
+	label?:              {[#Name]: #Text} // a label the cluster adds to every object it applies
+	annotation?:         {[#Name]: #Text} // an annotation the cluster adds to every object it applies
 }
 #ClusterStorage: {name?: #Name}           // the storage provisioner a claim gets when it names none
 #ClusterIngress: {name?: #Name, issuer?: #Name} // the ingress provisioner, and the cert issuer that signs for it
+#ClusterImageDefault: {pull_policy?: "Always" | "IfNotPresent" | "Never", pull_secret?: [...#Name]} // the pull a workload's image gets when the workload names none
+#ClusterPodDefault:   {priority?: #Name, node_selector?: {[#Name]: #Text}, toleration?: [...#Opaque]} // where the cluster schedules when the workload names no selector // S10: a toleration is a foreign Kubernetes payload, so its shape stays the owning system's
 #ClusterNode: {
 	control_plane: *false | bool
 	image?:        #ImageRef   // this node's image, where it differs from the deployment's `from:`

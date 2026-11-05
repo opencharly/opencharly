@@ -110,8 +110,8 @@ fails when this file and the ledger disagree (A.10).
 | kind:hook | sharp | none | kept whole |
 | kind:init | dulled | accept retirement | retired (A.9) |
 | kind:jetkvm | dulled | amend D-VENUE-2 | owes D-VENUE-2 |
-| kind:kindcluster | dulled | amend D-DEP-1 | owes D-DEP-1 |
-| kind:kubernetes | dulled | amend D-DEP-1 | owes D-DEP-1 |
+| kind:kindcluster | sharp | none | kept whole |
+| kind:kubernetes | sharp | none | kept whole |
 | kind:kubevirt | dulled | amend D-DEP-1 | owes D-DEP-1 |
 | kind:local | sharp | none | kept whole |
 | kind:marketplace | sharp | none | kept whole |
