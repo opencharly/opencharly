@@ -111,7 +111,7 @@ fails when this file and the ledger disagree (A.10).
 | kind:init | dulled | accept retirement | retired (A.9) |
 | kind:jetkvm | dulled | amend D-VENUE-2 | owes D-VENUE-2 |
 | kind:kindcluster | sharp | none | kept whole |
-| kind:kubernetes | dulled | amend D-KIND-1 | owes D-KIND-1 |
+| kind:kubernetes | dulled | amend D-DEP-1 | owes D-DEP-1 |
 | kind:kubevirt | dulled | amend D-DEP-1 | owes D-DEP-1 |
 | kind:local | sharp | none | kept whole |
 | kind:marketplace | sharp | none | kept whole |
