@@ -129,7 +129,7 @@ fails when this file and the ledger disagree (A.10).
 | step:apk-install | sharp | none | kept whole |
 | step:builder | sharp | none | kept whole |
 | step:file | sharp | none | kept whole |
-| step:helm-release | dulled | amend D-IR-6 | owes D-IR-6 |
+| step:helm-release | dulled | accept retirement | retired (A.9) |
 | step:local-pkg-install | sharp | none | kept whole |
 | step:op | sharp | none | kept whole |
 | step:plugin-tree | dulled | accept retirement | retired (A.9) |
