@@ -80,6 +80,10 @@ check_all() {
 			printf "FAIL %s:%d: verdict %s is not sharp|dulled|forbidden|unknown\n", FILENAME, FNR, $5
 		if ($8 !~ /^(none|accept retirement|verify live|amend .+)$/)
 			printf "FAIL %s:%d: action %s is not none|amend <id>|accept retirement|verify live\n", FILENAME, FNR, $8
+		# A.9 promises that every retirement it records cites it: a retirement a reader cannot find
+		# the reason for is a dropped capability with no record (batch 38).
+		if ($8 == "accept retirement" && $7 !~ /DESIGN\.md:§A\.9/)
+			printf "FAIL %s:%d: action is accept retirement but the evidence does not cite §A.9\n", FILENAME, FNR
 	}' "$dulling" >>"$out"
 	awk -F'\t' -v n=8 '!/^#/ && $1 != "path" {
 		if (NF != n) { printf "FAIL %s:%d: %d columns, expected %d\n", FILENAME, FNR, NF, n; next }
@@ -357,6 +361,30 @@ SHAPE_PY
 	fi
 	cp "$dulling" "$work/design/dulling.tsv"
 	printf '  self-test %-38s fails as designed\n' "a stale shape quote"
+
+	# a retirement that does not cite A.9 -> the promise A.9 makes about its own table
+	cases=$((cases + 1))
+	python3 - "$work/design/dulling.tsv" <<'RETIRE_PY'
+import sys
+path = sys.argv[1]
+lines = open(path, encoding="utf-8").read().splitlines()
+for i, line in enumerate(lines):
+    if line.startswith("#"):
+        continue
+    cells = line.split("\t")
+    if len(cells) > 7 and cells[7] == "accept retirement":
+        cells[6] = "; ".join(c for c in cells[6].split("; ") if "§A.9" not in c)
+        lines[i] = "\t".join(cells)
+        break
+open(path, "w", encoding="utf-8").write("\n".join(lines) + "\n")
+RETIRE_PY
+	check_all "$work/design/dulling.tsv" "$work/design/dulling-admission.tsv" "$work/out.$cases" "$work"
+	if [[ ! -s "$work/out.$cases" ]] || ! grep -qE 'does not cite §A.9' "$work/out.$cases"; then
+		printf 'FAIL self-test: an uncited retirement did not fail the check\n'
+		exit 1
+	fi
+	cp "$dulling" "$work/design/dulling.tsv"
+	printf '  self-test %-38s fails as designed\n' "an uncited retirement"
 
 	printf 'design-ledger: self-test passed (%s mutations, every one failed the check)\n' "$cases"
 	exit 0
