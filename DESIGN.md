@@ -2844,6 +2844,8 @@ section records those too:
 | a swappable repository-fetching backend | D-SDK-1 — repository fetching is one shared `sdk` mechanism | one implementation, not a registry word an author can swap |
 | a raw runtime setting on a node | D-HW-5 — no candy, box or deployment carries raw runtime settings (capability lists, security options, device paths) | the setting is a capability type with a plugin behind it, never a free field |
 | a driver's own command surface | D-DRV-1 — a driver is a row, never a plugin, kind, field or command of its own | a driver declares what it serves (`form`, `access`, `capture`); the operations it needs are verbs and capability types, never fields on its row |
+| a step that runs several verbs | D-VERB-1 — a check carries exactly one verb | several checks, one per verb; a shared `input` is a parameter and an `output` is a capture |
+| an umbrella maintenance verb in the authored model | D-FLOW-1 — every action is a named set of stages of a loaded project's pipeline | the umbrella's own maintenance verbs run where no project exists yet, so they are outside the authored model — the design describes documents, not the tool that materialises them |
 
 Each narrowing is a trade the document makes once and states once; a ledger row that records one says
 `accept retirement` in its action and cites this section, so a reader can see the rule rather than a
