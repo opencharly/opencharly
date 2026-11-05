@@ -22,13 +22,13 @@ fails when this file and the ledger disagree (A.10).
 | command:bpf | sharp | none | kept whole |
 | command:build:box | sharp | none | kept whole |
 | command:cache | sharp | none | kept whole |
-| command:candy | dulled | amend D-CLI-2 | owes D-CLI-2 |
+| command:candy | sharp | none | kept whole |
 | command:cardwire | sharp | none | kept whole |
 | command:cat:box | sharp | none | kept whole |
 | command:check | sharp | none | kept whole |
 | command:clean | sharp | none | kept whole |
 | command:cmd | sharp | none | kept whole |
-| command:config | dulled | amend D-CLI-2 | owes D-CLI-2 |
+| command:config | sharp | none | kept whole |
 | command:containerd | sharp | none | kept whole |
 | command:cp | sharp | none | kept whole |
 | command:deploy | sharp | none | kept whole |
@@ -81,7 +81,7 @@ fails when this file and the ledger disagree (A.10).
 | command:task | dulled | amend D-PLUG-5 | owes D-PLUG-5 |
 | command:tmux | sharp | none | kept whole |
 | command:tui | sharp | none | kept whole |
-| command:udev | dulled | amend D-CLI-2 | owes D-CLI-2 |
+| command:udev | sharp | none | kept whole |
 | command:update | sharp | none | kept whole |
 | command:validate:box | sharp | none | kept whole |
 | command:vm | sharp | none | kept whole |
