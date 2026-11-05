@@ -232,7 +232,7 @@ fails when this file and the ledger disagree (A.10).
 | deploy path\|show\|status | sharp | none | kept whole |
 | deploy reset | sharp | none | kept whole |
 | deploy from-box\|export\|import | sharp | none | kept whole |
-| cache status\|clear\|refresh\|bypass\|push\|pull\|ingest | dulled | amend D-STORE-3 | owes D-STORE-3 |
+| cache status\|clear\|refresh\|bypass\|push\|pull\|ingest | dulled | accept retirement | retired (A.9) |
 | secrets get\|set\|list\|delete\|import\|export\|gpg\|encrypt\|decrypt\|edit\|env\|recipients\|setup\|show\|unset\|doctor | dulled | accept retirement | retired (A.9) |
 | ssh tunnel | sharp | none | kept whole |
 | ssh spice\|vnc | sharp | none | kept whole |
@@ -243,8 +243,8 @@ fails when this file and the ledger disagree (A.10).
 | agent runtime\|session\|run\|followup\|steer\|dispatch\|delegate\|team\|federation\|terminal\|incident\|rca\|recover\|new\|launch\|show | sharp | none | kept whole |
 | tmux attach\|capture\|cmd\|kill\|list\|run\|send\|shell | sharp | none | kept whole |
 | alias add\|install\|list\|remove\|uninstall | sharp | none | kept whole |
-| udev generate\|install\|remove\|status | dulled | amend D-CLI-2 | owes D-CLI-2 |
-| candy set\|params | dulled | amend §16.1 | owes §16.1 |
+| udev generate\|install\|remove\|status | dulled | accept retirement | retired (A.9) |
+| candy set\|params | dulled | accept retirement | retired (A.9) |
 | feature list\|pending\|validate | sharp | none | kept whole |
 | preempt status\|restore | sharp | none | kept whole |
 | settings get\|set\|list\|path\|reset | sharp | none | kept whole |
