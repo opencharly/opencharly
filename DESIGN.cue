@@ -622,7 +622,9 @@ _leasableWord: [for w, r in _capability if r.lease {w}]
 // matcher per attribute it observes (D-ROLE-5).
 #PresenceFields: {present: *true | bool}
 #FileCheck:        {path!: #AbsPath, #PresenceFields..., content?: #Matcher, mode?: #FileMode, owner?: #Name, group_of?: #Name, sha256?: #Matcher, link_target?: #Matcher, filetype?: or(_fileTypeWord)}
-#PackageCheck: {name!: #Package, #PresenceFields..., version?: #Matcher, package_map?: {[#Name]: #Package}} // an OS or a manager package
+#PackageCheck: {name!: #Package, #PresenceFields..., version?: #Matcher, package_map?: {[#Name]: #Package}, revision?: #Matcher, hash?: #Matcher} // an OS or a manager package
+// `revision` and `hash` are a MANAGER package's own identity: a helm release's revision and the digest of
+// the values it was rendered from. An OS package names neither.
 // `package_map` is the per-OS name override the check resolves BEFORE reading the package, so one
 // authored check spans operating systems whose package names differ (`openssh` here, `openssh-server` there).
 #ServiceCheck:     {name!: #Name, #PresenceFields..., enabled?: bool, scope?: *"system" | or(_scopeWord), none_failed?: bool, ignore?: #NameSet}

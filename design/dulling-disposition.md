@@ -170,7 +170,7 @@ fails when this file and the ledger disagree (A.10).
 | verb:gh | dulled | amend D-SDK-1 | owes D-SDK-1 |
 | verb:git-submodules | dulled | accept retirement | retired (A.9) |
 | verb:gpu | dulled | accept retirement | retired (A.9) |
-| verb:helm | dulled | amend D-VERB-3 | owes D-VERB-3 |
+| verb:helm | sharp | none | kept whole |
 | verb:herdr | dulled | accept retirement | retired (A.9) |
 | verb:http | sharp | none | kept whole |
 | verb:interface | sharp | none | kept whole |

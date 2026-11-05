@@ -2003,6 +2003,8 @@ fdroid:
           package: {name: "android:https://f-droid.org/F-Droid.apk"}
         - check: the SSH server is installed under the name this operating system uses
           package: {name: openssh-server, package_map: {arch: openssh, fedora: openssh-server, debian: openssh-server}}
+        - check: the lab release is at revision 3 or later, rendered from the pinned values
+          package: {name: "helm:lab", present: true, revision: {ge: 3}, hash: {matches: "^[0-9a-f]{64}$"}}
 
 check-android-device:
     android:
