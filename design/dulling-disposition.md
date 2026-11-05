@@ -203,7 +203,7 @@ fails when this file and the ledger disagree (A.10).
 | verb:service | sharp | none | kept whole |
 | verb:spice | sharp | none | kept whole |
 | verb:splice-region | forbidden | accept retirement | retired (A.9) |
-| verb:task | dulled | amend D-FLOW-1 | owes D-FLOW-1 |
+| verb:task | sharp | none | kept whole |
 | verb:transcode | dulled | accept retirement | retired (A.9) |
 | verb:tunnel | dulled | accept retirement | retired (A.9) |
 | verb:unit | sharp | none | kept whole |
