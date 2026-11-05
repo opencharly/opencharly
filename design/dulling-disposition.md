@@ -68,7 +68,7 @@ fails when this file and the ledger disagree (A.10).
 | command:restart | sharp | none | kept whole |
 | command:review | sharp | none | kept whole |
 | command:rm-candy:box | sharp | none | kept whole |
-| command:secrets | dulled | amend D-SEC-1 | owes D-SEC-1 |
+| command:secrets | dulled | accept retirement | retired (A.9) |
 | command:service | sharp | none | kept whole |
 | command:set:box | sharp | none | kept whole |
 | command:settings | sharp | none | kept whole |
@@ -233,7 +233,7 @@ fails when this file and the ledger disagree (A.10).
 | deploy reset | sharp | none | kept whole |
 | deploy from-box\|export\|import | sharp | none | kept whole |
 | cache status\|clear\|refresh\|bypass\|push\|pull\|ingest | dulled | amend D-STORE-3 | owes D-STORE-3 |
-| secrets get\|set\|list\|delete\|import\|export\|gpg\|encrypt\|decrypt\|edit\|env\|recipients\|setup\|show\|unset\|doctor | dulled | amend D-SEC-1 | owes D-SEC-1 |
+| secrets get\|set\|list\|delete\|import\|export\|gpg\|encrypt\|decrypt\|edit\|env\|recipients\|setup\|show\|unset\|doctor | dulled | accept retirement | retired (A.9) |
 | ssh tunnel | sharp | none | kept whole |
 | ssh spice\|vnc | sharp | none | kept whole |
 | tunnel start\|stop\|setup\|plan | sharp | none | kept whole |
