@@ -465,11 +465,18 @@ _reserved: strings.Join(list.Concat([_kindWord, _deploymentKindWord]), "|")
 	lease:    *false | bool
 	ref?:     [...string]
 }
+// What a `use:` entry on a secret carries: where the value comes from on the host, where it lands in the
+// venue, and whether its absence is allowed. A `credential:` verb is this entry, authored.
+#SecretUse: {
+	src?:      #AbsPath // the host file the value is read from
+	dst?:      #AbsPath // where the value lands in the venue
+	optional?: bool     // a missing source does not fail the deployment
+}
 _capability: [#Word]: #CapabilityRow
 _capability: {
 	env:        {key: #EnvName, need: {}, use: #EnvUse, provide: #EnvProvide}
 	parameter:  {key: #Name, need: #ParameterNeed, use: #ParameterUse, provide: #ParameterProvide} // D-SCH-7
-	secret:     {key: #Name, need: {}, use: {}}
+	secret:     {key: #Name, need: {}, use: #SecretUse}
 	endpoint:   {key: #Name, need: #EndpointNeed, use: #EndpointNeed, provide: #Endpoint}
 	network:    {key: #Name, need: {}, use: {}, provide: {}}
 	harness:    {key: #Ref, need: {}, use: {}, ref: ["harness"]}
