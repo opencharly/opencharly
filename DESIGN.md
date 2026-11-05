@@ -2840,6 +2840,9 @@ section records those too:
 | a per-init rendering vocabulary | D-KIND-2 with the renderer rule — one renderer per unit format serves every init | a new init format is a renderer, not a vocabulary an author writes |
 | a list of matchers on one assertion | D-VERB-3 — a matcher is exactly one comparison, and `not`/`json` compose any matcher | several comparisons are several steps, or one composed matcher |
 | printing a secret's value | D-SEC-1 — a secret never enters the store, artifacts, labels, IR, state or output | there is no `get`: a value reaches a consumer as a `secret:` need, never as text on a terminal |
+| an alternative loader | D-CORE-1 — the loader and linker are core's own | there is one loader, named once; a plugin does not swap it |
+| a swappable repository-fetching backend | D-SDK-1 — repository fetching is one shared `sdk` mechanism | one implementation, not a registry word an author can swap |
+| a raw runtime setting on a node | D-HW-5 — no candy, box or deployment carries raw runtime settings (capability lists, security options, device paths) | the setting is a capability type with a plugin behind it, never a free field |
 
 Each narrowing is a trade the document makes once and states once; a ledger row that records one says
 `accept retirement` in its action and cites this section, so a reader can see the rule rather than a

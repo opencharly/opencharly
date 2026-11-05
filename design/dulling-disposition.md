@@ -124,8 +124,8 @@ fails when this file and the ledger disagree (A.10).
 | kind:task | dulled | amend D-FLOW-1 | owes D-FLOW-1 |
 | kind:theme | dulled | accept retirement | retired (A.9) |
 | kind:vm | dulled | amend D-HW-5 | owes D-HW-5 |
-| loader:loader | dulled | amend D-CORE-1 | owes D-CORE-1 |
-| refs:refs | dulled | amend D-SDK-1 | owes D-SDK-1 |
+| loader:loader | dulled | accept retirement | retired (A.9) |
+| refs:refs | dulled | accept retirement | retired (A.9) |
 | step:apk-install | sharp | none | kept whole |
 | step:builder | sharp | none | kept whole |
 | step:file | sharp | none | kept whole |
@@ -253,14 +253,14 @@ fails when this file and the ledger disagree (A.10).
 | krun VM backend (OCI image boot) | dulled | amend D-DRV-2 | owes D-DRV-2 |
 | Firecracker rootfs + kernel | dulled | amend D-DRV-2 | owes D-DRV-2 |
 | rootful vs rootless daemon | dulled | amend D-HW-7 | owes D-HW-7 |
-| containerd namespace per deployment | dulled | amend D-HW-5 | owes D-HW-5 |
+| containerd namespace per deployment | dulled | accept retirement | retired (A.9) |
 | narrow seccomp profile for userns sandboxes | sharp | none | kept whole |
 | snapshot and revert of a container's layer, the store, a microVM | dulled | amend D-CAPTURE-5 | owes D-CAPTURE-5 |
 | CRIU process checkpoint (rootful runc; krun in-guest) | dulled | amend D-DRV-3 | owes D-DRV-3 |
 | k3s datadir snapshot, backup and restore | sharp | none | kept whole |
 | k3s on the shared containerd store | sharp | none | kept whole |
 | NVIDIA CDI rootful and rootless | sharp | none | kept whole |
-| krun virtio-gpu; no NVIDIA in krun | dulled | amend D-HW-7 | owes D-HW-7 |
+| krun virtio-gpu; no NVIDIA in krun | dulled | accept retirement | retired (A.9) |
 | GPU shared through CDI vs held alone through VFIO | sharp | none | kept whole |
 | nested containerd and krun in a pod | sharp | none | kept whole |
 | lease readiness hook with a deadline | sharp | none | kept whole |
