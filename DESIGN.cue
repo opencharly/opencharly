@@ -772,7 +772,24 @@ _leasableWord: [for w, r in _capability if r.lease {w}]
 	package_manager!: or(_packageManagerWord)
 	init!:            #OsInit // D-CANDY-3: the os owns the init
 	boot?:            #Boot
+	// §16.4: the os of the stack's source owns every CONVERSION -- the build vocabulary below is
+	// that ownership made checkable (batch 53).
+	inherit?:         [...#Name] // the os words whose vocabulary this one extends
+	inherit_package?: [...#Package] // the packages every build of this os gets
+	bootstrap?:       #OsBootstrap // how a root filesystem of this os is made
+	workaround?:      #Text // a known defect of this os, and what the build does about it
+	format?:          {[or(_packageManagerWord)]: #OsFormat} // the per-manager format render
+	base_user?:       #Name // the account an image of this os adopts
+	bootstrapper?:    #OsBootstrapper // the from-scratch tools this os can be bootstrapped with
+	bootloader?:      #Name // the bootloader an installer of this os writes
+	disk_layout?:     #OsDiskLayout // the partitions an installer of this os creates
+	installer?:       #OsInstaller // what an unattended install of this os reads
 }
+#OsBootstrap:    {install?: #Text, package?: [...#Package], cache_mount?: [...#AbsPath]} // the command that fills the root, what it installs, what it caches between runs
+#OsFormat:       {validate?: [...#Text], local_package?: [...#Package]} // the rules a rendered unit must pass, and the packages only this os can supply
+#OsBootstrapper: {pacstrap?: #Text, debootstrap?: #Text, alpine?: #Text} // the from-scratch tool, by the family that has one
+#OsDiskLayout:   {efi?: #AbsPath, root?: #AbsPath, swap?: #AbsPath} // the partitions an installer writes
+#OsInstaller:    {answer?: #AbsPath, volume?: #Name} // the answer file an unattended install reads, and the volume it is served on
 #OsInit: {for r, _ in _initRole {(r)!: #Ref @ref(init)}}
 // The boot content of the disk form: the firmware it boots under, and the kernel a microVM
 // hypervisor boots beside a root drive (§14.2).

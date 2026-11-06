@@ -1565,6 +1565,16 @@ systemd:
 | `package_manager` | the OS package manager |
 | `init` | the `init` node of each role (`_initRole`): `container` runs services in a `pod`, `system` in a `vm` or on a host |
 | `boot` | the disk form's boot: its `firmware` (default `uefi`), and the kernel, initrd and command line a microVM hypervisor boots beside a root drive (§14.2) |
+| `inherit` | the `os` words whose vocabulary this one extends |
+| `inherit_package` | the packages every build of this os gets |
+| `bootstrap` | how a root filesystem of this os is made: the `install` command, the `package` it installs, and the `cache_mount` kept between runs |
+| `workaround` | a known defect of this os, and what the build does about it |
+| `format` | the per-package-manager unit render: the `validate` rules a rendered unit must pass, and the `local_package` only this os can supply |
+| `base_user` | the account an image of this os adopts rather than creates |
+| `bootstrapper` | the from-scratch tool this os has, by the family that has one: `pacstrap`, `debootstrap` or `alpine` |
+| `bootloader` | the bootloader an installer of this os writes |
+| `disk_layout` | the partitions an installer of this os creates: `efi`, `root` and `swap` |
+| `installer` | what an unattended install reads: the `answer` file and the `volume` it is served on |
 
 ### 16.5 Checks: artifact, ready and deployment
 
@@ -2285,6 +2295,16 @@ fedora-43:
         version: "43"
         package_manager: dnf
         init: {container: supervisord, system: systemd}
+        inherit: [fedora]
+        inherit_package: [glibc-langpack-en]
+        bootstrap: {install: "dnf --installroot=/rootfs -y", package: [systemd], cache_mount: [/var/cache/dnf]}
+        workaround: "dnf5 leaves a partial metadata cache when a mirror flakes; the build re-runs it once"
+        format: {dnf: {validate: ["systemd-analyze verify"], local_package: [charly-repo]}}
+        base_user: user
+        bootstrapper: {pacstrap: /usr/bin/pacstrap}
+        bootloader: grub2
+        disk_layout: {efi: /dev/sda1, root: /dev/sda2, swap: /dev/sda3}
+        installer: {answer: /etc/charly/answers.toml, volume: oemdrv}
 
 supervisord:
     init:
