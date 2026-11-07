@@ -107,7 +107,7 @@ fails when this file and the ledger disagree (A.10).
 | kind:desktopentry | dulled | accept retirement | retired (A.9) |
 | kind:displaymanager | dulled | accept retirement | retired (A.9) |
 | kind:distro | sharp | none | kept whole |
-| kind:firecracker | dulled | amend D-DEP-1 | owes D-DEP-1 |
+| kind:firecracker | dulled | amend D-DRV-3 | owes D-DRV-3 |
 | kind:group | dulled | accept retirement | retired (A.9) |
 | kind:hook | sharp | none | kept whole |
 | kind:init | dulled | accept retirement | retired (A.9) |
