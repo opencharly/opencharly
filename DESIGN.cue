@@ -855,7 +855,7 @@ _leasableWord: [for w, r in _capability if r.lease {w}]
 // ════ workflow, harness and documentation kinds (§15) ════
 // What a harness may do to the surface it drives (D-VERB-5, D-HW-5): a read-only one observes, a bounded one
 // acts inside what its `tool` list allows, and an unrestricted one needs the acknowledgement below.
-_permission: {read: {}, bounded: {}, unrestricted: {}} @vocab(core)
+_permission: {standard: {}, bounded: {}, unrestricted: {}} @vocab(core)
 _permissionWord: [for w, _ in _permission {w}]
 #Harness: {
 	description!: #Text
@@ -863,7 +863,7 @@ _permissionWord: [for w, _ in _permission {w}]
 	model?:       #Text
 	need?:        #Need
 	use?:         #Use
-	permission:   *"read" | or(_permissionWord) // what this harness may do to the surface it drives: read observes, so it is the default
+	permission:   *"standard" | or(_permissionWord) // what this harness may do to the surface it drives: `standard` observes only, so it is the default
 	prompt_via:   *"argv" | "file" // how the prompt reaches the CLI: on its argv, or through a file it reads
 	version_command?: [...#Text]   // how the CLI reports its own version
 	timeout?:     #Duration
