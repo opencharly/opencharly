@@ -863,7 +863,7 @@ _permissionWord: [for w, _ in _permission {w}]
 	model?:       #Text
 	need?:        #Need
 	use?:         #Use
-	permission?:  or(_permissionWord) // what this harness may do to the surface it drives, and the acknowledgement an unrestricted one needs
+	permission:   *"read" | or(_permissionWord) // what this harness may do to the surface it drives: read observes, so it is the default
 	prompt_via:   *"argv" | "file" // how the prompt reaches the CLI: on its argv, or through a file it reads
 	version_command?: [...#Text]   // how the CLI reports its own version
 	timeout?:     #Duration
