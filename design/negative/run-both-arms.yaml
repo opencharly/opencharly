@@ -1,0 +1,10 @@
+# rule: D-VERB-5
+# expect: empty disjunction
+x:
+  description: A candy whose run step both runs a command and renders a document.
+  package: {nginx: {}}
+  step:
+    - run: this step both runs and renders
+      command: echo hi
+      render: {schema: "#Release", config: {}, out: /tmp/x.yaml}
+      guard: {creates: /tmp/x.yaml}
