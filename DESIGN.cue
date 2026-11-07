@@ -586,10 +586,17 @@ _leasableWord: [for w, r in _capability if r.lease {w}]
 #Guard: or([for _, a in #GuardAlt {a}])
 #RunFields: {command!: #Text, guard!: #Guard, background?: bool, #StepFields...}
 // What a harness is shown besides the deployment's state: the venue accesses it may read.
+// A per-call model override: the harness node carries the default, a step may narrow it for one call.
+#Llm: {base_url?: #Text, model?: #Text, timeout?: #Duration, request?: #Opaque} // S10: the request body is the model server's shape
 #HarnessStepFields: {
 	harness?:  #Ref @ref(harness)
 	evidence?: [...or(_accessWord)] & list.UniqueItems()
 	fail_on?:  [...#Name] // the outcome names that count as a failure; anything else is a pass
+	artifact?: #AbsPath // the image the harness is shown; a judgement about a screen is still a harness step
+	image?:    [...#AbsPath] // further images shown beside `artifact`
+	mime?:     "image/png" | "image/jpeg" | "image/webp" | "image/gif" // what the images are
+	expect?:   #Matcher // what the reply must match, in the one matcher vocabulary
+	llm?:      #Llm // this call's model and request knobs, where they differ from the harness node's
 	redo?:     #Redo      // what to do when the step fails: re-run it, and when to escalate
 	#StepFields...
 }

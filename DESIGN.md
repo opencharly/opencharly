@@ -2159,6 +2159,11 @@ lab-workstation:
         step:
             - harness_check: a login screen is shown
               evidence: [display]
+              artifact: /tmp/login.png
+              image: [/tmp/login-zoom.png]
+              mime: image/png
+              expect: {contains: "Sign in"}
+              llm: {model: lab-vision, request: {temperature: 0}}
               fail_on: [timeout, unparseable]
               redo: {on_fail: [timeout], max: 3, escalate_after: 2}
 ```
