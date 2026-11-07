@@ -1270,6 +1270,7 @@ reviewer:
     harness:
         description: The review harness, a coding agent's command line.
         argv: [claude, --print]
+        permission: bounded
         prompt_via: file
         version_command: [claude, --version]
         timeout: 25m
