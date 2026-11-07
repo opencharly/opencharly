@@ -1309,6 +1309,14 @@ release:
             review:
                 after: [deployment]
                 step:
+                    - harness_run: the reviewer drafts the release note
+                      harness: reviewer
+                      skill: [release-notes]
+                      tool: [git, gh]
+                      turn: 12
+                      cache: {path: /tmp/review-cache, key: sha, field: commit}
+                      checkout: [github.com/opencharly/charly]
+                      output: {summary: {}}
                     - harness_check: the change is ready to publish
                       harness: reviewer
             publish:
