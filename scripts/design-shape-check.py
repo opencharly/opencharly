@@ -57,7 +57,10 @@ def definition_fields(schema_text):
             cursor += 1
         defs[name] = top_level_fields("\n".join(body))
         # A walk that stopped ON the next definition has not consumed it: resume there, not past it.
-        index = cursor if (cursor > index and re.match(r"^#[A-Za-z0-9]+:", lines[cursor])) else cursor + 1
+        # A walk that ran off the end of the file (the last definition's brace never closes) must
+        # stop instead of reading lines[len(lines)]: the cursor is one past the last line, and the
+        # only legal move is out of the loop (opencharly/opencharly#921).
+        index = cursor if (cursor > index and cursor < len(lines) and re.match(r"^#[A-Za-z0-9]+:", lines[cursor])) else cursor + 1
     return defs
 
 
