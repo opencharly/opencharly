@@ -448,6 +448,7 @@ _reserved: strings.Join(list.Concat([_kindWord, _deploymentKindWord]), "|")
 	after?:       #NameSet
 	env?:         {[#EnvName]: #InitNeutral}
 	working_dir?: #AbsPath
+	skill_dir?:   #AbsPath // the skill tree this harness reads when a step names no skill
 	scope:        *"system" | or(_scopeWord)
 }
 #User: {uid?: #Count, group?: #NameSet, shell?: #AbsPath}
@@ -587,6 +588,9 @@ _leasableWord: [for w, r in _capability if r.lease {w}]
 #RunFields: {command!: #Text, guard!: #Guard, background?: bool, #StepFields...}
 // What a harness is shown besides the deployment's state: the venue accesses it may read.
 // A per-call model override: the harness node carries the default, a step may narrow it for one call.
+// What a run may reuse: the directory it keeps, the key that identifies a result, and the field of the
+// reply the key is read from.
+#AgentCache: {path!: #AbsPath, key!: #Text, field?: #Text}
 #Llm: {base_url?: #Text, model?: #Text, timeout?: #Duration, request?: #Opaque} // S10: the request body is the model server's shape
 #HarnessStepFields: {
 	harness?:  #Ref @ref(harness)
@@ -597,6 +601,12 @@ _leasableWord: [for w, r in _capability if r.lease {w}]
 	mime?:     "image/png" | "image/jpeg" | "image/webp" | "image/gif" // what the images are
 	expect?:   #Matcher // what the reply must match, in the one matcher vocabulary
 	llm?:      #Llm // this call's model and request knobs, where they differ from the harness node's
+	skill?:    [...#Ref] // the skills the run is given, by name
+	tool?:     [...#Text] // the tools it may call
+	output?:   {[#Name]: #Opaque} // the reply contract, per output name // S10: the shape is the caller's
+	turn?: #Count // the turn ceiling for this run
+	cache?:    #AgentCache // reuse of a committed result between runs
+	checkout?: [...#Repo] // the repositories placed before the run
 	redo?:     #Redo      // what to do when the step fails: re-run it, and when to escalate
 	#StepFields...
 }
