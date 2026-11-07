@@ -807,7 +807,7 @@ second concept.
 | D-HW-2 | The grant of a deployment covers the host capabilities it needs and uses (D-CAP-6); `charly box inspect` and `charly status` show each granted item, each unbound use, and the node that named it. |
 | D-HW-3 | A host need the host cannot grant fails before anything is realized (D-CAP-3); `charly doctor <node>` reports every host need and use against the host. |
 | D-HW-4 | A lease names the concrete host resource the solver chose — one listed in the user configuration's `resource:`, written as the need it satisfies with that need's attributes as its capacity (`{memory: ram, size: 64Gi}`) — and only it is granted; a `preemptible` holder yields to a non-preemptible request. |
-| D-HW-5 | No candy, box or deployment carries raw runtime settings (capability lists, security options, device paths, libvirt XML); a grant that no host capability type expresses is added as a new type by its plugin. |
+| D-HW-5 | No candy, box or deployment carries raw runtime settings (capability lists, security options, device paths, libvirt XML); a grant that no host capability type expresses is added as a new type by its plugin. **One exception, and it is S10's.** A `pod` or `vm` body may carry `config:` — the one open field, whose fields the OWNING driver's plugin defines and this document never types — holding only what the vehicle's own shape needs and no grant expresses (a domain definition, a machine type, an instancetype, a firmware). A `config:` never names a driver (D-DRV-2), never restates a grant or a size (D-HW-4), and never carries a capability list, a security option or a device path, which stay needs and capability types. Two consequences are deliberate, not oversights: because D-DRV-2 keeps the driver out of the document, `config:` is validated against the BOUND driver row's schema before anything is realized and fails naming that driver when its row declares none — so this check happens at preflight rather than at authoring time as D-IR-6 otherwise requires; and a document that carries `config:` is portable only across drivers whose rows declare a config schema, which narrows D-DRV-2's "a box runs unchanged under every driver of its kind" to payload-free documents. |
 | D-HW-6 | A venue declares the capabilities **and the version** it grants, and every versioned host capability is asserted as a **preflight**: the kind's own version (a kernel for `nesting`, a driver's API for `driver_api`) or the server's (a cluster's API version). The rule is stated on the capability, so every deployment kind follows it. |
 | D-HW-7 | `isolation`, `privilege` and `nesting: userns` are host capabilities like any other: a kind grants each through its driver row (a runtime, a RuntimeClass, a seccomp profile) and preflights it (D-HW-6). Under `isolation: microvm` a leased GPU is not grantable — `device: render` is granted as a paravirtual GPU — and the venue's accesses are D-VENUE-2's. |
 | D-HW-8 | Every need or use entry of a leasable type (a `_capability` row with `lease: true`: `gpu`, `device`, `cpu`, `memory`, `storage`, `mount`) is `exclusive: true` or shares by default; no other type has the field. A grant that holds a host resource returns the lease mode its mechanism imposes, declared by the driver row (D-DRV-3) — `exclusive` where it takes the resource from the host (VFIO passthrough, a passed-through device, a published host port), `shared` where the resource stays the host's (CDI, a paravirtual GPU, a device node) — and core leases the resource at the stricter of the two. On one resource, `shared` leases coexist and an `exclusive` lease coexists with none; a conflicting request fails before realization naming the holder, unless the holder is `preemptible` (D-HW-4). |
@@ -1678,6 +1678,7 @@ Every deployment kind takes these fields:
 |---|---|
 | `from` | the box or source it runs |
 | `publish` | the host port of each provided `endpoint` it publishes, by the endpoint's name (D-VAL-13) |
+| `config` | what the **bound** driver's plugin understands — a domain definition, a machine type, an instancetype, a firmware (D-HW-5, S10). It is the one open field: this document never types it, it never names a driver (D-DRV-2), and it never restates a grant or a size (D-HW-4) |
 
 Sizing is a need (§8): `cpu: {core: {count: 2}}`, `memory: {ram: {size: 2Gi}}`,
 `storage: {root: {size: 20Gi}}`, leased like any other host resource (§9.2); a network is a
@@ -1783,6 +1784,7 @@ web-shell-vm:
         description: The same shell as a VM.
         from: web-shell
         publish: {ssh: 2223}
+        config: {machine: q35, firmware: {loader: /usr/share/OVMF/OVMF_CODE.fd}, video: {model: virtio}}
         need: {cpu: {core: {count: 2}}, memory: {ram: {size: 2Gi}}}
         disposable: true
         step:
