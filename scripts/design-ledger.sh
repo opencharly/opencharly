@@ -106,8 +106,10 @@ check_all() {
 	# a row that QUOTES a definition's shape must quote it whole: a definition that grows leaves every
 	# row copying the old shape false, and the citation check cannot see it because the citation still
 	# resolves (batch 21 shipped exactly that).
-	python3 "$SCRIPT_DIR/design-shape-check.py" "$dulling" "$schema" >>"$out"
-	python3 "$SCRIPT_DIR/design-shape-check.py" "$admission" "$schema" >>"$out"
+	# its stderr goes to the finding file too: a checker that crashes must fail the control, not
+	# print a traceback beside a green summary (opencharly/opencharly#921).
+	python3 "$SCRIPT_DIR/design-shape-check.py" "$dulling" "$schema" >>"$out" 2>&1
+	python3 "$SCRIPT_DIR/design-shape-check.py" "$admission" "$schema" >>"$out" 2>&1
 	# and the parser itself: a definition it skips is silently unchecked, so the count is a control.
 	# Its output is a REPORT, not a finding -- only a missed definition reaches the finding file.
 	if ! count_out=$(python3 "$SCRIPT_DIR/design-shape-check.py" --count "$schema" 2>&1); then
@@ -385,6 +387,40 @@ RETIRE_PY
 	fi
 	cp "$dulling" "$work/design/dulling.tsv"
 	printf '  self-test %-38s fails as designed\n' "an uncited retirement"
+
+	# a definition whose body runs to the end of the file with its brace still open -> the shape
+	# walk must report the row's stale quote, not die on lines[cursor]. A crash here used to fail
+	# the mutation by exception while the run still said "passed": the control's own finding is
+	# the proof, and any Traceback in its output is the defect (opencharly/opencharly#921).
+	cases=$((cases + 1))
+	{ cat "$schema"; printf '\n#SelfTestTruncated: {\n\talpha: int\n'; } >"$work/DESIGN.cue"
+	python3 - "$work/design/dulling.tsv" <<'TRUNCATED_DEF_PY'
+import sys
+path = sys.argv[1]
+lines = open(path, encoding="utf-8").read().splitlines()
+for i, line in enumerate(lines):
+    if line.startswith("kind:pipeline\t"):
+        cells = line.split("\t")
+        cells[5] = cells[5] + " `#SelfTestTruncated: {beta}`"
+        cells[6] = cells[6] + "; DESIGN.cue:#SelfTestTruncated"
+        lines[i] = "\t".join(cells)
+        break
+open(path, "w", encoding="utf-8").write("\n".join(lines) + "\n")
+TRUNCATED_DEF_PY
+	check_all "$work/design/dulling.tsv" "$work/design/dulling-admission.tsv" "$work/out.$cases" "$work"
+	if [[ ! -s "$work/out.$cases" ]] || ! grep -qE 'SelfTestTruncated is quoted as' "$work/out.$cases"; then
+		printf 'FAIL self-test: a truncated definition walk did not report the shape finding\n'
+		sed 's/^/  /' "$work/out.$cases"
+		exit 1
+	fi
+	if grep -q 'Traceback' "$work/out.$cases"; then
+		printf 'FAIL self-test: a truncated definition walk crashed instead of reporting\n'
+		sed 's/^/  /' "$work/out.$cases"
+		exit 1
+	fi
+	cp "$schema" "$work/DESIGN.cue"
+	cp "$dulling" "$work/design/dulling.tsv"
+	printf '  self-test %-38s fails as designed\n' "a truncated definition walk"
 
 	printf 'design-ledger: self-test passed (%s mutations, every one failed the check)\n' "$cases"
 	exit 0
