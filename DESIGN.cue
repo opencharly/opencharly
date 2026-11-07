@@ -970,6 +970,7 @@ _leasableWord: [for w, r in _capability if r.lease {w}]
 #MachineFields: { // D-DEP-1, D-DEP-7: pod and vm share one field set; publishing belongs to them only
 	from!:    #Ref @ref(box, source)
 	publish?: {[#Name]: #Port} // the host port of each provided endpoint it publishes
+	config?:  #Opaque // D-HW-5: what the BOUND driver's plugin understands, which this document never types // S10
 }
 #KubernetesFields: {
 	node?: {[#Name]: #ClusterNode}
