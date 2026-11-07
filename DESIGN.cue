@@ -593,15 +593,20 @@ _leasableWord: [for w, r in _capability if r.lease {w}]
 #RunRender:  {run!: #Text, render!: #Render, #RunFields...}
 // The document a run step renders: the schema it is checked against, the value the schema shapes, and
 // where it is written. `config` is S10's open struct because the value map is the schema's, not ours.
-#Render: {
-	schema!:  #Text     // the schema the document is rendered against
-	config!:  #Opaque   // the value map, shaped by `schema` // S10: the fields are the schema's
+#RenderFields: {
+	config!:  #Opaque   // the value map, shaped by the schema or filled into the skeleton // S10: the fields are that document's
 	out!:     #AbsPath  // where the rendered document is written
 	var?:     {[#Name]: #Text} // the substitutions the render is given, by name
 	format?:  *"yaml" | "json" // the document format
-	strict?:  bool      // fail the step when the document does not satisfy `schema`
+	strict?:  bool      // fail the step when the document does not satisfy its source
 	report?:  #Opaque   // the report the render emits // S10: the report format is the renderer's
 }
+// A render starts from a SCHEMA or from a SKELETON, never both: the same choice, made once.
+#RenderAlt: {
+	schema:   {schema!: #Text, #RenderFields...}      // a document checked against a schema
+	skeleton: {skeleton!: #AbsPath, #RenderFields...} // a file the render fills in
+}
+#Render: or([for _, a in #RenderAlt {a}])
 // What a harness is shown besides the deployment's state: the venue accesses it may read.
 // A per-call model override: the harness node carries the default, a step may narrow it for one call.
 // What a run may reuse: the directory it keeps, the key that identifies a result, and the field of the
