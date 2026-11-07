@@ -2553,6 +2553,11 @@ sshd-account:
         - run: the release manifest is rendered from its schema
           render: {schema: "#Release", config: {version: "2026.311.0226", channels: [stable]}, var: {channel: stable}, out: /tmp/release.yaml, format: yaml, strict: true, report: {kind: summary}}
           guard: {creates: /tmp/release.yaml}
+        - run: the changelog entry is filled into its skeleton
+          render: {skeleton: /etc/charly/entry.tmpl, config: {version: "2026.311.0226"}, var: {channel: stable}, out: /tmp/entry.md}
+          guard: {creates: /tmp/entry.md}
+        - check: the rendered entry does not mention an internal host
+          file: {path: /tmp/entry.md, content: {not: {contains: "10.0.0.42"}}}
         - check: the ssh daemon is enabled and the machine is otherwise healthy
           service: {name: sshd, scope: system, none_failed: true, ignore: [getty-tty1]}
         - check: the ssh daemon is enabled in the artifact before it is stored
