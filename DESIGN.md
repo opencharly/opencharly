@@ -1987,6 +1987,8 @@ check-kind-workload:
         kubeconfig_context: kind-demo
         storage: {name: local-path}
         ingress: {name: traefik, issuer: letsencrypt}
+        kubeconfig: /var/lib/charly/kubeconfig
+        kubevirt: {enabled: true, cdi: true, emulation: false}
         image_default: {pull_policy: IfNotPresent, pull_secret: [lab-registry]}
         pod_default: {priority: batch, node_selector: {os: linux}, toleration: [{key: dedicated, operator: Equal, value: lab, effect: NoSchedule}]}
         label: {team: lab}
