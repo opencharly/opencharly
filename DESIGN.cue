@@ -586,7 +586,11 @@ _leasableWord: [for w, r in _capability if r.lease {w}]
 }
 #Guard: or([for _, a in #GuardAlt {a}])
 // A run step does one thing: it runs a command, or it renders a document. Exactly one, never both.
-#RunFields: {command?: #Text, render?: #Render, guard!: #Guard, background?: bool, #StepFields...} // exactly one of `command` and `render` (D-VERB-5)
+#RunFields: {guard!: #Guard, background?: bool, #StepFields...}
+// D-VERB-5: a run step either runs a command or renders a document, and the arms below enumerate the
+// choice so it is enforced rather than described.
+#RunCommand: {run!: #Text, command!: #Text, #RunFields...}
+#RunRender:  {run!: #Text, render!: #Render, #RunFields...}
 // The document a run step renders: the schema it is checked against, the value the schema shapes, and
 // where it is written. `config` is S10's open struct because the value map is the schema's, not ours.
 #Render: {
@@ -630,7 +634,7 @@ _leasableWord: [for w, r in _capability if r.lease {w}]
 // `guard`; a check carries exactly one verb; the harness intents carry no verb. The loader selects
 // the alternative by the intent key (D-LOAD-5).
 #StepAlt: {
-	run:           {run!: #Text, #RunFields...} // D-VERB-7: an install action has no phase
+	run:           or([#RunCommand, #RunRender]) // D-VERB-7: an install action has no phase
 	check:         {#CheckFields..., #Verb...}
 	harness_check: {harness_check!: #Text, #HarnessStepFields..., #DeploymentPhase...}
 	harness_run:   {harness_run!: #Text, #HarnessStepFields...}
