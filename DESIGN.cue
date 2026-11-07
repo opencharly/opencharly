@@ -585,7 +585,19 @@ _leasableWord: [for w, r in _capability if r.lease {w}]
 	unless:  {unless!: #Text}
 }
 #Guard: or([for _, a in #GuardAlt {a}])
-#RunFields: {command!: #Text, guard!: #Guard, background?: bool, #StepFields...}
+// A run step does one thing: it runs a command, or it renders a document. Exactly one, never both.
+#RunFields: {command?: #Text, render?: #Render, guard!: #Guard, background?: bool, #StepFields...} // exactly one of `command` and `render` (D-VERB-5)
+// The document a run step renders: the schema it is checked against, the value the schema shapes, and
+// where it is written. `config` is S10's open struct because the value map is the schema's, not ours.
+#Render: {
+	schema!:  #Text     // the schema the document is rendered against
+	config!:  #Opaque   // the value map, shaped by `schema` // S10: the fields are the schema's
+	out!:     #AbsPath  // where the rendered document is written
+	var?:     {[#Name]: #Text} // the substitutions the render is given, by name
+	format?:  *"yaml" | "json" // the document format
+	strict?:  bool      // fail the step when the document does not satisfy `schema`
+	report?:  #Opaque   // the report the render emits // S10: the report format is the renderer's
+}
 // What a harness is shown besides the deployment's state: the venue accesses it may read.
 // A per-call model override: the harness node carries the default, a step may narrow it for one call.
 // What a run may reuse: the directory it keeps, the key that identifies a result, and the field of the

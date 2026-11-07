@@ -2548,6 +2548,9 @@ sshd-account:
           command: ssh-keygen -A
           background: true
           guard: {unless: "test -f /etc/ssh/ssh_host_ed25519_key"}
+        - run: the release manifest is rendered from its schema
+          render: {schema: "#Release", config: {version: "2026.311.0226", channels: [stable]}, var: {channel: stable}, out: /tmp/release.yaml, format: yaml, strict: true, report: {kind: summary}}
+          guard: {creates: /tmp/release.yaml}
         - check: the ssh daemon is enabled and the machine is otherwise healthy
           service: {name: sshd, scope: system, none_failed: true, ignore: [getty-tty1]}
         - check: the ssh daemon is enabled in the artifact before it is stored
@@ -2561,7 +2564,7 @@ sshd-account:
 | D-VERB-2 | A verb shares its name with the field whose state it checks (`package`, `service`, `file`). |
 | D-VERB-3 | Step modifiers are defined once in `spec`: every step takes `id`, `run_as` and `timeout` (default `60s`); checks add `phase` (D-VERB-7), `retry` (`#Retry`: re-run the check while its result does not match, until a deadline or for a bounded number of attempts, `interval` apart, default `2s` — the same repetition a stage takes, D-FLOW-2), `on` (where the check runs: by default its deployment's venue, `{host: {}}` the host's, or `{node: …}` another deployment's), `exit_status` (default `0`), `stdout` and `stderr`. A matcher is exactly one comparison; `not` negates one and `json` applies one at a JSON path. |
 | D-VERB-4 | A verb with several operations takes one operation key (`kube: {resource: …}`), never a `method:` string; operation inputs use plain field names, and a wait is the `retry` modifier, never an operation. |
-| D-VERB-5 | A step has exactly one intent, and the step table (`#StepAlt`) has one alternative per intent. A `run` step carries its `command` and its `guard` and no verb (D-VERB-1, D-IR-2); a `check` step carries exactly one verb (`#Verb`); `harness_run` and `harness_check` carry none, and a `harness_check` names the venue accesses it may read as `evidence`. |
+| D-VERB-5 | A step has exactly one intent, and the step table (`#StepAlt`) has one alternative per intent. A `run` step carries its `guard` and exactly one of its `command` or its `render` block, and no verb (D-VERB-1, D-IR-2); a `check` step carries exactly one verb (`#Verb`); `harness_run` and `harness_check` carry none, and a `harness_check` names the venue accesses it may read as `evidence`. |
 | D-VERB-6 | A verb is a fact verb or a protocol verb (`#FactVerbAlt`, `#ProtocolVerbAlt`), never both. An application's own checks are `http` with JSON-path matchers, `command`, or a namespaced verb of its non-first-party plugin (D-PLUG-7); a plugin's internal operation is an `api` method (D-ROLE-3), never a verb. |
 | D-VERB-7 | Only a check has a phase (§16.5). Each verb declares the phases it can observe: every fact verb observes an artifact and a deployment, because the artifact's instance starts the init and services it declares; only a protocol verb observes a deployment alone. A check's phase is `artifact` when its verb can observe one and `deployment` otherwise, unless the check writes `ready` or `deployment`; a `harness_check` observes a deployment. A phase the verb cannot observe is a load error. |
 
