@@ -1680,6 +1680,7 @@ Every deployment kind takes these fields:
 |---|---|
 | `from` | the box or source it runs |
 | `publish` | the host port of each provided `endpoint` it publishes, by the endpoint's name (D-VAL-13) |
+| `node_selector` | where the cluster a workload is a guest of places it, by the labels that cluster's nodes carry; the cluster's `pod_default` applies where it names none (D-DEP-1) |
 | `config` | what the **bound** driver's plugin understands — a domain definition, a machine type, an instancetype, a firmware (D-HW-5, S10). It is the one open field: this document never types it, it never names a driver (D-DRV-2), and it never restates a grant or a size (D-HW-4) |
 
 Sizing is a need (§8): `cpu: {core: {count: 2}}`, `memory: {ram: {size: 2Gi}}`,
@@ -1690,7 +1691,7 @@ with its kind's `create` fields, or connected through one venue of `#VenueAlt` i
 
 | ID | Requirement |
 |---|---|
-| D-DEP-1 | `pod` and `vm` are written identically: the same `from:`, fields, inner nodes and captures. A pattern that works on one and not the other is a defect in the plugins, never a documented limitation; what differs between them is driver data (D-DRV-3) and the `os` boot content (§16.4). |
+| D-DEP-1 | `pod` and `vm` are written identically: the same `from:`, fields, inner nodes and captures. A pattern that works on one and not the other is a defect in the plugins, never a documented limitation; what differs between them is driver data (D-DRV-3) and the `os` boot content (§16.4). A workload that is a guest of a cluster says where it lands: its own `node_selector`, with the cluster's `pod_default` applying where it names none — so the placement of a `vm` written inside a `kubernetes` body is the `vm`'s to state, not only the cluster's. |
 | D-DEP-2 | A `pod`, `vm` or `kubernetes` deployment takes no `require:`; content comes from the box, or from an inner `local` node applied to the running venue. |
 | D-DEP-3 | `disposable: true` is the only authorization for unattended destroy, rebuild, or apply-and-reverse; inner nodes inherit it and cannot widen it. |
 | D-DEP-4 | Core holds a deployment's lock for the whole of every command that mutates it (its argument definition declares `mutates: true`); every method the command calls runs under that one lock, and a second mutator fails immediately naming the holder. |
@@ -2010,6 +2011,17 @@ check-kind-workload:
             pod:
                 description: The workload under test.
                 from: demo.app
+        guest:
+            vm:
+                description: The same box as a KubeVirt guest, placed on the nodes the guest names.
+                from: demo.app
+                node_selector: {os: linux}
+                config: {instancetype: lab-medium, firmware: {bootloader: efi}}
+                need: {cpu: {core: {count: 2}}, memory: {ram: {size: 4Gi}}}
+                disposable: true
+                step:
+                    - check: the guest runs on a node the guest's own selector admits
+                      kube: {resource: {kind: virtualmachineinstance, namespace: demo, name: check-kind-workload-guest}}
         step:
             - check: the cluster has a ready node
               kube: {node: {count: 1}}
@@ -2935,6 +2947,9 @@ section records those too:
 | a named routine's execution model — a `dir`, a `vars` map's `${VAR}` substitution, a `depends_on` closure, its staleness model, its `silent`/`interactive` flags and its platform filters | D-FLOW-1 — a routine is a pipeline of one stage: a stage's steps run in the host venue, ordered by `after:`, and a pipeline's parameters are its needs and uses (§8) | a routine is a pipeline: order with `after:`, pass values as `need:`/`use:`, and write each command as a `run:` step; nothing skips on staleness and no document filters itself by platform |
 | a check verb that resolves what a check would assert and prints it without running | §22 — the checks group names the check verbs, and a check runs; a box's resolved configuration is read with `box inspect` (D-HW-2) | the checks a box declares are read from its resolved configuration; a check runs |
 | a lane driven by an earlier step's list, batched with a pause, under configurable item and index variable names | D-FLOW-1 — a stage may run once per item of the list a parameter holds (`lane:`), with at most `concurrency:` lanes or deployments at once | a lane iterates a parameter's list, `concurrency:` is the pool, and the step reads its item as `LANE_ITEM`; there is no pause between batches, no index variable and no configurable name |
+| a microVM's own host surface — the VMM release pin with its jailer posture, the containerd snapshotter with its devmapper device, the tap/CNI path with forwarding and the fireactions runner pool — and the extra drives and rate limiters a document named on the vehicle | D-DRV-1 — a driver is a row, never a plugin, kind, field or command of its own; D-HW-5 — no candy, box or deployment carries a capability list, a security option or a device path, and S10's `config:` reaches only a `pod` or `vm` body; D-STORE-2 — the user configuration holds what the user sets, each plugin's own section under its own schema | a `vm` names its own shape in `config:` and its sizes as needs; the machine that runs it is the operator's, held in that driver plugin's section of the user configuration, installed through `charly local-install` (D-STORE-9) and reported by `charly doctor` (D-HW-3); a runner pool is a host service, so it is a candy's `service:` in a `local` deployment; and a drive for which the design defines no capability type is one its plugin adds (D-HW-5), never a device path in a document |
+| a guest's boot medium when it is a claim the cluster already holds, and a `clone` of one | D-SRC-1 — a source has exactly one origin, and a `disk` or `iso` origin is pinned by `sha256`; §14's concept table — a source is an external starting point, one origin plus its `os`; D-DRV-2 with §14.2 — a box runs unchanged under every driver of its kind | a guest's disk is that `vm`'s `from:` — a source charly fetches and pins, or a capture; a claim is the cluster's own storage rather than an origin, so it is read with the `kube` verb's `resource` operation (§17.7) instead |
+| a workload's raw `affinity` object | D-HW-5 — a `pod` or `vm` body has one open field, `config:`, and it holds only what the vehicle's own shape needs, so a scheduling payload is not its to carry; the cluster's `#ClusterPodDefault` holds the raw payloads as S10's open struct | a workload names its own `node_selector` (D-DEP-1), and a finer scheduling payload is written with the cluster it constrains, in that cluster's `pod_default` (§17.1) |
 
 Each narrowing is a trade the document makes once and states once; a ledger row that records one says
 `accept retirement` in its action and cites this section, so a reader can see the rule rather than a
