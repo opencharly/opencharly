@@ -122,14 +122,19 @@ _protocol: {http: {}, mcp: {}, grpc: {}} @vocab(core)
 _protocolWord: [for w, _ in _protocol {w}]
 _onError: {fail: {}, continue: {}, skip: {}} @vocab(agent)
 _onErrorWord: [for w, _ in _onError {w}]
+// An ask's outcome: the words a run settles on when its gate is answered (D-FLOW-3).
+_answer: {granted: {}, refused: {}, cancelled: {}} @vocab(agent)
+_answerWord: [for w, _ in _answer {w}]
 _updateGate: {full: {}, restart_only: {}, skip: {}} @vocab(core)
 _updateGateWord: [for w, _ in _updateGate {w}]
 _severity: {error: {}, warning: {}} @vocab(core)
 _severityWord: [for w, _ in _severity {w}]
-// A deployment's state; a `transition` targets a state whose row is a `target` (§4.2).
+// A node's state; a `transition` targets a state whose row is a `target` (§4.2). `paused` is a run
+// waiting for the answer to its ask (D-FLOW-3): it is entered by asking and left by answering, never
+// commanded, so its row is no target.
 #StateRow: {target: *false | bool}
 _state: [#Word]: #StateRow
-_state: {absent: {target: true}, stopped: {target: true}, running: {target: true}, failed: {}} @vocab(core)
+_state: {absent: {target: true}, stopped: {target: true}, running: {target: true}, failed: {}, paused: {}} @vocab(core)
 _stateWord: [for w, _ in _state {w}]
 _targetStateWord: [for w, r in _state if r.target {w}]
 // What a venue serves (§17.7); a venue lacking one refuses it (D-VENUE-2).
@@ -884,6 +889,7 @@ _permissionWord: [for w, _ in _permission {w}]
 	schedule?:    #Schedule
 	stage!:       {[#Name]: #Stage}
 }
+// §15.1: a due cron starts the one runner, charly pipeline run <name>; it never starts a second engine.
 #Schedule: {cron!: #Cron}
 #StageFields: {
 	after?:      #NameSet
@@ -902,7 +908,11 @@ _permissionWord: [for w, _ in _permission {w}]
 	ask:      {ask!: #StageAsk, #StageFields...}
 }
 #Stage: or([for _, a in #StageAlt {a}])
-#StageAsk: {prompt!: #Text}
+// D-FLOW-3: an ask carries its answer channel, so a question with no channel is not an ask.
+#StageAsk: {prompt!: #Text, answer!: #Answer}
+// D-FLOW-3: what an ask is answered with — the response contract (`expect`), and the outcome its
+// silence takes (`unanswered`, `refused` by default).
+#Answer: {expect?: #Matcher, unanswered: *"refused" | or(_answerWord)}
 
 // A skill's and a hook's body is derived from its name (P3): `.agents/skills/<name>/SKILL.md`,
 // `.agents/agents/<name>.md` for an agent definition, `.agents/hooks/<name>.<language>`.

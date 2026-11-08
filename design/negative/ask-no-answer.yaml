@@ -1,0 +1,8 @@
+# rule: D-FLOW-3
+# expect: answer: field is required but not present
+p:
+  pipeline:
+    description: A pipeline whose gate asks and carries no answer channel.
+    stage:
+      publish:
+        ask: {prompt: "Publish this release?"}
