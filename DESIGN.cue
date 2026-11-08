@@ -853,12 +853,18 @@ _leasableWord: [for w, r in _capability if r.lease {w}]
 #BuilderManager:   {[or(_buildManagerWord)]: #Ref @ref(box)}
 
 // ════ workflow, harness and documentation kinds (§15) ════
+// What a harness may do to the surface it drives (D-VERB-5, D-HW-5): a read-only one observes, a bounded one
+// acts inside what its `tool` list allows, and an unrestricted one needs the acknowledgement below.
+_permission: {standard: {}, bounded: {}, unrestricted: {}} @vocab(core)
+_permissionWord: [for w, _ in _permission {w}]
 #Harness: {
 	description!: #Text
 	argv!:        [...#Text]
 	model?:       #Text
 	need?:        #Need
 	use?:         #Use
+	tool?:        [...#Text] // the tools this harness may call by default; a step's own `tool` narrows it, as `llm` does
+	permission:   *"standard" | or(_permissionWord) // what this harness may do to the surface it drives: `standard` observes only, so it is the default
 	prompt_via:   *"argv" | "file" // how the prompt reaches the CLI: on its argv, or through a file it reads
 	version_command?: [...#Text]   // how the CLI reports its own version
 	timeout?:     #Duration
