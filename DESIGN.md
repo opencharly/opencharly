@@ -892,9 +892,9 @@ is never bent.
 | ID | Requirement |
 |---|---|
 | D-PAT-1 | Every schema uses only the patterns of §10.1 and nothing from the "never" table. |
-| D-PAT-2 | Each kind, verb, origin and capability type is one S1 definition in its owning plugin's CUE module; core composes the document schema from the registry with the same patterns (§10.3). |
-| D-PAT-3 | The authoring language follows the patterns: a choice is a key the author writes (S4) — the candy is the default node, selected when no kind key is written — a collection with identities is a map (S5), and no two concepts are told apart by a missing field. |
-| D-PAT-4 | Every rule about an authored document or a protocol message is either enforced by the schema — tagged with its ID at its enforcing line, with at least one negative case that fails with its expected error — or indexed in §12.4 with where it is proven. Rules about schemas themselves are proven by gates, not by negative cases: D-PAT-1 on `DESIGN.cue` by the design check (Appendix A.4 check 6), and D-PAT-1 on every plugin CUE module by the §25 schema-pattern gate (Appendix A.11), with D-PAT-2 and D-PAT-3 proven there once their controls land. |
+| D-PAT-2 | Each kind, verb, origin and capability type is one S1 definition in its owning plugin's CUE module; core composes the document schema from the registry with the same patterns (§10.3). The §25 gate proves the one-home half — a top-level definition name is declared in exactly one pinned module, so nothing restates a definition another module owns — and records the rest as not decidable from the pinned CUE text (A.11). |
+| D-PAT-3 | The authoring language follows the patterns: a choice is a key the author writes (S4) — the candy is the default node, selected when no kind key is written — a collection with identities is a map (S5), and no two concepts are told apart by a missing field. The §25 gate proves the form half — no union is written out alternative by alternative, except the two-value literal default S3 permits — and records the derivation's source and the S5 half as not decidable from the pinned CUE text (A.11). |
+| D-PAT-4 | Every rule about an authored document or a protocol message is either enforced by the schema — tagged with its ID at its enforcing line, with at least one negative case that fails with its expected error — or indexed in §12.4 with where it is proven. Rules about schemas themselves are proven by gates, not by negative cases: D-PAT-1 on `DESIGN.cue` by the design check (Appendix A.4 check 6), and D-PAT-1, D-PAT-2 and D-PAT-3 on every plugin CUE module by the §25 schema-pattern gate (Appendix A.11), each on the half of itself the pinned CUE text decides, with the other half named there as ungated. |
 
 ### 10.2 Where shapes are defined
 
@@ -2682,8 +2682,8 @@ validated with `cue vet -d '#Document' DESIGN.cue charly.yml`, and a user config
 | `scripts/design-cue.sh` | provides the pinned CUE v0.18.0-rc.1 |
 | `scripts/design-consistency.sh` | compares DESIGN.md with DESIGN.cue |
 | `scripts/design-examples.sh` | validates every example and every negative case |
-| `scripts/design-dpat.sh` | checks the schema patterns (D-PAT-1) in every pinned plugin CUE module (A.11) |
-| `design/dpat-baseline.tsv` | the census of the violations that gate tolerates, and the issue that retires it (A.11) |
+| `scripts/design-dpat.sh` | checks the schema patterns (D-PAT-1, D-PAT-2, D-PAT-3) in every pinned plugin CUE module, on the half of each the pinned CUE text decides (A.11) |
+| `design/dpat-baseline.tsv` | the census of the schema-pattern violations that gate tolerates, and the issue that retires it (A.11) |
 | `design/example/load.cue` | the loader's view of a document (§11.1 stage 3, D-LOAD-5), in CUE |
 | `design/example/rules.cue` | the §12.4 rules that a single document can show, in CUE |
 | `design/negative/*.yaml` | one document per rule that breaks exactly that rule |
@@ -3025,23 +3025,49 @@ bash scripts/design-dpat.sh --self-test  # mutate every rule and prove the check
 bash scripts/design-dpat.sh --emit-census # print the census the current pins produce
 ```
 
-§25 names the schema patterns of every plugin CUE module as a gate, and D-PAT-1 is the pattern rule
-itself: no `close(` call, no field written `f?: _|_`, no open struct except the `#Opaque`
-definition, and every use of `#Opaque` marks itself `// S10` (§10.1). The control reads this tree's
-own pin set from its index, so the schema it judges is the schema that ships, and it reads each
-pinned module from that module's repository at the pinned commit — never from a checkout, which can
-be stale, dirty or absent (a session worktree materializes no gitlink). A repository or a pinned
+§25 names the schema patterns of every plugin CUE module as a gate. The control judges the half of
+each requirement that the pinned CUE text decides: D-PAT-1's never-table (no `close(` call, no field
+written `f?: _|_`, no open struct except the `#Opaque` definition, and every use of `#Opaque` marked
+`// S10`); D-PAT-2's one-home half (a top-level definition name is declared in exactly one pinned
+module, so no module restates a definition another already owns — D-SCH-1, D-SCH-2); and D-PAT-3's
+form half (no union is written out alternative by alternative: a `|` disjunction outside an `or(...)`
+derivation is a violation, except the two-value literal default S3 permits). The control reads this
+tree's own pin set from its index, so the schema it judges is the schema that ships, and it reads
+each pinned module from that module's repository at the pinned commit — never from a checkout, which
+can be stale, dirty or absent (a session worktree materializes no gitlink). A repository or a pinned
 commit it cannot read is a failure that names the path and the remedy, never a smaller scan that
 still reports success. Every `.cue` file of every pinned `plugin-*` module and of `spec` is in scope
 except a `vendor/` tree, which mirrors another system's published schema (the egress vendoring
 pipeline) rather than a shape charly owns; the run reports how many files that boundary left out,
 so the boundary is visible instead of silent.
 
-**The census.** The tree carries violations of D-PAT-1 today — rewriting them is the §10.1 work of
-TODO.md 2.16 — and a gate that is red on landing enforces nothing. `design/dpat-baseline.tsv`
-therefore records them as a census: one row per file, rule and construct, with the number of times
-that construct occurs. The control tolerates exactly what the census records, reports each tolerated
-violation as known and names the issue that retires the census, and fails on anything else:
+**What the gate decides, and what it does not.** D-PAT-2 demands more than one home: the one home
+must be the plugin that OWNS the word, and core must compose the document schema from the registry
+(§10.3). Neither is decidable from the pinned CUE text — the word-to-owner mapping is built by the
+loader from each plugin's `describe`, which is Go, and the composed instance exists only at runtime.
+D-PAT-3 demands that a derivation range over the registry's own definition and that a collection
+with identities be a map (S5); a gate reading text sees the form of a derivation but not which
+table it ranges over, nor whether the items of a list carry identity. So those halves are **not
+gated**, and this section says so rather than letting the gate's name imply them — a control that
+silently checks part of a rule while its name claims the whole is worse than an honest "ungated",
+because it looks like coverage. They become decidable when the composed registry is readable by a
+control: the loader emitting its registry, or the composed schema, as an artifact a control can
+compare against the pinned modules, or each module declaring its own words in CUE. Until then the
+census records the form, and TODO.md 2.16 carries the rest.
+
+**The stream's grammar.** Every file body the control reads ends with a newline, so the marker that
+opens a file always starts a line. A blob with no final newline would otherwise glue the next file's
+marker onto its own last line: the scanner would not see that marker, and every line of the next
+file would be judged under the previous file's name — a smaller scan quietly reporting success over
+a file it never attributed. The self-test plants exactly that, and the run that follows a
+no-trailing-newline blob in the pins is attributed to itself.
+
+**The census.** The tree carries violations of all three requirements today — rewriting them is the
+§10.1 work of TODO.md 2.16 — and a gate that is red on landing enforces nothing.
+`design/dpat-baseline.tsv` therefore records them as a census: one row per file, rule and construct,
+with the number of times that construct occurs. The control tolerates exactly what the census
+records, reports each tolerated violation as known and names the issue that retires the census, and
+fails on anything else:
 
 - a construct occurring **more** often than its row records is a new violation, reported with its
   file and line;
