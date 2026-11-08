@@ -1,0 +1,7 @@
+# rule: D-FLOW-3
+# expect: conflicting values "absent" and "paused"
+# def: #TransitionInput
+identity: web-shell-pod
+body: {}
+reference: {}
+to: paused

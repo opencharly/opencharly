@@ -1254,13 +1254,27 @@ corpus:
 
 `pipeline` is the one workflow kind. A routine of the host — a repository's verification, a release,
 an agent-driven evaluation — is a pipeline; a routine with one step list is a pipeline of one stage.
-`charly pipeline run <name>` runs one; there is no second runner.
+`charly pipeline run <name>` runs one, and it is the one runner a declared `schedule:` fires: a
+`cron:` an author writes starts that same run, never a second runner or engine. Installing, listing
+and removing the schedule, and firing it before its time, are `charly pipeline schedule …` — CLI
+maintenance over a pipeline the project declares, never an authored word.
+
+An ask is answered. A run that reaches an `ask:` stage waits in `paused`, and
+`charly pipeline resume <name>` supplies the answer; the ask's answer channel (`#Answer`) declares
+the response contract (`expect:`, a matcher) a response must satisfy to be granted, and the outcome
+that applies when nobody answers (`unanswered:`, `refused` by default). An answer settles the gate
+on one of `_answer`'s outcome words: `granted` carries the run on, while `refused` and `cancelled`
+fail the stage, which the stage's `on_error:` then governs like any other failure. `paused` is a
+state, never a `transition` target — a run is paused by asking and resumes by answering — and
+`resume` is a command on the pipeline, never a step verb, because a verb observes and never changes
+state (D-VERB-1).
 
 <!-- example: workflow uses-context -->
 ```yaml
 nightly:
     pipeline:
         description: The nightly gate, every deployment checked, two at a time.
+        schedule: {cron: "0 3 * * *"}
         stage:
             checks:
                 deployment: [web-shell-pod, web-shell-vm]
@@ -1323,13 +1337,25 @@ release:
                       harness: reviewer
             publish:
                 after: [review]
-                ask: {prompt: "Publish this release?"}
+                timeout: 24h
+                ask:
+                    prompt: Publish this release?
+                    answer:
+                        expect: {equals: "yes"}
+                        unanswered: refused
+            announce:
+                after: [publish]
+                step:
+                    - run: the release is announced
+                      command: ./announce.sh
+                      guard: {creates: /tmp/release-announced}
 ```
 
 | ID | Requirement |
 |---|---|
-| D-FLOW-1 | A pipeline is a named set of stages run in the host venue, ordered by `after:`. A stage does exactly one thing (`#StageAlt`) — runs steps, runs another pipeline, realizes deployments and runs their checks, or asks the operator — and may run once per item of the list a parameter holds (`lane:`), with at most `concurrency:` lanes or deployments at once. A stage's steps observe the host venue, so their checks are deployment checks (§16.5). A pipeline's parameters are its needs and uses (§8). A stage's condition is a matcher per parameter (`when:`), never an expression; a gate over deployments, an agent loop over a run and an approval are stages, never fields of their own. |
+| D-FLOW-1 | A pipeline is a named set of stages run in the host venue, ordered by `after:`. A stage does exactly one thing (`#StageAlt`) — runs steps, runs another pipeline, realizes deployments and runs their checks, or asks the operator — and may run once per item of the list a parameter holds (`lane:`), with at most `concurrency:` lanes or deployments at once. A stage's steps observe the host venue, so their checks are deployment checks (§16.5). A pipeline's parameters are its needs and uses (§8). A stage's condition is a matcher per parameter (`when:`), never an expression; a gate over deployments, an agent loop over a run and an approval are stages, never fields of their own. That one runner is what a declared `schedule:` fires: a due `cron:` starts `charly pipeline run <name>`, never a second runner or engine, and maintaining the schedule is CLI maintenance. An ask is a stage whose answer is part of the flow (D-FLOW-3). |
 | D-FLOW-2 | A stage's `attempt:` is a declared, bounded count and the only repetition of a stage; it never repeats a failed plugin call (D-PROTO-7) and is never blind (D-LAW-5). |
+| D-FLOW-3 | An ask is answered. `#StageAsk` carries an answer channel (`#Answer`): the response contract (`expect:`, a matcher, D-VERB-3) a response must satisfy to be `granted`, and the outcome that applies when nobody answers (`unanswered:`, `refused` by default). A run that reaches an ask waits in `paused`; `charly pipeline resume <name>` supplies the answer, which settles the gate on one of `_answer`'s outcome words — `granted` carries the run on, `refused` and `cancelled` fail the stage under its `on_error:`. `paused` is a state, never a `transition` target, because a run is paused by asking and resumes by answering; `resume` answers a gate and is never a step verb (D-VERB-1). |
 
 ## 16. Candies, boxes, sources and operating systems
 
@@ -2488,7 +2514,9 @@ A capture needs no command: building a capture box realizes and checks the captu
 needed, then captures it. The interaction commands — `shell`, `cmd`, `cp`, `log`, `console`,
 `display`, `forward`, `power` — are the venue accesses of §17.7; `start`, `stop`, `restart` and
 `deploy del` are the one `transition` method, to `running`, `stopped`, both in turn, and `absent`;
-`restore` is the method of D-CAPTURE-5.
+`restore` is the method of D-CAPTURE-5. `pipeline` runs a pipeline (`run`), answers the gate it
+waits on (`resume`), and installs, lists, removes or fires its `schedule:` (`schedule`), all under
+the one command group the table names.
 
 | ID | Requirement |
 |---|---|
