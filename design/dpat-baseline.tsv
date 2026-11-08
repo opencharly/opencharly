@@ -1,0 +1,196 @@
+# design/dpat-baseline.tsv — the D-PAT-1 violations the schema-pattern gate tolerates.
+#
+# `scripts/design-dpat.sh` checks every pinned plugin CUE module against D-PAT-1 (§10.1) and fails
+# on each violation. The tree carries violations today — the §10.1 rewrite is TODO.md 2.16 — and a
+# gate that is red on landing enforces nothing, so they are recorded here as a census: the gate is
+# green on this tree, and red on every new violation.
+#
+# A row is file, rule, symbol, count — the number of times that construct occurs in that file. A
+# construct's symbol is its line's code with comments and strings removed and whitespace collapsed,
+# so a row is recognised by WHAT the line says, never by where it sits: an edit that shifts a known
+# violation must not turn the gate red, and a new violation landing on a tolerated line must not be
+# blessed. The check fails in both directions:
+#   * a construct occurring MORE often than its count is a new violation;
+#   * a construct occurring LESS often means the census overstates the debt, so the row is lowered
+#     in the change that fixes it. That is what makes "the census must reach zero" true: delete the
+#     last row and the gate is a plain check with nothing to tolerate.
+#
+# `bash scripts/design-dpat.sh --emit-census` prints this file from the current pins; a regenerate
+# is a reviewed diff, because every row it drops is a violation somebody fixed.
+# tracked-by: opencharly/opencharly#945
+file	rule	symbol	count
+plugin-agent/candy/plugin-agent/schema/agent.cue	open	readiness?: {...}	1
+plugin-agent-pi/candy/plugin-agent-pi/schema/pi.cue	open	#PiRPCEvent: {	1
+plugin-crabbox/candy/plugin-crabbox/schema/crabbox.cue	open	containerd?: {...} @go(Containerd)	1
+plugin-crabbox/candy/plugin-crabbox/schema/crabbox.cue	open	firecracker?: {...} @go(Firecracker)	1
+plugin-egress/candy/plugin-egress/egress-schemas/egress_cloud_init.cue	close	#CloudInitMeta: close({	1
+plugin-egress/candy/plugin-egress/egress-schemas/egress_cloud_init.cue	close	#NetworkConfigV2: close({	1
+plugin-egress/candy/plugin-egress/egress-schemas/egress_cloud_init.cue	open	ethernets?: {...}	1
+plugin-egress/candy/plugin-egress/egress-schemas/egress_containerd.cue	close	#ContainerdConfigV2: close({	1
+plugin-egress/candy/plugin-egress/egress-schemas/egress_containerd.cue	open	containerd?: {	1
+plugin-egress/candy/plugin-egress/egress-schemas/egress_containerd.cue	open	"io.containerd.grpc.v1.cri"?: {	1
+plugin-egress/candy/plugin-egress/egress-schemas/egress_containerd.cue	open	plugin?: {	1
+plugin-egress/candy/plugin-egress/egress-schemas/egress_containerd.cue	absence	plugins?: _|_	1
+plugin-egress/candy/plugin-egress/egress-schemas/egress_containerd.cue	open	#ContainerdConfigV2: close({	1
+plugin-egress/candy/plugin-egress/egress-schemas/egress_containerd.cue	close	#ContainerdConfigV4: close({	1
+plugin-egress/candy/plugin-egress/egress-schemas/egress_containerd.cue	close	containerd?: close({	1
+plugin-egress/candy/plugin-egress/egress-schemas/egress_containerd.cue	open	options?: {	1
+plugin-egress/candy/plugin-egress/egress-schemas/egress_containerd.cue	open	runtimes?: [string]: {	1
+plugin-egress/candy/plugin-egress/egress-schemas/egress_containerd.cue	open	"io.containerd.cri.v1.runtime"?: {	1
+plugin-egress/candy/plugin-egress/egress-schemas/egress_containerd.cue	open	"io.containerd.cri.v1.images"?: {	1
+plugin-egress/candy/plugin-egress/egress-schemas/egress_containerd.cue	open	[string]: {...}	1
+plugin-egress/candy/plugin-egress/egress-schemas/egress_containerd.cue	close	#ContainerdSnapshotterConfig: close({	1
+plugin-egress/candy/plugin-egress/egress-schemas/egress_containerd.cue	open	#ContainerdSnapshotterConfig: close({	1
+plugin-egress/candy/plugin-egress/egress-schemas/egress_crabbox.cue	open	localContainer?: {	1
+plugin-egress/candy/plugin-egress/egress-schemas/egress_crabbox.cue	open	containerd?: {	1
+plugin-egress/candy/plugin-egress/egress-schemas/egress_crabbox.cue	open	#CrabboxYaml: {	1
+plugin-egress/candy/plugin-egress/egress-schemas/egress_k8s.cue	open	metadata: {	1
+plugin-egress/candy/plugin-egress/egress-schemas/egress_k8s.cue	open	#K8sObject: {	1
+plugin-egress/candy/plugin-egress/egress-schemas/egress_k8s.cue	open	#Kustomization: {	1
+plugin-egress/candy/plugin-egress/egress-schemas/egress_kind.cue	open	#KindCluster: {	1
+plugin-egress/candy/plugin-egress/egress-schemas/egress_kind.cue	open	#KindClusterNode: {	1
+plugin-egress/candy/plugin-egress/egress-schemas/egress_ledger.cue	open	#DeployRecord: {	1
+plugin-egress/candy/plugin-egress/egress-schemas/egress_ledger.cue	open	steps?: [...{...}]	1
+plugin-egress/candy/plugin-egress/egress-schemas/egress_ledger.cue	open	reverse_ops?: [...{...}]	1
+plugin-egress/candy/plugin-egress/egress-schemas/egress_ledger.cue	open	#CandyRecord: {	1
+plugin-egress/candy/plugin-egress/egress-schemas/egress_libvirt_xml.cue	open	name: {"$$": string & !="", ...}	1
+plugin-egress/candy/plugin-egress/egress-schemas/egress_libvirt_xml.cue	open	memory: {"$$": string & !="", ...}	1
+plugin-egress/candy/plugin-egress/egress-schemas/egress_libvirt_xml.cue	open	domain: {	1
+plugin-egress/candy/plugin-egress/egress-schemas/egress_libvirt_xml.cue	open	#LibvirtDomainXML: {	1
+plugin-egress/candy/plugin-egress/egress-schemas/egress_netfilter.cue	close	#NetfilterRules: close({	1
+plugin-egress/candy/plugin-egress/egress-schemas/egress_netfilter.cue	close	#NetfilterRule: close({	1
+plugin-egress/candy/plugin-egress/egress-schemas/egress_traefik.cue	open	routers?: null | {[string]: {	1
+plugin-egress/candy/plugin-egress/egress-schemas/egress_traefik.cue	open	servers: [...{url: string & !="", ...}]	1
+plugin-egress/candy/plugin-egress/egress-schemas/egress_traefik.cue	open	loadBalancer: {	1
+plugin-egress/candy/plugin-egress/egress-schemas/egress_traefik.cue	open	services?: null | {[string]: {	1
+plugin-egress/candy/plugin-egress/egress-schemas/egress_traefik.cue	open	http: {	1
+plugin-egress/candy/plugin-egress/egress-schemas/egress_traefik.cue	open	#TraefikRoutes: {	1
+plugin-harness-kind/candy/plugin-harness-kind/schema/docs.cue	close	#DocsInput: close({	1
+plugin-harness-kind/candy/plugin-harness-kind/schema/docs.cue	close	#DocsSourcesInput: close({	1
+plugin-harness-kind/candy/plugin-harness-kind/schema/docs.cue	close	#DocsCompiledInput: close({	1
+plugin-harness-kind/candy/plugin-harness-kind/schema/docs.cue	close	#DocsMarketplaceInput: close({	1
+plugin-harness-kind/candy/plugin-harness-kind/schema/docs.cue	close	#DocsProjectionsInput: close({	1
+plugin-harness-kind/candy/plugin-harness-kind/schema/docs.cue	close	#DocsOutputInput: close({	1
+plugin-harness-kind/candy/plugin-harness-kind/schema/docs.cue	close	#DocsLandingInput: close({	1
+plugin-harness-kind/candy/plugin-harness-kind/schema/docs.cue	close	#DocsGatesInput: close({	1
+plugin-harness-kind/candy/plugin-harness-kind/schema/hook.cue	close	#HookInput: close({	1
+plugin-harness-kind/candy/plugin-harness-kind/schema/marketplace.cue	close	#MarketplaceInput: close({	1
+plugin-harness-kind/candy/plugin-harness-kind/schema/marketplace.cue	close	#MarketplaceFamilyInput: close({	1
+plugin-harness-kind/candy/plugin-harness-kind/schema/marketplace.cue	close	#MarketplaceMCPServerInput: close({	1
+plugin-harness-kind/candy/plugin-harness-kind/schema/marketplace.cue	close	#MarketplaceSettingsInput: close({	1
+plugin-harness-kind/candy/plugin-harness-kind/schema/skill.cue	close	#SkillInput: close({	1
+plugin-harness-kind/candy/plugin-harness-kind/schema/skill.cue	close	#SkillReferenceInput: close({	1
+plugin-migrate/candy/plugin-migrate/schema/migration.cue	close	#RenameKey: close({op: "rename_key", from: string, to: string, scope: #Scope | *"any", under_kind?: string}) @go(-)	1
+plugin-migrate/candy/plugin-migrate/schema/migration.cue	close	#DeleteKey: close({op: "delete_key", key: string, scope: #Scope | *"any", under_kind?: string}) @go(-)	1
+plugin-migrate/candy/plugin-migrate/schema/migration.cue	close	#RemapScalar: close({op: "remap_scalar", key: string, from: string, to: string, under_kind?: string}) @go(-)	1
+plugin-migrate/candy/plugin-migrate/schema/migration.cue	close	#MoveKey: close({op: "move_key", key: string, from_parent: string, to_parent: string, under_kind?: string}) @go(-)	1
+plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	close	#LLMSpec: close({	1
+plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	close	#LLMParams: close({	1
+plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	close	#LLMResponseFormat: close({	1
+plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	close	json_schema?: close({	1
+plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	close	#LLMReasoning: close({	1
+plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	close	#LLMStreamOptions: close({	1
+plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	close	#LLMNamedToolChoice: close({	1
+plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	close	function: close({name: string})	1
+plugin-vision/candy/plugin-vision/schema/vision.cue	close	#LLMSpec: close({	1
+plugin-vision/candy/plugin-vision/schema/vision.cue	close	#LLMParams: close({	1
+plugin-vision/candy/plugin-vision/schema/vision.cue	close	#LLMResponseFormat: close({	1
+plugin-vision/candy/plugin-vision/schema/vision.cue	close	json_schema?: close({	1
+plugin-vision/candy/plugin-vision/schema/vision.cue	close	#LLMReasoning: close({	1
+plugin-vision/candy/plugin-vision/schema/vision.cue	close	#LLMStreamOptions: close({	1
+plugin-vision/candy/plugin-vision/schema/vision.cue	close	#LLMNamedToolChoice: close({	1
+plugin-vision/candy/plugin-vision/schema/vision.cue	close	function: close({name: string})	1
+spec/schema/00_common.cue	absence	{#Op, run: string & !="", check?: _|_, "agent-run"?: _|_, "agent-check"?: _|_, include?: _|_, venue?: _|_, intent_do?: _|_} |	1
+spec/schema/00_common.cue	absence	{#Op, check: string & !="", run?: _|_, "agent-run"?: _|_, "agent-check"?: _|_, include?: _|_, venue?: _|_, intent_do?: _|_} |	1
+spec/schema/00_common.cue	absence	{#Op, "agent-run": string & !="", run?: _|_, check?: _|_, "agent-check"?: _|_, include?: _|_, venue?: _|_, intent_do?: _|_} |	1
+spec/schema/00_common.cue	absence	{#Op, "agent-check": string & !="", run?: _|_, check?: _|_, "agent-run"?: _|_, include?: _|_, venue?: _|_, intent_do?: _|_} |	1
+spec/schema/00_common.cue	absence	{#Op, include: string & !="", run?: _|_, check?: _|_, "agent-run"?: _|_, "agent-check"?: _|_, venue?: _|_, intent_do?: _|_} @go(-)	1
+spec/schema/00_common.cue	open	plugin_input?: {...} @go(PluginInput,type=map[string]any)	1
+spec/schema/00_common.cue	open	#RepoBlock: {	1
+spec/schema/agent_control.cue	open	params?: {...} @go(Params,type=map[string]any)	1
+spec/schema/agent_control.cue	open	payload?: {...} @go(Payload,type=map[string]any)	1
+spec/schema/agent_control.cue	open	readiness?: {...} @go(Readiness,type=map[string]any)	1
+spec/schema/box.cue	absence	env?: {PATH?: _|_, [string]: #StrVal} @go(Env,type=map[string]string)	1
+spec/schema/boxmetadata.cue	open	tunnel?: {...} @go(Tunnel,type=*TunnelYAML)	1
+spec/schema/buildctx.cue	open	repos?: [...{...}] @go(Repos)	1
+spec/schema/buildwire.cue	open	context?: {...} @go(Context,type=map[string]any)	2
+spec/schema/candy.cue	absence	env?: {PATH?: _|_, [string]: #StrVal} @go(Env,type=map[string]string)	1
+spec/schema/candy.cue	absence	} & ({package!: _, apk?: _|_} | {apk!: _, package?: _|_}) @go(-)	1
+spec/schema/candy.cue	close	#Plugin: close({	1
+spec/schema/candy.cue	close	#PluginRequirement: close({	1
+spec/schema/candymodel.cue	open	raw?: {...} @go(Raw,type=map[string]any)	2
+spec/schema/deploy.cue	absence	env?: {PATH?: _|_, [string]: #StrVal} @go(Env,type=map[string]string)	1
+spec/schema/deploy.cue	open	#VmDeployState: {	1
+spec/schema/deploy.cue	open	ephemeral?: {	2
+spec/schema/deploy.cue	open	#KubeVirtDeployState: {	1
+spec/schema/deploy.cue	open	#KubeVirtDeploySnapshot: {	1
+spec/schema/deploy.cue	open	#FirecrackerDeployState: {	1
+spec/schema/deploy.cue	open	#FirecrackerDeploySnapshot: {	1
+spec/schema/deploy.cue	open	repos?: [...{...}] @go(Repos)	1
+spec/schema/deploy.cue	open	raw_install_context?: {...} @go(RawInstallContext,type=map[string]any)	1
+spec/schema/deploy.cue	open	raw_stage_context?: {...} @go(RawStageContext,type=map[string]any)	1
+spec/schema/docs.cue	close	#DocsConfig: close({	1
+spec/schema/docs.cue	close	#DocsSources: close({	1
+spec/schema/docs.cue	close	#DocsCompiled: close({	1
+spec/schema/docs.cue	close	#DocsMarketplace: close({	1
+spec/schema/docs.cue	close	#DocsProjections: close({	1
+spec/schema/docs.cue	close	#DocsOutput: close({	1
+spec/schema/docs.cue	close	#DocsLanding: close({	1
+spec/schema/docs.cue	close	#DocsGates: close({	1
+spec/schema/hook.cue	close	#Hook: close({	1
+spec/schema/instrument.cue	open	plugin_input?: {...} @go(PluginInput,type=map[string]any)	2
+spec/schema/instrument.cue	open	#EvidenceSegment: {	1
+spec/schema/instrument.cue	open	validators?: {...}	1
+spec/schema/kubernetes.cue	open	tolerations?: [...{...}]	1
+spec/schema/kubevirt.cue	open	affinity?: {...}	1
+spec/schema/kubevirt.cue	absence	data_volume?: _|_	3
+spec/schema/kubevirt.cue	absence	pvc?: _|_	3
+spec/schema/kubevirt.cue	absence	clone?: _|_	3
+spec/schema/kubevirt.cue	absence	size?: _|_	2
+spec/schema/kubevirt.cue	absence	image?: _|_	3
+spec/schema/kubevirt.cue	absence	pull_policy?: _|_	3
+spec/schema/kubevirt.cue	absence	pull_secret?: _|_	3
+spec/schema/llm.cue	close	#LLMSpec: close({	1
+spec/schema/llm.cue	close	#LLMParams: close({	1
+spec/schema/llm.cue	close	#LLMResponseFormat: close({	1
+spec/schema/llm.cue	close	json_schema?: close({	1
+spec/schema/llm.cue	close	#LLMReasoning: close({	1
+spec/schema/llm.cue	close	#LLMStreamOptions: close({	1
+spec/schema/llm.cue	close	#LLMNamedToolChoice: close({	1
+spec/schema/llm.cue	close	function: close({name: string})	1
+spec/schema/local.cue	absence	env?: {PATH?: _|_, [string]: #StrVal} @go(Env,type=map[string]string)	1
+spec/schema/marketplace.cue	close	#Marketplace: close({	1
+spec/schema/marketplace.cue	close	#MarketplaceFamily: close({	1
+spec/schema/marketplace.cue	close	#MarketplaceMCPServer: close({	1
+spec/schema/marketplace.cue	close	#MarketplaceSettings: close({	1
+spec/schema/node.cue	absence	#DeployValue: #Deploy & {nested?: _|_, peer?: _|_, target?: _|_, member_of?: _|_, inside?: _|_, descent?: _|_}	1
+spec/schema/node.cue	open	#Node: {...}	1
+spec/schema/node.cue	close	#NodeDoc: close({	1
+spec/schema/oci.cue	close	#PluginArtifactMetadata: close({	1
+spec/schema/pipeline.cue	absence	env?: {PATH?: _|_, [string]: #StrVal} @go(Env,type=map[string]string)	2
+spec/schema/pipeline.cue	open	entities?: {[string]: {...}} @go(Entities,type=map[string]map[string]any)	1
+spec/schema/resolvedproject.cue	absence	env?: {PATH?: _|_, [string]: #StrVal} @go(Env,type=map[string]string)	1
+spec/schema/skill.cue	close	#Skill: close({	1
+spec/schema/skill.cue	close	#SkillReference: close({	1
+spec/schema/task.cue	absence	env?: {PATH?: _|_, [string]: #StrVal} @go(Env,type=map[string]string)	1
+spec/schema/validateproject.cue	open	diagnostics?: {...} @go(Diagnostics,type=Diagnostics)	1
+spec/schema/vm.cue	absence	box?: _|_	6
+spec/schema/vm.cue	absence	transport?: _|_	4
+spec/schema/vm.cue	absence	rootfs?: _|_	3
+spec/schema/vm.cue	absence	root_size?: _|_	3
+spec/schema/vm.cue	absence	kernel_args?: _|_	2
+spec/schema/vm.cue	absence	url?: _|_	5
+spec/schema/vm.cue	absence	checksum?: _|_	2
+spec/schema/vm.cue	absence	cache?: _|_	1
+spec/schema/vm.cue	absence	libvirt_name?: _|_	3
+spec/schema/vm.cue	absence	disk_path?: _|_	3
+spec/schema/vm.cue	absence	disk_format?: _|_	3
+spec/schema/vm.cue	absence	from_vm?: _|_	3
+spec/schema/vm.cue	absence	from_snapshot?: _|_	3
+spec/schema/vm.cue	absence	base_user?: _|_	2
+spec/schema/vm.cue	absence	builder?: _|_	2
+spec/schema/vm.cue	absence	builder_image?: _|_	2
+spec/schema/vm.cue	absence	installer?: _|_	1
+spec/schema/vm.cue	absence	bootstrap_arch?: _|_	1
+spec/schema/vm.cue	absence	bootstrap_variant?: _|_	1
+spec/schema/vm.cue	open	source: {	1

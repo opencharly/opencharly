@@ -894,7 +894,7 @@ is never bent.
 | D-PAT-1 | Every schema uses only the patterns of §10.1 and nothing from the "never" table. |
 | D-PAT-2 | Each kind, verb, origin and capability type is one S1 definition in its owning plugin's CUE module; core composes the document schema from the registry with the same patterns (§10.3). |
 | D-PAT-3 | The authoring language follows the patterns: a choice is a key the author writes (S4) — the candy is the default node, selected when no kind key is written — a collection with identities is a map (S5), and no two concepts are told apart by a missing field. |
-| D-PAT-4 | Every rule about an authored document or a protocol message is either enforced by the schema — tagged with its ID at its enforcing line, with at least one negative case that fails with its expected error — or indexed in §12.4 with where it is proven. Rules about schemas themselves are proven by gates, not by negative cases: D-PAT-1 on `DESIGN.cue` by the design check (Appendix A.4 check 6), and D-PAT-1..3 on every plugin CUE module by the §25 schema-pattern gate. |
+| D-PAT-4 | Every rule about an authored document or a protocol message is either enforced by the schema — tagged with its ID at its enforcing line, with at least one negative case that fails with its expected error — or indexed in §12.4 with where it is proven. Rules about schemas themselves are proven by gates, not by negative cases: D-PAT-1 on `DESIGN.cue` by the design check (Appendix A.4 check 6), and D-PAT-1 on every plugin CUE module by the §25 schema-pattern gate (Appendix A.11), with D-PAT-2 and D-PAT-3 proven there once their controls land. |
 
 ### 10.2 Where shapes are defined
 
@@ -2664,8 +2664,9 @@ This document and `DESIGN.cue` state the same design twice: once in prose and ta
 once as schema for machines. Two statements of one thing drift unless something compares them.
 The design check is that comparison. It runs locally and on demand — there is no CI gate — and a
 change to `DESIGN.md`, `DESIGN.cue`, `TODO.md` or the check itself lands only with its output on
-the final committed tree pasted into the PR body. It relies on CUE v0.18.0-rc.1 alone; no Go, Python or
-other toolchain is needed.
+the final committed tree pasted into the PR body. It relies on the pinned CUE v0.18.0-rc.1 and on
+`git` — the schema-pattern gate (A.11) reads the pinned modules through the tree's own index — and
+on nothing else: no Go, Python or other toolchain is needed.
 
 `DESIGN.cue`, beside this document, is the single copy of the schema: the authoring schema of
 Part III and the core↔plugin protocol of §4. It is written with the patterns of §10.1.
@@ -2681,6 +2682,8 @@ validated with `cue vet -d '#Document' DESIGN.cue charly.yml`, and a user config
 | `scripts/design-cue.sh` | provides the pinned CUE v0.18.0-rc.1 |
 | `scripts/design-consistency.sh` | compares DESIGN.md with DESIGN.cue |
 | `scripts/design-examples.sh` | validates every example and every negative case |
+| `scripts/design-dpat.sh` | checks the schema patterns (D-PAT-1) in every pinned plugin CUE module (A.11) |
+| `design/dpat-baseline.tsv` | the census of the violations that gate tolerates, and the issue that retires it (A.11) |
 | `design/example/load.cue` | the loader's view of a document (§11.1 stage 3, D-LOAD-5), in CUE |
 | `design/example/rules.cue` | the §12.4 rules that a single document can show, in CUE |
 | `design/negative/*.yaml` | one document per rule that breaks exactly that rule |
@@ -2698,10 +2701,10 @@ bash scripts/design-check.sh
 ```
 
 Runs in the repository root, in order, and stops at the first failure: the toolchain (A.3), the
-consistency check (A.4), the example check (A.5) and the ledger check (A.8). It has no logic of
-its own; each control lives in exactly one script, and no check writes to the repository. The
-committed negative cases (A.5) and the ledger check's own `--self-test` mutations (A.8) are the
-proof that each check can fail.
+consistency check (A.4), the example check (A.5), the ledger check (A.8) and the schema-pattern
+gate (A.11). It has no logic of its own; each control lives in exactly one script, and no check
+writes to the repository. The committed negative cases (A.5) and the `--self-test` mutations of the
+ledger check (A.8) and of the schema-pattern gate (A.11) are the proof that each check can fail.
 
 ### A.3 `scripts/design-cue.sh` — the toolchain
 
@@ -3013,3 +3016,41 @@ It is **generated** by `scripts/design-disposition.sh` from the ledger and never
 the two cannot disagree by construction; `scripts/design-ledger.sh` regenerates it on every run and
 fails when the committed copy differs. The table is therefore evidence, not a claim: a stale row is
 a red gate, exactly as a stale citation is.
+
+### A.11 `scripts/design-dpat.sh` — the schema-pattern gate
+
+```bash
+bash scripts/design-dpat.sh              # the control design-check.sh runs
+bash scripts/design-dpat.sh --self-test  # mutate every rule and prove the check fails
+bash scripts/design-dpat.sh --emit-census # print the census the current pins produce
+```
+
+§25 names the schema patterns of every plugin CUE module as a gate, and D-PAT-1 is the pattern rule
+itself: no `close(` call, no field written `f?: _|_`, no open struct except the `#Opaque`
+definition, and every use of `#Opaque` marks itself `// S10` (§10.1). The control reads this tree's
+own pin set from its index, so the schema it judges is the schema that ships, and it reads each
+pinned module from that module's repository at the pinned commit — never from a checkout, which can
+be stale, dirty or absent (a session worktree materializes no gitlink). A repository or a pinned
+commit it cannot read is a failure that names the path and the remedy, never a smaller scan that
+still reports success. Every `.cue` file of every pinned `plugin-*` module and of `spec` is in scope
+except a `vendor/` tree, which mirrors another system's published schema (the egress vendoring
+pipeline) rather than a shape charly owns; the run reports how many files that boundary left out,
+so the boundary is visible instead of silent.
+
+**The census.** The tree carries violations of D-PAT-1 today — rewriting them is the §10.1 work of
+TODO.md 2.16 — and a gate that is red on landing enforces nothing. `design/dpat-baseline.tsv`
+therefore records them as a census: one row per file, rule and construct, with the number of times
+that construct occurs. The control tolerates exactly what the census records, reports each tolerated
+violation as known and names the issue that retires the census, and fails on anything else:
+
+- a construct occurring **more** often than its row records is a new violation, reported with its
+  file and line;
+- a construct occurring **less** often means the census overstates the debt, so its row is lowered in
+  the change that fixes it. Delete the last row and the control is a plain check with nothing to
+  tolerate, which is what makes "the census must reach zero" a mechanic instead of an intention.
+
+A row does not record a line. The construct is a row's key — its line's code, with comments and
+strings removed and whitespace collapsed — so an edit that shifts a known violation cannot turn the
+gate red, and a new violation landing on a tolerated line cannot be blessed. `--emit-census` prints
+the file from the current pins, and its diff is reviewed like any other, because every row it drops
+is a violation somebody fixed.
