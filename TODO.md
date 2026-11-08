@@ -9,6 +9,52 @@
 > This file describes the current state, so it uses current names (`plan:`, `distro:`, …); DESIGN.md
 > never does.
 
+## Status
+
+Derived 2026-11-08 at umbrella commit `6f6df4dc40364a62c4e0b7bd17003851bfdbca3e`: mechanical
+greps at each submodule's `origin/main` pin, never at the lagging checkouts. The numbered text
+below is unchanged; this table is the status record.
+
+| section | items | done | open | moved |
+|---|---|---|---|---|
+| 0. Preconditions | 4 | 0 | 3 | 1 |
+| 1. Decisions | 2 | 0 | 1 | 1 |
+| 2. Schema | 16 | 0 | 15 | 1 |
+| 3. Parsing and validation | 33 | 0 | 32 | 1 |
+| 4. Generation | 4 | 0 | 4 | 0 |
+| 5. Modules and the plugin protocol | 11 | 0 | 11 | 0 |
+| 6. Plugins and the install IR | 9 | 0 | 8 | 1 |
+| 7. Store | 3 | 0 | 3 | 0 |
+| 8. Command line | 3 | 0 | 1 | 2 |
+| 9. Repositories | 2 | 0 | 2 | 0 |
+| 10. Documentation | 3 | 0 | 2 | 1 |
+| 11. Final proof | 2 | 0 | 2 | 0 |
+| 12. OCE alignment | 15 | 2 | 10 | 3 |
+| **Total** | **107** | **2** | **94** | **11** |
+
+The Decisions row counts the unnumbered decided block plus item 1.1.
+
+**Moved.** Each item below names what superseded it, or which part no longer holds:
+
+- `0.4` — CUE is v0.18.0-rc.1, not v0.17.1; the `close()` half still holds (0 occurrences in `DESIGN.cue`).
+- `1.1` — the naming rule in `AGENTS.md` now makes `distro-`, `layer-`, `pod-`, `plugin-`, `vm-`, `pkg-` and `charly-` the canonical prefixes, so "archive them" contradicts current policy; `*-skills` carriers are already 0.
+- `2.2` — the duplication is gone but `spec/envelope` was never created: each shared shape now has exactly one definition in its owning plugin.
+- `3.31` — the split landed as `requires_capability:`, not `need:`.
+- `6.6` — superseded by D-PLUG-7 (a non-first-party plugin owns a namespaced verb).
+- `8.1` — three of its renames are contradicted by the settled ledger: `command:candy` and `command:config` are sharp with their current spellings; `command:secrets` is a recorded retirement.
+- `8.3` — contradicted by the settled `command:config` target, which persists into `charly.yml`.
+- `10.3` — `PROGRAM/nested-deploy-members.md` no longer exists.
+- `12.3` — the vocabulary is now `parameter:`, not `input:`/`with:`.
+- `12.5` — replaced by D-IR-7 + `build_with:`.
+- `12.10` — `#Security` no longer exists in `DESIGN.cue`; the posture lives in the `nesting:` grant.
+
+**Done.** Each item is proven complete at the same pin:
+
+- `12.2` — `#Namespace: #TopName` is defined in `DESIGN.cue`, and the two retired phrases sit in the `Not` cell of the one `namespace` row (§2).
+- `12.4` — `#ManagerPackage` (`config?: #Opaque`) is the value of a manager package in `#PackageMap`, and `#ActionPackage` carries it, so an install carries the owning plugin's own input.
+
+**How to keep this current.** The status is derived by greps at the submodule pins. Whoever lands an item updates its row and the total in the same PR. TODO.md is deleted only when the last item lands (§11.2).
+
 ## 0. Preconditions
 
 | # | Item |
