@@ -3060,7 +3060,9 @@ opens a file always starts a line. A blob with no final newline would otherwise 
 marker onto its own last line: the scanner would not see that marker, and every line of the next
 file would be judged under the previous file's name — a smaller scan quietly reporting success over
 a file it never attributed. The self-test plants exactly that, and the run that follows a
-no-trailing-newline blob in the pins is attributed to itself.
+no-trailing-newline blob in the pins is attributed to itself. The property is also checked rather
+than assumed: every run, and `--emit-census` too, reconciles the file count the readers report with
+the number of markers the scanner can see, and a marker that does not start a line fails the run.
 
 **The census.** The tree carries violations of all three requirements today — rewriting them is the
 §10.1 work of TODO.md 2.16 — and a gate that is red on landing enforces nothing.
