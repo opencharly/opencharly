@@ -1,9 +1,14 @@
-# design/dpat-baseline.tsv — the D-PAT-1 violations the schema-pattern gate tolerates.
+# design/dpat-baseline.tsv — the §25 schema-pattern violations the gate tolerates.
 #
-# `scripts/design-dpat.sh` checks every pinned plugin CUE module against D-PAT-1 (§10.1) and fails
-# on each violation. The tree carries violations today — the §10.1 rewrite is TODO.md 2.16 — and a
-# gate that is red on landing enforces nothing, so they are recorded here as a census: the gate is
-# green on this tree, and red on every new violation.
+# `scripts/design-dpat.sh` checks every pinned plugin CUE module against the §10.1 patterns and
+# fails on each violation. It judges the half of each requirement that the pinned CUE text decides:
+# D-PAT-1's never-table (`close(`, `f?: _|_`, an open struct that is not #Opaque, a #Opaque use with
+# no `// S10`), D-PAT-2's one-name-one-home (a top-level definition declared in a second pinned
+# module), and D-PAT-3's no-union-written-out (a `|` disjunction outside `or(...)`, other than the
+# two-value literal default). The tree carries violations of all three today — the §10.1 rewrite is
+# TODO.md 2.16 — and a gate that is red on landing enforces nothing, so they are recorded here as a
+# census: the gate is green on this tree, and red on every new violation. DESIGN.md A.11 states
+# which half of D-PAT-2 and D-PAT-3 is NOT decidable from this text and why.
 #
 # A row is file, rule, symbol, count — the number of times that construct occurs in that file. A
 # construct's symbol is its line's code with comments and strings removed and whitespace collapsed,
@@ -19,13 +24,86 @@
 # is a reviewed diff, because every row it drops is a violation somebody fixed.
 # tracked-by: opencharly/opencharly#945
 file	rule	symbol	count
+plugin-adb/candy/plugin-adb/schema/adb.cue	union	method: ("devices" | "shell" | "install" | "install-app" | "uninstall" | "getprop" | "screencap" | "logcat-tail" | "wait-for-device" | "wait-ui-settled" | "current-focus" | "keyevent" | "session") @go(Method,type=string)	1
+plugin-adb/candy/plugin-adb/schema/adb.cue	union	action?: "start" | "stop" | "status" @go(Action)	1
+plugin-agent/candy/plugin-agent/schema/agent.cue	union	mode?: "copy" | "bind"	1
+plugin-agent/candy/plugin-agent/schema/agent.cue	union	evidence_policy?: "target" | "coordinator" | "both" @go(EvidencePolicy)	1
+plugin-agent/candy/plugin-agent/schema/agent.cue	union	transport: "inproc" | "exec" | "ssh" | "grpc" | "tmux"	1
 plugin-agent/candy/plugin-agent/schema/agent.cue	open	readiness?: {...}	1
+plugin-agent/candy/plugin-agent/schema/agent.cue	union	persistence?: "none" | "detach" | "required"	1
+plugin-agent/candy/plugin-agent/schema/agent.cue	union	transcript?: "none" | "raw" | "screen" | "both"	1
+plugin-agent-pi/candy/plugin-agent-pi/schema/pi.cue	union	type: "prompt" | "steer" | "follow_up" | "abort" | "new_session" |	1
+plugin-agent-pi/candy/plugin-agent-pi/schema/pi.cue	union	"get_state" | "set_model" | "cycle_model" | "get_available_models" |	1
+plugin-agent-pi/candy/plugin-agent-pi/schema/pi.cue	union	"set_thinking_level" | "cycle_thinking_level" | "set_steering_mode" |	1
+plugin-agent-pi/candy/plugin-agent-pi/schema/pi.cue	union	"set_follow_up_mode" | "compact" | "set_auto_compaction" |	1
+plugin-agent-pi/candy/plugin-agent-pi/schema/pi.cue	union	"set_auto_retry" | "abort_retry" | "bash" | "abort_bash" |	1
+plugin-agent-pi/candy/plugin-agent-pi/schema/pi.cue	union	"get_session_stats" | "export_html" | "switch_session" | "fork" |	1
+plugin-agent-pi/candy/plugin-agent-pi/schema/pi.cue	union	"clone" | "get_fork_messages" | "get_entries" | "get_tree" |	1
+plugin-agent-pi/candy/plugin-agent-pi/schema/pi.cue	union	"get_last_assistant_text" | "set_session_name" | "get_messages" |	1
+plugin-agent-pi/candy/plugin-agent-pi/schema/pi.cue	union	"get_commands" | "extension_ui_response"	1
+plugin-agent-pi/candy/plugin-agent-pi/schema/pi.cue	union	streamingBehavior?: "steer" | "followUp"	1
+plugin-agent-pi/candy/plugin-agent-pi/schema/pi.cue	union	mode?: "all" | "one-at-a-time"	1
 plugin-agent-pi/candy/plugin-agent-pi/schema/pi.cue	open	#PiRPCEvent: {	1
+plugin-agent-pi/candy/plugin-agent-pi/schema/pi.cue	union	steeringMode: "all" | "one-at-a-time"	1
+plugin-agent-pi/candy/plugin-agent-pi/schema/pi.cue	union	followUpMode: "all" | "one-at-a-time"	1
+plugin-agentteams/candy/plugin-agentteams/schema/agentteams.cue	union	method: ("status" | "manager-running" | "worker-running" | "worker-list") @go(Method,type=string)	1
+plugin-appium/candy/plugin-appium/schema/appium.cue	union	method: ("status" | "session-create" | "session-delete" | "install-app" | "find" | "click" | "send-keys" | "screenshot" | "get-text" | "get-attribute" | "clear" | "find-all" | "source" | "back" | "gesture-tap" | "gesture-double-tap" | "gesture-long-press" | "gesture-drag" | "gesture-swipe" | "gesture-scroll" | "gesture-fling" | "gesture-pinch-open" | "gesture-pinch-close" | "app-start-activity" | "app-activate" | "app-terminate" | "app-remove" | "app-clear" | "app-is-installed" | "app-state" | "app-current-activity" | "app-current-package" | "key-press" | "key-hide" | "key-shown" | "device-info" | "device-battery" | "device-time" | "device-orientation" | "device-set-orientation" | "device-notifications" | "device-get-clipboard" | "device-set-clipboard" | "device-contexts" | "device-context" | "execute" | "raw" | "session") @go(Method,type=string)	1
+plugin-appium/candy/plugin-appium/schema/appium.cue	union	action?: "start" | "stop" | "status" @go(Action)	1
+plugin-builder/candy/plugin-builder/schema/builder.cue	union	sharing?: *"locked" | "shared" | "private"	1
+plugin-builder/candy/plugin-builder/schema/builder.cue	union	#BdStrMap: {[string]: (string | number | bool)}	1
+plugin-cdp/candy/plugin-cdp/schema/cdp.cue	union	method: "status" | "list" | "url" | "text" | "html" | "eval" | "axtree" | "coords" | "raw" | "wait" | "screenshot" | "open" | "close" | "click" | "type" | "spa-status" | "spa-click" | "spa-type" | "spa-key" | "spa-key-combo" | "spa-mouse" | "session"	1
+plugin-cdp/candy/plugin-cdp/schema/cdp.cue	union	action?: "start" | "stop" | "status" @go(Action)	1
+plugin-crabbox/candy/plugin-crabbox/schema/crabbox.cue	union	method: "version" | "providers" | "describe" | "config" | "doctor" | "health" | "ready" | "leases" | "usage" | "events" | "logs" | "containerd-preflight"	1
 plugin-crabbox/candy/plugin-crabbox/schema/crabbox.cue	open	containerd?: {...} @go(Containerd)	1
 plugin-crabbox/candy/plugin-crabbox/schema/crabbox.cue	open	firecracker?: {...} @go(Firecracker)	1
+plugin-cstream/candy/plugin-cstream/schema/cstream.cue	union	method: "status" | "login" | "frame"	1
+plugin-cstream/candy/plugin-cstream/schema/cstream.cue	union	expect?: "accept" | "reject"	1
+plugin-cua/candy/plugin-cua/schema/cua.cue	union	delivery?: "background" | "foreground"	1
+plugin-cua/candy/plugin-cua/schema/cua.cue	union	"status" |	1
+plugin-cua/candy/plugin-cua/schema/cua.cue	union	"doctor" |	1
+plugin-cua/candy/plugin-cua/schema/cua.cue	union	"version" |	1
+plugin-cua/candy/plugin-cua/schema/cua.cue	union	"list-tools" |	1
+plugin-cua/candy/plugin-cua/schema/cua.cue	union	"list-apps" |	1
+plugin-cua/candy/plugin-cua/schema/cua.cue	union	"list-windows" |	1
+plugin-cua/candy/plugin-cua/schema/cua.cue	union	"get-window-state" |	1
+plugin-cua/candy/plugin-cua/schema/cua.cue	union	"get-desktop-state" |	1
+plugin-cua/candy/plugin-cua/schema/cua.cue	union	"get-screen-size" |	1
+plugin-cua/candy/plugin-cua/schema/cua.cue	union	"screenshot" |	1
+plugin-cua/candy/plugin-cua/schema/cua.cue	union	"click" |	1
+plugin-cua/candy/plugin-cua/schema/cua.cue	union	"double-click" |	1
+plugin-cua/candy/plugin-cua/schema/cua.cue	union	"right-click" |	1
+plugin-cua/candy/plugin-cua/schema/cua.cue	union	"drag" |	1
+plugin-cua/candy/plugin-cua/schema/cua.cue	union	"type" |	1
+plugin-cua/candy/plugin-cua/schema/cua.cue	union	"press-key" |	1
+plugin-cua/candy/plugin-cua/schema/cua.cue	union	"hotkey" |	1
+plugin-cua/candy/plugin-cua/schema/cua.cue	union	"scroll" |	1
+plugin-cua/candy/plugin-cua/schema/cua.cue	union	"move-cursor" |	1
+plugin-cua/candy/plugin-cua/schema/cua.cue	union	"launch-app" |	1
+plugin-cua/candy/plugin-cua/schema/cua.cue	union	"kill-app" |	1
+plugin-cua/candy/plugin-cua/schema/cua.cue	union	"bring-to-front" |	1
+plugin-cua/candy/plugin-cua/schema/cua.cue	union	"set-window-frame" |	1
+plugin-cua/candy/plugin-cua/schema/cua.cue	union	"set-value" |	1
+plugin-cua/candy/plugin-cua/schema/cua.cue	union	"recording-start" |	1
+plugin-cua/candy/plugin-cua/schema/cua.cue	union	"recording-stop" |	1
+plugin-cua/candy/plugin-cua/schema/cua.cue	union	"recording-status" |	1
+plugin-cua/candy/plugin-cua/schema/cua.cue	union	"recording-render" |	1
+plugin-cua/candy/plugin-cua/schema/cua.cue	union	permission_mode?: "standard" | "bounded" | "unrestricted" @go(PermissionMode)	1
+plugin-dbus/candy/plugin-dbus/schema/dbus.cue	union	method: "list" | "call" | "introspect" | "notify"	1
+plugin-desktop-kind/candy/plugin-desktop-kind/schema/desktop.cue	union	syntax?: *"lua" | "ini" | "sway" | "xml" | "yaml"	1
+plugin-desktop-kind/candy/plugin-desktop-kind/schema/desktop.cue	union	manager: *"sddm" | "greetd" | "gdm" | "ly"	1
+plugin-desktop-kind/candy/plugin-desktop-kind/schema/desktop.cue	union	numlock?: *"none" | "on" | "off"	1
+plugin-desktop-kind/candy/plugin-desktop-kind/schema/desktop.cue	union	placement?: *"default" | "float" | "tile" | "fullscreen" | "maximize"	1
+plugin-desktop-kind/candy/plugin-desktop-kind/schema/desktop.cue	union	#DkCategory: "AudioVideo" | "Audio" | "Video" | "Development" | "Education" |	1
+plugin-desktop-kind/candy/plugin-desktop-kind/schema/desktop.cue	union	"Game" | "Graphics" | "Network" | "Office" | "Science" | "Settings" |	1
+plugin-desktop-kind/candy/plugin-desktop-kind/schema/desktop.cue	union	"System" | "Utility"	1
+plugin-distro/candy/plugin-distro/schema/distro.cue	union	section_field?: {[string]: "list" | "list_of_maps"}	1
+plugin-distro/candy/plugin-distro/schema/distro.cue	union	sharing?: *"locked" | "shared" | "private"	1
+plugin-dsh/candy/plugin-dsh/schema/dsh.cue	union	method: ("version" | "web-running" | "profile-list" | "plugin-list") @go(Method,type=string)	1
 plugin-egress/candy/plugin-egress/egress-schemas/egress_cloud_init.cue	close	#CloudInitMeta: close({	1
 plugin-egress/candy/plugin-egress/egress-schemas/egress_cloud_init.cue	close	#NetworkConfigV2: close({	1
 plugin-egress/candy/plugin-egress/egress-schemas/egress_cloud_init.cue	open	ethernets?: {...}	1
+plugin-egress/candy/plugin-egress/egress-schemas/egress_containerd.cue	union	#ContainerdConfig: #ContainerdConfigV2 | #ContainerdConfigV4	1
+plugin-egress/candy/plugin-egress/egress-schemas/egress_containerd.cue	union	#ContainerdSnapshotterName: "native" | "overlayfs" | "devmapper" | "btrfs" | "zfs"	1
 plugin-egress/candy/plugin-egress/egress-schemas/egress_containerd.cue	close	#ContainerdConfigV2: close({	1
 plugin-egress/candy/plugin-egress/egress-schemas/egress_containerd.cue	open	containerd?: {	1
 plugin-egress/candy/plugin-egress/egress-schemas/egress_containerd.cue	open	"io.containerd.grpc.v1.cri"?: {	1
@@ -42,12 +120,22 @@ plugin-egress/candy/plugin-egress/egress-schemas/egress_containerd.cue	open	[str
 plugin-egress/candy/plugin-egress/egress-schemas/egress_containerd.cue	close	#ContainerdSnapshotterConfig: close({	1
 plugin-egress/candy/plugin-egress/egress-schemas/egress_containerd.cue	open	#ContainerdSnapshotterConfig: close({	1
 plugin-egress/candy/plugin-egress/egress-schemas/egress_crabbox.cue	open	localContainer?: {	1
+plugin-egress/candy/plugin-egress/egress-schemas/egress_crabbox.cue	union	runtime?: "crun" | "krun" | "runc"	1
+plugin-egress/candy/plugin-egress/egress-schemas/egress_crabbox.cue	union	snapshotter?: "overlayfs" | "native" | "fuse-overlayfs" | "btrfs"	1
+plugin-egress/candy/plugin-egress/egress-schemas/egress_crabbox.cue	union	initMode?: "direct" | "systemd"	1
+plugin-egress/candy/plugin-egress/egress-schemas/egress_crabbox.cue	union	nested?: "off" | "on"	1
+plugin-egress/candy/plugin-egress/egress-schemas/egress_crabbox.cue	union	stateVolume?: "auto" | "off"	1
+plugin-egress/candy/plugin-egress/egress-schemas/egress_crabbox.cue	union	gpu?: "off" | "drm" | "nvidia" | "virtio"	1
+plugin-egress/candy/plugin-egress/egress-schemas/egress_crabbox.cue	union	criu?: "off" | "on" | "auto" | "in-container"	1
+plugin-egress/candy/plugin-egress/egress-schemas/egress_crabbox.cue	union	krunNetwork?: "tsi" | "passt"	1
+plugin-egress/candy/plugin-egress/egress-schemas/egress_crabbox.cue	union	krunKernel?: "stock" | "image"	1
 plugin-egress/candy/plugin-egress/egress-schemas/egress_crabbox.cue	open	containerd?: {	1
 plugin-egress/candy/plugin-egress/egress-schemas/egress_crabbox.cue	open	#CrabboxYaml: {	1
 plugin-egress/candy/plugin-egress/egress-schemas/egress_k8s.cue	open	metadata: {	1
 plugin-egress/candy/plugin-egress/egress-schemas/egress_k8s.cue	open	#K8sObject: {	1
 plugin-egress/candy/plugin-egress/egress-schemas/egress_k8s.cue	open	#Kustomization: {	1
 plugin-egress/candy/plugin-egress/egress-schemas/egress_kind.cue	open	#KindCluster: {	1
+plugin-egress/candy/plugin-egress/egress-schemas/egress_kind.cue	union	role: "control-plane" | "worker"	1
 plugin-egress/candy/plugin-egress/egress-schemas/egress_kind.cue	open	#KindClusterNode: {	1
 plugin-egress/candy/plugin-egress/egress-schemas/egress_ledger.cue	open	#DeployRecord: {	1
 plugin-egress/candy/plugin-egress/egress-schemas/egress_ledger.cue	open	steps?: [...{...}]	1
@@ -59,12 +147,27 @@ plugin-egress/candy/plugin-egress/egress-schemas/egress_libvirt_xml.cue	open	dom
 plugin-egress/candy/plugin-egress/egress-schemas/egress_libvirt_xml.cue	open	#LibvirtDomainXML: {	1
 plugin-egress/candy/plugin-egress/egress-schemas/egress_netfilter.cue	close	#NetfilterRules: close({	1
 plugin-egress/candy/plugin-egress/egress-schemas/egress_netfilter.cue	close	#NetfilterRule: close({	1
+plugin-egress/candy/plugin-egress/egress-schemas/egress_netfilter.cue	union	target: "ACCEPT" | "DROP" | "RETURN" | "MASQUERADE" | "DNAT" | "SNAT"	1
+plugin-egress/candy/plugin-egress/egress-schemas/egress_netfilter.cue	union	proto?: "tcp" | "udp" | "icmp" | "all"	1
+plugin-egress/candy/plugin-egress/egress-schemas/egress_traefik.cue	union	routers?: null | {[string]: {	1
 plugin-egress/candy/plugin-egress/egress-schemas/egress_traefik.cue	open	routers?: null | {[string]: {	1
+plugin-egress/candy/plugin-egress/egress-schemas/egress_traefik.cue	union	services?: null | {[string]: {	1
 plugin-egress/candy/plugin-egress/egress-schemas/egress_traefik.cue	open	servers: [...{url: string & !="", ...}]	1
 plugin-egress/candy/plugin-egress/egress-schemas/egress_traefik.cue	open	loadBalancer: {	1
 plugin-egress/candy/plugin-egress/egress-schemas/egress_traefik.cue	open	services?: null | {[string]: {	1
 plugin-egress/candy/plugin-egress/egress-schemas/egress_traefik.cue	open	http: {	1
 plugin-egress/candy/plugin-egress/egress-schemas/egress_traefik.cue	open	#TraefikRoutes: {	1
+plugin-example-dispatch/candy/plugin-example-dispatch/schema/exampledispatch.cue	union	kind: "shell" | "ssh"	1
+plugin-file/candy/plugin-file/schema/file.cue	union	filetype?: ("file" | "directory" | "symlink") @go(Filetype)	1
+plugin-file/candy/plugin-file/schema/file.cue	union	#FileContains: (#FileMatcher | [...#FileMatcher])	1
+plugin-file/candy/plugin-file/schema/file.cue	union	#FileMatcher: (string | bool | number | #FileMatchOp)	1
+plugin-file/candy/plugin-file/schema/file.cue	union	#FileMatchOp: {equals: _} | {not_equals: _} | {contains: _} | {not_contains: _} | {matches: _} | {not_matches: _} | {lt: _} | {le: _} | {gt: _} | {ge: _}	1
+plugin-gh/candy/plugin-gh/schema/gh.cue	union	op: "pr_meta" | "pr_files" | "pr_diff" | "pr_commits" | "pr_thread" | "head_sha" | "document" | "issues" @go(Op)	1
+plugin-gh/candy/plugin-gh/schema/gh.cue	union	target?: "issue" | "pr" @go(Target)	1
+plugin-gh/candy/plugin-gh/schema/gh.cue	union	format?: "json" | "yaml" @go(Format)	1
+plugin-gh/candy/plugin-gh/schema/gh.cue	union	state?: "open" | "closed" | "all" @go(State,type=string)	1
+plugin-gh/candy/plugin-gh/schema/gh.cue	union	kind?: "issue" | "pr" | "all" @go(Kind,type=string)	1
+plugin-gh/candy/plugin-gh/schema/gh.cue	union	kind: "issue" | "pr" @go(Kind)	1
 plugin-harness-kind/candy/plugin-harness-kind/schema/docs.cue	close	#DocsInput: close({	1
 plugin-harness-kind/candy/plugin-harness-kind/schema/docs.cue	close	#DocsSourcesInput: close({	1
 plugin-harness-kind/candy/plugin-harness-kind/schema/docs.cue	close	#DocsCompiledInput: close({	1
@@ -76,59 +179,331 @@ plugin-harness-kind/candy/plugin-harness-kind/schema/docs.cue	close	#DocsGatesIn
 plugin-harness-kind/candy/plugin-harness-kind/schema/hook.cue	close	#HookInput: close({	1
 plugin-harness-kind/candy/plugin-harness-kind/schema/marketplace.cue	close	#MarketplaceInput: close({	1
 plugin-harness-kind/candy/plugin-harness-kind/schema/marketplace.cue	close	#MarketplaceFamilyInput: close({	1
+plugin-harness-kind/candy/plugin-harness-kind/schema/marketplace.cue	union	category?: *"images" | "commands" | "kind" | "development"	1
+plugin-harness-kind/candy/plugin-harness-kind/schema/marketplace.cue	union	profiles?: [...("developer" | "user" | "container")]	1
 plugin-harness-kind/candy/plugin-harness-kind/schema/marketplace.cue	close	#MarketplaceMCPServerInput: close({	1
 plugin-harness-kind/candy/plugin-harness-kind/schema/marketplace.cue	close	#MarketplaceSettingsInput: close({	1
 plugin-harness-kind/candy/plugin-harness-kind/schema/skill.cue	close	#SkillInput: close({	1
+plugin-harness-kind/candy/plugin-harness-kind/schema/skill.cue	union	category?: *"development" | "commands" | "kind" | "images"	1
 plugin-harness-kind/candy/plugin-harness-kind/schema/skill.cue	close	#SkillReferenceInput: close({	1
+plugin-helm/candy/plugin-helm/schema/helm.cue	union	method: ("release-exists" | "status" | "revision" | "values-hash")	1
+plugin-herdr/candy/plugin-herdr/schema/herdr.cue	union	method: ("ping" | "session-snapshot" | "workspace-list" | "tab-list" | "pane-list" | "agent-list" | "pane-wait-output" | "agent-wait" | "agent-prompt") @go(Method,type=string)	1
+plugin-herdr/candy/plugin-herdr/schema/herdr.cue	union	source?: ("visible" | "recent" | "recent-unwrapped" | "detection") @go(Source,type=string)	1
+plugin-herdr/candy/plugin-herdr/schema/herdr.cue	union	until?: ("idle" | "working" | "blocked" | "done" | "unknown") @go(Until,type=string)	1
+plugin-http/candy/plugin-http/schema/http.cue	union	#HttpMatcherList: (#HttpMatcher | [...#HttpMatcher])	1
+plugin-http/candy/plugin-http/schema/http.cue	union	#HttpMatcher: (string | bool | number | #HttpMatchOp)	1
+plugin-http/candy/plugin-http/schema/http.cue	union	#HttpMatchOp: {equals: _} | {not_equals: _} | {contains: _} | {not_contains: _} | {matches: _} | {not_matches: _} | {lt: _} | {le: _} | {gt: _} | {ge: _}	1
+plugin-init/candy/plugin-init/schema/init.cue	union	model: "fragment_assembly" | "file_copy"	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	button?: "left" | "right" | "middle"	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	media_mode?: "cdrom" | "disk" @go(MediaMode)	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	usb_device?: "absolute_mouse" | "relative_mouse" | "keyboard" | "mass_storage" | "serial_console" | "audio" @go(UsbDevice)	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	boot_order_action?: "list" | "next" | "set" @go(BootOrderAction)	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	action?: "key" | "type" | "key-combo"	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"power-short" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"power-long" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"reset" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"on" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"off" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"restore-on" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"restore-off" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"restore-last" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"mount-url" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"mount-storage" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"unmount" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"delete" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"codec" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"quality" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"sleep" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"paused" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"rotation" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"status" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"screenshot" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"ocr" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"version" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"diagnostics" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"video-state" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"usb-state" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"atx-state" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"dc-state" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"virtual-media-state" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"storage-files" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"wol-devices" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"macros" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"keyboard-layout" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"timezones" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"cloud-state" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"network-state" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"network-settings" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"tailscale-status" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"update-status" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"devmode-state" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"ssh-key" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"tls-state" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"extensions" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"public-ip" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"key" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"type" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"key-combo" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"macro" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"click" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"mouse" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"move" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"scroll" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"drag" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"install" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"open-terminal" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"run-command" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"close-terminal" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"luks-unlock" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"flow" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"boot-order" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"power" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"dc-power" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"reboot" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"wol" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"wake-host" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"virtual-media" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"check-media-url" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"usb-device" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"usb-emulation" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"usb-config" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"set-settings" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"set-edid" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"set-video" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"set-display" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"set-audio" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"set-network" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"set-tailscale" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"set-devmode" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"set-ssh-key" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"set-tls" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"set-keyboard-layout" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"set-macros" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"set-jiggler" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"set-extension" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"set-wol-devices" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"set-log-level" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"renew-dhcp" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"factory-reset" |	1
+plugin-jetkvm/candy/plugin-jetkvm/schema/jetkvm.cue	union	"update" |	1
+plugin-kernel-param/candy/plugin-kernel-param/schema/kernel_param.cue	union	#KernelParamMatcherList: (#KernelParamMatcher | [...#KernelParamMatcher])	1
+plugin-kernel-param/candy/plugin-kernel-param/schema/kernel_param.cue	union	#KernelParamMatcher: (string | bool | number | #KernelParamMatchOp)	1
+plugin-kernel-param/candy/plugin-kernel-param/schema/kernel_param.cue	union	#KernelParamMatchOp: {equals: _} | {not_equals: _} | {contains: _} | {not_contains: _} | {matches: _} | {not_matches: _} | {lt: _} | {le: _} | {gt: _} | {ge: _}	1
+plugin-kube/candy/plugin-kube/schema/kube.cue	union	method: ("nodes" | "wait-nodes" | "pods" | "wait-ready" | "ingress" | "ingressclass" | "storageclass" | "service" | "lb-external-ip" | "addons" | "apply" | "delete" | "raw" | "k3s-post-provision") @go(Method,type=string)	1
+plugin-kubevirt/candy/plugin-kubevirt/schema/kubevirt.cue	union	method: ("vm" | "vmi" | "wait-ready" | "printable-status" | "guest-info" | "migration" | "datavolume" | "snapshot" | "start" | "stop" | "restart" | "console" | "port-forward") @go(Method,type=string)	1
+plugin-lobster/candy/plugin-lobster/schema/lobster.cue	union	on_error?: "stop" | "continue" | "skip_rest"	1
+plugin-lobster/candy/plugin-lobster/schema/lobster.cue	union	on_fail?: [...string] | string	1
+plugin-lobster/candy/plugin-lobster/schema/lobster.cue	union	backoff?: "fixed" | "exponential"	1
+plugin-lobster/candy/plugin-lobster/schema/lobster.cue	union	wait?: "all" | "any"	1
+plugin-lobster/candy/plugin-lobster/schema/lobster.cue	union	#LobsterApproval: bool | string | #LobsterApprovalObject	1
+plugin-lobster/candy/plugin-lobster/schema/lobster.cue	union	status: "ok" | "needs_approval" | "needs_input" | "cancelled"	1
+plugin-lobster/candy/plugin-lobster/schema/lobster.cue	union	action?: "warn" | "stop"	1
+plugin-lobster/candy/plugin-lobster/schema/lobster.cue	union	model: string | null	1
+plugin-matching/candy/plugin-matching/schema/matching.cue	union	#MatchingContains: (#MatchingMatcher | [...#MatchingMatcher])	1
+plugin-matching/candy/plugin-matching/schema/matching.cue	union	#MatchingMatcher: (string | bool | number | #MatchingMatchOp)	1
+plugin-matching/candy/plugin-matching/schema/matching.cue	union	#MatchingMatchOp: {equals: _} | {not_equals: _} | {contains: _} | {not_contains: _} | {matches: _} | {not_matches: _} | {lt: _} | {le: _} | {gt: _} | {ge: _}	1
+plugin-mcp/candy/plugin-mcp/schema/mcp.cue	union	method: "ping" | "servers" | "list-tools" | "list-resources" | "list-prompts" | "call" | "read"	1
+plugin-migrate/candy/plugin-migrate/schema/migration.cue	union	#Scope: "root" | "any" @go(-)	1
+plugin-migrate/candy/plugin-migrate/schema/migration.cue	union	#MigrationOp: #RenameKey | #DeleteKey | #RemapScalar | #MoveKey @go(-)	1
 plugin-migrate/candy/plugin-migrate/schema/migration.cue	close	#RenameKey: close({op: "rename_key", from: string, to: string, scope: #Scope | *"any", under_kind?: string}) @go(-)	1
 plugin-migrate/candy/plugin-migrate/schema/migration.cue	close	#DeleteKey: close({op: "delete_key", key: string, scope: #Scope | *"any", under_kind?: string}) @go(-)	1
 plugin-migrate/candy/plugin-migrate/schema/migration.cue	close	#RemapScalar: close({op: "remap_scalar", key: string, from: string, to: string, under_kind?: string}) @go(-)	1
 plugin-migrate/candy/plugin-migrate/schema/migration.cue	close	#MoveKey: close({op: "move_key", key: string, from_parent: string, to_parent: string, under_kind?: string}) @go(-)	1
+plugin-mise/candy/plugin-mise/schema/mise.cue	union	command: "install" | "use" | "run" | "exec" | "x" | "env" | "ls" | "doctor" | "version" | "shims" | "reshim" | "trust" | string	1
+plugin-mount/candy/plugin-mount/schema/mount.cue	union	#MountMatcherList: (#MountMatcher | [...#MountMatcher])	1
+plugin-mount/candy/plugin-mount/schema/mount.cue	union	#MountMatcher: (string | bool | number | #MountMatchOp)	1
+plugin-mount/candy/plugin-mount/schema/mount.cue	union	#MountMatchOp: {equals: _} | {not_equals: _} | {contains: _} | {not_contains: _} | {matches: _} | {not_matches: _} | {lt: _} | {le: _} | {gt: _} | {ge: _}	1
+plugin-nerdctl/candy/plugin-containerd/schema/plugin.cue	union	method: "info" | "runtimes" | "cdi_devices" | "criu_preflight" | "krun_guest" | "image"	1
+plugin-omarchy/candy/plugin-omarchy/schema/omarchy.cue	union	method: "cli" | "shell-ping" | "shell-summon" | "shell-hide" |	1
+plugin-omarchy/candy/plugin-omarchy/schema/omarchy.cue	union	"shell-list-plugins" | "shell-reload-config" |	1
+plugin-omarchy/candy/plugin-omarchy/schema/omarchy.cue	union	"shell-notifications-dismiss" | "shell-notifications-send" |	1
+plugin-omarchy/candy/plugin-omarchy/schema/omarchy.cue	union	"channel-current" | "default-browser" | "default-terminal" |	1
+plugin-omarchy/candy/plugin-omarchy/schema/omarchy.cue	union	"default-editor" | "theme-current" | "theme-bg-current" |	1
+plugin-omarchy/candy/plugin-omarchy/schema/omarchy.cue	union	"font-current" | "weather-location" | "version" | *"cli"	1
+plugin-openclaw/candy/plugin-openclaw/schema/openclaw.cue	union	method: "health" | "ready" | "startup" | "status" | "models" | "channels" | "version"	1
+plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	union	type: "string" | "int" | "bool" | "enum" | "string_list" | "object"	1
+plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	union	#RedoSpec: { on_fail?: [...string] | string, triggers?: {[string]: string}, max?: int & >0, escalate_after?: int & >0 }	1
 plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	close	#LLMSpec: close({	1
 plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	close	#LLMParams: close({	1
+plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	union	stop?: string | [...string]	1
+plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	union	reasoning_effort?: "high" | "medium" | "low" | "none" @go(Reasoning_effort,type=string)	1
+plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	union	tool_choice?: "none" | "auto" | "required" | #LLMNamedToolChoice	1
 plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	close	#LLMResponseFormat: close({	1
+plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	union	type: "text" | "json_object" | "json_schema" @go(Type,type=string)	1
 plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	close	json_schema?: close({	1
 plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	close	#LLMReasoning: close({	1
+plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	union	effort?: "high" | "medium" | "low" | "none" @go(Effort,type=string)	1
 plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	close	#LLMStreamOptions: close({	1
 plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	close	#LLMNamedToolChoice: close({	1
 plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	close	function: close({name: string})	1
+plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	union	format?: "yaml" | "json" @go(Format)	1
+plugin-punktfunk/candy/plugin-punktfunk/schema/punktfunk.cue	union	method: "health" | "status" | "diagnostics" | "diagnostics-refresh" |	1
+plugin-punktfunk/candy/plugin-punktfunk/schema/punktfunk.cue	union	"compositors" | "gpus" | "plugins" | "hooks" |	1
+plugin-punktfunk/candy/plugin-punktfunk/schema/punktfunk.cue	union	"pair-status" | "pair-arm" | "pair-disarm" | "pending" | "approve" | "deny" | "pin" |	1
+plugin-punktfunk/candy/plugin-punktfunk/schema/punktfunk.cue	union	"clients" | "rename" | "access" | "unpair" |	1
+plugin-punktfunk/candy/plugin-punktfunk/schema/punktfunk.cue	union	"library" | "scanners" | "scanner-toggle" |	1
+plugin-punktfunk/candy/plugin-punktfunk/schema/punktfunk.cue	union	"display-state" | "display-monitors" | "display-settings" | "display-release" |	1
+plugin-punktfunk/candy/plugin-punktfunk/schema/punktfunk.cue	union	"actions" | "action-invoke" | "end-game" | "events" |	1
+plugin-punktfunk/candy/plugin-punktfunk/schema/punktfunk.cue	union	"hosts-list" | "hosts-add" | "hosts-forget" |	1
+plugin-punktfunk/candy/plugin-punktfunk/schema/punktfunk.cue	union	"pair" | "launch" | "client-library" | "speed-test" |	1
+plugin-punktfunk/candy/plugin-punktfunk/schema/punktfunk.cue	union	"open" | "wake" | "reachable" | "profiles-list" | "client-reset" |	1
+plugin-punktfunk/candy/plugin-punktfunk/schema/punktfunk.cue	union	access?: "full" | "controller" | "view"	1
+plugin-qdrant/candy/plugin-qdrant/schema/qdrant.cue	union	method: ("health" | "version" | "auth-required" | "collections-list" | "collection-create" | "collection-info" | "collection-delete" | "collection-exists" | "points-upsert" | "points-query" | "points-scroll" | "points-count" | "points-get" | "points-delete" | "snapshot-list" | "snapshot-create" | "snapshot-delete") @go(Method,type=string)	1
+plugin-qdrant/candy/plugin-qdrant/schema/qdrant.cue	union	distance?: ("cosine" | "euclid" | "dot" | "manhattan") @go(Distance,type=string)	1
+plugin-qdrant/candy/plugin-qdrant/schema/qdrant.cue	union	payload?: {[string]: string | number | bool} @go(Payload,type=map[string]any)	1
+plugin-quickshell/candy/plugin-quickshell/schema/quickshell.cue	union	method: "call" | "ping"	1
+plugin-record/candy/plugin-record/schema/record.cue	union	method: "list" | "start" | "stop" | "cmd" | "run" | "gif" | "session"	1
+plugin-record/candy/plugin-record/schema/record.cue	union	action?: "start" | "stop" | "status" @go(Action,type=string)	1
+plugin-service/candy/plugin-service/schema/service.cue	union	scope?: "system" | "user" @go(Scope)	1
+plugin-sidecar/candy/plugin-sidecar/schema/sidecar.cue	union	env?: {[string]: (string | number | bool)}	1
+plugin-sidecar/candy/plugin-sidecar/schema/sidecar.cue	union	parameter?: {[string]: (string | number | bool)}	1
+plugin-sidecar/candy/plugin-sidecar/schema/sidecar.cue	union	cgroupns?: "host" | "private" | ""	1
+plugin-sidecar/candy/plugin-sidecar/schema/sidecar.cue	union	ipc_mode?: "host" | "private" | "shareable" | ""	1
+plugin-spice/candy/plugin-spice/schema/spice.cue	union	method: "status" | "screenshot" | "cursor" | "click" | "mouse" | "type" | "key" | "record" | "session" | "wizard"	1
+plugin-spice/candy/plugin-spice/schema/spice.cue	union	action?: "start" | "stop" | "status" @go(Action)	1
+plugin-spice/candy/plugin-spice/schema/spice.cue	union	action?: "key" | "type" | "key-combo"	1
+plugin-task/candy/plugin-task/schema/task.cue	union	mode: "status" | "bump" | "verify" | "currency"	1
+plugin-task/candy/plugin-task/schema/task.cue	union	mode?: "check" | "sync"	1
+plugin-task/candy/plugin-task/schema/task.cue	union	mode?: "sync" | "check"	2
+plugin-task/candy/plugin-task/schema/task.cue	union	mode?: "report" | "prune"	1
+plugin-unit/candy/plugin-unit/schema/unit.cue	union	scope?: "system" | "user"	1
+plugin-vision/candy/plugin-vision/schema/vision.cue	union	mime?: *"image/png" | "image/jpeg" | "image/webp" | "image/gif"	1
 plugin-vision/candy/plugin-vision/schema/vision.cue	close	#LLMSpec: close({	1
 plugin-vision/candy/plugin-vision/schema/vision.cue	close	#LLMParams: close({	1
+plugin-vision/candy/plugin-vision/schema/vision.cue	union	stop?: string | [...string]	1
+plugin-vision/candy/plugin-vision/schema/vision.cue	union	reasoning_effort?: "high" | "medium" | "low" | "none" @go(Reasoning_effort,type=string)	1
+plugin-vision/candy/plugin-vision/schema/vision.cue	union	tool_choice?: "none" | "auto" | "required" | #LLMNamedToolChoice	1
 plugin-vision/candy/plugin-vision/schema/vision.cue	close	#LLMResponseFormat: close({	1
+plugin-vision/candy/plugin-vision/schema/vision.cue	union	type: "text" | "json_object" | "json_schema" @go(Type,type=string)	1
 plugin-vision/candy/plugin-vision/schema/vision.cue	close	json_schema?: close({	1
 plugin-vision/candy/plugin-vision/schema/vision.cue	close	#LLMReasoning: close({	1
+plugin-vision/candy/plugin-vision/schema/vision.cue	union	effort?: "high" | "medium" | "low" | "none" @go(Effort,type=string)	1
 plugin-vision/candy/plugin-vision/schema/vision.cue	close	#LLMStreamOptions: close({	1
 plugin-vision/candy/plugin-vision/schema/vision.cue	close	#LLMNamedToolChoice: close({	1
 plugin-vision/candy/plugin-vision/schema/vision.cue	close	function: close({name: string})	1
+plugin-vm/candy/plugin-vm/schema/vm.cue	union	method: ("list" | "info" | "screenshot" | "send-key" | "passwd" | "qmp" | "domain-xml" | "console" | "events" | "guest/ping" | "guest/info" | "guest/os-info" | "guest/time" | "guest/hostname" | "guest/users" | "guest/interfaces" | "guest/disks" | "guest/fsinfo" | "guest/vcpus" | "guest/exec" | "guest/fstrim" | "snapshot/list" | "snapshot/create" | "snapshot/info" | "snapshot/revert" | "snapshot/delete" | "session") @go(Method,type=string)	1
+plugin-vm/candy/plugin-vm/schema/vm.cue	union	action?: "start" | "stop" | "status" @go(Action)	1
+plugin-vnc/candy/plugin-vnc/schema/vnc.cue	union	method: "status" | "screenshot" | "click" | "mouse" | "type" | "key" | "rfb" | "session"	1
+plugin-vnc/candy/plugin-vnc/schema/vnc.cue	union	action?: "start" | "stop" | "status" @go(Action)	1
+plugin-wl/candy/plugin-wl/schema/wl.cue	union	method: "status" | "toplevel" | "windows" | "geometry" | "xprop" | "atspi" | "screenshot" | "ocr" | "clipboard" | "click" | "double-click" | "mouse" | "scroll" | "drag" | "type" | "key" | "key-combo" | "focus" | "close" | "fullscreen" | "minimize" | "exec" | "resolution" | "overlay-list" | "overlay-status" | "overlay-show" | "overlay-hide" | "hypr-monitors" | "hypr-clients" | "hypr-layers" | "hypr-workspaces" | "hypr-systeminfo" | "hypr-dispatch" | "hypr-eval" | "sway-tree" | "sway-workspaces" | "sway-outputs" | "sway-msg" | "sway-focus" | "sway-move" | "sway-resize" | "sway-layout" | "sway-workspace" | "sway-kill" | "sway-floating" | "sway-reload"	1
+spec/schema/00_common.cue	union	#Context: ("build" | "deploy" | "runtime") @go(-)	1
+spec/schema/00_common.cue	union	#OpVerb: ("mkdir" | "copy" | "write" | "link" | "download" | "setcap" | "build" | "config" |	1
 spec/schema/00_common.cue	absence	{#Op, run: string & !="", check?: _|_, "agent-run"?: _|_, "agent-check"?: _|_, include?: _|_, venue?: _|_, intent_do?: _|_} |	1
+spec/schema/00_common.cue	union	{#Op, run: string & !="", check?: _|_, "agent-run"?: _|_, "agent-check"?: _|_, include?: _|_, venue?: _|_, intent_do?: _|_} |	1
 spec/schema/00_common.cue	absence	{#Op, check: string & !="", run?: _|_, "agent-run"?: _|_, "agent-check"?: _|_, include?: _|_, venue?: _|_, intent_do?: _|_} |	1
+spec/schema/00_common.cue	union	{#Op, check: string & !="", run?: _|_, "agent-run"?: _|_, "agent-check"?: _|_, include?: _|_, venue?: _|_, intent_do?: _|_} |	1
 spec/schema/00_common.cue	absence	{#Op, "agent-run": string & !="", run?: _|_, check?: _|_, "agent-check"?: _|_, include?: _|_, venue?: _|_, intent_do?: _|_} |	1
+spec/schema/00_common.cue	union	{#Op, "agent-run": string & !="", run?: _|_, check?: _|_, "agent-check"?: _|_, include?: _|_, venue?: _|_, intent_do?: _|_} |	1
 spec/schema/00_common.cue	absence	{#Op, "agent-check": string & !="", run?: _|_, check?: _|_, "agent-run"?: _|_, include?: _|_, venue?: _|_, intent_do?: _|_} |	1
+spec/schema/00_common.cue	union	{#Op, "agent-check": string & !="", run?: _|_, check?: _|_, "agent-run"?: _|_, include?: _|_, venue?: _|_, intent_do?: _|_} |	1
 spec/schema/00_common.cue	absence	{#Op, include: string & !="", run?: _|_, check?: _|_, "agent-run"?: _|_, "agent-check"?: _|_, venue?: _|_, intent_do?: _|_} @go(-)	1
 spec/schema/00_common.cue	open	plugin_input?: {...} @go(PluginInput,type=map[string]any)	1
+spec/schema/00_common.cue	union	extract?: "tar.gz" | "tar.xz" | "tar.zst" | "zip" | "none" | "sh" | ""	1
+spec/schema/00_common.cue	union	#MatchOpMap: {equals: _} | {not_equals: _} | {contains: _} | {not_contains: _} | {matches: _} | {not_matches: _} | {lt: _} | {le: _} | {gt: _} | {ge: _}	1
+spec/schema/00_common.cue	union	#Matcher: (string | bool | number | #MatchOpMap) @go(-)	1
+spec/schema/00_common.cue	union	#MatcherList: (#Matcher | [...#Matcher]) @go(-)	1
+spec/schema/00_common.cue	union	sharing?: *"locked" | "shared" | "private"	1
+spec/schema/00_common.cue	union	#StrVal: string | number | bool	1
+spec/schema/00_common.cue	union	cgroupns?: "host" | "private" | "" @go(CgroupNS)	1
+spec/schema/00_common.cue	union	ipc_mode?: "host" | "private" | "shareable" | "" @go(IpcMode)	1
+spec/schema/00_common.cue	union	#PackageItem: ((string & !="") | {	1
 spec/schema/00_common.cue	open	#RepoBlock: {	1
+spec/schema/agent.cue	union	mode?: "copy" | "bind"	1
+spec/schema/agent_control.cue	union	transport: "inproc" | "exec" | "ssh" | "grpc" | "tmux"	1
+spec/schema/agent_control.cue	union	interaction_modes?: [...("structured" | "terminal")] @go(InteractionModes)	1
+spec/schema/agent_control.cue	union	persistence?: "none" | "session" | "required"	1
+spec/schema/agent_control.cue	union	state: "new" | "active" | "detached" | "closed" | "failed"	1
 spec/schema/agent_control.cue	open	params?: {...} @go(Params,type=map[string]any)	1
+spec/schema/agent_control.cue	union	type: "started" | "message" | "tool" | "delegation" | "settled" | "status" | "completed" | "aborted" | "failed"	1
 spec/schema/agent_control.cue	open	payload?: {...} @go(Payload,type=map[string]any)	1
+spec/schema/agent_control.cue	union	evidence_policy?: "target" | "coordinator" | "both" @go(EvidencePolicy)	1
+spec/schema/agent_control.cue	union	state: "delegated" | "active" | "settled" | "failed"	1
+spec/schema/agent_control.cue	union	state: "needs_rca" | "rca_active" | "awaiting_recovery" | "resolved"	1
+spec/schema/agent_control.cue	union	state: "active" | "complete"	1
+spec/schema/agent_control.cue	union	action: "reattach" | "resume" | "restart" | "rebuild-target" | "change-runtime" | "reassign" | "abort" | "operator"	1
+spec/schema/agent_control.cue	union	state: "planned" | "applied" | "failed"	1
 spec/schema/agent_control.cue	open	readiness?: {...} @go(Readiness,type=map[string]any)	1
+spec/schema/agent_control.cue	union	persistence?: "none" | "detach" | "required"	1
+spec/schema/agent_control.cue	union	transcript?: "none" | "raw" | "screen" | "both"	1
+spec/schema/agent_control.cue	union	kind: "text" | "paste" | "command" | "key" | "resize" | "signal" | "close"	1
+spec/schema/agent_control.cue	union	kind: "raw" | "screen" | "status" | "exit" | "error" | "resync"	1
+spec/schema/agent_control.cue	union	stream?: "stdout" | "stderr" | "terminal"	1
+spec/schema/box.cue	union	#BuildFormat: "rpm" | "deb" | "pac" | "aur" | "apk" @go(-)	1
+spec/schema/box.cue	union	#BuildType: "pixi" | "npm" | "cargo" | "aur" @go(-)	1
+spec/schema/box.cue	union	build?: (#BuildFormat | [...#BuildFormat]) @go(Build,type=[]string)	1
+spec/schema/box.cue	union	user_policy?: *"auto" | "adopt" | "create" @go(UserPolicy)	1
 spec/schema/box.cue	absence	env?: {PATH?: _|_, [string]: #StrVal} @go(Env,type=map[string]string)	1
+spec/schema/box.cue	union	init?: "supervisord" | "systemd" | "systemd-container" | "openrc"	1
+spec/schema/box.cue	union	cache?: "image" | "registry" | "gha" | "none"	1
+spec/schema/box.cue	union	check_level?: *"noagent" | "none" | "build" | "agent" @go(CheckLevel)	1
 spec/schema/boxmetadata.cue	open	tunnel?: {...} @go(Tunnel,type=*TunnelYAML)	1
 spec/schema/buildctx.cue	open	repos?: [...{...}] @go(Repos)	1
 spec/schema/buildwire.cue	open	context?: {...} @go(Context,type=map[string]any)	2
+spec/schema/candy.cue	union	status?: *"testing" | "working" | "broken"	1
 spec/schema/candy.cue	absence	env?: {PATH?: _|_, [string]: #StrVal} @go(Env,type=map[string]string)	1
+spec/schema/candy.cue	union	port?: [...(int & >0 & <=65535 | string & =~"^[a-z+-]+:[0-9]+$")] @go(Port,type=[]PortSpec)	1
+spec/schema/candy.cue	union	scope: "system" | "user"	1
+spec/schema/candy.cue	union	restart?: "no" | "on-failure" | "always" | "unless-stopped"	2
+spec/schema/candy.cue	union	stop_timeout?: (string & !="") | int @go(StopTimeout,type=string)	1
+spec/schema/candy.cue	union	scope?: "system" | "user"	1
+spec/schema/candy.cue	union	kind?: "program" | "eventlistener"	1
+spec/schema/candy.cue	union	type?: "simple" | "exec" | "forking" | "oneshot" | "notify" | "idle" @go(Type)	1
+spec/schema/candy.cue	union	restart_sec?: (string & !="") | int @go(RestartSec,type=string)	1
+spec/schema/candy.cue	union	watchdog_sec?: (string & !="") | int @go(WatchdogSec,type=string)	1
+spec/schema/candy.cue	union	unit_options?: {[string]: {[string]: string | [...string]}} @go(UnitOptions)	1
+spec/schema/candy.cue	union	timeout?: (string & !="") | int @go(Timeout,type=string)	1
+spec/schema/candy.cue	union	source?: *"apk-pure" | "google-play" | "f-droid" | "huawei-app-gallery"	1
 spec/schema/candy.cue	absence	} & ({package!: _, apk?: _|_} | {apk!: _, package?: _|_}) @go(-)	1
+spec/schema/candy.cue	union	} & ({package!: _, apk?: _|_} | {apk!: _, package?: _|_}) @go(-)	1
 spec/schema/candy.cue	close	#Plugin: close({	1
+spec/schema/candy.cue	union	#PluginSource: #GithubRef | #OciRef	1
 spec/schema/candy.cue	close	#PluginRequirement: close({	1
 spec/schema/candymodel.cue	open	raw?: {...} @go(Raw,type=map[string]any)	2
+spec/schema/candymodel.cue	union	port?: [...(int & >0 & <=65535 | string & =~"^[a-z+-]+:[0-9]+$")] @go(Port,type=[]PortSpec)	1
+spec/schema/cli_model.cue	union	type: "string" | "boolean" | "integer" | "number" | "array" | "object"	1
+spec/schema/cli_model.cue	union	elem_type?: "string" | "boolean" | "integer" | "number" | "array" | "object" @go(ElemType)	1
+spec/schema/deploy.cue	union	venue?: ("container" | "ssh" | "shell" | "parent" | "kubevirt" | "none") @go(Venue, type=string)	1
+spec/schema/deploy.cue	union	selectors?: [...("engine" | "backend" | "rootful")] @go(Selectors)	1
+spec/schema/deploy.cue	union	transport: "none" | "container-exec" | "ssh" | "reject"	1
+spec/schema/deploy.cue	union	target?: ("pod" | "vm" | "kubernetes" | "local" | "android" | "kindcluster" | "kubevirt" | "firecracker") @go(Target,type=string)	1
+spec/schema/deploy.cue	union	kind?: "service" | "daemon" | "batch" | "scheduled" | "oneshot"	1
+spec/schema/deploy.cue	union	restart?: "always" | "on-failure" | "never"	1
 spec/schema/deploy.cue	absence	env?: {PATH?: _|_, [string]: #StrVal} @go(Env,type=map[string]string)	1
+spec/schema/deploy.cue	union	update_gate?: *"full" | "restart-only" | "skip" @go(UpdateGate)	1
+spec/schema/deploy.cue	union	lifecycle?: "scratch" | "dev" | "test" | "qa" | "staging" | "prod" | "custom"	1
+spec/schema/deploy.cue	union	position: ("deploy-level" | "in-substrate") @go(Position,type=string)	1
+spec/schema/deploy.cue	union	#Tunnel: (("tailscale" | "cloudflare") | {	1
+spec/schema/deploy.cue	union	provider: "tailscale" | "cloudflare"	1
+spec/schema/deploy.cue	union	#PortScope: ("all" | [...int] | {[=~"^[0-9]+$"]: string}) @go(-)	1
+spec/schema/deploy.cue	union	charly_install_strategy?: "auto" | "scp" | "url" | "skip"	1
 spec/schema/deploy.cue	open	#VmDeployState: {	1
 spec/schema/deploy.cue	open	ephemeral?: {	2
 spec/schema/deploy.cue	open	#KubeVirtDeployState: {	1
 spec/schema/deploy.cue	open	#KubeVirtDeploySnapshot: {	1
 spec/schema/deploy.cue	open	#FirecrackerDeployState: {	1
 spec/schema/deploy.cue	open	#FirecrackerDeploySnapshot: {	1
+spec/schema/deploy.cue	union	type?: "volume" | "bind" | "encrypted"	1
+spec/schema/deploy.cue	union	class_hint?: "fast" | "cheap" | "encrypted" | "default" @go(ClassHint)	1
+spec/schema/deploy.cue	union	access?: "single-writer" | "many-readers" | "many-writers"	1
+spec/schema/deploy.cue	union	workload?: "Deployment" | "StatefulSet" | "DaemonSet" | "Pod" | "Job" | "CronJob"	1
+spec/schema/deploy.cue	union	#Ephemeral: (true | {	1
+spec/schema/deploy.cue	union	#Preemptible: ([...(string & !="")] | {	1
+spec/schema/deploy.cue	union	restore?: "always" | "on-success"	1
 spec/schema/deploy.cue	open	repos?: [...{...}] @go(Repos)	1
 spec/schema/deploy.cue	open	raw_install_context?: {...} @go(RawInstallContext,type=map[string]any)	1
 spec/schema/deploy.cue	open	raw_stage_context?: {...} @go(RawStageContext,type=map[string]any)	1
+spec/schema/desktop.cue	union	syntax?: *"lua" | "ini" | "sway" | "xml" | "yaml"	1
+spec/schema/desktop.cue	union	manager: *"sddm" | "greetd" | "gdm" | "ly"	1
+spec/schema/desktop.cue	union	numlock?: *"none" | "on" | "off"	1
+spec/schema/desktop.cue	union	placement?: *"default" | "float" | "tile" | "fullscreen" | "maximize"	1
+spec/schema/desktop.cue	union	#DesktopCategory: "AudioVideo" | "Audio" | "Video" | "Development" | "Education" |	1
+spec/schema/desktop.cue	union	"Game" | "Graphics" | "Network" | "Office" | "Science" | "Settings" |	1
+spec/schema/desktop.cue	union	"System" | "Utility"	1
+spec/schema/distro.cue	union	section_field?: {[string]: "list" | "list_of_maps"} @go(SectionFields)	1
+spec/schema/distro_vocab.cue	union	format: "rpm" | "deb" | "pac" | "apk"	1
+spec/schema/distro_vocab.cue	union	ssh_unit: "ssh" | "sshd"	1
+spec/schema/distro_vocab.cue	union	init: "systemd" | "openrc"	1
+spec/schema/distro_vocab.cue	union	ovmf_family?: "fedora" | "arch" | "debian"	1
 spec/schema/docs.cue	close	#DocsConfig: close({	1
 spec/schema/docs.cue	close	#DocsSources: close({	1
 spec/schema/docs.cue	close	#DocsCompiled: close({	1
@@ -137,54 +512,123 @@ spec/schema/docs.cue	close	#DocsProjections: close({	1
 spec/schema/docs.cue	close	#DocsOutput: close({	1
 spec/schema/docs.cue	close	#DocsLanding: close({	1
 spec/schema/docs.cue	close	#DocsGates: close({	1
+spec/schema/engine.cue	union	#EngineName: ("podman" | "docker" | "containerd")	1
+spec/schema/engine.cue	union	#EngineRunMode: ("quadlet" | "systemd-unit" | "direct")	1
+spec/schema/engine.cue	union	#RootfulMode: ("auto" | "machine" | "sudo" | "native")	1
+spec/schema/engine.cue	union	gpu_arg_style!: ("cdi" | "gpus") @go(GPUArgStyle)	1
+spec/schema/engine.cue	union	substrates!: [...("pod" | "vm")] @go(Substrates)	1
+spec/schema/firecracker.cue	union	policy?: *"append-accept" | "netns" | "deny" @go(Policy)	1
+spec/schema/firecracker.cue	union	huge_pages?: *"None" | "Transparent" | "2M" @go(HugePages)	1
+spec/schema/firecracker.cue	union	cpu_template?: *"None" | "C3" | "T2" | "T2S" | "T2CL" | "T2A" | "V1N1" @go(CPUTemplate)	1
+spec/schema/firecracker.cue	union	log_level?: *"Info" | "Error" | "Warning" | "Debug" | "Trace" | "Off" @go(LogLevel)	1
+spec/schema/firecracker.cue	union	manage?: *"merge" | "full" | "adopt" @go(Manage)	1
+spec/schema/firecracker.cue	union	log_level?: *"info" | "debug" | "warn" | "error" @go(LogLevel)	1
+spec/schema/firecracker.cue	union	image_pull_policy?: *"IfNotPresent" | "Always" | "Never" @go(ImagePullPolicy)	1
 spec/schema/hook.cue	close	#Hook: close({	1
+spec/schema/init.cue	union	model: "fragment_assembly" | "file_copy"	1
+spec/schema/init.cue	union	unit_options?: {[string]: {[string]: string | [...string]}} @go(UnitOptions)	1
+spec/schema/instrument.cue	union	#Phase: ("build" | "live" | "update" | "teardown") @go(-)	1
 spec/schema/instrument.cue	open	plugin_input?: {...} @go(PluginInput,type=map[string]any)	2
+spec/schema/instrument.cue	union	phase?: *["live"] | [...#Phase] @go(Phase,type=[]string)	1
+spec/schema/instrument.cue	union	origin!: "session" | "step" | "sub-run"	1
 spec/schema/instrument.cue	open	#EvidenceSegment: {	1
 spec/schema/instrument.cue	open	validators?: {...}	1
+spec/schema/kindcluster.cue	union	admission_policy?: "restricted" | "baseline" | "privileged" @go(AdmissionPolicy)	1
+spec/schema/kubernetes.cue	union	admission_policy?: "restricted" | "baseline" | "privileged" @go(AdmissionPolicy)	1
+spec/schema/kubernetes.cue	union	access_mode_default?: ("ReadWriteOnce" | "ReadWriteMany" | "ReadOnlyMany" | "ReadWriteOncePod") @go(AccessModeDefault)	1
+spec/schema/kubernetes.cue	union	path_type_default?: ("Prefix" | "Exact" | "ImplementationSpecific") @go(PathTypeDefault)	1
+spec/schema/kubernetes.cue	union	pull_policy?: ("IfNotPresent" | "Always" | "Never") @go(PullPolicy)	1
 spec/schema/kubernetes.cue	open	tolerations?: [...{...}]	1
+spec/schema/kubevirt.cue	union	machine?: "q35" | "pc-i440fx" | "" @go(Machine)	1
+spec/schema/kubevirt.cue	union	run_strategy?: *"Always" | "Halted" | "Manual" | "RerunOnFailure" | "Once" @go(RunStrategy)	1
+spec/schema/kubevirt.cue	union	eviction_strategy?: "None" | "LiveMigrate" | "LiveMigrateIfPossible" | "External" @go(EvictionStrategy)	1
 spec/schema/kubevirt.cue	open	affinity?: {...}	1
+spec/schema/kubevirt.cue	union	pull_policy?: "Always" | "IfNotPresent" | "Never" @go(PullPolicy)	1
 spec/schema/kubevirt.cue	absence	data_volume?: _|_	3
 spec/schema/kubevirt.cue	absence	pvc?: _|_	3
 spec/schema/kubevirt.cue	absence	clone?: _|_	3
 spec/schema/kubevirt.cue	absence	size?: _|_	2
+spec/schema/kubevirt.cue	union	} | {	3
+spec/schema/kubevirt.cue	union	content_type?: "kubevirt" | "archive" @go(ContentType)	1
 spec/schema/kubevirt.cue	absence	image?: _|_	3
 spec/schema/kubevirt.cue	absence	pull_policy?: _|_	3
 spec/schema/kubevirt.cue	absence	pull_secret?: _|_	3
+spec/schema/kubevirt.cue	union	type: "tablet" | "mouse" | "keyboard"	1
+spec/schema/kubevirt.cue	union	bus?: "virtio" | "usb" | "ps2"	1
+spec/schema/kubevirt.cue	union	model: "i6300esb" | "diag288"	1
+spec/schema/kubevirt.cue	union	action?: "poweroff" | "reset" | "shutdown"	1
+spec/schema/kubevirt.cue	union	interface?: *"masquerade" | "bridge" | "pod" @go(Interface)	1
+spec/schema/kubevirt.cue	union	model?: *"virtio" | "e1000" | "rtl8139" @go(Model)	1
 spec/schema/llm.cue	close	#LLMSpec: close({	1
 spec/schema/llm.cue	close	#LLMParams: close({	1
+spec/schema/llm.cue	union	stop?: string | [...string]	1
+spec/schema/llm.cue	union	reasoning_effort?: "high" | "medium" | "low" | "none" @go(Reasoning_effort,type=string)	1
+spec/schema/llm.cue	union	tool_choice?: "none" | "auto" | "required" | #LLMNamedToolChoice	1
 spec/schema/llm.cue	close	#LLMResponseFormat: close({	1
+spec/schema/llm.cue	union	type: "text" | "json_object" | "json_schema" @go(Type,type=string)	1
 spec/schema/llm.cue	close	json_schema?: close({	1
 spec/schema/llm.cue	close	#LLMReasoning: close({	1
+spec/schema/llm.cue	union	effort?: "high" | "medium" | "low" | "none" @go(Effort,type=string)	1
 spec/schema/llm.cue	close	#LLMStreamOptions: close({	1
 spec/schema/llm.cue	close	#LLMNamedToolChoice: close({	1
 spec/schema/llm.cue	close	function: close({name: string})	1
 spec/schema/local.cue	absence	env?: {PATH?: _|_, [string]: #StrVal} @go(Env,type=map[string]string)	1
 spec/schema/marketplace.cue	close	#Marketplace: close({	1
 spec/schema/marketplace.cue	close	#MarketplaceFamily: close({	1
+spec/schema/marketplace.cue	union	category?: *"images" | "commands" | "kind" | "development"	1
+spec/schema/marketplace.cue	union	profiles?: [...("developer" | "user" | "container")]	1
 spec/schema/marketplace.cue	close	#MarketplaceMCPServer: close({	1
 spec/schema/marketplace.cue	close	#MarketplaceSettings: close({	1
+spec/schema/node.cue	union	#ResourceKind: ("pod" | "vm" | "kubernetes" | "local" | "android" | "kindcluster" | "kubevirt" | "firecracker") @go(-)	1
+spec/schema/node.cue	union	#Image: #Box & ({base: string & !=""} | {from: string & !=""})	1
+spec/schema/node.cue	union	#CandyValue: (*#Candy | #Image) @go(-)	1
+spec/schema/node.cue	union	#LocalValue: (#Local | #DeployValue) @go(-)	1
+spec/schema/node.cue	union	#PodValue: (#Pod | #DeployValue) @go(-)	1
+spec/schema/node.cue	union	#VmValue: (#Vm | #DeployValue) @go(-)	1
+spec/schema/node.cue	union	#KubernetesValue: (#Kubernetes | #DeployValue) @go(-)	1
+spec/schema/node.cue	union	#KindclusterValue: (#Kindcluster | #DeployValue) @go(-)	1
+spec/schema/node.cue	union	#AndroidValue: (#Android | #DeployValue) @go(-)	1
+spec/schema/node.cue	union	#KubevirtValue: (#KubeVirt | #DeployValue) @go(-)	1
+spec/schema/node.cue	union	#FirecrackerValue: (#Firecracker | #DeployValue) @go(-)	1
 spec/schema/node.cue	absence	#DeployValue: #Deploy & {nested?: _|_, peer?: _|_, target?: _|_, member_of?: _|_, inside?: _|_, descent?: _|_}	1
 spec/schema/node.cue	open	#Node: {...}	1
 spec/schema/node.cue	close	#NodeDoc: close({	1
 spec/schema/oci.cue	close	#PluginArtifactMetadata: close({	1
+spec/schema/oci.cue	union	libc!: "glibc" | "musl"	1
 spec/schema/pipeline.cue	absence	env?: {PATH?: _|_, [string]: #StrVal} @go(Env,type=map[string]string)	2
+spec/schema/pipeline.cue	union	on_error?: "fail" | "continue" | "skip_rest" @go(OnError)	1
+spec/schema/pipeline.cue	union	charly?: [string, ...string] | (string & !="") @go(Charly,type=[]string)	2
+spec/schema/pipeline.cue	union	approval?: bool | string | #PipelineApproval @go(Approval,type=any)	1
 spec/schema/pipeline.cue	open	entities?: {[string]: {...}} @go(Entities,type=map[string]map[string]any)	1
 spec/schema/resolvedproject.cue	absence	env?: {PATH?: _|_, [string]: #StrVal} @go(Env,type=map[string]string)	1
+spec/schema/seam.cue	union	mode!: "quadlet" | "direct" @go(Mode)	1
+spec/schema/seam.cue	union	op!: "add" | "update" | "del" | "start" | "stop" | "status" | "logs" | "shell" | "attach" | "rebuild"	1
 spec/schema/skill.cue	close	#Skill: close({	1
+spec/schema/skill.cue	union	category?: *"development" | "commands" | "kind" | "images"	1
 spec/schema/skill.cue	close	#SkillReference: close({	1
+spec/schema/status.cue	union	#SubstrateKind: "pod" | "vm" | "kubernetes" | "local" | "android" | "kindcluster" | "kubevirt" | "firecracker" @go(-)	1
 spec/schema/task.cue	absence	env?: {PATH?: _|_, [string]: #StrVal} @go(Env,type=map[string]string)	1
 spec/schema/validateproject.cue	open	diagnostics?: {...} @go(Diagnostics,type=Diagnostics)	1
+spec/schema/vm.cue	union	#VmBackendName: ("libvirt" | "qemu" | "krun")	1
+spec/schema/vm.cue	union	machine?: "q35" | "virt" | "i440fx" | "pc"	1
+spec/schema/vm.cue	union	firmware: *"bios" | "uefi-insecure" | "uefi-secure"	1
+spec/schema/vm.cue	union	backend: "auto" | "libvirt"	1
+spec/schema/vm.cue	union	source: #VmSource & {kind: "container_disk" | "bootc"}	1
 spec/schema/vm.cue	absence	box?: _|_	6
 spec/schema/vm.cue	absence	transport?: _|_	4
 spec/schema/vm.cue	absence	rootfs?: _|_	3
 spec/schema/vm.cue	absence	root_size?: _|_	3
 spec/schema/vm.cue	absence	kernel_args?: _|_	2
+spec/schema/vm.cue	union	} | {	6
+spec/schema/vm.cue	union	transport?: "registry" | "containers-storage" | "oci" | "oci-archive"	1
+spec/schema/vm.cue	union	rootfs?: "ext4" | "xfs" | "btrfs"	2
 spec/schema/vm.cue	absence	url?: _|_	5
 spec/schema/vm.cue	absence	checksum?: _|_	2
 spec/schema/vm.cue	absence	cache?: _|_	1
 spec/schema/vm.cue	absence	libvirt_name?: _|_	3
 spec/schema/vm.cue	absence	disk_path?: _|_	3
 spec/schema/vm.cue	absence	disk_format?: _|_	3
+spec/schema/vm.cue	union	disk_format: "qcow2" | "raw"	1
 spec/schema/vm.cue	absence	from_vm?: _|_	3
 spec/schema/vm.cue	absence	from_snapshot?: _|_	3
 spec/schema/vm.cue	absence	base_user?: _|_	2
@@ -193,4 +637,59 @@ spec/schema/vm.cue	absence	builder_image?: _|_	2
 spec/schema/vm.cue	absence	installer?: _|_	1
 spec/schema/vm.cue	absence	bootstrap_arch?: _|_	1
 spec/schema/vm.cue	absence	bootstrap_variant?: _|_	1
+spec/schema/vm.cue	union	mode: *"user" | "bridge" | "nat" | "network"	1
+spec/schema/vm.cue	union	key_source?: *"auto" | "generate" | "none" | (string & =~"^/")	1
+spec/schema/vm.cue	union	} & ({port_auto?: false} | {port?: int & <=0}) @go(-)	1
+spec/schema/vm.cue	union	smbios?: "auto" | "enabled" | "disabled" @go(SMBIOS)	1
+spec/schema/vm.cue	union	cloud_init?: "auto" | "enabled" | "disabled" @go(CloudInit)	1
+spec/schema/vm.cue	union	strategy?: *"auto" | "scp" | "skip"	1
+spec/schema/vm.cue	union	qemu_override?: {[string]: {[string]: string | bool | int}} @go(QemuOverride)	1
+spec/schema/vm.cue	union	mode: *"host-passthrough" | "host-model" | "custom"	1
+spec/schema/vm.cue	union	policy?: "force" | "require" | "optional" | "disable" | "forbid"	1
+spec/schema/vm.cue	union	offset?: "utc" | "localtime" | "timezone" | "variable" | "absolute"	1
+spec/schema/vm.cue	union	type: "vnc" | "spice" | "rdp" | "sdl" | "egl-headless" | "dbus"	1
+spec/schema/vm.cue	union	#LibvirtListen: (string | #LibvirtListenOne | [...#LibvirtListenOne]) @go(-)	1
+spec/schema/vm.cue	union	device?: "virtio-vga" | "virtio-vga-gl" | "virtio-gpu" | "virtio-gpu-gl" |	1
+spec/schema/vm.cue	union	"vhost-user-vga" | "vhost-user-gpu"	1
+spec/schema/vm.cue	union	name?: "qemu" | "vhostuser"	1
+spec/schema/vm.cue	union	vgaconf?: "io" | "on" | "off" @go(VGAConf)	1
+spec/schema/vm.cue	union	type: "pci" | "usb" | "scsi" | "mdev"	1
+spec/schema/vm.cue	union	managed?: "yes" | "no"	1
 spec/schema/vm.cue	open	source: {	1
+spec/schema/vm.cue	union	driver?: "virtiofs" | "9p" | "path"	1
+spec/schema/vm.cue	union	accessmode?: "passthrough" | "mapped" | "squash" @go(AccessMode)	1
+spec/schema/vm.cue	union	type?: "sev" | "sev-es" | "sev-snp" | "tdx"	1
+spec/schema/vm_box_metadata.cue	union	firmware?: "bios" | "uefi-insecure" | "uefi-secure" @go(Firmware)	1
+spec/schema/vm_box_metadata.cue	union	kind!: "cloud_image" | "bootc" | "clone" | "bootstrap" | "iso" | "container_disk" | "rootfs" | "kernel" @go(Kind)	1
+spec/schema/vm_box_metadata.cue	union	format?: "ext4" | "raw" | "vmlinux" @go(Format)	1
+spec/schema/workflow.cue	union	#WorkflowArgVal: #StrVal | [...#StrVal] @go(-)	1
+spec/schema/workflow.cue	union	status!: "ok" | "skipped" | "failed" | "cancelled" | "needs_approval" | "needs_input"	1
+spec/schema/workflow.cue	union	status!: "ok" | "needs_approval" | "needs_input" | "cancelled" | "error"	1
+spec/schema/workflow.cue	union	op!: "apply" | "list" | "remove" | "run-now"	1
+spec/schema/workflow.cue	union	format!: [...("lobster" | "charly-yml" | "github-actions")] @go(Format)	1
+plugin-egress/candy/plugin-egress/egress-schemas/egress_ledger.cue	dup	#DeployRecord	1
+plugin-egress/candy/plugin-egress/egress-schemas/egress_ledger.cue	dup	#CandyRecord	1
+plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	dup	#LLMSpec	1
+plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	dup	#LLMParams	1
+plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	dup	#LLMResponseFormat	1
+plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	dup	#LLMReasoning	1
+plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	dup	#LLMStreamOptions	1
+plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	dup	#LLMNamedToolChoice	1
+plugin-tunnel/candy/plugin-tunnel/schema/tunnel.cue	dup	#TunnelConfig	1
+plugin-tunnel/candy/plugin-tunnel/schema/tunnel.cue	dup	#TunnelPort	1
+plugin-vision/candy/plugin-vision/schema/vision.cue	dup	#LLMSpec	1
+plugin-vision/candy/plugin-vision/schema/vision.cue	dup	#LLMParams	1
+plugin-vision/candy/plugin-vision/schema/vision.cue	dup	#LLMResponseFormat	1
+plugin-vision/candy/plugin-vision/schema/vision.cue	dup	#LLMReasoning	1
+plugin-vision/candy/plugin-vision/schema/vision.cue	dup	#LLMStreamOptions	1
+plugin-vision/candy/plugin-vision/schema/vision.cue	dup	#LLMNamedToolChoice	1
+spec/schema/deploy.cue	dup	#DeployRecord	1
+spec/schema/deploy.cue	dup	#CandyRecord	1
+spec/schema/llm.cue	dup	#LLMSpec	1
+spec/schema/llm.cue	dup	#LLMParams	1
+spec/schema/llm.cue	dup	#LLMResponseFormat	1
+spec/schema/llm.cue	dup	#LLMReasoning	1
+spec/schema/llm.cue	dup	#LLMStreamOptions	1
+spec/schema/llm.cue	dup	#LLMNamedToolChoice	1
+spec/schema/tunnel.cue	dup	#TunnelConfig	1
+spec/schema/tunnel.cue	dup	#TunnelPort	1
