@@ -83,7 +83,7 @@ A capability's strength is not an attribute at all: it is the key the capability
 `need:` or `use:` (D-CAP-1).
 
 Every vocabulary is a table keyed by word, and its word list is derived from it; every table, union
-and derived shape is spelled one way, so the generator maps each to exactly one Go shape (§13).
+and derived shape is spelled one way, so generation maps each to exactly one Go shape (§13).
 
 | ID | Law |
 |---|---|
@@ -864,12 +864,12 @@ is never bent.
 
 | # | Pattern | CUE form | Used for |
 |---|---|---|---|
-| S1 | **Closed definition** | `#Endpoint: {port!: #Port, path?: #AbsPath}` | every struct with named fields. A definition is closed by CUE, recursively; `close()` is never written. A field it does not declare is a `field not allowed` error. An inline struct declares at most one named field, its S4 tag; everything else is a named definition (§13, C1). |
+| S1 | **Closed definition** | `#Endpoint: {port!: #Port, path?: #AbsPath}` | every struct with named fields. A definition is closed by CUE, recursively; `close()` is never written. A field it does not declare is a `field not allowed` error, and nothing extends it once it is written: a literal or another definition unified with it, and an embedding beside further fields, each report that same error. The fields several definitions share reach the one-of struct by the generator's inlining (S6, §13), never by an extension. An inline struct declares at most one named field, its S4 tag; everything else is a named definition (§13, C1). |
 | S2 | **Named scalar** | `#Name`, `#Word`, `#Port`, `#Size`, `#Base64` | every constrained scalar; never an inline constraint at the use site |
 | S3 | **Vocabulary table** | `_phase: {artifact: {}, ready: {}, deployment: {}} @vocab(core)`, `_phaseWord: [for w, _ in _phase {w}]`, used as `or(_phaseWord)` | every closed set of words. The table is keyed by word and its rows carry the word's data (`#NativeRow`, `#ManagerRow`, …); the word list is derived and the enum is `or()` of it. `@vocab` names the owner (§3.1): `core` or a plugin owner for a set compiled into that owner, `registry` for a set composed from the loaded plugins. The only inline enum is a two-value default such as `*false \| bool`. |
 | S4 | **Key-tagged union** | `#SourceAlt: {oci: {oci!: #ImageRef, #SourceFields...}, …}`, `#Source: or([for _, a in #SourceAlt {a}])` | every "exactly one of". The alternatives live in one tag table whose keys are the tags — the keys the author writes — and the union is derived from it. One entry may be the default, selected when no tag is written; it admits none of the tags. |
 | S5 | **Named collection** | `service?: {[#Name]: #Service}` | everything a node defines, keyed by its name, even when its entry is empty (`package: {ripgrep: {}}`); a list holds only references (`#RefSet`), plain values, or ordered data |
-| S6 | **Shared fragment** | `#StepFields: {id?: #Name, …}`, composed as `{#StepFields..., timeout: …}` | fields shared by several definitions. Under language v0.18.0 an embedding is strict: a struct embedding a closed definition admits only that definition's fields, so a fragment composed with further fields is spread (`#StepFields...`) and the enclosing definition closes the result. A pure embedding stays `{X}`. Never a validator. |
+| S6 | **Shared shape, inlined by the generator** | `#StepFields: {id?: #Name, …}` — the fields several definitions have in common, stated once and spread into each definition that has them (`{#StepFields..., timeout?: #Duration}`); the enclosing definition closes the result | fields shared by several definitions. The spread is the one way in, and it is not an extension: measured on the pinned CUE, an embedding beside further fields, a unification with a literal and a unification with another definition each report `field not allowed`, while a spread composes the closed definition's fields and the result still refuses an undeclared one — and only an open definition admits a field nobody declared. Closure therefore wins: every definition is closed and complete as the spread leaves it, and a plugin spreads the shared definition it imports rather than restating its fields (D-SCH-2). Where the arms of an S4 table have fields in common, the generator inlines them onto the one-of struct (§13, C4), and the union itself stays derived from its tag table (S4), because core's generator is what emits it. Never a validator. |
 | S7 | **Conditional field** | `if from != _\|_ {#BoxFields}` | fields declared only when another field is present; closedness rejects them otherwise. It adds fields to one concept (a box is a candy, §2); it never defines a second one. |
 | S8 | **Reserved-name pattern** | `[#InnerNodeName]: …` where `#InnerNodeName` excludes field names and kind words | bodies that hold named inner or beside nodes; what a body admits is its kind's row in `_deploymentKind` (`admit`, `beside`), never a hand-written table |
 | S9 | **Reference field** | `from?: #Ref @ref(box, source)` | every field that names a node; the attribute lists the kinds it may name (`box` = a candy with `from:`). A field derived from a typed row table (`_capability`) takes its kinds from its row's `ref` list instead, because a derived field carries no attribute. Core reads both to link the project (§11.1 stage 4). |
@@ -881,7 +881,8 @@ is never bent.
 | an open struct anywhere except the one `#Opaque` definition, which marks a field another plugin's schema owns | typos pass silently |
 | `close()`, or a forbidden field written as `f?: _\|_` | closedness already rejects an undeclared field, with a message that names it; `_\|_` reports no field name, and a definition closes its own literals recursively |
 | a struct with named fields written inline, other than an S4 arm's tag | the generator cannot name it (§13, C1); name it |
-| a word list, union or fragment composition spelled any other way than S3, S4 and S6 spell it | the generator maps each spelling to one Go shape (§13) |
+| a word list, union or shared shape spelled any other way than S3, S4 and S6 spell it | generation maps each spelling to one Go shape (§13) |
+| a definition extended to acquire a field — another definition unified with it, a literal unified with it, or a closed definition embedded beside further fields | each reports `field not allowed` on the pinned CUE, and only an open definition admits a field nobody declared (§10.1, S6) |
 | a union written out alternative by alternative, or one whose alternatives differ only by the absence of a field | the tags cannot be read by tools, and a missing required field is incomplete, not false, so such a union never resolves |
 | looking up a field that may be absent where a pattern constraint matches it | the lookup is incomplete, not bottom; iterate the fields that are present instead |
 | a list of differently shaped items | every item becomes a union; use S5 |
@@ -916,11 +917,13 @@ is never bent.
 | D-SCH-5 | No schema version stamp exists. Compatibility is CUE unification against the current schema; a removed field is reported by the loader as not a field of its kind, naming the nearest declared field (§11.2 rule 4), and `charly migrate` rewrites it through the owning kind's `migrate`. |
 | D-SCH-6 | Kind words, directives, and the field names of every body that can hold nodes are disjoint sets. |
 | D-SCH-7 | Every path an author writes is a literal absolute path: it starts with `/` and contains no variable. |
+| D-SCH-8 | A plugin's CUE module is fetched by the digest core recorded for it, never by a version named in the module's own requirement file: `cue mod` records a release version only and rejects a `@sha256:` requirement, so the digest is core's record. Core fetches the published module artifact by that digest, verifies the fetched module against it, and composes the instance from the fetched copy offline (§10.3, D-LOAD-4). |
 
 ### 10.3 Composition at runtime
 
-1. A plugin's CUE module is published with each plugin release and fetched by digest; a plugin
-   compiled into the binary embeds the same module.
+1. A plugin's CUE module is published with each plugin release as an OCI artifact and fetched by
+   the digest core recorded for it (D-SCH-8); the module's own requirement file names a release
+   version and cannot name a digest. A plugin compiled into the binary embeds the same module.
 2. Core builds one CUE instance from the `spec` packages and every registered plugin's package,
    linked by CUE imports.
 3. From the registry, core derives with the patterns of §10.1 the tag tables `#NodeAlt` (the
@@ -1044,37 +1047,46 @@ namespace (D-KIND-1). None of them can be shown by a single example document.
 
 | Output | Generated from |
 |---|---|
-| Go types | every CUE definition in the module |
+| Go types of the leaf shapes: every S1 definition that is not an S4 arm, and the S2, S3 and S11 shapes | `cue exp gengotypes`, run in the owning module at the pinned CUE version |
+| the S4 one-of struct and its exactly-one decoder | core's own generator, from the registry's tag tables (§10.3) |
 | protocol messages, gRPC stubs | `spec/protocol` |
 | typed role and api clients and servers (JSON on the wire) | the method table and each api definition |
 | the plugin's embedded manifest and CUE module | the plugin candy and its CUE package |
 | CLI grammar, MCP tool models | each command's argument definition |
 | reference documentation | definition doc comments |
 
-Every shape of §10.1 has exactly one Go mapping, so the generator needs no per-type annotation and
+Every shape of §10.1 has exactly one Go mapping, so generation needs no per-type annotation and
 the schema carries no `@go(…)` attribute. Names derive mechanically: a snake_case word becomes
 CamelCase (`kernel_param` → `KernelParam`), and a definition drops its `#` (`#Os` → `Os`).
+
+The split between those producers follows what each can see. `cue exp gengotypes` runs in one
+module and types that module's own definitions; where a shape is decided by composition the type it
+emits is not the shape — measured, a union and an open struct both come back as `map[string]any` —
+and a type reached through a module import is named by an import path carrying the module's own
+suffix (`…/schema@v0`), which Go cannot compile. Core holds the registry, so core emits the one-of
+struct and its decoder, and the union stays derived from its tag table (S4) instead of being read
+back off a value.
 
 | # | Shape (§10.1) | Go |
 |---|---|---|
 | C1 | a named definition (S1, S6) | a named struct; every struct with named fields is a definition, so none is anonymous |
 | C2 | a named scalar (S2) | a named type over its base type; `#Duration` → `time.Duration`, `#Base64` → `[]byte` (JSON's own base64), `#Opaque` → `json.RawMessage` |
 | C3 | a vocabulary table (S3) | a typed word with `Valid()`; a `core` or plugin-owned table adds its constants, a `registry` table is read from the registry at runtime (D-GEN-5) |
-| C4 | a key-tagged union (S4) | a one-of struct with one pointer per tag and a generated exactly-one decoder; shared fragments become its fields when every arm embeds the same ones, otherwise each arm is a generated struct `X<Tag>` |
+| C4 | a key-tagged union (S4) | a one-of struct with one pointer per tag and a generated exactly-one decoder, emitted by core's generator from the registry's tag table; the fields the arms have in common are inlined onto it (S1, S6), and an arm's own fields live in its generated leaf type `X<Tag>` |
 | C5 | the method tables (S11: `_method`, `_hostMethod`, `_pluginMethod`) | one Go interface per role, typed clients and servers, the request and reply one-ofs, and a stream for a `stream` row |
 | C6 | a default (`*v \| T`) | nothing: Go decodes a value only after CUE has unified it, so defaults live in CUE alone |
 | C7 | a typed row table (S11) | a row struct and the table's rows; each derived shape (`#Need`, `#Driver`, a kind's body) is generated from the rows, never read back from the evaluated comprehension |
 
 | ID | Requirement |
 |---|---|
-| D-GEN-1 | One generator produces every output above, run by the same command in every module; it is a pinned tool dependency, never an import. |
+| D-GEN-1 | Every output above comes from a pinned generation step, run by the same command in every module: `cue exp gengotypes` at the pinned CUE version for the leaf shapes, and core's own generator for the S4 one-of struct and its decoder, emitted from the registry when the instance is composed. The CUE tool is a pinned dependency, never an import. |
 | D-GEN-2 | Generated files carry `// Code generated … DO NOT EDIT.`, are committed, and regenerate byte for byte; every repository gates on it. |
 | D-GEN-3 | Hand-written Go adds behaviour only, as methods in separate files on generated types. |
-| D-GEN-4 | Generated code is never post-processed by text substitution. |
+| D-GEN-4 | Generated code is never post-processed by text substitution, with one exception, applied in one place and rewriting nothing else in the file: a type reached through a module import is generated with the module's own path suffix (`…/schema@v0`), which is not a Go import path, so the step that adopts the output strips exactly that suffix. |
 | D-GEN-5 | Anything the runtime can read from the composed schema is read from it, never generated into Go lists. |
 | D-GEN-6 | A wire payload is a generated Go type, encoded as JSON and validated against its definition on receipt. |
-| D-GEN-7 | The generator is charly's own, built on the CUE Go API at the pinned CUE version, and it maps the shapes of §10.1 by the table above; no third-party struct generator and no per-type annotation stands in for it. |
-| D-GEN-8 | Each shape has one spelling, and the design check rejects every list comprehension outside the forms below, so each spelling maps to exactly one Go shape: **D1** the word list of a table, `_phaseWord: [for w, _ in _phase {w}]`; **D2** a named subset of its rows by a row predicate, `_leasableWord: [for w, r in _capability if r.lease {w}]`; **D3** a named grouping of its rows by another table's words, `_subsystemDriver: {for k, _ in _subsystem {(k): [for w, r in _driver if r.subsystem == k {w}]}}`; **D4** the union of a tag table, `#Source: or([for _, a in #SourceAlt {a}])`; **D5** a union over a named word list, `or(_driverWord)` or `or(_subsystemDriver[s])`, whose default (`*"always" \| or(_restartWord)`) is a row of that table; **D6** inside a definition derived from a table's rows, the union one row selects, `or([for v in r.connect {#VenueAlt[v]}])`. A filter is always a named D2 or D3 list, never written inline in a union. A fragment is composed by spreading it, `{#XFields..., …}`. |
+| D-GEN-7 | Each half of the mapping of §10.1 is produced by the tool that can see it, at the pinned CUE version: `cue exp gengotypes` where one module's own definitions are all there is to type, and charly's own generator, built on the CUE Go API, where the answer needs the whole registry — the S4 one-of struct and its exactly-one decoder. No other struct generator, no per-type annotation and no hand-written one-of stands in for either. |
+| D-GEN-8 | Each shape has one spelling, and the design check rejects every list comprehension outside the forms below, so each spelling maps to exactly one Go shape: **D1** the word list of a table, `_phaseWord: [for w, _ in _phase {w}]`; **D2** a named subset of its rows by a row predicate, `_leasableWord: [for w, r in _capability if r.lease {w}]`; **D3** a named grouping of its rows by another table's words, `_subsystemDriver: {for k, _ in _subsystem {(k): [for w, r in _driver if r.subsystem == k {w}]}}`; **D4** the union of a tag table, `#Source: or([for _, a in #SourceAlt {a}])`; **D5** a union over a named word list, `or(_driverWord)` or `or(_subsystemDriver[s])`, whose default (`*"always" \| or(_restartWord)`) is a row of that table; **D6** inside a definition derived from a table's rows, the union one row selects, `or([for v in r.connect {#VenueAlt[v]}])`. A filter is always a named D2 or D3 list, never written inline in a union. A shared shape is composed by spreading it, `{#XFields..., …}`, and the enclosing definition closes the result. |
 
 ---
 
@@ -2718,7 +2730,7 @@ Each check below names, on failure, the file, the line, and both disagreeing sid
    The table's column `N` (default 1) must list, as backticked words, exactly the names of the
    sources, in both directions. A source is a struct definition such as `#Os` (its field names), a
    word list such as `_kindWord`, or `keys(` a tag table `)` such as `keys(#ActionAlt)` (its tags). Field names come from
-   `cue exp gengotypes`, the generator of §13, whose Go structs carry every field, optional ones
+   `cue exp gengotypes`, the leaf-shape producer of §13, whose Go structs carry every field, optional ones
    included, as `json` tags; the CUE language itself cannot enumerate optional fields. A marker
    with no table under it fails; marker-shaped lines inside fenced code are illustrations and
    are skipped. An unmarked table fails too when its backticked first column contains every name
