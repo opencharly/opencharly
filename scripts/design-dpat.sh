@@ -473,6 +473,22 @@ EOF
 }
 
 # ── the check ────────────────────────────────────────────────────────────────────────────────
+# reconcile_markers <stream> — the file count the readers reported (IN_SCOPE) must be the number of
+# markers the scanner can SEE: a marker that does not start a line is invisible to it, and that
+# file is judged under the name of the one before it. Prints the refusal and returns 1 on a
+# mismatch, so "the gate judges every in-scope file" is a check rather than an assumption; the
+# callers keep their own action (a FAIL line, or a refused census).
+reconcile_markers() {
+	local seen
+	seen=$(grep -c '^@@FILE' "$1")
+	if ((seen == IN_SCOPE)); then
+		return 0
+	fi
+	printf 'the readers reported %s in-scope file(s) but only %s marker(s) start a line — a file whose marker is not at a line start is judged under the name of another file' \
+		"$IN_SCOPE" "$seen"
+	return 1
+}
+
 run_check() { # <stream file> <baseline> <fail-out> <known-out>
 	: >"$3"
 	: >"$4"
@@ -483,15 +499,8 @@ run_check() { # <stream file> <baseline> <fail-out> <known-out>
 	scan "$1.defs" <"$1" >"$1.findings"
 	finish_dup "$1.defs" >>"$1.findings"
 	census "$1.findings" "$2" "$3" "$4"
-	# The file count the readers reported must be the file count the scanner can SEE: a marker
-	# that does not start a line is invisible to it, and that file is judged under the name of the
-	# one before it. Reconciling the two turns "the gate judges every in-scope file" from an
-	# assumption into a check.
-	local seen
-	seen=$(grep -c '^@@FILE' "$1")
-	if ((seen != IN_SCOPE)); then
-		printf 'FAIL %s: the readers reported %s in-scope file(s) but only %s marker(s) start a line — a file whose marker is not at a line start is judged under the name of another file\n' \
-			"${1##*/}" "$IN_SCOPE" "$seen" >>"$3"
+	if ! why=$(reconcile_markers "$1"); then
+		printf 'FAIL %s: %s\n' "${1##*/}" "$why" >>"$3"
 	fi
 	local issue
 	issue=$(grep -m1 -E '^# tracked-by: ' "$2" | sed 's/^# tracked-by: *//')
@@ -840,9 +849,8 @@ trap 'rm -rf "$work"' EXIT
 if [[ "$MODE" == emit ]]; then
 	stream_pins "$ROOT" >"$work/stream" || { printf 'design-dpat: the pins could not be read (above)\n' >&2; exit 2; }
 	scope || exit 2
-	seen=$(grep -c '^@@FILE' "$work/stream")
-	if ((seen != IN_SCOPE)); then
-		printf 'design-dpat: the readers reported %s in-scope file(s) but only %s marker(s) start a line — refusing to print a census over files it cannot attribute\n' "$IN_SCOPE" "$seen" >&2
+	if ! why=$(reconcile_markers "$work/stream"); then
+		printf 'design-dpat: %s — refusing to print a census over files it cannot attribute\n' "$why" >&2
 		exit 2
 	fi
 	scan "$work/defs" <"$work/stream" >"$work/findings"
