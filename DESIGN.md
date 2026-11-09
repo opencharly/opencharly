@@ -3082,3 +3082,15 @@ strings removed and whitespace collapsed — so an edit that shifts a known viol
 gate red, and a new violation landing on a tolerated line cannot be blessed. `--emit-census` prints
 the file from the current pins, and its diff is reviewed like any other, because every row it drops
 is a violation somebody fixed.
+
+**A duplicate row is retired by the composition, not by an edit here.** The one-home half is gated,
+but its rows retire in the repository that owns each declaration, and only once the schemas compose
+by import. Every pinned module's schema is compiled with nothing else in scope — the SDK compiles
+the schema a plugin serves on its own, and the generator reads that same unit — and `spec` is the
+only CUE module among the pins, so a consumer cannot cite the definition its owner declares: it can
+only restate it. Those rows therefore retire with the composition §10.3 describes (D-SCH-2,
+D-SCH-8), and the census keeps them until then rather than dropping a row over a tree that still
+carries the construct. A persisted record is the same story one step worse: `spec` types the record
+the ledger writes, and the egress schemas restate it in a shape of their own, so the fix there is a
+unification and a decision about which side is right — never a deletion. `opencharly/spec#294`
+carries the first units of that cutover, and `opencharly/opencharly#950` carries the rest.
