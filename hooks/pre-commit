@@ -87,11 +87,22 @@
 #                          the caller's shell carries — asserted by FIRING both readers
 #                          against the same file (`node scripts/check-pr-body-cap.mjs`;
 #                          opencharly/opencharly#720)
+#  15. design gate caller — the DESIGN gate (`bash scripts/design-check.sh`, six controls
+#                          with 79 self-test cases) has a CALLER: `hooks/pre-push` runs
+#                          it for a push whose commits change one of the surfaces the
+#                          controls read, decided by `scripts/design-gate-inputs.sh` and
+#                          BLOCKING on a finding. Until that leg existed, nothing in the
+#                          tree ran the gate at all — the "gate with no caller" defect —
+#                          so the caller is asserted statically AND by FIRING the shipped
+#                          hook on each input class plus a mutation arm
+#                          (`node scripts/check-design-gate.mjs`)
 #
 # Deliberately NOT here (see `charly task verify`): the per-submodule
 # `git ls-remote` default-branch audit — it reads remote state no commit can change
 # — and the whole-tree cleanliness assertions, which are about the checkout rather
-# than the diff.
+# than the diff. Also deliberately not here: the DESIGN gate ITSELF, which fires at
+# PUSH time by change class — it is measured at ~12 minutes, and a per-commit leg
+# would put minutes on the average commit (see hooks/pre-push's design leg).
 set -euo pipefail
 
 # Resolve the root FIRST: git exports GIT_DIR/GIT_INDEX_FILE to hooks so that git
@@ -142,6 +153,7 @@ node "$ROOT/scripts/check-task-command-vars.mjs"
 node "$ROOT/scripts/check-pr-body-gate.mjs"
 node "$ROOT/scripts/check-pr-body-cap.mjs"
 node "$ROOT/scripts/check-pre-commit-gate.mjs"
+node "$ROOT/scripts/check-design-gate.mjs"
 node "$ROOT/scripts/check-validator-rule-map.mjs" --no-live
 node "$ROOT/scripts/check-readme-measurements.mjs"
 node "$ROOT/scripts/check-cited-plugin-task-version.mjs"

@@ -2709,6 +2709,13 @@ exactly one script, and no check writes to the repository. The committed negativ
 the `--self-test` mutations of the ledger check (A.8), of the schema-pattern gate (A.11) and of the
 pin-tag control (A.12) are the proof that each check can fail.
 
+**The gate has a caller.** A control that nothing runs enforces nothing, so the umbrella's
+pre-push hook (`hooks/pre-push`) runs this command for a push whose commits change one of the
+surfaces these six controls read, and refuses the push on a finding. Which pushes those are is
+defined once, in `scripts/design-gate-inputs.sh`; `scripts/check-design-gate.mjs` asserts that
+the caller is wired and FIRES it, because an unwired gate is how this one came to run only when
+somebody remembered. The command above stays runnable at any time.
+
 ### A.3 `scripts/design-cue.sh` — the toolchain
 
 Prints the path of a CUE v0.18.0-rc.1 binary; every other script obtains `cue` through it. It uses `cue`
