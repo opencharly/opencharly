@@ -72,6 +72,11 @@ for arg in "$@"; do
 	esac
 done
 BASELINE="$ROOT/design/dpat-baseline.tsv"
+# The pinned module's object store, resolved the way GIT resolves it: a linked worktree keeps its
+# submodule repositories under `<git-common-dir>/worktrees/<name>/modules/<path>`, so a store
+# assumed to be `<git-common-dir>/modules/<path>` cannot read a pin advanced inside a session
+# worktree (scripts/design-module-store.sh states the measurement).
+. "$SELF/design-module-store.sh"
 
 # ── the rule catalogue ─────────────────────────────────────────────────────────────────────────
 # ONE place per rule: the id the census records, the pattern it enforces, and the sentence a report
@@ -131,12 +136,12 @@ MODULES=0
 # stream_pins <root> — the pinned modules. Fails LOUD when a pin cannot be read: a gate that
 # silently judges fewer modules than it claims is the failure this control exists to prevent.
 stream_pins() {
-	local root="$1" common path sha gitdir file
-	common=$(git -C "$root" rev-parse --path-format=absolute --git-common-dir) || return 1
+	local root="$1" path sha gitdir file
 	while IFS=$'\t' read -r path sha; do
 		[[ -n "$path" ]] || continue
 		MODULES=$((MODULES + 1))
-		gitdir="$common/modules/$path"
+		gitdir=$(design_module_store "$root" "$path") || gitdir=""
+		[[ -n "$gitdir" ]] || gitdir="$root/.git/modules/$path"
 		if [[ ! -d "$gitdir" ]]; then
 			printf 'design-dpat: %s is pinned and has no repository at %s — run `git submodule update --init %s`; the gate cannot read the schema it judges\n' \
 				"$path" "$gitdir" "$path" >&2

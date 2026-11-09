@@ -203,6 +203,7 @@ installed-binary form — `charly task …`, the same shape a packaged `charly` 
 | `charly task map` | list every submodule with its pin and sync state |
 | `charly task sync` | advance EVERY submodule pin this repo declares, per the pin contract (it rolls the checkouts that exist to their default-branch HEAD and stages the gitlinks; it does not commit) |
 | `charly task verify` | the full pinning gate, on demand (every pin, incl. the remote branch audit) |
+| `charly task design-check` | run the DESIGN gate — the six controls of `DESIGN.md` A.1/A.2 (the CUE toolchain, `DESIGN.md`↔`DESIGN.cue`, the examples and their negatives, the capability ledger, the schema patterns of every pinned plugin module, every pin's relation to a release tag). It is the same command `hooks/pre-push` runs for a push that changes a surface those controls read — the caller is asserted by `node scripts/check-design-gate.mjs` |
 | `charly task hooks` | install `hooks/pre-commit` for this clone (once) |
 | `charly task org-map` | verify the README org-map tables against the repo and `.gitmodules` |
 | `charly task skills` | splice the generated R0 dispatcher from the pinned marketplace into AGENTS.md |

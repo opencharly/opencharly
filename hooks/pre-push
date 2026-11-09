@@ -8,8 +8,15 @@
 # COMMAND TEXT (force-push, a direct push to main, untokenizable commands); this hook
 # runs on the actual push, from git.
 #
-# It runs TWO assertions. The first is the org's own body linter
-# (`marketplace/scripts/pr_body_lint.py`), which judges the body's FORM. The second is
+# It runs THREE assertions. The FIRST is the umbrella's DESIGN gate
+# (`bash scripts/design-check.sh`), the six controls of DESIGN.md A.1/A.2 — run for a
+# push whose commits change one of the surfaces those controls read, because until
+# this leg existed nothing in the tree ran it at all (the "gate with no caller"
+# defect: 79 self-test cases that ran only when somebody remembered). It runs FIRST,
+# before any body condition, because a push with no body file yet must not walk past
+# the TREE assertion. The other two judge the PR BODY. The second is the org's own
+# body linter (`marketplace/scripts/pr_body_lint.py`), which judges the body's FORM.
+# The third is
 # the umbrella's own reconciliation (`scripts/check-pr-body-diff.mjs`), which asks a
 # question the linter cannot: does the body DESCRIBE the diff it is published with?
 # The body IS the changelog and the validator reads it LIVE, so a mechanically-detectable
@@ -20,8 +27,9 @@
 # does, or a gate evidence block pasted from a tree that is not the head being pushed:
 # the validator caught all three on this repo's own PR (2026-10-23), a whole round
 # after the push that could have been stopped here. Hooks guard DETERMINISTIC
-# MECHANICS only, which is exactly this class: it checks the body's FORM and its
-# FIDELITY TO THE DIFF, and judges nothing about the change, the tier, or the evidence.
+# MECHANICS only, which is exactly this class: the first assertion runs the committed
+# controls and reports THEIR verdict, the other two check the body's FORM and its
+# FIDELITY TO THE DIFF, and none of them judges the change, the tier, or the evidence.
 #
 # THE TREE THE BODY IS RECONCILED AGAINST IS THE TREE THE PUSH PUBLISHES. git writes the
 # refs it publishes to this hook's stdin, and the LOCAL SHA on such a line is the commit
@@ -50,13 +58,22 @@
 # below IS that reconciliation: the body the push publishes MUST be the body GitHub
 # holds, or the body is not the changelog the reviewer reads.
 #
-# SKIP COUNTS: hook=8 live-body=6   (machine-checked by scripts/check-pr-body-gate.mjs)
+# SKIP COUNTS: hook=11 live-body=6   (machine-checked by scripts/check-pr-body-gate.mjs)
 #
 # EVERY SKIP IS VISIBLE AND NEVER FAIL-CLOSED, the shape pre-commit-gate.sh already uses
 # for a missing golangci-lint, and every one of them carries a marker the gate COUNTS —
 # so the counts above cannot drift away from the code they describe.
 #
-# THE HOOK'S OWN 8:
+# THE HOOK'S OWN 11:
+#   * NO DESIGN CLASS FILE — `scripts/design-gate-inputs.sh` DEFINES which diffs the
+#     design gate judges, so without it this hook cannot decide, and a partial checkout
+#     is not a diff to block. It names the file and the push continues; the durable
+#     guard is scripts/check-design-gate.mjs, which asserts the file exists HERE.
+#   * NO DESIGN GATE — the same, for `scripts/design-check.sh`, named with the same
+#     reasoning and the same guard.
+#   * NOT THE DESIGN CLASS — the push changes none of the surfaces the six controls
+#     read, so the gate cannot have anything to say about it. It prints the class and
+#     the one command that runs the gate anyway.
 #   * NO GIT TREE — the hook does not run inside a git working tree at all.
 #   * NO GIT DIR — the working tree's git dir could not be resolved.
 #   * NO BODY at the path — the body is written by the author as part of the landing
@@ -73,6 +90,11 @@
 #   * NO python3 — the same, for the interpreter the linter runs under.
 #   * A LINTER THAT CANNOT RUN — the linter is here but its sibling module from the
 #     marketplace submodule is not, so it dies with a traceback that also exits 1.
+#
+# NONE OF THE THREE DESIGN SKIPS CAN HIDE A VIOLATION: the first two are a tree that
+# carries no design controls at all, and the third is the committed change class. They
+# are NOT the fail-closed cases — a tree that is not the pushed one BLOCKS rather than
+# skipping, because a pass measured on another tree proves nothing.
 #
 # THE LIVE-BODY CHECK'S 6: no `gh` (not installed); no single branch to resolve a PR
 # from; a remote that is not GitHub; `gh` failing to list the open PRs; no open PR for
@@ -112,14 +134,23 @@ fi
 PUBLISHED_BRANCH=""
 PUBLISHED_HEAD=""
 PUBLISHED_WHY=""
+# EVERY commit this push publishes, one per line — the refs' local SHAs, minus the
+# deletions (a `(delete)` line and an all-zero local sha publish nothing). It is the
+# range the DESIGN gate's change class is measured over, and it comes from THIS parse
+# rather than a second walk of stdin: one parse, three consumers (R2).
+PUBLISHED_SHAS=""
 
 resolve_published_refs() {
   local published="" published_head="" refs_seen=0 branch_refs=0
   local local_ref="" local_sha="" remote_ref="" remote_sha=""
+  PUBLISHED_SHAS=""
   while read -r local_ref local_sha remote_ref remote_sha; do
     [ -z "$local_ref" ] && continue
     refs_seen=$((refs_seen + 1))
     [ "$local_ref" = "(delete)" ] && continue
+    case "$local_sha" in
+      *[!0]*) PUBLISHED_SHAS="${PUBLISHED_SHAS}${local_sha}"$'\n' ;;
+    esac
     case "$remote_ref" in
       refs/heads/*)
         branch_refs=$((branch_refs + 1))
@@ -151,6 +182,154 @@ resolve_published_refs() {
   PUBLISHED_WHY="$branch_why"
 }
 
+# ── the DESIGN gate, decided by ITS change class ────────────────────────────────────
+# THE DEFECT THIS CLOSES. `bash scripts/design-check.sh` composes six controls with 79
+# self-test cases (DESIGN.md A.1, A.2), and until this leg existed NOTHING in the tree
+# ran it: `git grep -l design-check` found no gate, so the controls ran only when
+# somebody remembered — the same "gate with no caller" defect the org has already paid
+# for twice. A control nobody runs enforces nothing, however green it is.
+#
+# WHY HERE AND NOT IN hooks/pre-commit. The gate is a whole-tree consistency reading,
+# and it is EXPENSIVE: 11m54s measured on 2026-11-09 over six controls, 109 committed
+# negative cases each spawning a `cue export`. hooks/pre-commit fires per COMMIT, and
+# ~42% of this repo's last 60 commits touch the design surface, so a commit-time leg
+# would add ~5 minutes to the average commit — a wall contributors would learn to work
+# around, which is exactly how a gate stops being one. pre-push fires ONCE per push,
+# the last local boundary before a PR, and `charly task hooks` installs it for every
+# contributor. So the placement is the cheapest one that still FIRES on the flow.
+#
+# THE CLASS IS DERIVED FROM WHAT THE CONTROLS READ — scripts/design-gate-inputs.sh, the
+# ONE definition — and measured over the commits THIS PUSH publishes (the refs git
+# writes to stdin), so an ordinary docs or code commit pays nothing. A class that ran
+# at every push would be 12 minutes for a typo fix; a class narrower than what the
+# controls read would be a green light over a tree nobody looked at.
+#
+# THE TREE IT JUDGES IS THE TREE THE PUSH PUBLISHES. The controls read the WORKING
+# TREE (DESIGN.md, DESIGN.cue, design/, scripts/design-*) and the INDEX's gitlinks,
+# while a push can publish a branch other than the checked-out one — the false-PASS /
+# false-BLOCK pair opencharly/opencharly#744 taught this hook to fear. So the leg
+# REFUSES to run on a tree that differs from the published commit on exactly the
+# surfaces the controls read, and names the remedy; it never reports a pass it did not
+# earn. Refusing is a visible BLOCK, never a skip.
+#
+# EVERY SKIP IS VISIBLE and carries the hook's own marker, so the header's count and
+# the code cannot drift (scripts/check-pr-body-gate.mjs counts them). There are three,
+# and NONE of them can hide a violation: a tree that carries no design controls at all
+# (a partial checkout, or a fixture repository running this hook), and a push that
+# changes none of the gate's inputs.
+design_gate_leg() {
+  local inputs="$ROOT/scripts/design-gate-inputs.sh"
+  local gate="$ROOT/scripts/design-check.sh"
+  # EVERY name this function writes is declared here: a bare assignment inside a
+  # function leaks to the hook's global scope, and a name declared here and never read
+  # is dead code. Both shapes have already cost a round (a leftover `surfaces` array
+  # from the guard's first form, and two arrays assigned without `local`), so
+  # scripts/check-design-gate.mjs now counts the declarations against the uses.
+  local range_shas="" sha commits="" changed="" gitlinks="" read_paths=""
+  local file_surfaces=() pin_surfaces=() differing=""
+
+  if [ ! -f "$inputs" ]; then
+    echo "pre-push: [pre-push-skip] no scripts/design-gate-inputs.sh in this tree — the DESIGN gate SKIPPED." >&2
+    echo "pre-push: that file DEFINES which diffs the gate judges, so without it this hook cannot" >&2
+    echo "pre-push: decide, and a partial checkout is not a diff to block. In the umbrella it is" >&2
+    echo "pre-push: a tracked file: restore it (git status names it) before trusting a green run." >&2
+    return 0
+  fi
+  if [ ! -f "$gate" ]; then
+    echo "pre-push: [pre-push-skip] no scripts/design-check.sh in this tree — the DESIGN gate SKIPPED." >&2
+    echo "pre-push: restore it (git status names it) before trusting a green run in the umbrella." >&2
+    return 0
+  fi
+
+  # shellcheck source=scripts/design-gate-inputs.sh
+  . "$inputs"
+
+  # The commits this push publishes. A hand-run hook (empty stdin) publishes nothing,
+  # and then the checkout is what it judges — the fallback hooks/pre-push already uses
+  # for the body's tree.
+  if [ -n "$PUBLISHED_SHAS" ]; then
+    range_shas="$PUBLISHED_SHAS"
+  else
+    range_shas="$(git rev-parse HEAD 2>/dev/null || true)"$'\n'
+  fi
+
+  # The published commits NOT already on a remote: the push's own work, including a new
+  # branch's whole history. A stale remote-tracking ref makes this range LARGER, never
+  # smaller, so the class fails toward RUNNING the gate.
+  while IFS= read -r sha; do
+    [ -n "$sha" ] || continue
+    commits="${commits}$(git rev-list "$sha" --not --remotes 2>/dev/null || true)"$'\n'
+  done <<< "$range_shas"
+
+  if [ -n "$(printf '%s' "$commits" | tr -d '[:space:]')" ]; then
+    changed="$(git log --format= --name-only $(printf '%s' "$commits") 2>/dev/null | sed '/^$/d' | sort -u)"
+    gitlinks="$(while IFS= read -r sha; do
+      [ -n "$sha" ] || continue
+      git diff-tree --no-commit-id --raw -r "$sha" 2>/dev/null
+    done <<< "$commits" | awk 'BEGIN {FS = "\t"} {split($1, m, " "); if (m[1] ~ /160000/ || m[2] ~ /160000/) print $2}' | sort -u)"
+  fi
+
+  if ! design_gate_touches_input "$changed" "$gitlinks"; then
+    echo "pre-push: [pre-push-skip] the DESIGN gate SKIPPED: this push changes none of its inputs."
+    echo "  The six controls read DESIGN.md, DESIGN.cue, design/, scripts/design-*.sh and the CUE"
+    echo "  of every pinned module (scripts/design-gate-inputs.sh). A push that changes none of"
+    echo "  them cannot violate them. Run it anyway: bash scripts/design-check.sh"
+    return 0
+  fi
+
+  # The tree the gate reads must be the tree this push publishes, on the surfaces it
+  # reads — each compared the way the controls READ it, because the two halves have
+  # different sources and a single worktree diff would judge the wrong one:
+  #
+  #   * DESIGN.md, DESIGN.cue, design/ and scripts/design-* are read from the WORKING
+  #     TREE, so they are compared against the worktree;
+  #   * a PIN is read from the INDEX (`git ls-files --stage`, which is what both gates
+  #     read), so the gitlinks are compared against the INDEX — never the checkout, or
+  #     an unmaterialized submodule would read as a deleted path and every light tree
+  #     would block for the pins it deliberately does not carry.
+  #
+  # The FILE surfaces are DERIVED from the one definition this leg already sourced, and
+  # never restated: a literal list here would be a second copy of the change set, and a
+  # surface added to the class would silently leave the guard behind — it would then
+  # compare a tree that differs from the published commit on the new surface and report a
+  # pass it did not earn. `scripts/check-design-gate.mjs` asserts the derivation.
+  file_surfaces=("${DESIGN_GATE_ROOT_FILES[@]}" "$DESIGN_GATE_TREE_PREFIX" "${DESIGN_GATE_CONTROL_PREFIX}*")
+  pin_surfaces=()
+  while IFS= read -r read_paths; do
+    [ -n "$read_paths" ] || continue
+    pin_surfaces+=("$read_paths")
+  done < <(git ls-files --stage 2>/dev/null | awk '$1 ~ /^160000/ {print $4}')
+
+  for sha in $(printf '%s' "$range_shas"); do
+    differing=""
+    if ! git diff --quiet "$sha" -- "${file_surfaces[@]}" 2>/dev/null; then
+      differing="$(git diff --name-only "$sha" -- "${file_surfaces[@]}" 2>/dev/null)"
+    fi
+    if [ "${#pin_surfaces[@]}" -gt 0 ] && ! git diff --cached --quiet "$sha" -- "${pin_surfaces[@]}" 2>/dev/null; then
+      differing="$differing$(git diff --cached --name-only "$sha" -- "${pin_surfaces[@]}" 2>/dev/null)"
+    fi
+    if [ -n "$(printf '%s' "$differing" | tr -d '[:space:]')" ]; then
+      echo "pre-push: BLOCKED — the DESIGN gate judges the tree it reads, and this tree is NOT" >&2
+      echo "pre-push: the commit this push publishes ($sha) on a surface the controls read." >&2
+      echo "pre-push:   $(printf '%s\n' "$differing" | sed '/^$/d' | sed -n '1,8p' | tr '\n' ' ')" >&2
+      echo "pre-push: push from a checkout of $sha (one worktree per branch), or run" >&2
+      echo "pre-push:   bash scripts/design-check.sh" >&2
+      echo "pre-push: there and push that tree. A pass measured on another tree proves nothing." >&2
+      return 1
+    fi
+  done
+
+  echo "pre-push: running the DESIGN gate — this push changes the gate's inputs..."
+  if bash "$gate"; then
+    echo "pre-push: OK (the design controls pass on this tree)"
+    return 0
+  fi
+  echo "pre-push: BLOCKED — the DESIGN controls above have findings." >&2
+  echo "pre-push: fix EVERY finding and push again. The census in design/dpat-baseline.tsv and" >&2
+  echo "pre-push: design/pintag-baseline.tsv is lowered, never raised, by the change that fixes it." >&2
+  return 1
+}
+
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || ROOT=""
 if [ -z "$ROOT" ]; then
   echo "pre-push: [pre-push-skip] not inside a git working tree — body lint SKIPPED." >&2
@@ -171,19 +350,27 @@ fi
 BODY="${PR_BODY_FILE:-$GITDIR/PR_BODY.md}"
 LINT="$ROOT/marketplace/scripts/pr_body_lint.py"
 
+# The PUBLISHED refs, resolved ONCE here — before ANY body condition — for THREE
+# consumers: the DESIGN gate's change class (the commits this push publishes), the
+# reconciliation (the head the push publishes), and the LIVE-body check (the branch
+# whose PR holds the body). It is resolved first because a body condition must never
+# decide whether the TREE assertion runs: a push with no body file yet would otherwise
+# walk past the design gate and report a pass it never measured.
+resolve_published_refs
+RECONCILE_HEAD="${PUBLISHED_HEAD:-HEAD}"
+
+# The TREE assertion, before the body assertions: the body's form is cheap to fix and
+# the tree is what ships. A push that cannot pass the design gate stops here.
+if ! design_gate_leg; then
+  exit 1
+fi
+
 if [ ! -e "$BODY" ]; then
   echo "pre-push: [pre-push-skip] no PR body at $BODY — body lint SKIPPED (nothing to check)."
   echo "pre-push: the body IS the changelog; write the whole thing for the head you are about to"
   echo "pre-push: publish and push again. To lint a body that lives elsewhere: PR_BODY_FILE=<path>."
   exit 0
 fi
-
-# The PUBLISHED refs, resolved once, for BOTH consumers below: the reconciliation reads
-# the head the push publishes, the LIVE-body check reads the branch whose PR holds the
-# body. It runs even when the reconciliation is skipped, so the LIVE-body check never
-# loses the branch it resolves.
-resolve_published_refs
-RECONCILE_HEAD="${PUBLISHED_HEAD:-HEAD}"
 
 # The umbrella's OWN reconciliation, and it runs whether or not the org's linter is
 # here: the diff it reconciles against is this tree's, and it needs nothing from the
