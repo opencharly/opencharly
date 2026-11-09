@@ -287,7 +287,13 @@ design_gate_leg() {
   #     read), so the gitlinks are compared against the INDEX — never the checkout, or
   #     an unmaterialized submodule would read as a deleted path and every light tree
   #     would block for the pins it deliberately does not carry.
-  file_surfaces=(DESIGN.md DESIGN.cue design/ "scripts/design-*")
+  #
+  # The FILE surfaces are DERIVED from the one definition this leg already sourced, and
+  # never restated: a literal list here would be a second copy of the change set, and a
+  # surface added to the class would silently leave the guard behind — it would then
+  # compare a tree that differs from the published commit on the new surface and report a
+  # pass it did not earn. `scripts/check-design-gate.mjs` asserts the derivation.
+  file_surfaces=("${DESIGN_GATE_ROOT_FILES[@]}" "$DESIGN_GATE_TREE_PREFIX" "${DESIGN_GATE_CONTROL_PREFIX}*")
   pin_surfaces=()
   while IFS= read -r read_paths; do
     [ -n "$read_paths" ] || continue

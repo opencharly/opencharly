@@ -140,14 +140,16 @@ function check() {
     const body = hook.slice(legStart, legEnd);
     const declared = new Set();
     for (const m of body.matchAll(/\n\s*local ([^\n]*)/g)) {
-      // A `local` line declares every `name=` / `name+=` it carries — one line can
-      // declare several. Array VALUES (`(DESIGN.md …)`) carry no `=`, so they are not
-      // mistaken for names; a bare `local name` is taken whole.
-      const line = m[1];
-      const named = [...line.matchAll(/([a-z_][a-z0-9_]*)\+?=/g)].map((x) => x[1]);
-      if (named.length === 0) {
-        for (const w of line.split(/\s+/)) if (/^[a-z_][a-z0-9_]*$/.test(w)) declared.add(w);
-      } else for (const n of named) declared.add(n);
+      // A `local` line declares every NAME it carries, whether the name is written
+      // `name=…`, `name+=…`, or bare — and one line can carry both (`local a="" b`) — so
+      // the bare words of a MIXED line are taken too, not only the `=`-carrying ones.
+      // Array VALUES (`(DESIGN.md …)`) are skipped by dropping each `(…)` group first, so
+      // a value that happens to look like an identifier cannot enter the set.
+      const line = m[1].replace(/\([^)]*\)/g, " ");
+      for (const w of line.split(/\s+/)) {
+        const name = w.replace(/\+?=.*$/, "");
+        if (/^[a-z_][a-z0-9_]*$/.test(name)) declared.add(name);
+      }
     }
     // Every assignment at the start of a word, `name=` or `name+=`, must be declared.
     const assigned = new Set();
@@ -158,6 +160,30 @@ function check() {
     for (const name of declared) {
       const uses = (body.match(new RegExp(`\\$\\{?${name}\\b`, "g")) ?? []).length;
       if (uses === 0) fail(`${hookRel}: design_gate_leg declares '${name}' and never reads it (dead code)`);
+    }
+
+    // 5. THE GUARD READS THE SAME DEFINITION the change set does. The tree-identity guard
+    //   compares the published commit against the tree on the surfaces the controls read;
+    //   if it RESTATED that list, a surface added to the class would silently leave the
+    //   guard behind, and it would then report a pass over a tree that differs from the
+    //   published commit on the new surface — a false PASS with no finding anywhere. The
+    //   assertion reads the guard's ASSIGNMENT — the `local` DECLARATION
+    //   (`local file_surfaces=()`) is not one — and never its prose: the leg's skip notice
+    //   names the surfaces to the contributor, which is not a second definition.
+    const assigns = [...body.matchAll(/^([^\n]*?)file_surfaces=\(([^\n]*)\)/gm)].filter((m) => !/^\s*local\b/.test(m[1]));
+    const assign = assigns.length > 0 ? assigns[assigns.length - 1] : null;
+    if (!assign) {
+      fail(`${hookRel}: design_gate_leg assigns file_surfaces`);
+    } else {
+      const spec = assign[2];
+      if (!/\$\{DESIGN_GATE_ROOT_FILES\[@\]\}/.test(spec))
+        fail(`${hookRel}: the guard derives its file surfaces from \${DESIGN_GATE_ROOT_FILES[@]}`);
+      if (!/\$\{?DESIGN_GATE_TREE_PREFIX\}?/.test(spec))
+        fail(`${hookRel}: the guard derives the design tree from \${DESIGN_GATE_TREE_PREFIX}`);
+      if (!/\$\{?DESIGN_GATE_CONTROL_PREFIX\}?/.test(spec))
+        fail(`${hookRel}: the guard derives the controls' prefix from ${inputsRel}`);
+      for (const literal of ["DESIGN.md", "DESIGN.cue", "design/", "scripts/design-"])
+        if (spec.includes(literal)) fail(`${hookRel}: the guard restates '${literal}' in file_surfaces — it must read the one definition`);
     }
   }
 
@@ -316,19 +342,36 @@ function fire() {
     }
 
     // A TREE THAT IS NOT THE PUSHED ONE blocks rather than passing: the controls read
-    // the working tree, and a push can publish another branch (opencharly#744).
+    // the working tree, and a push can publish another branch (opencharly#744). ONE
+    // FIXTURE PER SURFACE THE GUARD DERIVES, because a guard that watched only the
+    // normative pair would pass a tree differing on the design tree or the controls, and
+    // one fired case cannot falsify the others.
+    for (const [label, path] of [
+      ["the normative pair", "DESIGN.md"],
+      ["the design tree", "design/parity.tsv"],
+      ["the controls", "scripts/design-dpat.sh"],
+    ]) {
+      const fixture = mkRepo((scratch, repo, git) => {
+        writeFileSync(join(scratch, "msg.txt"), "c\n");
+        git("commit", "-q", "-F", join(scratch, "msg.txt"));
+      });
+      const published = stage(fixture, path, "published\n");
+      // The checkout moves BACK to the base, so the tree here is not `published`.
+      fixture.git("reset", "-q", "--hard", "HEAD~1");
+      const r = runHook(fixture, { refs: `refs/heads/feat/x ${published} refs/heads/feat/x ${"0".repeat(40)}\n` });
+      expect(r.code === 1, `a checkout that is not the published tree BLOCKS on ${label} (exit 1)`);
+      expect(r.ran === 0, `the gate is NOT run on a tree that differs on ${label}`);
+      rmSync(fixture.scratch, { recursive: true, force: true });
+    }
     {
       const fixture = mkRepo((scratch, repo, git) => {
         writeFileSync(join(scratch, "msg.txt"), "c\n");
         git("commit", "-q", "-F", join(scratch, "msg.txt"));
       });
       const published = stage(fixture, "DESIGN.md", "published\n");
-      // The checkout moves BACK to the base, so the tree here is not `published`.
       fixture.git("reset", "-q", "--hard", "HEAD~1");
       const r = runHook(fixture, { refs: `refs/heads/feat/x ${published} refs/heads/feat/x ${"0".repeat(40)}\n` });
-      expect(r.code === 1, "a checkout that is not the published tree BLOCKS (exit 1)");
       expect(/NOT\b[\s\S]*the commit this push publishes/.test(r.out), "the refusal says the tree is not the pushed one");
-      expect(r.ran === 0, "the gate is NOT run on a tree that is not the one being pushed");
       rmSync(fixture.scratch, { recursive: true, force: true });
     }
 
