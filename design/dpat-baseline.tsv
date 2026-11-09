@@ -368,19 +368,6 @@ plugin-task/candy/plugin-task/schema/task.cue	union	mode?: "sync" | "check"	2
 plugin-task/candy/plugin-task/schema/task.cue	union	mode?: "report" | "prune"	1
 plugin-unit/candy/plugin-unit/schema/unit.cue	union	scope?: "system" | "user"	1
 plugin-vision/candy/plugin-vision/schema/vision.cue	union	mime?: *"image/png" | "image/jpeg" | "image/webp" | "image/gif"	1
-plugin-vision/candy/plugin-vision/schema/vision.cue	close	#LLMSpec: close({	1
-plugin-vision/candy/plugin-vision/schema/vision.cue	close	#LLMParams: close({	1
-plugin-vision/candy/plugin-vision/schema/vision.cue	union	stop?: string | [...string]	1
-plugin-vision/candy/plugin-vision/schema/vision.cue	union	reasoning_effort?: "high" | "medium" | "low" | "none" @go(Reasoning_effort,type=string)	1
-plugin-vision/candy/plugin-vision/schema/vision.cue	union	tool_choice?: "none" | "auto" | "required" | #LLMNamedToolChoice	1
-plugin-vision/candy/plugin-vision/schema/vision.cue	close	#LLMResponseFormat: close({	1
-plugin-vision/candy/plugin-vision/schema/vision.cue	union	type: "text" | "json_object" | "json_schema" @go(Type,type=string)	1
-plugin-vision/candy/plugin-vision/schema/vision.cue	close	json_schema?: close({	1
-plugin-vision/candy/plugin-vision/schema/vision.cue	close	#LLMReasoning: close({	1
-plugin-vision/candy/plugin-vision/schema/vision.cue	union	effort?: "high" | "medium" | "low" | "none" @go(Effort,type=string)	1
-plugin-vision/candy/plugin-vision/schema/vision.cue	close	#LLMStreamOptions: close({	1
-plugin-vision/candy/plugin-vision/schema/vision.cue	close	#LLMNamedToolChoice: close({	1
-plugin-vision/candy/plugin-vision/schema/vision.cue	close	function: close({name: string})	1
 plugin-vm/candy/plugin-vm/schema/vm.cue	union	method: ("list" | "info" | "screenshot" | "send-key" | "passwd" | "qmp" | "domain-xml" | "console" | "events" | "guest/ping" | "guest/info" | "guest/os-info" | "guest/time" | "guest/hostname" | "guest/users" | "guest/interfaces" | "guest/disks" | "guest/fsinfo" | "guest/vcpus" | "guest/exec" | "guest/fstrim" | "snapshot/list" | "snapshot/create" | "snapshot/info" | "snapshot/revert" | "snapshot/delete" | "session") @go(Method,type=string)	1
 plugin-vm/candy/plugin-vm/schema/vm.cue	union	action?: "start" | "stop" | "status" @go(Action)	1
 plugin-vnc/candy/plugin-vnc/schema/vnc.cue	union	method: "status" | "screenshot" | "click" | "mouse" | "type" | "key" | "rfb" | "session"	1
@@ -676,12 +663,6 @@ plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	dup	#LLMReasoning	1
 plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	dup	#LLMStreamOptions	1
 plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	dup	#LLMNamedToolChoice	1
 plugin-tunnel/candy/plugin-tunnel/schema/tunnel.cue	dup	#TunnelInput	1
-plugin-vision/candy/plugin-vision/schema/vision.cue	dup	#LLMSpec	1
-plugin-vision/candy/plugin-vision/schema/vision.cue	dup	#LLMParams	1
-plugin-vision/candy/plugin-vision/schema/vision.cue	dup	#LLMResponseFormat	1
-plugin-vision/candy/plugin-vision/schema/vision.cue	dup	#LLMReasoning	1
-plugin-vision/candy/plugin-vision/schema/vision.cue	dup	#LLMStreamOptions	1
-plugin-vision/candy/plugin-vision/schema/vision.cue	dup	#LLMNamedToolChoice	1
 spec/schema/deploy.cue	dup	#DeployRecord	1
 spec/schema/deploy.cue	dup	#CandyRecord	1
 spec/schema/llm.cue	dup	#LLMSpec	1
