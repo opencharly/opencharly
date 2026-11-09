@@ -209,7 +209,7 @@ classify() {
 	count=0
 	if [[ -n "$tag" ]]; then
 		count=$(git --git-dir "$GITDIR" rev-list --count --first-parent "$tag..$sha" 2>/dev/null)
-		printf '%s\t%s\tuntagged\t%s first-parent commit(s) above %s, and no CHANGELOG commit above it: tag-on-merge is present at the pin and at its parent, so the merge had to write one and did not\n' \
+		printf '%s\t%s\tuntagged\t%s first-parent commit(s) above %s; the pin is not a CHANGELOG commit and none follows it, while tag-on-merge is present at the pin and at its parent — so the merge that produced the pin wrote no CHANGELOG commit\n' \
 			"$path" "$sha" "${count:-?}" "$tag"
 	else
 		printf '%s\t%s\tuntagged\tno tagged ancestor is reachable from the pin, and tag-on-merge is present at the pin and at its parent\n' \

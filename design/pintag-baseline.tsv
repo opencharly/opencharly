@@ -22,5 +22,5 @@
 #
 # tracked-by: opencharly/opencharly#793 — the gap the live instances were filed under (the mechanism is opencharly/.github#286)
 module	commit	state	reason
-pi-asciinema	2938ef8d00de3752553ba6128756f79d7ffb41df	untagged	a human commit on the branch tip, untagged, with no CHANGELOG commit above the last tag while tag-on-merge is present at the pin and at its parent — tag-on-merge produced nothing for it (opencharly/.github#286)
-layer-android-apidemos	78612d2159914fbc37b83ee53f947de8989b1293	untagged	an auto-merge squash on the branch tip, untagged, with no CHANGELOG commit above the last tag while tag-on-merge is present at the pin and at its parent — its workflow_run trigger produced nothing for it (opencharly/.github#286)
+pi-asciinema	2938ef8d00de3752553ba6128756f79d7ffb41df	untagged	a human commit merged on top of the CHANGELOG tip, untagged, and no CHANGELOG commit follows it while tag-on-merge is present at the pin and at its parent — the merge that produced the pin wrote no CHANGELOG record (opencharly/.github#286)
+layer-android-apidemos	78612d2159914fbc37b83ee53f947de8989b1293	untagged	an auto-merge squash landed on top of the CHANGELOG tip, untagged, and no CHANGELOG commit follows it while tag-on-merge is present at the pin and at its parent — the merge that produced the pin wrote no CHANGELOG record (opencharly/.github#286)
