@@ -220,7 +220,13 @@ resolve_published_refs() {
 design_gate_leg() {
   local inputs="$ROOT/scripts/design-gate-inputs.sh"
   local gate="$ROOT/scripts/design-check.sh"
-  local range_shas="" sha commits="" changed="" gitlinks="" surfaces=() read_paths=""
+  # EVERY name this function writes is declared here: a bare assignment inside a
+  # function leaks to the hook's global scope, and a name declared here and never read
+  # is dead code. Both shapes have already cost a round (a leftover `surfaces` array
+  # from the guard's first form, and two arrays assigned without `local`), so
+  # scripts/check-design-gate.mjs now counts the declarations against the uses.
+  local range_shas="" sha commits="" changed="" gitlinks="" read_paths=""
+  local file_surfaces=() pin_surfaces=() differing=""
 
   if [ ! -f "$inputs" ]; then
     echo "pre-push: [pre-push-skip] no scripts/design-gate-inputs.sh in this tree — the DESIGN gate SKIPPED." >&2

@@ -126,7 +126,42 @@ function check() {
   if (!/BLOCKED — the DESIGN controls/.test(hook)) fail(`${hookRel} names the design gate's own refusal`);
   if (!/bash scripts\/design-check\.sh/.test(hook)) fail(`${hookRel} names the one command that runs the gate by hand`);
 
-  // 3. ONE CALLER, and it is the push. The commit gate fires per COMMIT and the gate
+  // 3. THE LEG'S OWN NAMES — every one it writes is declared, and every one it declares
+  //   is read. Two shapes of the same defect have already cost review rounds across this
+  //   org: a bare assignment inside a function LEAKS to the hook's global scope, and a
+  //   declaration nobody reads is dead code in a file the change touches. The umbrella has
+  //   no shell static analysis (opencharly/opencharly#841), so the assertion counts them
+  //   here, over the ONE function this change adds.
+  const legStart = hook.indexOf("design_gate_leg() {");
+  const legEnd = legStart === -1 ? -1 : hook.indexOf("\n}\n", legStart);
+  if (legStart === -1 || legEnd === -1) {
+    fail(`${hookRel} defines design_gate_leg() as a complete function`);
+  } else {
+    const body = hook.slice(legStart, legEnd);
+    const declared = new Set();
+    for (const m of body.matchAll(/\n\s*local ([^\n]*)/g)) {
+      // A `local` line declares every `name=` / `name+=` it carries — one line can
+      // declare several. Array VALUES (`(DESIGN.md …)`) carry no `=`, so they are not
+      // mistaken for names; a bare `local name` is taken whole.
+      const line = m[1];
+      const named = [...line.matchAll(/([a-z_][a-z0-9_]*)\+?=/g)].map((x) => x[1]);
+      if (named.length === 0) {
+        for (const w of line.split(/\s+/)) if (/^[a-z_][a-z0-9_]*$/.test(w)) declared.add(w);
+      } else for (const n of named) declared.add(n);
+    }
+    // Every assignment at the start of a word, `name=` or `name+=`, must be declared.
+    const assigned = new Set();
+    for (const m of body.matchAll(/(?:^|[\s;&|(])([a-z_][a-z0-9_]*)\+?=/gm)) assigned.add(m[1]);
+    for (const name of assigned) {
+      if (!declared.has(name)) fail(`${hookRel}: design_gate_leg LEAKS '${name}' to the hook's global scope (declare it local)`);
+    }
+    for (const name of declared) {
+      const uses = (body.match(new RegExp(`\\$\\{?${name}\\b`, "g")) ?? []).length;
+      if (uses === 0) fail(`${hookRel}: design_gate_leg declares '${name}' and never reads it (dead code)`);
+    }
+  }
+
+  // 4. ONE CALLER, and it is the push. The commit gate fires per COMMIT and the gate
   //   is measured at ~12 minutes; putting it there would add minutes to the average
   //   commit and teach contributors to work around it — which is how a gate stops
   //   being one. The class keeps the push-time cost off an ordinary diff.
