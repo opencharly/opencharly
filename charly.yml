@@ -808,6 +808,32 @@ verify:
         context: [runtime]
 
 # -----------------------------------------------------------------------------
+# design-check — the DESIGN gate (DESIGN.md A.1/A.2) as ONE command.
+#
+# Six controls, 79 self-test cases, and until this task existed NOTHING in the tree
+# ran them: `git grep -l design-check` found no gate, so they ran only when somebody
+# remembered — the "gate with no caller" defect the org has paid for twice. The
+# CALLER is hooks/pre-push, decided by the change class in
+# scripts/design-gate-inputs.sh and asserted by scripts/check-design-gate.mjs; this
+# task is the same control through the umbrella's own verb surface, so a contributor
+# can run it on demand and a session can paste its output as gate evidence.
+#
+# The step delegates and adds no logic (R2): scripts/design-check.sh owns the set and
+# its order, and DESIGN.md A.2 is where that set is documented. The ceiling is
+# declared because the gate is measured at ~12 minutes (109 committed negative cases,
+# each spawning a `cue export`), above the runner's 90s per-attempt floor.
+# -----------------------------------------------------------------------------
+design-check:
+  task:
+    description: Run the DESIGN gate — the six controls of DESIGN.md A.1/A.2 (the CUE toolchain, DESIGN.md↔DESIGN.cue, the examples and their negatives, the capability ledger, the schema patterns of every pinned plugin module, and every pin's relation to a release tag) — the same command hooks/pre-push runs by change class
+    dir: .
+    plan:
+      - check: the six design controls pass on THIS tree
+        command: bash scripts/design-check.sh
+        timeout: 30m
+        context: [runtime]
+
+# -----------------------------------------------------------------------------
 # skills — splice the generated R0 dispatcher from the pinned marketplace.
 # -----------------------------------------------------------------------------
 skills:

@@ -84,6 +84,10 @@ for arg in "$@"; do
 	esac
 done
 BASELINE="$ROOT/design/pintag-baseline.tsv"
+# The pinned module's object store, resolved the way GIT resolves it — see
+# scripts/design-module-store.sh for the linked-worktree measurement that made a hard-coded
+# `<git-common-dir>/modules/<path>` unable to read a pin advanced inside a session worktree.
+. "$SELF/design-module-store.sh"
 WF=.github/workflows/tag-on-merge.yml
 CHANGELOG='docs: add CHANGELOG '
 STATES="tagged changelog-tip changelog-chain pre-release-process not-applicable untagged"
@@ -294,7 +298,7 @@ census() {
 # (an absent commit), which is a failure of the run rather than a finding about a pin.
 run_check() {
 	local root="$1" baseline="$2" report="$3" fail="$4" known="$5" note="$6"
-	local common path sha row state url
+	local path sha row state url
 	: >"$report"
 	: >"$work/remote-fail"
 	MODULES=0
@@ -302,11 +306,11 @@ run_check() {
 	SKIPPED=0
 	REMOTE_CHECKS=0
 	REMOTE_FAILED=0
-	common=$(git -C "$root" rev-parse --path-format=absolute --git-common-dir) || return 1
 	while IFS=$'\t' read -r path sha; do
 		[[ -n "$path" ]] || continue
 		MODULES=$((MODULES + 1))
-		GITDIR="$common/modules/$path"
+		GITDIR=$(design_module_store "$root" "$path") || GITDIR=""
+		[[ -n "$GITDIR" ]] || GITDIR="$root/.git/modules/$path"
 		if [[ ! -d "$GITDIR" ]]; then
 			SKIPPED=$((SKIPPED + 1))
 			printf '%s\t%s\tskip-no-store\tthe module store at %s is absent; run git submodule update --init %s\n' \
@@ -374,7 +378,7 @@ summary() { # <report> <known> <note>
 	printf 'design-pintag: %s pin(s): %s\n' "$total" "$counts"
 	printf 'design-pintag: %s recorded in %s (tracked by %s)\n' \
 		"$known" "${BASELINE#"$ROOT"/}" "$(grep -m1 -E '^# tracked-by: ' "$BASELINE" | sed 's/^# tracked-by: *//')"
-	printf 'design-pintag: tags read from the module stores under %s; a tag that was never fetched into a store is invisible to this reading (run --remote to cross-check the untagged pins)\n' \
+	printf 'design-pintag: tags read from each pin'"'"'s own module store as GIT resolves it (%s, a linked worktree keeps its own under worktrees/); a tag that was never fetched into a store is invisible to this reading (run --remote to cross-check the untagged pins)\n' \
 		"$(git -C "$ROOT" rev-parse --path-format=absolute --git-common-dir)/modules"
 	if ((REMOTE)); then
 		printf 'design-pintag: remote cross-check: %s untagged pin(s) queried, %s unreachable\n' \

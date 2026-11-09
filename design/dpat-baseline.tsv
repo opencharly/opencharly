@@ -675,8 +675,7 @@ plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	dup	#LLMResponseFormat
 plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	dup	#LLMReasoning	1
 plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	dup	#LLMStreamOptions	1
 plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	dup	#LLMNamedToolChoice	1
-plugin-tunnel/candy/plugin-tunnel/schema/tunnel.cue	dup	#TunnelConfig	1
-plugin-tunnel/candy/plugin-tunnel/schema/tunnel.cue	dup	#TunnelPort	1
+plugin-tunnel/candy/plugin-tunnel/schema/tunnel.cue	dup	#TunnelInput	1
 plugin-vision/candy/plugin-vision/schema/vision.cue	dup	#LLMSpec	1
 plugin-vision/candy/plugin-vision/schema/vision.cue	dup	#LLMParams	1
 plugin-vision/candy/plugin-vision/schema/vision.cue	dup	#LLMResponseFormat	1
@@ -691,5 +690,5 @@ spec/schema/llm.cue	dup	#LLMResponseFormat	1
 spec/schema/llm.cue	dup	#LLMReasoning	1
 spec/schema/llm.cue	dup	#LLMStreamOptions	1
 spec/schema/llm.cue	dup	#LLMNamedToolChoice	1
-spec/schema/tunnel.cue	dup	#TunnelConfig	1
-spec/schema/tunnel.cue	dup	#TunnelPort	1
+spec/schemaparams/testdata/import/schema/tunnel.cue	dup	#TunnelInput	1
+spec/schemaparams/testdata/twin/schema/tunnel.cue	dup	#TunnelInput	1
