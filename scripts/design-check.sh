@@ -7,6 +7,8 @@
 #   3 design-examples.sh      every example validates; every negative fails for its reason
 #   4 design-ledger.sh        every parity capability has a ledger row that lands whole (A.8)
 #   5 design-dpat.sh          every pinned plugin CUE module keeps the §10.1 patterns (A.11)
+#   6 design-pintag.sh        every pin is at a tag or one CHANGELOG commit above one, or its
+#                             untagged-ness is recorded and explained (A.12)
 #
 # Usage: bash scripts/design-check.sh   (run in the repository root; no check writes to it)
 set -euo pipefail
@@ -14,20 +16,23 @@ set -euo pipefail
 root="$PWD" # the repository root it runs in
 step() { printf '\n== %s\n' "$*"; }
 
-step "1/5 toolchain"
+step "1/6 toolchain"
 cue="$(bash "$root/scripts/design-cue.sh")"
 "$cue" version | sed -n 1p
 
-step "2/5 DESIGN.md ↔ DESIGN.cue"
+step "2/6 DESIGN.md ↔ DESIGN.cue"
 bash "$root/scripts/design-consistency.sh" "$root"
 
-step "3/5 examples and negative cases"
+step "3/6 examples and negative cases"
 bash "$root/scripts/design-examples.sh" "$root"
 
-step "4/5 the capability ledger"
+step "4/6 the capability ledger"
 bash "$root/scripts/design-ledger.sh"
 
-step "5/5 the schema patterns of every pinned plugin module"
+step "5/6 the schema patterns of every pinned plugin module"
 bash "$root/scripts/design-dpat.sh" "$root"
+
+step "6/6 every pin's relation to a release tag"
+bash "$root/scripts/design-pintag.sh" "$root"
 
 printf '\ndesign-check: all controls pass\n'

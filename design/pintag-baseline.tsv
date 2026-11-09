@@ -1,0 +1,26 @@
+# design/pintag-baseline.tsv — the pins whose untagged-ness this control records, and why.
+#
+# `scripts/design-pintag.sh` answers, for every pinned module of this tree's index, whether
+# the pin is at a tagged release or whether its untagged-ness is explained: one CHANGELOG
+# commit above a tag (or a chain of them, all CHANGELOG commits), the commit that installs
+# tag-on-merge, or a repository that does not run tag-on-merge at all. Everything else is the
+# signal — a merge above a tag that wrote no CHANGELOG commit — and it FAILS unless a row here
+# records it.
+#
+# A row is module, commit, state, reason. The commit is part of the key: when a pin advances
+# the row no longer matches the tree, and the control fails until the new pin is examined and
+# the row is re-argued or lowered. A row whose pin becomes healthy is stale in the other
+# direction and fails the same way. Delete the last row and the control is a plain check with
+# nothing to excuse.
+#
+# These two rows are the live instances the control found on this tree: the failure mode that
+# had no detector before it. Each was confirmed against the remote with
+# `git ls-remote --tags <repo> | grep -F <sha>` returning nothing AND
+# `git ls-remote <repo> refs/heads/main` returning the same sha — so the branch tip itself is
+# untagged, not a pin that trails a tagged tip. They retire when tag-on-merge writes the
+# missing CHANGELOG commit for those merges; the row is lowered in that change.
+#
+# tracked-by: opencharly/opencharly#793 — the gap the live instances were filed under (the mechanism is opencharly/.github#286)
+module	commit	state	reason
+pi-asciinema	2938ef8d00de3752553ba6128756f79d7ffb41df	untagged	a human commit on the branch tip, untagged, with no CHANGELOG commit above the last tag while tag-on-merge is present at the pin and at its parent — tag-on-merge produced nothing for it (opencharly/.github#286)
+layer-android-apidemos	78612d2159914fbc37b83ee53f947de8989b1293	untagged	an auto-merge squash on the branch tip, untagged, with no CHANGELOG commit above the last tag while tag-on-merge is present at the pin and at its parent — its workflow_run trigger produced nothing for it (opencharly/.github#286)
