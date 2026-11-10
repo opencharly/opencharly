@@ -187,8 +187,6 @@ plugin-vision/candy/plugin-vision/schema/vision.cue	union	mime?: *"image/png" | 
 plugin-vnc/candy/plugin-vnc/schema/vnc.cue	union	method: "status" | "screenshot" | "click" | "mouse" | "type" | "key" | "rfb" | "session"	1
 plugin-vnc/candy/plugin-vnc/schema/vnc.cue	union	action?: "start" | "stop" | "status" @go(Action)	1
 plugin-wl/candy/plugin-wl/schema/wl.cue	union	method: "status" | "toplevel" | "windows" | "geometry" | "xprop" | "atspi" | "screenshot" | "ocr" | "clipboard" | "click" | "double-click" | "mouse" | "scroll" | "drag" | "type" | "key" | "key-combo" | "focus" | "close" | "fullscreen" | "minimize" | "exec" | "resolution" | "overlay-list" | "overlay-status" | "overlay-show" | "overlay-hide" | "hypr-monitors" | "hypr-clients" | "hypr-layers" | "hypr-workspaces" | "hypr-systeminfo" | "hypr-dispatch" | "hypr-eval" | "sway-tree" | "sway-workspaces" | "sway-outputs" | "sway-msg" | "sway-focus" | "sway-move" | "sway-resize" | "sway-layout" | "sway-workspace" | "sway-kill" | "sway-floating" | "sway-reload"	1
-spec/schema/00_common.cue	union	#Context: ("build" | "deploy" | "runtime") @go(-)	1
-spec/schema/00_common.cue	union	#OpVerb: ("mkdir" | "copy" | "write" | "link" | "download" | "setcap" | "build" | "config" |	1
 spec/schema/00_common.cue	absence	{#Op, run: string & !="", check?: _|_, "agent-run"?: _|_, "agent-check"?: _|_, include?: _|_, venue?: _|_, intent_do?: _|_} |	1
 spec/schema/00_common.cue	union	{#Op, run: string & !="", check?: _|_, "agent-run"?: _|_, "agent-check"?: _|_, include?: _|_, venue?: _|_, intent_do?: _|_} |	1
 spec/schema/00_common.cue	absence	{#Op, check: string & !="", run?: _|_, "agent-run"?: _|_, "agent-check"?: _|_, include?: _|_, venue?: _|_, intent_do?: _|_} |	1
@@ -203,57 +201,26 @@ spec/schema/00_common.cue	union	extract?: "tar.gz" | "tar.xz" | "tar.zst" | "zip
 spec/schema/00_common.cue	union	#MatchOpMap: {equals: _} | {not_equals: _} | {contains: _} | {not_contains: _} | {matches: _} | {not_matches: _} | {lt: _} | {le: _} | {gt: _} | {ge: _}	1
 spec/schema/00_common.cue	union	#Matcher: (string | bool | number | #MatchOpMap) @go(-)	1
 spec/schema/00_common.cue	union	#MatcherList: (#Matcher | [...#Matcher]) @go(-)	1
-spec/schema/00_common.cue	union	sharing?: *"locked" | "shared" | "private"	1
 spec/schema/00_common.cue	union	#StrVal: string | number | bool	1
 spec/schema/00_common.cue	union	cgroupns?: "host" | "private" | "" @go(CgroupNS)	1
 spec/schema/00_common.cue	union	ipc_mode?: "host" | "private" | "shareable" | "" @go(IpcMode)	1
 spec/schema/00_common.cue	union	#PackageItem: ((string & !="") | {	1
 spec/schema/00_common.cue	open	#RepoBlock: {	1
-spec/schema/agent.cue	union	mode?: "copy" | "bind"	1
-spec/schema/agent_control.cue	union	transport: "inproc" | "exec" | "ssh" | "grpc" | "tmux"	1
-spec/schema/agent_control.cue	union	interaction_modes?: [...("structured" | "terminal")] @go(InteractionModes)	1
-spec/schema/agent_control.cue	union	persistence?: "none" | "session" | "required"	1
-spec/schema/agent_control.cue	union	state: "new" | "active" | "detached" | "closed" | "failed"	1
 spec/schema/agent_control.cue	open	params?: {...} @go(Params,type=map[string]any)	1
-spec/schema/agent_control.cue	union	type: "started" | "message" | "tool" | "delegation" | "settled" | "status" | "completed" | "aborted" | "failed"	1
 spec/schema/agent_control.cue	open	payload?: {...} @go(Payload,type=map[string]any)	1
-spec/schema/agent_control.cue	union	evidence_policy?: "target" | "coordinator" | "both" @go(EvidencePolicy)	1
-spec/schema/agent_control.cue	union	state: "delegated" | "active" | "settled" | "failed"	1
-spec/schema/agent_control.cue	union	state: "needs_rca" | "rca_active" | "awaiting_recovery" | "resolved"	1
-spec/schema/agent_control.cue	union	state: "active" | "complete"	1
-spec/schema/agent_control.cue	union	action: "reattach" | "resume" | "restart" | "rebuild-target" | "change-runtime" | "reassign" | "abort" | "operator"	1
-spec/schema/agent_control.cue	union	state: "planned" | "applied" | "failed"	1
 spec/schema/agent_control.cue	open	readiness?: {...} @go(Readiness,type=map[string]any)	1
-spec/schema/agent_control.cue	union	persistence?: "none" | "detach" | "required"	1
-spec/schema/agent_control.cue	union	transcript?: "none" | "raw" | "screen" | "both"	1
-spec/schema/agent_control.cue	union	kind: "text" | "paste" | "command" | "key" | "resize" | "signal" | "close"	1
-spec/schema/agent_control.cue	union	kind: "raw" | "screen" | "status" | "exit" | "error" | "resync"	1
-spec/schema/agent_control.cue	union	stream?: "stdout" | "stderr" | "terminal"	1
-spec/schema/box.cue	union	#BuildFormat: "rpm" | "deb" | "pac" | "aur" | "apk" @go(-)	1
-spec/schema/box.cue	union	#BuildType: "pixi" | "npm" | "cargo" | "aur" @go(-)	1
 spec/schema/box.cue	union	build?: (#BuildFormat | [...#BuildFormat]) @go(Build,type=[]string)	1
-spec/schema/box.cue	union	user_policy?: *"auto" | "adopt" | "create" @go(UserPolicy)	1
 spec/schema/box.cue	absence	env?: {PATH?: _|_, [string]: #StrVal} @go(Env,type=map[string]string)	1
-spec/schema/box.cue	union	init?: "supervisord" | "systemd" | "systemd-container" | "openrc"	1
-spec/schema/box.cue	union	cache?: "image" | "registry" | "gha" | "none"	1
-spec/schema/box.cue	union	check_level?: *"noagent" | "none" | "build" | "agent" @go(CheckLevel)	1
 spec/schema/boxmetadata.cue	open	tunnel?: {...} @go(Tunnel,type=*TunnelYAML)	1
 spec/schema/buildctx.cue	open	repos?: [...{...}] @go(Repos)	1
 spec/schema/buildwire.cue	open	context?: {...} @go(Context,type=map[string]any)	2
-spec/schema/candy.cue	union	status?: *"testing" | "working" | "broken"	1
 spec/schema/candy.cue	absence	env?: {PATH?: _|_, [string]: #StrVal} @go(Env,type=map[string]string)	1
 spec/schema/candy.cue	union	port?: [...(int & >0 & <=65535 | string & =~"^[a-z+-]+:[0-9]+$")] @go(Port,type=[]PortSpec)	1
-spec/schema/candy.cue	union	scope: "system" | "user"	1
-spec/schema/candy.cue	union	restart?: "no" | "on-failure" | "always" | "unless-stopped"	2
 spec/schema/candy.cue	union	stop_timeout?: (string & !="") | int @go(StopTimeout,type=string)	1
-spec/schema/candy.cue	union	scope?: "system" | "user"	1
-spec/schema/candy.cue	union	kind?: "program" | "eventlistener"	1
-spec/schema/candy.cue	union	type?: "simple" | "exec" | "forking" | "oneshot" | "notify" | "idle" @go(Type)	1
 spec/schema/candy.cue	union	restart_sec?: (string & !="") | int @go(RestartSec,type=string)	1
 spec/schema/candy.cue	union	watchdog_sec?: (string & !="") | int @go(WatchdogSec,type=string)	1
 spec/schema/candy.cue	union	unit_options?: {[string]: {[string]: string | [...string]}} @go(UnitOptions)	1
 spec/schema/candy.cue	union	timeout?: (string & !="") | int @go(Timeout,type=string)	1
-spec/schema/candy.cue	union	source?: *"apk-pure" | "google-play" | "f-droid" | "huawei-app-gallery"	1
 spec/schema/candy.cue	absence	} & ({package!: _, apk?: _|_} | {apk!: _, package?: _|_}) @go(-)	1
 spec/schema/candy.cue	union	} & ({package!: _, apk?: _|_} | {apk!: _, package?: _|_}) @go(-)	1
 spec/schema/candy.cue	close	#Plugin: close({	1
@@ -261,50 +228,20 @@ spec/schema/candy.cue	union	#PluginSource: #GithubRef | #OciRef	1
 spec/schema/candy.cue	close	#PluginRequirement: close({	1
 spec/schema/candymodel.cue	open	raw?: {...} @go(Raw,type=map[string]any)	2
 spec/schema/candymodel.cue	union	port?: [...(int & >0 & <=65535 | string & =~"^[a-z+-]+:[0-9]+$")] @go(Port,type=[]PortSpec)	1
-spec/schema/cli_model.cue	union	type: "string" | "boolean" | "integer" | "number" | "array" | "object"	1
-spec/schema/cli_model.cue	union	elem_type?: "string" | "boolean" | "integer" | "number" | "array" | "object" @go(ElemType)	1
-spec/schema/deploy.cue	union	venue?: ("container" | "ssh" | "shell" | "parent" | "kubevirt" | "none") @go(Venue, type=string)	1
-spec/schema/deploy.cue	union	selectors?: [...("engine" | "backend" | "rootful")] @go(Selectors)	1
-spec/schema/deploy.cue	union	transport: "none" | "container-exec" | "ssh" | "reject"	1
-spec/schema/deploy.cue	union	target?: ("pod" | "vm" | "kubernetes" | "local" | "android" | "kindcluster" | "kubevirt" | "firecracker") @go(Target,type=string)	1
-spec/schema/deploy.cue	union	kind?: "service" | "daemon" | "batch" | "scheduled" | "oneshot"	1
-spec/schema/deploy.cue	union	restart?: "always" | "on-failure" | "never"	1
 spec/schema/deploy.cue	absence	env?: {PATH?: _|_, [string]: #StrVal} @go(Env,type=map[string]string)	1
-spec/schema/deploy.cue	union	update_gate?: *"full" | "restart-only" | "skip" @go(UpdateGate)	1
-spec/schema/deploy.cue	union	lifecycle?: "scratch" | "dev" | "test" | "qa" | "staging" | "prod" | "custom"	1
-spec/schema/deploy.cue	union	position: ("deploy-level" | "in-substrate") @go(Position,type=string)	1
 spec/schema/deploy.cue	union	#Tunnel: (("tailscale" | "cloudflare") | {	1
-spec/schema/deploy.cue	union	provider: "tailscale" | "cloudflare"	1
 spec/schema/deploy.cue	union	#PortScope: ("all" | [...int] | {[=~"^[0-9]+$"]: string}) @go(-)	1
-spec/schema/deploy.cue	union	charly_install_strategy?: "auto" | "scp" | "url" | "skip"	1
 spec/schema/deploy.cue	open	#VmDeployState: {	1
 spec/schema/deploy.cue	open	ephemeral?: {	2
 spec/schema/deploy.cue	open	#KubeVirtDeployState: {	1
 spec/schema/deploy.cue	open	#KubeVirtDeploySnapshot: {	1
 spec/schema/deploy.cue	open	#FirecrackerDeployState: {	1
 spec/schema/deploy.cue	open	#FirecrackerDeploySnapshot: {	1
-spec/schema/deploy.cue	union	type?: "volume" | "bind" | "encrypted"	1
-spec/schema/deploy.cue	union	class_hint?: "fast" | "cheap" | "encrypted" | "default" @go(ClassHint)	1
-spec/schema/deploy.cue	union	access?: "single-writer" | "many-readers" | "many-writers"	1
-spec/schema/deploy.cue	union	workload?: "Deployment" | "StatefulSet" | "DaemonSet" | "Pod" | "Job" | "CronJob"	1
 spec/schema/deploy.cue	union	#Ephemeral: (true | {	1
 spec/schema/deploy.cue	union	#Preemptible: ([...(string & !="")] | {	1
-spec/schema/deploy.cue	union	restore?: "always" | "on-success"	1
 spec/schema/deploy.cue	open	repos?: [...{...}] @go(Repos)	1
 spec/schema/deploy.cue	open	raw_install_context?: {...} @go(RawInstallContext,type=map[string]any)	1
 spec/schema/deploy.cue	open	raw_stage_context?: {...} @go(RawStageContext,type=map[string]any)	1
-spec/schema/desktop.cue	union	syntax?: *"lua" | "ini" | "sway" | "xml" | "yaml"	1
-spec/schema/desktop.cue	union	manager: *"sddm" | "greetd" | "gdm" | "ly"	1
-spec/schema/desktop.cue	union	numlock?: *"none" | "on" | "off"	1
-spec/schema/desktop.cue	union	placement?: *"default" | "float" | "tile" | "fullscreen" | "maximize"	1
-spec/schema/desktop.cue	union	#DesktopCategory: "AudioVideo" | "Audio" | "Video" | "Development" | "Education" |	1
-spec/schema/desktop.cue	union	"Game" | "Graphics" | "Network" | "Office" | "Science" | "Settings" |	1
-spec/schema/desktop.cue	union	"System" | "Utility"	1
-spec/schema/distro.cue	union	section_field?: {[string]: "list" | "list_of_maps"} @go(SectionFields)	1
-spec/schema/distro_vocab.cue	union	format: "rpm" | "deb" | "pac" | "apk"	1
-spec/schema/distro_vocab.cue	union	ssh_unit: "ssh" | "sshd"	1
-spec/schema/distro_vocab.cue	union	init: "systemd" | "openrc"	1
-spec/schema/distro_vocab.cue	union	ovmf_family?: "fedora" | "arch" | "debian"	1
 spec/schema/docs.cue	close	#DocsConfig: close({	1
 spec/schema/docs.cue	close	#DocsSources: close({	1
 spec/schema/docs.cue	close	#DocsCompiled: close({	1
@@ -313,74 +250,38 @@ spec/schema/docs.cue	close	#DocsProjections: close({	1
 spec/schema/docs.cue	close	#DocsOutput: close({	1
 spec/schema/docs.cue	close	#DocsLanding: close({	1
 spec/schema/docs.cue	close	#DocsGates: close({	1
-spec/schema/engine.cue	union	#EngineName: ("podman" | "docker" | "containerd")	1
-spec/schema/engine.cue	union	#EngineRunMode: ("quadlet" | "systemd-unit" | "direct")	1
-spec/schema/engine.cue	union	#RootfulMode: ("auto" | "machine" | "sudo" | "native")	1
-spec/schema/engine.cue	union	gpu_arg_style!: ("cdi" | "gpus") @go(GPUArgStyle)	1
-spec/schema/engine.cue	union	substrates!: [...("pod" | "vm")] @go(Substrates)	1
-spec/schema/firecracker.cue	union	policy?: *"append-accept" | "netns" | "deny" @go(Policy)	1
-spec/schema/firecracker.cue	union	huge_pages?: *"None" | "Transparent" | "2M" @go(HugePages)	1
-spec/schema/firecracker.cue	union	cpu_template?: *"None" | "C3" | "T2" | "T2S" | "T2CL" | "T2A" | "V1N1" @go(CPUTemplate)	1
-spec/schema/firecracker.cue	union	log_level?: *"Info" | "Error" | "Warning" | "Debug" | "Trace" | "Off" @go(LogLevel)	1
-spec/schema/firecracker.cue	union	manage?: *"merge" | "full" | "adopt" @go(Manage)	1
-spec/schema/firecracker.cue	union	log_level?: *"info" | "debug" | "warn" | "error" @go(LogLevel)	1
-spec/schema/firecracker.cue	union	image_pull_policy?: *"IfNotPresent" | "Always" | "Never" @go(ImagePullPolicy)	1
 spec/schema/hook.cue	close	#Hook: close({	1
-spec/schema/init.cue	union	model: "fragment_assembly" | "file_copy"	1
 spec/schema/init.cue	union	unit_options?: {[string]: {[string]: string | [...string]}} @go(UnitOptions)	1
-spec/schema/instrument.cue	union	#Phase: ("build" | "live" | "update" | "teardown") @go(-)	1
 spec/schema/instrument.cue	open	plugin_input?: {...} @go(PluginInput,type=map[string]any)	2
 spec/schema/instrument.cue	union	phase?: *["live"] | [...#Phase] @go(Phase,type=[]string)	1
-spec/schema/instrument.cue	union	origin!: "session" | "step" | "sub-run"	1
 spec/schema/instrument.cue	open	#EvidenceSegment: {	1
 spec/schema/instrument.cue	open	validators?: {...}	1
-spec/schema/kindcluster.cue	union	admission_policy?: "restricted" | "baseline" | "privileged" @go(AdmissionPolicy)	1
-spec/schema/kubernetes.cue	union	admission_policy?: "restricted" | "baseline" | "privileged" @go(AdmissionPolicy)	1
-spec/schema/kubernetes.cue	union	access_mode_default?: ("ReadWriteOnce" | "ReadWriteMany" | "ReadOnlyMany" | "ReadWriteOncePod") @go(AccessModeDefault)	1
-spec/schema/kubernetes.cue	union	path_type_default?: ("Prefix" | "Exact" | "ImplementationSpecific") @go(PathTypeDefault)	1
-spec/schema/kubernetes.cue	union	pull_policy?: ("IfNotPresent" | "Always" | "Never") @go(PullPolicy)	1
 spec/schema/kubernetes.cue	open	tolerations?: [...{...}]	1
 spec/schema/kubevirt.cue	union	machine?: "q35" | "pc-i440fx" | "" @go(Machine)	1
-spec/schema/kubevirt.cue	union	run_strategy?: *"Always" | "Halted" | "Manual" | "RerunOnFailure" | "Once" @go(RunStrategy)	1
-spec/schema/kubevirt.cue	union	eviction_strategy?: "None" | "LiveMigrate" | "LiveMigrateIfPossible" | "External" @go(EvictionStrategy)	1
 spec/schema/kubevirt.cue	open	affinity?: {...}	1
-spec/schema/kubevirt.cue	union	pull_policy?: "Always" | "IfNotPresent" | "Never" @go(PullPolicy)	1
 spec/schema/kubevirt.cue	absence	data_volume?: _|_	3
 spec/schema/kubevirt.cue	absence	pvc?: _|_	3
 spec/schema/kubevirt.cue	absence	clone?: _|_	3
 spec/schema/kubevirt.cue	absence	size?: _|_	2
 spec/schema/kubevirt.cue	union	} | {	3
-spec/schema/kubevirt.cue	union	content_type?: "kubevirt" | "archive" @go(ContentType)	1
 spec/schema/kubevirt.cue	absence	image?: _|_	3
 spec/schema/kubevirt.cue	absence	pull_policy?: _|_	3
 spec/schema/kubevirt.cue	absence	pull_secret?: _|_	3
-spec/schema/kubevirt.cue	union	type: "tablet" | "mouse" | "keyboard"	1
-spec/schema/kubevirt.cue	union	bus?: "virtio" | "usb" | "ps2"	1
-spec/schema/kubevirt.cue	union	model: "i6300esb" | "diag288"	1
-spec/schema/kubevirt.cue	union	action?: "poweroff" | "reset" | "shutdown"	1
-spec/schema/kubevirt.cue	union	interface?: *"masquerade" | "bridge" | "pod" @go(Interface)	1
-spec/schema/kubevirt.cue	union	model?: *"virtio" | "e1000" | "rtl8139" @go(Model)	1
 spec/schema/llm.cue	close	#LLMSpec: close({	1
 spec/schema/llm.cue	close	#LLMParams: close({	1
 spec/schema/llm.cue	union	stop?: string | [...string]	1
-spec/schema/llm.cue	union	reasoning_effort?: "high" | "medium" | "low" | "none" @go(Reasoning_effort,type=string)	1
 spec/schema/llm.cue	union	tool_choice?: "none" | "auto" | "required" | #LLMNamedToolChoice	1
 spec/schema/llm.cue	close	#LLMResponseFormat: close({	1
-spec/schema/llm.cue	union	type: "text" | "json_object" | "json_schema" @go(Type,type=string)	1
 spec/schema/llm.cue	close	json_schema?: close({	1
 spec/schema/llm.cue	close	#LLMReasoning: close({	1
-spec/schema/llm.cue	union	effort?: "high" | "medium" | "low" | "none" @go(Effort,type=string)	1
 spec/schema/llm.cue	close	#LLMStreamOptions: close({	1
 spec/schema/llm.cue	close	#LLMNamedToolChoice: close({	1
 spec/schema/llm.cue	close	function: close({name: string})	1
 spec/schema/local.cue	absence	env?: {PATH?: _|_, [string]: #StrVal} @go(Env,type=map[string]string)	1
 spec/schema/marketplace.cue	close	#Marketplace: close({	1
 spec/schema/marketplace.cue	close	#MarketplaceFamily: close({	1
-spec/schema/marketplace.cue	union	category?: *"images" | "commands" | "kind" | "development"	1
-spec/schema/marketplace.cue	union	profiles?: [...("developer" | "user" | "container")]	1
 spec/schema/marketplace.cue	close	#MarketplaceMCPServer: close({	1
 spec/schema/marketplace.cue	close	#MarketplaceSettings: close({	1
-spec/schema/node.cue	union	#ResourceKind: ("pod" | "vm" | "kubernetes" | "local" | "android" | "kindcluster" | "kubevirt" | "firecracker") @go(-)	1
 spec/schema/node.cue	union	#Image: #Box & ({base: string & !=""} | {from: string & !=""})	1
 spec/schema/node.cue	union	#CandyValue: (*#Candy | #Image) @go(-)	1
 spec/schema/node.cue	union	#LocalValue: (#Local | #DeployValue) @go(-)	1
@@ -395,41 +296,27 @@ spec/schema/node.cue	absence	#DeployValue: #Deploy & {nested?: _|_, peer?: _|_, 
 spec/schema/node.cue	open	#Node: {...}	1
 spec/schema/node.cue	close	#NodeDoc: close({	1
 spec/schema/oci.cue	close	#PluginArtifactMetadata: close({	1
-spec/schema/oci.cue	union	libc!: "glibc" | "musl"	1
 spec/schema/pipeline.cue	absence	env?: {PATH?: _|_, [string]: #StrVal} @go(Env,type=map[string]string)	2
-spec/schema/pipeline.cue	union	on_error?: "fail" | "continue" | "skip_rest" @go(OnError)	1
 spec/schema/pipeline.cue	union	charly?: [string, ...string] | (string & !="") @go(Charly,type=[]string)	2
 spec/schema/pipeline.cue	union	approval?: bool | string | #PipelineApproval @go(Approval,type=any)	1
 spec/schema/pipeline.cue	open	entities?: {[string]: {...}} @go(Entities,type=map[string]map[string]any)	1
 spec/schema/resolvedproject.cue	absence	env?: {PATH?: _|_, [string]: #StrVal} @go(Env,type=map[string]string)	1
-spec/schema/seam.cue	union	mode!: "quadlet" | "direct" @go(Mode)	1
-spec/schema/seam.cue	union	op!: "add" | "update" | "del" | "start" | "stop" | "status" | "logs" | "shell" | "attach" | "rebuild"	1
 spec/schema/skill.cue	close	#Skill: close({	1
-spec/schema/skill.cue	union	category?: *"development" | "commands" | "kind" | "images"	1
 spec/schema/skill.cue	close	#SkillReference: close({	1
-spec/schema/status.cue	union	#SubstrateKind: "pod" | "vm" | "kubernetes" | "local" | "android" | "kindcluster" | "kubevirt" | "firecracker" @go(-)	1
 spec/schema/task.cue	absence	env?: {PATH?: _|_, [string]: #StrVal} @go(Env,type=map[string]string)	1
 spec/schema/validateproject.cue	open	diagnostics?: {...} @go(Diagnostics,type=Diagnostics)	1
-spec/schema/vm.cue	union	#VmBackendName: ("libvirt" | "qemu" | "krun")	1
-spec/schema/vm.cue	union	machine?: "q35" | "virt" | "i440fx" | "pc"	1
-spec/schema/vm.cue	union	firmware: *"bios" | "uefi-insecure" | "uefi-secure"	1
-spec/schema/vm.cue	union	backend: "auto" | "libvirt"	1
-spec/schema/vm.cue	union	source: #VmSource & {kind: "container_disk" | "bootc"}	1
 spec/schema/vm.cue	absence	box?: _|_	6
 spec/schema/vm.cue	absence	transport?: _|_	4
 spec/schema/vm.cue	absence	rootfs?: _|_	3
 spec/schema/vm.cue	absence	root_size?: _|_	3
 spec/schema/vm.cue	absence	kernel_args?: _|_	2
 spec/schema/vm.cue	union	} | {	6
-spec/schema/vm.cue	union	transport?: "registry" | "containers-storage" | "oci" | "oci-archive"	1
-spec/schema/vm.cue	union	rootfs?: "ext4" | "xfs" | "btrfs"	2
 spec/schema/vm.cue	absence	url?: _|_	5
 spec/schema/vm.cue	absence	checksum?: _|_	2
 spec/schema/vm.cue	absence	cache?: _|_	1
 spec/schema/vm.cue	absence	libvirt_name?: _|_	3
 spec/schema/vm.cue	absence	disk_path?: _|_	3
 spec/schema/vm.cue	absence	disk_format?: _|_	3
-spec/schema/vm.cue	union	disk_format: "qcow2" | "raw"	1
 spec/schema/vm.cue	absence	from_vm?: _|_	3
 spec/schema/vm.cue	absence	from_snapshot?: _|_	3
 spec/schema/vm.cue	absence	base_user?: _|_	2
@@ -438,36 +325,12 @@ spec/schema/vm.cue	absence	builder_image?: _|_	2
 spec/schema/vm.cue	absence	installer?: _|_	1
 spec/schema/vm.cue	absence	bootstrap_arch?: _|_	1
 spec/schema/vm.cue	absence	bootstrap_variant?: _|_	1
-spec/schema/vm.cue	union	mode: *"user" | "bridge" | "nat" | "network"	1
 spec/schema/vm.cue	union	key_source?: *"auto" | "generate" | "none" | (string & =~"^/")	1
 spec/schema/vm.cue	union	} & ({port_auto?: false} | {port?: int & <=0}) @go(-)	1
-spec/schema/vm.cue	union	smbios?: "auto" | "enabled" | "disabled" @go(SMBIOS)	1
-spec/schema/vm.cue	union	cloud_init?: "auto" | "enabled" | "disabled" @go(CloudInit)	1
-spec/schema/vm.cue	union	strategy?: *"auto" | "scp" | "skip"	1
 spec/schema/vm.cue	union	qemu_override?: {[string]: {[string]: string | bool | int}} @go(QemuOverride)	1
-spec/schema/vm.cue	union	mode: *"host-passthrough" | "host-model" | "custom"	1
-spec/schema/vm.cue	union	policy?: "force" | "require" | "optional" | "disable" | "forbid"	1
-spec/schema/vm.cue	union	offset?: "utc" | "localtime" | "timezone" | "variable" | "absolute"	1
-spec/schema/vm.cue	union	type: "vnc" | "spice" | "rdp" | "sdl" | "egl-headless" | "dbus"	1
 spec/schema/vm.cue	union	#LibvirtListen: (string | #LibvirtListenOne | [...#LibvirtListenOne]) @go(-)	1
-spec/schema/vm.cue	union	device?: "virtio-vga" | "virtio-vga-gl" | "virtio-gpu" | "virtio-gpu-gl" |	1
-spec/schema/vm.cue	union	"vhost-user-vga" | "vhost-user-gpu"	1
-spec/schema/vm.cue	union	name?: "qemu" | "vhostuser"	1
-spec/schema/vm.cue	union	vgaconf?: "io" | "on" | "off" @go(VGAConf)	1
-spec/schema/vm.cue	union	type: "pci" | "usb" | "scsi" | "mdev"	1
-spec/schema/vm.cue	union	managed?: "yes" | "no"	1
 spec/schema/vm.cue	open	source: {	1
-spec/schema/vm.cue	union	driver?: "virtiofs" | "9p" | "path"	1
-spec/schema/vm.cue	union	accessmode?: "passthrough" | "mapped" | "squash" @go(AccessMode)	1
-spec/schema/vm.cue	union	type?: "sev" | "sev-es" | "sev-snp" | "tdx"	1
-spec/schema/vm_box_metadata.cue	union	firmware?: "bios" | "uefi-insecure" | "uefi-secure" @go(Firmware)	1
-spec/schema/vm_box_metadata.cue	union	kind!: "cloud_image" | "bootc" | "clone" | "bootstrap" | "iso" | "container_disk" | "rootfs" | "kernel" @go(Kind)	1
-spec/schema/vm_box_metadata.cue	union	format?: "ext4" | "raw" | "vmlinux" @go(Format)	1
 spec/schema/workflow.cue	union	#WorkflowArgVal: #StrVal | [...#StrVal] @go(-)	1
-spec/schema/workflow.cue	union	status!: "ok" | "skipped" | "failed" | "cancelled" | "needs_approval" | "needs_input"	1
-spec/schema/workflow.cue	union	status!: "ok" | "needs_approval" | "needs_input" | "cancelled" | "error"	1
-spec/schema/workflow.cue	union	op!: "apply" | "list" | "remove" | "run-now"	1
-spec/schema/workflow.cue	union	format!: [...("lobster" | "charly-yml" | "github-actions")] @go(Format)	1
 plugin-egress/candy/plugin-egress/egress-schemas/egress_ledger.cue	dup	#DeployRecord	1
 plugin-egress/candy/plugin-egress/egress-schemas/egress_ledger.cue	dup	#CandyRecord	1
 plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	dup	#LLMSpec	1
