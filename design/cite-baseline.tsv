@@ -86,13 +86,7 @@ kind:distro	plugin-distro/candy/plugin-distro/schema/distro.cue	32-47	#DistroInp
 kind:firecracker	spec/schema/firecracker.cue	35-61	#Firecracker	77d4112bca573e60
 kind:group	charly/charly/no_kind_switch_in_kernel_test.go	42-42	-	19a40f2967852815
 kind:hook	spec/schema/hook.cue	12-20	#Hook	a818367685f46363
-kind:init	spec/schema/init.cue	12-45	#Init	ef7ecfd7301fee75
-kind:kindcluster	spec/schema/kindcluster.cue	20-58	#Kindcluster	5b4bdd110d16d91a
-kind:kubernetes	spec/schema/kubernetes.cue	13-45	#Kubernetes	b4a25457c515ad23
-kind:kubevirt	spec/schema/kubevirt.cue	18-77	#KubeVirt	f7fd896a4fb7cae4
 kind:local	spec/schema/local.cue	9-16	#Local	578bfc988c94086f
-kind:marketplace	spec/schema/marketplace.cue	9-30	#Marketplace	42b985734bb4e4a4
-kind:pipeline	spec/schema/pipeline.cue	36-200	#PipelineArms	2baeda419cc6d4c2
 kind:pod	spec/schema/pod.cue	10-19	#Pod	c69c414d1af3795a
 kind:resource	plugin-resource/candy/plugin-resource/schema/resource.cue	21-27	#ResourceInput	923be81c20e14952
 kind:sidecar	plugin-sidecar/candy/plugin-sidecar/schema/sidecar.cue	48-89	#ScSecurity	ba51088a37c53e10
@@ -100,13 +94,11 @@ kind:skill	plugin-harness-kind/candy/plugin-harness-kind/schema/skill.cue	19-32	
 kind:skill	spec/schema/skill.cue	33-38	-	62a70d2225cf652c
 kind:task	spec/schema/task.cue	41-88	#Task	2376e7ffd7e88f7c
 kind:theme	plugin-desktop-kind/candy/plugin-desktop-kind/schema/desktop.cue	16-69	#DkThemeTokens	dafbc7fdaa15f299
-kind:vm	spec/schema/vm.cue	56-126	#Vm	1c61ea408f9a4e02
 krun annotations ram_mib/cpus	plugin-vm/candy/plugin-vm/vm_krun_plan.go	272-273	buildKrunPlan	0b01984f4ee4e034
 krun annotations ram_mib/cpus	spec/schema/vm.cue	38-57	#VmKrun	204121836b28f036
 krun annotations ram_mib/cpus	spec/schema/vm.cue	49-52	#VmKrun	597fbea774bcb0fe
 krun virtio-gpu; no NVIDIA in krun	spec/schema/vm.cue	45-48	#VmKrun	d9bba839caa92d3a
 krun VM backend (OCI image boot)	plugin-vm/candy/plugin-vm/vm_krun_plan.go	25-30	-	385c608f9b64aa9a
-krun VM backend (OCI image boot)	spec/schema/vm.cue	19-58	#VmKrun	faa4817b6255700c
 loader:loader	plugin-loader/candy/plugin-loader/charly.yml	21-21	-	7e69435f2eaf2009
 local registry mirror for build inputs	plugin-build/README.md	18-24	-	7606f88f2d448d92
 nested containerd and krun in a pod	layer-container-nesting/charly.yml	132-141	-	92d782fb7cdace8e
@@ -123,7 +115,6 @@ rootful vs rootless daemon	spec/schema/engine.cue	94-94	-	82f6f9ca1156d5f4
 runtime handler crun/krun (one switch to a microVM)	spec/container/engine.go	198-198	engineCapabilities	cc274245dbc0ce1c
 secrets get|set|list|delete|import|export|gpg|encrypt|decrypt|edit|env|recipients|setup|show|unset|doctor	plugin-secrets/candy/plugin-secrets/command.go	115-125	Run	cbfe0a60f2472af6
 secrets get|set|list|delete|import|export|gpg|encrypt|decrypt|edit|env|recipients|setup|show|unset|doctor	plugin-secrets/candy/plugin-secrets/secrets_gpg.go	25-36	SecretsGpgCmd	d929a1631d542e04
-skill and agent bodies under .agents/	spec/schema/skill.cue	1-52	#Skill	5fe917dcff8e08fb
 ssh spice|vnc	plugin-ssh/candy/plugin-ssh/tunnel.go	31-41	SshTunnelCmd	a0cd71a5971bcf03
 ssh tunnel	plugin-ssh/candy/plugin-ssh/tunnel.go	31-41	SshTunnelCmd	a0cd71a5971bcf03
 step:apk-install	plugin-installstep/candy/plugin-installstep/charly.yml	45-45	-	e529a8fb71a3c8db
