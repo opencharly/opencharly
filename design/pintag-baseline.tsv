@@ -21,6 +21,21 @@
 # missing CHANGELOG commit for those merges; the row is lowered in that change.
 #
 # tracked-by: opencharly/opencharly#793 — the gap the live instances were filed under (the mechanism is opencharly/.github#286)
+#
+# The three rows below record a DIFFERENT mechanism, added by the change that advanced these
+# pins (the S3 word-list sweep of plugin-punktfunk#20, plugin-agent-pi#11 and plugin-gh#13).
+# Each of those merges is a squash above a tag with no CHANGELOG commit above it, so the pin is
+# untagged — but the reason is not #286's missed release: `tag-on-merge` FAILED AT THE RUN LEVEL
+# on all three repos, with NO JOB EVER STARTED (`jobs: []` on the failed run, whose name is
+# `.github/workflows/tag-on-merge.yml`). That is the org-wide "workflow file issue" of
+# 2026-11-10, opencharly/.github#192 — and it persisted on these repos after the caller was
+# reconciled with the canonical template at 07:1x-07:5xZ, so the reconcile did not fix it.
+# Each row retires when tag-on-merge writes the missing CHANGELOG commit for its merge; the row
+# is lowered in that change, exactly like every other row here.
+# tracked-by: opencharly/.github#192 — the tag-on-merge breakage that wrote no CHANGELOG commit
 module	commit	state	reason
 pi-asciinema	2938ef8d00de3752553ba6128756f79d7ffb41df	untagged	a human commit merged on top of the CHANGELOG tip, untagged, and no CHANGELOG commit follows it while tag-on-merge is present at the pin and at its parent — the merge that produced the pin wrote no CHANGELOG record (opencharly/.github#286)
 layer-android-apidemos	78612d2159914fbc37b83ee53f947de8989b1293	untagged	an auto-merge squash landed on top of the CHANGELOG tip, untagged, and no CHANGELOG commit follows it while tag-on-merge is present at the pin and at its parent — the merge that produced the pin wrote no CHANGELOG record (opencharly/.github#286)
+plugin-agent-pi	36ce6d002e5d2c978259a2da44c5d696121e7e5f	untagged	the branch tip itself is untagged (`git ls-remote --tags` returns nothing for this sha and `refs/heads/main` returns it) and the auto-merge squash that produced it, `36ce6d002` (plugin-agent-pi#11), wrote no CHANGELOG commit above `candy/plugin-agent-pi/v0.2026274.808` because `tag-on-merge` FAILED at the run level on this repo — no job ever started (`jobs: []`) — the org-wide workflow-file breakage of 2026-11-10 tracked by opencharly/.github#192
+plugin-gh	021eb3a1a77448259fe80c99e7a62e41a06c6420	untagged	the branch tip itself is untagged (`git ls-remote --tags` returns nothing for this sha and `refs/heads/main` returns it) and the auto-merge squash that produced it, `021eb3a1a` (plugin-gh#13), wrote no CHANGELOG commit above `v0.2026281.737` because `tag-on-merge` FAILED at the run level on this repo — no job ever started (`jobs: []`) — the org-wide workflow-file breakage of 2026-11-10 tracked by opencharly/.github#192
+plugin-punktfunk	a1c83190e48f2ab8989e502b7ea38d5470f978e4	untagged	the branch tip itself is untagged (`git ls-remote --tags` returns nothing for this sha and `refs/heads/main` returns it) and the auto-merge squash it sits on, `2e6274919` (plugin-punktfunk#20), wrote no CHANGELOG commit above `candy/plugin-punktfunk/v0.2026294.2144` because `tag-on-merge` FAILED at the run level on this repo — no job ever started (`jobs: []`), on the merge AND on this reconcile commit — the org-wide workflow-file breakage of 2026-11-10 tracked by opencharly/.github#192

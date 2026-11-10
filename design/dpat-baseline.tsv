@@ -32,20 +32,7 @@ plugin-agent/candy/plugin-agent/schema/agent.cue	union	transport: "inproc" | "ex
 plugin-agent/candy/plugin-agent/schema/agent.cue	open	readiness?: {...}	1
 plugin-agent/candy/plugin-agent/schema/agent.cue	union	persistence?: "none" | "detach" | "required"	1
 plugin-agent/candy/plugin-agent/schema/agent.cue	union	transcript?: "none" | "raw" | "screen" | "both"	1
-plugin-agent-pi/candy/plugin-agent-pi/schema/pi.cue	union	type: "prompt" | "steer" | "follow_up" | "abort" | "new_session" |	1
-plugin-agent-pi/candy/plugin-agent-pi/schema/pi.cue	union	"get_state" | "set_model" | "cycle_model" | "get_available_models" |	1
-plugin-agent-pi/candy/plugin-agent-pi/schema/pi.cue	union	"set_thinking_level" | "cycle_thinking_level" | "set_steering_mode" |	1
-plugin-agent-pi/candy/plugin-agent-pi/schema/pi.cue	union	"set_follow_up_mode" | "compact" | "set_auto_compaction" |	1
-plugin-agent-pi/candy/plugin-agent-pi/schema/pi.cue	union	"set_auto_retry" | "abort_retry" | "bash" | "abort_bash" |	1
-plugin-agent-pi/candy/plugin-agent-pi/schema/pi.cue	union	"get_session_stats" | "export_html" | "switch_session" | "fork" |	1
-plugin-agent-pi/candy/plugin-agent-pi/schema/pi.cue	union	"clone" | "get_fork_messages" | "get_entries" | "get_tree" |	1
-plugin-agent-pi/candy/plugin-agent-pi/schema/pi.cue	union	"get_last_assistant_text" | "set_session_name" | "get_messages" |	1
-plugin-agent-pi/candy/plugin-agent-pi/schema/pi.cue	union	"get_commands" | "extension_ui_response"	1
-plugin-agent-pi/candy/plugin-agent-pi/schema/pi.cue	union	streamingBehavior?: "steer" | "followUp"	1
-plugin-agent-pi/candy/plugin-agent-pi/schema/pi.cue	union	mode?: "all" | "one-at-a-time"	1
 plugin-agent-pi/candy/plugin-agent-pi/schema/pi.cue	open	#PiRPCEvent: {	1
-plugin-agent-pi/candy/plugin-agent-pi/schema/pi.cue	union	steeringMode: "all" | "one-at-a-time"	1
-plugin-agent-pi/candy/plugin-agent-pi/schema/pi.cue	union	followUpMode: "all" | "one-at-a-time"	1
 plugin-agentteams/candy/plugin-agentteams/schema/agentteams.cue	union	method: ("status" | "manager-running" | "worker-running" | "worker-list") @go(Method,type=string)	1
 plugin-appium/candy/plugin-appium/schema/appium.cue	union	method: ("status" | "session-create" | "session-delete" | "install-app" | "find" | "click" | "send-keys" | "screenshot" | "get-text" | "get-attribute" | "clear" | "find-all" | "source" | "back" | "gesture-tap" | "gesture-double-tap" | "gesture-long-press" | "gesture-drag" | "gesture-swipe" | "gesture-scroll" | "gesture-fling" | "gesture-pinch-open" | "gesture-pinch-close" | "app-start-activity" | "app-activate" | "app-terminate" | "app-remove" | "app-clear" | "app-is-installed" | "app-state" | "app-current-activity" | "app-current-package" | "key-press" | "key-hide" | "key-shown" | "device-info" | "device-battery" | "device-time" | "device-orientation" | "device-set-orientation" | "device-notifications" | "device-get-clipboard" | "device-set-clipboard" | "device-contexts" | "device-context" | "execute" | "raw" | "session") @go(Method,type=string)	1
 plugin-appium/candy/plugin-appium/schema/appium.cue	union	action?: "start" | "stop" | "status" @go(Action)	1
@@ -132,12 +119,6 @@ plugin-file/candy/plugin-file/schema/file.cue	union	filetype?: ("file" | "direct
 plugin-file/candy/plugin-file/schema/file.cue	union	#FileContains: (#FileMatcher | [...#FileMatcher])	1
 plugin-file/candy/plugin-file/schema/file.cue	union	#FileMatcher: (string | bool | number | #FileMatchOp)	1
 plugin-file/candy/plugin-file/schema/file.cue	union	#FileMatchOp: {equals: _} | {not_equals: _} | {contains: _} | {not_contains: _} | {matches: _} | {not_matches: _} | {lt: _} | {le: _} | {gt: _} | {ge: _}	1
-plugin-gh/candy/plugin-gh/schema/gh.cue	union	op: "pr_meta" | "pr_files" | "pr_diff" | "pr_commits" | "pr_thread" | "head_sha" | "document" | "issues" @go(Op)	1
-plugin-gh/candy/plugin-gh/schema/gh.cue	union	target?: "issue" | "pr" @go(Target)	1
-plugin-gh/candy/plugin-gh/schema/gh.cue	union	format?: "json" | "yaml" @go(Format)	1
-plugin-gh/candy/plugin-gh/schema/gh.cue	union	state?: "open" | "closed" | "all" @go(State,type=string)	1
-plugin-gh/candy/plugin-gh/schema/gh.cue	union	kind?: "issue" | "pr" | "all" @go(Kind,type=string)	1
-plugin-gh/candy/plugin-gh/schema/gh.cue	union	kind: "issue" | "pr" @go(Kind)	1
 plugin-harness-kind/candy/plugin-harness-kind/schema/docs.cue	close	#DocsInput: close({	1
 plugin-harness-kind/candy/plugin-harness-kind/schema/docs.cue	close	#DocsSourcesInput: close({	1
 plugin-harness-kind/candy/plugin-harness-kind/schema/docs.cue	close	#DocsCompiledInput: close({	1
@@ -215,17 +196,6 @@ plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	close	#LLMStreamOption
 plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	close	#LLMNamedToolChoice: close({	1
 plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	close	function: close({name: string})	1
 plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	union	format?: "yaml" | "json" @go(Format)	1
-plugin-punktfunk/candy/plugin-punktfunk/schema/punktfunk.cue	union	method: "health" | "status" | "diagnostics" | "diagnostics-refresh" |	1
-plugin-punktfunk/candy/plugin-punktfunk/schema/punktfunk.cue	union	"compositors" | "gpus" | "plugins" | "hooks" |	1
-plugin-punktfunk/candy/plugin-punktfunk/schema/punktfunk.cue	union	"pair-status" | "pair-arm" | "pair-disarm" | "pending" | "approve" | "deny" | "pin" |	1
-plugin-punktfunk/candy/plugin-punktfunk/schema/punktfunk.cue	union	"clients" | "rename" | "access" | "unpair" |	1
-plugin-punktfunk/candy/plugin-punktfunk/schema/punktfunk.cue	union	"library" | "scanners" | "scanner-toggle" |	1
-plugin-punktfunk/candy/plugin-punktfunk/schema/punktfunk.cue	union	"display-state" | "display-monitors" | "display-settings" | "display-release" |	1
-plugin-punktfunk/candy/plugin-punktfunk/schema/punktfunk.cue	union	"actions" | "action-invoke" | "end-game" | "events" |	1
-plugin-punktfunk/candy/plugin-punktfunk/schema/punktfunk.cue	union	"hosts-list" | "hosts-add" | "hosts-forget" |	1
-plugin-punktfunk/candy/plugin-punktfunk/schema/punktfunk.cue	union	"pair" | "launch" | "client-library" | "speed-test" |	1
-plugin-punktfunk/candy/plugin-punktfunk/schema/punktfunk.cue	union	"open" | "wake" | "reachable" | "profiles-list" | "client-reset" |	1
-plugin-punktfunk/candy/plugin-punktfunk/schema/punktfunk.cue	union	access?: "full" | "controller" | "view"	1
 plugin-qdrant/candy/plugin-qdrant/schema/qdrant.cue	union	method: ("health" | "version" | "auth-required" | "collections-list" | "collection-create" | "collection-info" | "collection-delete" | "collection-exists" | "points-upsert" | "points-query" | "points-scroll" | "points-count" | "points-get" | "points-delete" | "snapshot-list" | "snapshot-create" | "snapshot-delete") @go(Method,type=string)	1
 plugin-qdrant/candy/plugin-qdrant/schema/qdrant.cue	union	distance?: ("cosine" | "euclid" | "dot" | "manhattan") @go(Distance,type=string)	1
 plugin-qdrant/candy/plugin-qdrant/schema/qdrant.cue	union	payload?: {[string]: string | number | bool} @go(Payload,type=map[string]any)	1
