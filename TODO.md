@@ -20,7 +20,7 @@ the status record.
 |---|---|---|---|---|
 | 0. Preconditions | 4 | 1 | 2 | 1 |
 | 1. Decisions | 2 | 0 | 1 | 1 |
-| 2. Schema | 16 | 0 | 15 | 1 |
+| 2. Schema | 16 | 1 | 14 | 1 |
 | 3. Parsing and validation | 33 | 0 | 32 | 1 |
 | 4. Generation | 4 | 0 | 4 | 0 |
 | 5. Modules and the plugin protocol | 11 | 0 | 11 | 0 |
@@ -31,7 +31,7 @@ the status record.
 | 10. Documentation | 3 | 0 | 2 | 1 |
 | 11. Final proof | 2 | 0 | 2 | 0 |
 | 12. OCE alignment | 15 | 2 | 10 | 3 |
-| **Total** | **107** | **3** | **93** | **11** |
+| **Total** | **107** | **4** | **92** | **11** |
 
 The Decisions row counts the unnumbered decided block plus item 1.1.
 
@@ -49,7 +49,8 @@ The Decisions row counts the unnumbered decided block plus item 1.1.
 - `12.5` — replaced by D-IR-7 + `build_with:`.
 - `12.10` — `#Security` no longer exists in `DESIGN.cue`; the posture lives in the `nesting:` grant.
 
-**Done.** Each item is proven complete at the same pin:
+**Done.** Each item is proven complete at the pin its own proof names — the audit's pin above unless
+the entry says otherwise:
 
 - `0.2` — the CUE-module spike ran 2026-11-08 on the pinned CUE v0.18.0-rc.1 and answered what the
   design needed: a plugin CUE module imports a `spec` package and its bounds bite (a violated bound
@@ -64,6 +65,17 @@ The Decisions row counts the unnumbered decided block plus item 1.1.
   and DESIGN.md:§13.
 - `12.2` — `#Namespace: #TopName` is defined in `DESIGN.cue`, and the two retired phrases sit in the `Not` cell of the one `namespace` row (§2).
 - `12.4` — `#ManagerPackage` (`config?: #Opaque`) is the value of a manager package in `#PackageMap`, and `#ActionPackage` carries it, so an install carries the owning plugin's own input.
+- `2.4` — the loader's candy field gate IS the closed `#Candy` schema (`opencharly/sdk` `9aed46f4`,
+  tag `v0.2026314.2013`, PR #495). The hand-copied 43-key admitted set (`candyKnownFields`) is deleted
+  and replaced by `cueDefFields(cueKindDefs["candy"])` — the extraction the parse's declared-fields
+  floor already performs — so the gate admits what the schema declares and refuses what it drops, and
+  the four retirements (`version`, `libvirt`, `localpkg`, `from`) carry a named diagnosis beside
+  `depends`/`directory`/`info`. The copy had drifted BOTH ways: it still admitted those four retired
+  fields, and it refused five fields the schema declares (`external_builder`, `skills`, `packaging`,
+  `agent_provide`, `terminal_profile`) under a false plural/singular-typo message. Measured:
+  `ParseCandyManifest` over the 350 real candy manifests in the materialized tree returns
+  byte-identical verdicts before and after (the gate runs only on the legacy kind-keyed form, of which
+  the corpus holds none).
 
 **How to keep this current.** The status is derived by greps at the submodule pins. Whoever lands an item updates its row and the total in the same PR. TODO.md is deleted only when the last item lands (§11.2).
 
