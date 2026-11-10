@@ -3246,8 +3246,8 @@ of:
   moved its own citations off line numbers for exactly this reason.
 - **a line citation**, `<path>:<a>` or `<path>:<a>-<b>` — "these lines are the artifact". Judged on
   three decidable facts: the range is inside the file at the pin (`1 <= a <= b <= <lines>`, and
-  non-empty); the CONSTRUCT the range sat inside when the row was affirmed still encloses it; and
-  the BYTES at those lines are still the bytes the row was affirmed against.
+  non-empty); the construct the range MOSTLY showed when the row was affirmed is still the one it
+  mostly shows; and the BYTES at those lines are still the bytes the row was affirmed against.
 
 **What the control decides, and what it does not.** It does not decide whether a cited range
 contains what the row's PROSE means. The ledger states a line range's subject in prose only — a row

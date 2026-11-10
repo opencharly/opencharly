@@ -33,7 +33,8 @@
 #   A LINE CITATION    `<path>:<a>` or `<path>:<a>-<b>` — "these lines are the artifact". Judged on
 #      three decidable facts, and NOT on a fourth that is not decidable:
 #        (1) the range is inside the file at the pin: `1 <= a <= b <= <lines>`, non-empty;
-#        (2) the CONSTRUCT the range sat inside when the row was affirmed still encloses it, and
+#        (2) the CONSTRUCT the range MOSTLY showed when the row was affirmed is still the one it
+#            mostly shows, and
 #        (3) the BYTES at those lines are still the bytes the row was affirmed against.
 #
 # WHAT IT DOES NOT DECIDE. It does not decide whether those bytes are what the row's PROSE means.
@@ -187,13 +188,13 @@ cite_scan() {
 }
 
 # ── the pinned bytes ─────────────────────────────────────────────────────────────────────────
-# file_at <root> <module> <path> — the cited file's bytes at the pin, into $WORK, printed on stdout;
+# file_at <module> <path> — the cited file's bytes at the pin, into $WORK, printed on stdout;
 # exit 1 when the pin cannot be read, which the caller turns into the finding that names the module
 # and the remedy. Read from the module's OBJECT STORE at the pinned commit: a checkout beside it is
 # never consulted, however stale or convenient. It runs in a COMMAND SUBSTITUTION, so it keeps no
 # state of its own — a cache written here would live in a subshell and be gone by the next call.
 file_at() {
-	local root="$1" module="$2" path="$3" sha store rel out
+	local module="$1" path="$2" sha store rel out
 	sha="${PIN_OF[$module]:-}"
 	store="${STORE_OF[$module]:-}"
 	rel="${path#"$module"/}"
@@ -244,13 +245,12 @@ constructs() {
 				for (i = 1; i <= NR; i++) {
 					if (line[i] !~ /^(#[A-Za-z][A-Za-z0-9_]*|_[A-Za-z][A-Za-z0-9_]*)[ \t]*:/) continue
 					name = line[i]; sub(/[ \t]*:.*$/, "", name)
-					depth = 0; opened = 0; end = i
+					depth = 0; end = i
 					for (k = i; k <= NR; k++) {
 						s = strip(line[k])
 						depth += balance(s)
-						if (s ~ /[\{\(\[]/) opened = 1
 						end = k
-						if (opened && depth <= 0) break
+						if (depth <= 0) break
 					}
 					printf "%d\t%d\t%s\n", i, end, name
 					i = end
@@ -269,14 +269,13 @@ constructs() {
 					else sub(/^(func|type|var|const)[ \t]+/, "", name)
 					sub(/[^A-Za-z0-9_].*$/, "", name)
 					if (name == "") continue
-					depth = 0; opened = 0; end = i
+					depth = 0; end = i
 					for (k = i; k <= NR; k++) {
 						s = line[k]
 						gsub(/"([^"\\]|\\.)*"/, "\"\"", s); sub(/\/\/.*$/, "", s)
 						depth += balance(s)
-						if (s ~ /[\{\(]/) opened = 1
 						end = k
-						if (opened && depth <= 0) break
+						if (depth <= 0) break
 					}
 					printf "%d\t%d\t%s\n", i, end, name
 					i = end
@@ -288,13 +287,21 @@ constructs() {
 	printf '%s' "$out"
 }
 
-# anchor_of <constructs-file> <line> — the INNERMOST construct containing <line>, or `-` when the
-# line sits in none (a comment block above every header, a blank line, a language with no construct
-# model). The name is what a reader needs: `#JetkvmDeviceInput` says which construct the row meant,
-# `line 437` does not.
+# anchor_of <constructs-file> <a> <b> — the construct the range MOSTLY shows: the one overlapping the
+# most lines of it, ties going to the earlier construct. `-` when the range overlaps none (a comment
+# block above every header, a blank line, a language with no construct model). The name is what a
+# reader needs: `#JetkvmDeviceInput` says which construct the row meant, `:437` does not.
+#
+# WHY THE MAJORITY AND NOT THE START LINE. A row cites the construct it is about WITH its doc comment
+# (`26-58` over a function declared at `:29`), so an anchor keyed to the first line reads `-` for a
+# citation that is entirely about one construct — a fact the control then never computes. And a range
+# that has slid off its construct still lands mostly in the OTHER one, so the defect this control
+# exists for stays loud.
 anchor_of() {
-	awk -F'\t' -v ln="$2" '
-		$1 <= ln && ln <= $2 { if (name == "" || ($2 - $1) < best) { best = $2 - $1; name = $3 } }
+	awk -F'\t' -v a="$2" -v b="$3" '
+		$2 < a || $1 > b { next }
+		{ ov = (b < $2 ? b : $2) - ($1 > a ? $1 : a) + 1
+		  if (ov > best) { best = ov; name = $3 } }
 		END { if (name == "") print "-"; else print name }' "$1"
 }
 
@@ -324,8 +331,6 @@ judge() {
 			rowtext["$l"$'\t'"${c0[0]}"]="$f"
 		done <"$root/$l"
 	done
-	FETCH_FINDINGS=""
-
 	if [[ ${#PIN_OF[@]} -eq 0 ]]; then
 		printf 'FAIL %s: the index carries no gitlink, so no citation can be judged — is this a tree root?\n' "$root" >>"$out"
 		return 0
@@ -392,6 +397,21 @@ judge() {
 				"$ledger_name" "$cap" "$module" "${PIN_OF[$module]:0:12}" "$module" >>"$out"
 			continue
 		fi
+		# The citation is RECOGNISED here, before any judgement can fail: the census's reverse check
+		# asks whether the LEDGER still carries a citation, so a citation the pin cannot resolve keeps
+		# its own finding and must never also be reported as a stale baseline row — which would tell
+		# the author to delete a row that is still true of the ledger.
+		local key="" a="" b=""
+		if [[ -n "$subject" && "$subject" != "#"* ]]; then
+			a="${subject%%-*}"
+			b="${subject#*-}"
+			[[ "$b" == "$subject" ]] && b="$a"
+			if [[ "$a" =~ ^[0-9]+$ && "$b" =~ ^[0-9]+$ ]]; then
+				key="$cap"$'\t'"$path"$'\t'"$a-$b"
+				cited[$key]=1
+			fi
+		fi
+
 		kind=$(kind_at "$module" "$path")
 		if [[ -z "$kind" ]]; then
 			printf 'FAIL %s:%s: %s is not in %s at its pin %s, so the row cites an artifact that pin does not carry\n' \
@@ -408,7 +428,7 @@ judge() {
 			continue
 		fi
 		local file
-		if ! file=$(file_at "$root" "$module" "$path"); then
+		if ! file=$(file_at "$module" "$path"); then
 			printf 'FAIL %s:%s: %s cannot be read at the pin of %s — the control cannot judge what it cannot read\n' \
 				"$ledger_name" "$cap" "$path" "$module" >>"$out"
 			continue
@@ -426,12 +446,9 @@ judge() {
 			;;
 		esac
 
-		a="${subject%%-*}"
-		b="${subject#*-}"
-		[[ "$b" == "$subject" ]] && b="$a"
 		local ext=".${path##*.}" total
 		total=$(line_count "$file")
-		if [[ ! "$a" =~ ^[0-9]+$ || ! "$b" =~ ^[0-9]+$ ]]; then
+		if [[ -z "$key" ]]; then
 			printf 'FAIL %s:%s: %s:%s is not a line, a line range or a #definition\n' \
 				"$ledger_name" "$cap" "$module" "$subject" >>"$out"
 			continue
@@ -441,10 +458,8 @@ judge() {
 				"$ledger_name" "$cap" "$module" "$subject" "$path" "$total" "${PIN_OF[$module]:0:12}" >>"$out"
 			continue
 		fi
-		anchor=$(anchor_of "$(constructs "$file" "$ext")" "$a")
+		anchor=$(anchor_of "$(constructs "$file" "$ext")" "$a" "$b")
 		digest=$(digest_of "$file" "$a" "$b")
-		local key="$cap"$'\t'"$path"$'\t'"$a-$b"
-		cited[$key]=1
 		if [[ -z "${recorded[$key]:-}" ]]; then
 			printf 'FAIL %s:%s: %s:%s-%s is not in %s — cite the construct by name (%s:#Name), or read the pin and record it with --emit-baseline\n' \
 				"$ledger_name" "$cap" "$path" "$a" "$b" "$BASELINE" "$path" >>"$out"
@@ -494,7 +509,7 @@ emit_baseline() {
 		[[ -n "${PIN_OF[$module]:-}" ]] || continue
 		commit_readable "$module" || continue
 		[[ "$(kind_at "$module" "$path")" == "blob" ]] || continue
-		file=$(file_at "$root" "$module" "$path") || continue
+		file=$(file_at "$module" "$path") || continue
 		ext=".${path##*.}"
 		a="${subject%%-*}"
 		b="${subject#*-}"
@@ -502,7 +517,7 @@ emit_baseline() {
 		[[ "$a" =~ ^[0-9]+$ && "$b" =~ ^[0-9]+$ ]] || continue
 		[[ "$a" -ge 1 && "$a" -le "$b" && "$b" -le "$(line_count "$file")" ]] || continue
 		printf '%s\t%s\t%s-%s\t%s\t%s\n' "$cap" "$path" "$a" "$b" \
-			"$(anchor_of "$(constructs "$file" "$ext")" "$a")" "$(digest_of "$file" "$a" "$b")"
+			"$(anchor_of "$(constructs "$file" "$ext")" "$a" "$b")" "$(digest_of "$file" "$a" "$b")"
 	done <"$WORK/cites" | sort -u
 }
 
@@ -744,6 +759,27 @@ INSIDE2_PY
 		rc=1
 	else
 		printf '  self-test %-48s holds\n' "a string literal carrying a brace"
+	fi
+
+	# the same walk, over a BRACE-LESS declaration: `#FixtureScalar: string` opens nothing, so a rule
+	# that ended a declaration only once something had opened ran it to the end of the file, recorded
+	# it as spanning everything, and swallowed every definition after it — a construct fact that was
+	# never computed, on the shape most CUE scalars have.
+	n=$((n + 1))
+	printf '#FixtureScalar: string\n\n#FixtureBracedTwo: {\n\tflag?: bool\n}\n' >"$work/scalar.cue"
+	want_start=$(grep -n '^#FixtureBracedTwo:' "$work/scalar.cue" | cut -d: -f1)
+	want_end=$(awk 'END { print NR }' "$work/scalar.cue")
+	spans=$(constructs "$work/scalar.cue" .cue)
+	got_anchor=$(anchor_of "$spans" "$want_start" "$want_start")
+	if ! grep -qxE "^1"$'\t'"1"$'\t#FixtureScalar$' "$spans" ||
+		! grep -qxE "^$want_start"$'\t'"$want_end"$'\t#FixtureBracedTwo$' "$spans" ||
+		[[ "$got_anchor" != "#FixtureBracedTwo" ]]; then
+		printf 'FAIL self-test: a brace-less declaration swallows the constructs after it\n'
+		sed 's/^/  /' "$spans"
+		printf '  the anchor of line %s is %s\n' "$want_start" "$got_anchor"
+		rc=1
+	else
+		printf '  self-test %-48s holds\n' "a brace-less declaration ends on its own line"
 	fi
 
 	if [[ "$rc" -ne 0 ]]; then
