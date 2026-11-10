@@ -3295,11 +3295,14 @@ repositories this tree does not pin, which it reports as unchecked. The two `jet
 falsified are the failure it cannot decide for an unnamed range: they were found by reading the pin,
 and both are repaired to the name form, so the control holds them from now on. The self-test plants a real module store — a bare repository under
 `<fixture>/.git/modules/<path>`, with the pins written into the fixture's own index — and a STALE
-CHECKOUT beside it with different content, and proves fifteen cases: a range past the end of the
+CHECKOUT beside it with different content. It proves, case by case: a range past the end of the
 pinned file, a range whose start follows its end, a path the pin does not have, a citation that
 identifies no file, a line citation of a directory, a pin advance that moves the construct under a
 range, a pin advance that moves only the bytes, a definition name the pin does not declare, a line
 citation missing from the census, a census row the ledger no longer cites, a pin the store cannot
-read and a citation past the end of a file of this repository all fail; and a correct fixture, a
-citation inside a file of this repository, and the same citations one construct later pass — with
-the stale checkout changing nothing either way.
+read and a citation past the end of a file of this repository all fail; a correct fixture, a citation
+inside a file of this repository, and the same citations one construct later pass, with the stale
+checkout changing nothing either way; and the construct walk itself is asserted, because a string
+literal carrying an unbalanced brace must not swallow the definition after it — a definition walk
+that mis-spans reports the wrong anchor for every later line, and a walker whose quoting is wrong
+therefore reads as a pass.

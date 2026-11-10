@@ -102,8 +102,7 @@ BASELINE_HEADER=$'capability\tpath\tlines\tanchor\tdigest'
 WORK=$(mktemp -d)
 trap 'rm -rf "$WORK"' EXIT
 
-declare -A PIN_OF STORE_OF FILE_OF CONSTR_OF
-FETCH_FINDINGS=""
+declare -A PIN_OF STORE_OF
 
 # ── the pins ─────────────────────────────────────────────────────────────────────────────────
 # pins <root> — "<path>\t<commit>" for every gitlink of the tree's index. A gitlink is a MODE, not a
@@ -118,8 +117,6 @@ load_pins() {
 	local root="$1" path sha
 	PIN_OF=()
 	STORE_OF=()
-	FILE_OF=()
-	CONSTR_OF=()
 	while IFS=$'\t' read -r path sha; do
 		[[ -n "$path" ]] || continue
 		PIN_OF[$path]="$sha"
@@ -190,36 +187,19 @@ cite_scan() {
 }
 
 # ── the pinned bytes ─────────────────────────────────────────────────────────────────────────
-# file_at <root> <module> <path> — the cited file's bytes at the pin, into $WORK, or nothing and a
-# failure recorded in FETCH_FINDINGS. Read from the module's OBJECT STORE at the pinned commit:
-# a checkout beside it is never consulted, however stale or convenient.
+# file_at <root> <module> <path> — the cited file's bytes at the pin, into $WORK, printed on stdout;
+# exit 1 when the pin cannot be read, which the caller turns into the finding that names the module
+# and the remedy. Read from the module's OBJECT STORE at the pinned commit: a checkout beside it is
+# never consulted, however stale or convenient. It runs in a COMMAND SUBSTITUTION, so it keeps no
+# state of its own — a cache written here would live in a subshell and be gone by the next call.
 file_at() {
-	local root="$1" module="$2" path="$3" sha store rel key out
-	key="$module/$path"
-	if [[ -n "${FILE_OF[$key]+set}" ]]; then
-		[[ -n "${FILE_OF[$key]}" ]] || return 1
-		printf '%s' "${FILE_OF[$key]}"
-		return 0
-	fi
+	local root="$1" module="$2" path="$3" sha store rel out
 	sha="${PIN_OF[$module]:-}"
 	store="${STORE_OF[$module]:-}"
 	rel="${path#"$module"/}"
-	if [[ -z "$sha" ]]; then
-		FETCH_FINDINGS+="FAIL pins: $module is pinned with no commit in the index"$'\n'
-		FILE_OF[$key]=""
-		return 1
-	fi
-	if [[ -z "$store" || ! -d "$store" ]]; then
-		FETCH_FINDINGS+="FAIL pins: $module is pinned at ${sha:0:12} and has no repository at ${store:-<unresolved>} — run \`git submodule update --init -- $module\`"$'\n'
-		FILE_OF[$key]=""
-		return 1
-	fi
-	out="$WORK/f$(printf '%s' "$key" | sha256sum | cut -c1-16)"
-	if ! git --git-dir "$store" show "$sha:$rel" >"$out" 2>/dev/null; then
-		FILE_OF[$key]=""
-		return 1
-	fi
-	FILE_OF[$key]="$out"
+	[[ -n "$sha" && -n "$store" && -d "$store" ]] || return 1
+	out="$WORK/f$(printf '%s' "$module/$path" | sha256sum | cut -c1-16)"
+	git --git-dir "$store" show "$sha:$rel" >"$out" 2>/dev/null || return 1
 	printf '%s' "$out"
 }
 
@@ -250,13 +230,14 @@ kind_at() {
 # Any other language: nothing, and the anchor is `-`, because a construct this control cannot
 # locate is not one it may pretend to have judged.
 constructs() {
-	local file="$1" ext="$2" key="$1"
-	[[ -n "${CONSTR_OF[$key]+set}" ]] && { printf '%s' "${CONSTR_OF[$key]}"; return 0; }
-	local out="$WORK/c$(printf '%s' "$key" | sha256sum | cut -c1-16)"
+	local file="$1" ext="$2"
+	local out="$WORK/c$(printf '%s' "$file" | sha256sum | cut -c1-16)"
 	case "$ext" in
 	.cue)
 		awk '
-			function strip(s) { gsub(/\\"([^"\\]|\\.)*\\"/, "\"\"", s); sub(/\/\/.*$/, "", s); return s }
+			# one string-literal pattern for both languages: a CUE string is "…" with \-escapes, exactly
+			# like a Go one. Blanking it keeps a `{` inside a string from moving the end line of a construct.
+			function strip(s) { gsub(/"([^"\\]|\\.)*"/, "\"\"", s); sub(/\/\/.*$/, "", s); return s }
 			function balance(s,   d, t) { t = s; d = gsub(/\{/, "", t); t = s; d += gsub(/\(/, "", t); t = s; d += gsub(/\[/, "", t); t = s; d -= gsub(/\}/, "", t); t = s; d -= gsub(/\)/, "", t); t = s; d -= gsub(/\]/, "", t); return d }
 			{ line[NR] = $0 }
 			END {
@@ -304,7 +285,6 @@ constructs() {
 		;;
 	*) : >"$out" ;;
 	esac
-	CONSTR_OF[$key]="$out"
 	printf '%s' "$out"
 }
 
@@ -482,10 +462,6 @@ judge() {
 		fi
 		[[ "$VERBOSE" == 1 ]] && printf '  ok   %s:%s  %s:%s-%s inside %s\n' "$ledger_name" "$cap" "$path" "$a" "$b" "$anchor"
 	done <<<"$(cite_scan "$root")"
-
-	if [[ -n "$FETCH_FINDINGS" ]]; then
-		printf '%s' "$FETCH_FINDINGS" >>"$out"
-	fi
 
 	# ONE finding per claim: a path cited in two columns of one row is one defect, and a report that
 	# printed it twice would overstate the damage it is describing.
@@ -752,6 +728,23 @@ INSIDE2_PY
 	expect "a pin the module store cannot read" 'does not have that commit'
 	git -C "$work" update-index --add --cacheinfo 160000,"$sha",plugin-fixture
 	emit_baseline "$work" >"$work/design/cite-baseline.tsv"
+
+	# the construct WALK itself, asserted rather than assumed: a definition whose body carries a
+	# string with an UNBALANCED brace must not swallow the definition after it. This is the arm the
+	# round-2 review found missing — the fixture CUE had no string literals at all, so a `\"` pattern
+	# that blanked nothing read as a pass while it reported the wrong anchor for every later line.
+	n=$((n + 1))
+	printf '#FixtureBraced: {\n\tpattern?: "{"\n}\n\n#FixtureAfter: {\n\tafter?: bool\n}\n' >"$work/braced.cue"
+	want_start=$(grep -n '^#FixtureAfter:' "$work/braced.cue" | cut -d: -f1)
+	want_end=$(awk 'END { print NR }' "$work/braced.cue")
+	spans=$(constructs "$work/braced.cue" .cue)
+	if ! grep -qxE "^$want_start"$'\t'"$want_end"$'\t#FixtureAfter$' "$spans"; then
+		printf 'FAIL self-test: the construct walk lets a string literal swallow the definition after it\n'
+		sed 's/^/  /' "$spans"
+		rc=1
+	else
+		printf '  self-test %-48s holds\n' "a string literal carrying a brace"
+	fi
 
 	if [[ "$rc" -ne 0 ]]; then
 		printf 'design-cite: self-test FAILED\n'
