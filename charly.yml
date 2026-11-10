@@ -810,8 +810,10 @@ verify:
 # -----------------------------------------------------------------------------
 # design-check — the DESIGN gate (DESIGN.md A.1/A.2) as ONE command.
 #
-# Seven controls, each with a self-test that mutates its own rules, and until this
-# task existed NOTHING in the tree ran them: `git grep -l design-check` found no gate,
+# Seven controls — four carrying `--self-test` mutations of their own rules (the
+# ledger, the citation control, the schema-pattern gate, the pin-tag control), the
+# examples proven by their committed negative cases, the toolchain control proving the
+# pinned `cue`. Until this task existed NOTHING in the tree ran them: `git grep -l design-check` found no gate,
 # so they ran only when somebody remembered — the "gate with no caller" defect the org
 # has paid for twice. The
 # CALLER is hooks/pre-push, decided by the change class in

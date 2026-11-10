@@ -9,10 +9,10 @@
 # runs on the actual push, from git.
 #
 # It runs THREE assertions. The FIRST is the umbrella's DESIGN gate
-# (`bash scripts/design-check.sh`), the six controls of DESIGN.md A.1/A.2 — run for a
+# (`bash scripts/design-check.sh`), the seven controls of DESIGN.md A.1/A.2 — run for a
 # push whose commits change one of the surfaces those controls read, because until
 # this leg existed nothing in the tree ran it at all (the "gate with no caller"
-# defect: 79 self-test cases that ran only when somebody remembered). It runs FIRST,
+# defect: seven controls that ran only when somebody remembered). It runs FIRST,
 # before any body condition, because a push with no body file yet must not walk past
 # the TREE assertion. The other two judge the PR BODY. The second is the org's own
 # body linter (`marketplace/scripts/pr_body_lint.py`), which judges the body's FORM.
@@ -71,7 +71,7 @@
 #     guard is scripts/check-design-gate.mjs, which asserts the file exists HERE.
 #   * NO DESIGN GATE — the same, for `scripts/design-check.sh`, named with the same
 #     reasoning and the same guard.
-#   * NOT THE DESIGN CLASS — the push changes none of the surfaces the six controls
+#   * NOT THE DESIGN CLASS — the push changes none of the surfaces the seven controls
 #     read, so the gate cannot have anything to say about it. It prints the class and
 #     the one command that runs the gate anyway.
 #   * NO GIT TREE — the hook does not run inside a git working tree at all.
@@ -183,15 +183,14 @@ resolve_published_refs() {
 }
 
 # ── the DESIGN gate, decided by ITS change class ────────────────────────────────────
-# THE DEFECT THIS CLOSES. `bash scripts/design-check.sh` composes six controls with 79
-# self-test cases (DESIGN.md A.1, A.2), and until this leg existed NOTHING in the tree
-# ran it: `git grep -l design-check` found no gate, so the controls ran only when
+# THE DEFECT THIS CLOSES. `bash scripts/design-check.sh` composes the seven controls of DESIGN.md A.1/A.2
+# (DESIGN.md A.1, A.2), and until this leg existed NOTHING in the tree ran it: `git grep -l design-check` found no gate, so the controls ran only when
 # somebody remembered — the same "gate with no caller" defect the org has already paid
 # for twice. A control nobody runs enforces nothing, however green it is.
 #
 # WHY HERE AND NOT IN hooks/pre-commit. The gate is a whole-tree consistency reading,
-# and it is EXPENSIVE: 11m54s measured on 2026-11-09 over six controls, 109 committed
-# negative cases each spawning a `cue export`. hooks/pre-commit fires per COMMIT, and
+# and it is EXPENSIVE: 12m34s measured on 2026-11-10 over the seven controls, 109
+# committed negative cases each spawning a `cue export`. hooks/pre-commit fires per COMMIT, and
 # ~42% of this repo's last 60 commits touch the design surface, so a commit-time leg
 # would add ~5 minutes to the average commit — a wall contributors would learn to work
 # around, which is exactly how a gate stops being one. pre-push fires ONCE per push,
@@ -271,7 +270,7 @@ design_gate_leg() {
 
   if ! design_gate_touches_input "$changed" "$gitlinks"; then
     echo "pre-push: [pre-push-skip] the DESIGN gate SKIPPED: this push changes none of its inputs."
-    echo "  The six controls read DESIGN.md, DESIGN.cue, design/, scripts/design-*.sh and the CUE"
+    echo "  The seven controls read DESIGN.md, DESIGN.cue, design/, scripts/design-*.sh and the CUE"
     echo "  of every pinned module (scripts/design-gate-inputs.sh). A push that changes none of"
     echo "  them cannot violate them. Run it anyway: bash scripts/design-check.sh"
     return 0

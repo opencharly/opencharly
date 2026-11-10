@@ -28,9 +28,9 @@
 #
 # WHY THE CLASS IS THIS BROAD, AND WHY IT IS NOT WIDER. A gate that ran on every
 # commit would be a wall between a contributor and their own work: `design-check.sh`
-# is measured at 11m54s on the tree it was last run on (2026-11-09, six controls, 109
-# committed negative cases each spawning a `cue export`; the seventh control has since been
-# added, so re-measure before quoting that figure), and ~42% of this repo's last
+# is measured at 11m54s on the tree it was last run on (2026-11-09, before the citation
+# control landed, 109 committed negative cases each spawning a `cue export`; re-measure
+# before quoting the figure for the current gate), and ~42% of this repo's last
 # 60 commits touch the design surface. A gate that ran on TOO LITTLE would read green
 # over a tree it never looked at — the defect that made this file exist, because
 # until it did, NOTHING in the tree ran `design-check.sh` at all. So the class is

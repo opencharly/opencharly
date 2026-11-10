@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 // check-design-gate.mjs — the DESIGN gate's CALLER, asserted.
 //
-// Why it exists. `bash scripts/design-check.sh` composes seven controls, with a
-// self-test per control that mutates its own rules (DESIGN.md A.1, A.2), and, until
-// this gate landed, NOTHING in the tree ran it: `git grep -l design-check origin/main -- charly.yml hooks/ .github`
+// Why it exists. `bash scripts/design-check.sh` composes seven controls — four with
+// `--self-test` mutations of their own rules, the examples proven by their committed
+// negative cases, the toolchain control proving the pinned `cue` (DESIGN.md A.1, A.2) —
+// and, until this gate landed, NOTHING in the tree ran it: `git grep -l design-check origin/main -- charly.yml hooks/ .github`
 // returned nothing, so the controls ran only when someone remembered. That is the
 // "gate with 0 callers" defect the org has paid for twice already (candy-validate.yml,
 // and tag-on-merge failing silently). A control nobody runs enforces nothing, however
