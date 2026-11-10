@@ -26,12 +26,7 @@
 file	rule	symbol	count
 plugin-adb/candy/plugin-adb/schema/adb.cue	union	method: ("devices" | "shell" | "install" | "install-app" | "uninstall" | "getprop" | "screencap" | "logcat-tail" | "wait-for-device" | "wait-ui-settled" | "current-focus" | "keyevent" | "session") @go(Method,type=string)	1
 plugin-adb/candy/plugin-adb/schema/adb.cue	union	action?: "start" | "stop" | "status" @go(Action)	1
-plugin-agent/candy/plugin-agent/schema/agent.cue	union	mode?: "copy" | "bind"	1
-plugin-agent/candy/plugin-agent/schema/agent.cue	union	evidence_policy?: "target" | "coordinator" | "both" @go(EvidencePolicy)	1
-plugin-agent/candy/plugin-agent/schema/agent.cue	union	transport: "inproc" | "exec" | "ssh" | "grpc" | "tmux"	1
 plugin-agent/candy/plugin-agent/schema/agent.cue	open	readiness?: {...}	1
-plugin-agent/candy/plugin-agent/schema/agent.cue	union	persistence?: "none" | "detach" | "required"	1
-plugin-agent/candy/plugin-agent/schema/agent.cue	union	transcript?: "none" | "raw" | "screen" | "both"	1
 plugin-agent-pi/candy/plugin-agent-pi/schema/pi.cue	open	#PiRPCEvent: {	1
 plugin-agentteams/candy/plugin-agentteams/schema/agentteams.cue	union	method: ("status" | "manager-running" | "worker-running" | "worker-list") @go(Method,type=string)	1
 plugin-appium/candy/plugin-appium/schema/appium.cue	union	method: ("status" | "session-create" | "session-delete" | "install-app" | "find" | "click" | "send-keys" | "screenshot" | "get-text" | "get-attribute" | "clear" | "find-all" | "source" | "back" | "gesture-tap" | "gesture-double-tap" | "gesture-long-press" | "gesture-drag" | "gesture-swipe" | "gesture-scroll" | "gesture-fling" | "gesture-pinch-open" | "gesture-pinch-close" | "app-start-activity" | "app-activate" | "app-terminate" | "app-remove" | "app-clear" | "app-is-installed" | "app-state" | "app-current-activity" | "app-current-package" | "key-press" | "key-hide" | "key-shown" | "device-info" | "device-battery" | "device-time" | "device-orientation" | "device-set-orientation" | "device-notifications" | "device-get-clipboard" | "device-set-clipboard" | "device-contexts" | "device-context" | "execute" | "raw" | "session") @go(Method,type=string)	1
@@ -173,12 +168,6 @@ plugin-mount/candy/plugin-mount/schema/mount.cue	union	#MountMatcherList: (#Moun
 plugin-mount/candy/plugin-mount/schema/mount.cue	union	#MountMatcher: (string | bool | number | #MountMatchOp)	1
 plugin-mount/candy/plugin-mount/schema/mount.cue	union	#MountMatchOp: {equals: _} | {not_equals: _} | {contains: _} | {not_contains: _} | {matches: _} | {not_matches: _} | {lt: _} | {le: _} | {gt: _} | {ge: _}	1
 plugin-nerdctl/candy/plugin-containerd/schema/plugin.cue	union	method: "info" | "runtimes" | "cdi_devices" | "criu_preflight" | "krun_guest" | "image"	1
-plugin-omarchy/candy/plugin-omarchy/schema/omarchy.cue	union	method: "cli" | "shell-ping" | "shell-summon" | "shell-hide" |	1
-plugin-omarchy/candy/plugin-omarchy/schema/omarchy.cue	union	"shell-list-plugins" | "shell-reload-config" |	1
-plugin-omarchy/candy/plugin-omarchy/schema/omarchy.cue	union	"shell-notifications-dismiss" | "shell-notifications-send" |	1
-plugin-omarchy/candy/plugin-omarchy/schema/omarchy.cue	union	"channel-current" | "default-browser" | "default-terminal" |	1
-plugin-omarchy/candy/plugin-omarchy/schema/omarchy.cue	union	"default-editor" | "theme-current" | "theme-bg-current" |	1
-plugin-omarchy/candy/plugin-omarchy/schema/omarchy.cue	union	"font-current" | "weather-location" | "version" | *"cli"	1
 plugin-openclaw/candy/plugin-openclaw/schema/openclaw.cue	union	method: "health" | "ready" | "startup" | "status" | "models" | "channels" | "version"	1
 plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	union	type: "string" | "int" | "bool" | "enum" | "string_list" | "object"	1
 plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	union	#RedoSpec: { on_fail?: [...string] | string, triggers?: {[string]: string}, max?: int & >0, escalate_after?: int & >0 }	1
@@ -210,10 +199,6 @@ plugin-sidecar/candy/plugin-sidecar/schema/sidecar.cue	union	ipc_mode?: "host" |
 plugin-spice/candy/plugin-spice/schema/spice.cue	union	method: "status" | "screenshot" | "cursor" | "click" | "mouse" | "type" | "key" | "record" | "session" | "wizard"	1
 plugin-spice/candy/plugin-spice/schema/spice.cue	union	action?: "start" | "stop" | "status" @go(Action)	1
 plugin-spice/candy/plugin-spice/schema/spice.cue	union	action?: "key" | "type" | "key-combo"	1
-plugin-task/candy/plugin-task/schema/task.cue	union	mode: "status" | "bump" | "verify" | "currency"	1
-plugin-task/candy/plugin-task/schema/task.cue	union	mode?: "check" | "sync"	1
-plugin-task/candy/plugin-task/schema/task.cue	union	mode?: "sync" | "check"	2
-plugin-task/candy/plugin-task/schema/task.cue	union	mode?: "report" | "prune"	1
 plugin-unit/candy/plugin-unit/schema/unit.cue	union	scope?: "system" | "user"	1
 plugin-vision/candy/plugin-vision/schema/vision.cue	union	mime?: *"image/png" | "image/jpeg" | "image/webp" | "image/gif"	1
 plugin-vm/candy/plugin-vm/schema/vm.cue	union	method: ("list" | "info" | "screenshot" | "send-key" | "passwd" | "qmp" | "domain-xml" | "console" | "events" | "guest/ping" | "guest/info" | "guest/os-info" | "guest/time" | "guest/hostname" | "guest/users" | "guest/interfaces" | "guest/disks" | "guest/fsinfo" | "guest/vcpus" | "guest/exec" | "guest/fstrim" | "snapshot/list" | "snapshot/create" | "snapshot/info" | "snapshot/revert" | "snapshot/delete" | "session") @go(Method,type=string)	1
