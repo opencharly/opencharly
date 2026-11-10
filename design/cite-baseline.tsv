@@ -148,9 +148,7 @@ tmux attach|capture|cmd|kill|list|run|send|shell	plugin-agent/candy/plugin-agent
 udev generate|install|remove|status	plugin-udev/candy/plugin-udev/command.go	72-77	UdevCmd	9f8fe33495a775a3
 verb:adb	plugin-adb/candy/plugin-adb/schema/adb.cue	38-38	#AdbInput	39210d3fc3665e95
 verb:addr	plugin-addr/candy/plugin-addr/schema/addr.cue	2-4	-	f279eddc3b4c4905
-verb:appium	plugin-appium/candy/plugin-appium/schema/appium.cue	33-33	#AppiumInput	67772340848b77e9
 verb:bpf	plugin-bpf/candy/plugin-bpf/schema/bpf.cue	1-8	-	df150ea835ea0129
-verb:cdp	plugin-cdp/candy/plugin-cdp/schema/cdp.cue	29-29	#CdpInput	c30e9c346920ca94
 verb:command	plugin-command/candy/plugin-command/schema/command.cue	1-45	#CommandInput	dafb060905e8ed54
 verb:credential	charly/charly.yml	466-466	-	ba7f841f7b7427ad
 verb:credential	charly/charly.yml	466-487	-	fb2d67259192cf12
