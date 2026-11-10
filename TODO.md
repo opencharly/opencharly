@@ -20,8 +20,8 @@ the status record.
 |---|---|---|---|---|
 | 0. Preconditions | 4 | 1 | 2 | 1 |
 | 1. Decisions | 2 | 0 | 1 | 1 |
-| 2. Schema | 16 | 1 | 14 | 1 |
-| 3. Parsing and validation | 33 | 0 | 32 | 1 |
+| 2. Schema | 16 | 1 | 12 | 3 |
+| 3. Parsing and validation | 33 | 1 | 31 | 1 |
 | 4. Generation | 4 | 0 | 4 | 0 |
 | 5. Modules and the plugin protocol | 11 | 0 | 11 | 0 |
 | 6. Plugins and the install IR | 9 | 0 | 8 | 1 |
@@ -31,7 +31,7 @@ the status record.
 | 10. Documentation | 3 | 0 | 2 | 1 |
 | 11. Final proof | 2 | 0 | 2 | 0 |
 | 12. OCE alignment | 15 | 2 | 10 | 3 |
-| **Total** | **107** | **4** | **92** | **11** |
+| **Total** | **107** | **5** | **89** | **13** |
 
 The Decisions row counts the unnumbered decided block plus item 1.1.
 
@@ -40,6 +40,14 @@ The Decisions row counts the unnumbered decided block plus item 1.1.
 - `0.4` — CUE is v0.18.0-rc.1, not v0.17.1; the `close()` half still holds (0 occurrences in `DESIGN.cue`).
 - `1.1` — the naming rule in `AGENTS.md` now makes `distro-`, `layer-`, `pod-`, `plugin-`, `vm-`, `pkg-` and `charly-` the canonical prefixes, so "archive them" contradicts current policy; `*-skills` carriers are already 0.
 - `2.2` — the duplication is gone but `spec/envelope` was never created: each shared shape now has exactly one definition in its owning plugin.
+- `2.5` — the text assembly is gone: `charly` composes the base document schema by importing the `spec` CUE
+  module (`opencharly/charly` PR #1114, `CHANGELOG/2026.313.0209.md`), and `schemaconcat` has no runtime
+  caller left; a plugin's served schema still arrives as TEXT and is unified as VALUES (`base & served`),
+  which the load gate's standalone-compile requirement makes sound, so the plugin half is design, not debt.
+- `2.12` — the unreviewed field set no longer exists in that form: `DESIGN.md` §16.1's field table and
+  `DESIGN.cue`'s `_candyField` are the same settled list, `builder` became `build_with` (D-IR-7), and
+  `build`, `produce`, `bootstrap_builder_image`, `enabled` and `network` carry no field at all, so there is
+  nothing left of the nine to review.
 - `3.31` — the split landed as `requires_capability:`, not `need:`.
 - `6.6` — superseded by D-PLUG-7 (a non-first-party plugin owns a namespaced verb).
 - `8.1` — three of its renames are contradicted by the settled ledger: `command:candy` and `command:config` are sharp with their current spellings; `command:secrets` is a recorded retirement.
@@ -76,6 +84,18 @@ the entry says otherwise:
   `ParseCandyManifest` over the 350 real candy manifests in the materialized tree returns
   byte-identical verdicts before and after (the gate runs only on the legacy kind-keyed form, of which
   the corpus holds none).
+
+- `3.17` — core enforces D-VAL-4 ("namespaces and top-level node names are disjoint"), the rule `DESIGN.md`
+  §12.4 assigns to core and `design/example/rules.cue` only proved on the design's own examples
+  (`design/negative/namespace-is-node.yaml`). `opencharly/sdk` `e92958bd`, tag `v0.2026314.2159`, PR #496,
+  adds `checkNamespaceNodeDisjoint`, run LAST in `walkProject` over the PROJECT scope — the root document,
+  every flat import that appends to it, and every discovered manifest — against the walk's own namespace
+  index. The row's premise ("can clash") measured stronger than it read: all three shapes loaded CLEAN
+  before the change (`Walk accepted a document whose import namespace "tools" is also a top-level node
+  name`), and none does after it. No config migration: a scan of the materialized tree (2047 `charly.yml`,
+  17 projects carrying a namespace, 285 discovered manifests, plus `charly`'s `charly.yml` re-read at its
+  `origin/main`) finds 0 collisions, and `charly`'s whole package suite passes against the new `sdk`
+  (280.5 s).
 
 **How to keep this current.** The status is derived by greps at the submodule pins. Whoever lands an item updates its row and the total in the same PR. TODO.md is deleted only when the last item lands (§11.2).
 
