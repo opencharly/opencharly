@@ -79,8 +79,6 @@ Firecracker rootfs + kernel	spec/schema/vm.cue	19-19	-	0bd2f1d19826fa37
 GPU shared through CDI vs held alone through VFIO	plugin-gpu/README.md	23-29	-	bd4c32a2246cbb41
 GPU shared through CDI vs held alone through VFIO	spec/schema/arbiter.cue	40-56	#PreemptLease	815228e090db8a3a
 GPU shared through CDI vs held alone through VFIO	spec/schema/deploy.cue	323-323	#Deploy	5a9b0014660d2ff7
-kind:agent	plugin-agent/candy/plugin-agent/schema/agent.cue	29-52	#AgentInput	2de0c3c7d1cca97f
-kind:agent-team	plugin-agent/candy/plugin-agent/schema/agent.cue	57-111	#AtTerminalProfile	bf46c8a197cd7c06
 kind:android	spec/schema/android.cue	14-24	#Android	f615fdb22527d614
 kind:builder	spec/schema/builder.cue	8-30	#Builder	40cf6239fe0e930d
 kind:cua	plugin-cua/candy/plugin-cua/schema/cua.cue	173-191	#CuaDeviceInput	7b7bdd4ccee16f37
@@ -177,7 +175,6 @@ verb:matching	plugin-matching/candy/plugin-matching/schema/matching.cue	1-8	-	17
 verb:mcp	plugin-mcp/candy/plugin-mcp/schema/mcp.cue	29-29	#McpInput	92a1fa5e02efc778
 verb:mise	plugin-mise/candy/plugin-mise/schema/mise.cue	1-11	#MiseInput	819fd0a69d6408d5
 verb:mount	plugin-mount/candy/plugin-mount/schema/mount.cue	1-12	-	1ece8d31441476a7
-verb:omarchy	plugin-omarchy/candy/plugin-omarchy/schema/omarchy.cue	7-19	#OmarchyInput	7864f83babdb93b0
 verb:package	plugin-package/candy/plugin-package/schema/package.cue	1-14	-	064887c282492ae8
 verb:pipeline	plugin-pipeline/candy/plugin-pipeline/plugin.go	55-80	Invoke	25e0139094355254
 verb:port	plugin-port/candy/plugin-port/schema/port.cue	1-10	-	c43cf0991e3f1112
