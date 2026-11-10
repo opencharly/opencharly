@@ -1,18 +1,19 @@
 #!/usr/bin/env bash
 # design-gate-inputs.sh — the DESIGN gate's COMMIT-CARRIED INPUTS: ONE definition.
 #
-# `bash scripts/design-check.sh` is six controls over ONE tree (DESIGN.md A.2): the
+# `bash scripts/design-check.sh` is seven controls over ONE tree (DESIGN.md A.2): the
 # CUE toolchain, the DESIGN.md ↔ DESIGN.cue consistency, the examples and their
-# negative cases, the capability ledger, the schema patterns of every pinned plugin
-# CUE module, and every pin's relation to a release tag. Each control reads a surface
-# that a commit can change, and those surfaces are what this file names:
+# negative cases, the capability ledger, every citation into a pinned module resolved
+# at its pin, the schema patterns of every pinned plugin CUE module, and every pin's
+# relation to a release tag. Each control reads a surface that a commit can change, and
+# those surfaces are what this file names:
 #
 #   1. the NORMATIVE PAIR — DESIGN.md and DESIGN.cue, at the repository root (A.1,
 #      A.4). The consistency control compares them; nothing else in the tree may
 #      restate what they say.
 #   2. the DESIGN TREE — design/: the parity and dulling ledgers and their admission
-#      table (A.8), the example and negative fixtures (A.5), and the two censuses the
-#      gates tolerate their known debt through (A.11, A.12).
+#      table (A.8), the example and negative fixtures (A.5), and the baselines the
+#      gates record their known debt through (A.11, A.12, A.13).
 #   3. the CONTROLS THEMSELVES — scripts/design-*.sh. A change to a control changes
 #      what is enforced, so it is in the class by construction; a control that could
 #      be edited without the gate re-reading it would let the gate be widened or
@@ -28,7 +29,8 @@
 # WHY THE CLASS IS THIS BROAD, AND WHY IT IS NOT WIDER. A gate that ran on every
 # commit would be a wall between a contributor and their own work: `design-check.sh`
 # is measured at 11m54s on the tree it was last run on (2026-11-09, six controls, 109
-# committed negative cases each spawning a `cue export`), and ~42% of this repo's last
+# committed negative cases each spawning a `cue export`; the seventh control has since been
+# added, so re-measure before quoting that figure), and ~42% of this repo's last
 # 60 commits touch the design surface. A gate that ran on TOO LITTLE would read green
 # over a tree it never looked at — the defect that made this file exist, because
 # until it did, NOTHING in the tree ran `design-check.sh` at all. So the class is

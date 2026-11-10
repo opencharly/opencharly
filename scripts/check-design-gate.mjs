@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 // check-design-gate.mjs — the DESIGN gate's CALLER, asserted.
 //
-// Why it exists. `bash scripts/design-check.sh` composes six controls with 79
-// self-test cases (DESIGN.md A.1, A.2) and, until this gate landed, NOTHING in the
-// tree ran it: `git grep -l design-check origin/main -- charly.yml hooks/ .github`
+// Why it exists. `bash scripts/design-check.sh` composes seven controls, with a
+// self-test per control that mutates its own rules (DESIGN.md A.1, A.2), and, until
+// this gate landed, NOTHING in the tree ran it: `git grep -l design-check origin/main -- charly.yml hooks/ .github`
 // returned nothing, so the controls ran only when someone remembered. That is the
 // "gate with 0 callers" defect the org has paid for twice already (candy-validate.yml,
 // and tag-on-merge failing silently). A control nobody runs enforces nothing, however
@@ -13,7 +13,7 @@
 // What it asserts, in two halves:
 //
 //   THE WIRING IS THERE — hooks/pre-push runs the gate, decided by the change class in
-//   scripts/design-gate-inputs.sh, the class watches every surface the six controls
+//   scripts/design-gate-inputs.sh, the class watches every surface the seven controls
 //   read, the leg blocks on a failure, and its skips are visible. The leg must sit
 //   BEFORE every body condition, because a push with no body file yet must not walk
 //   past the TREE assertion.
@@ -226,7 +226,7 @@ function check() {
 
 // ── the fired assertions ──────────────────────────────────────────────────────────
 // The real hook, the real class file, and a RECORDING gate: what is under test is the
-// CALLER's decision, not the six controls (that is `bash scripts/design-check.sh`).
+// CALLER's decision, not the seven controls (that is `bash scripts/design-check.sh`).
 
 const FAKE_GATE = `#!/usr/bin/env bash
 printf 'design-check\\n' >> "$FAKE_DESIGN_LOG"

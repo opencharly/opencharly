@@ -1,0 +1,207 @@
+# design/cite-baseline.tsv — the line citations a row was AFFIRMED against, and what they showed.
+#
+# design/dulling.tsv cites the pinned source it reasons about by `path:line`. The bytes at those
+# lines belong to somebody else's commit, so a pin advance can move a construct out from under a
+# citation with nothing in this repository changing (opencharly/opencharly#963: `jetkvm.cue:437-473`
+# ended two lines short of `#JetkvmDeviceInput`, and `481-578` spanned `_method` instead of the
+# enum). This file is what makes that loud instead of silent: `scripts/design-cite.sh` (DESIGN.md
+# A.13) resolves every line citation at the pin and fails when
+#   * the range no longer sits inside the ANCHOR recorded here — the construct that enclosed it
+#     when the row was affirmed — or
+#   * the DIGEST of the cited lines' bytes no longer matches.
+#
+# WHAT THIS FILE IS NOT. A digest is NOT an assertion that the range shows what the row's prose
+# means: the ledger names a `#Definition` of `DESIGN.cue`, never a construct of a pinned module, so
+# "the range contains what the row claims" is not decidable from the ledger's own data and this
+# control does not pretend to decide it (A.13 states the same split A.11 makes). It is the record of
+# the bytes the row pointed at, so that a change to them cannot pass unread. A row that wants its
+# subject CHECKED cites the construct by name instead (`<path>:#<Definition>`), which a pin advance
+# cannot falsify: `kind:jetkvm` and `verb:jetkvm` do exactly that.
+#
+# THE CHECK FAILS IN BOTH DIRECTIONS, so this file can only shrink:
+#   * a line citation ABSENT from here is a claim nobody affirmed;
+#   * a row here whose citation the ledger no longer carries overstates the record, so it is
+#     lowered in the change that re-anchored the row.
+#
+# A row is capability, path, lines, anchor, digest. Read a citation at the pin before you re-anchor
+# it, then re-record with `bash scripts/design-cite.sh --emit-baseline`; a regenerate is a reviewed
+# diff, because every row it changes is a citation whose bytes moved and that nobody re-read.
+# tracked-by: opencharly/opencharly#963
+capability	path	lines	anchor	digest
+agent-runtime:pi	plugin-agent-pi/candy/plugin-agent-pi/schema/pi.cue	11-14	#PiRPCCommand	87e0437a43caa828
+agent runtime|session|run|followup|steer|dispatch|delegate|team|federation|terminal|incident|rca|recover|new|launch|show	plugin-agent/candy/plugin-agent/control.go	37-49	AgentCmd	5a2e99e1f326e081
+agent-runtime:tmux	plugin-tmux/candy/plugin-tmux/charly.yml	16-17	-	b0de242e34a83016
+alias add|install|list|remove|uninstall	plugin-alias/candy/plugin-alias/alias.go	213-218	AliasCmd	a7b88dcda014c540
+builder:aur	spec/spec/externalized_builders.go	15-21	ExternalizedBuilders	a07ebab16417ba9b
+builder:cargo	spec/spec/externalized_builders.go	15-21	ExternalizedBuilders	a07ebab16417ba9b
+builder:mise	spec/spec/externalized_builders.go	19-19	ExternalizedBuilders	affa7c9cd6959264
+builder:npm	spec/spec/externalized_builders.go	15-21	ExternalizedBuilders	a07ebab16417ba9b
+builder:pixi	spec/spec/externalized_builders.go	17-17	ExternalizedBuilders	254ea4decdd28269
+BuildKit as the one image builder	plugin-build/README.md	1-25	-	5e2f4ea5274555e8
+cache status|clear|refresh|bypass|push|pull|ingest	plugin-cache/candy/plugin-cache/plugin.go	103-111	CacheCmd	95732bc1bc427aa9
+candy set|params	plugin-candy/candy/plugin-candy/params.go	40-47	-	bc7bee9cdd4451c5
+check plan	plugin-box/candy/plugin-box/inspect_list.go	80-95	-	508f7ece96e78d8b
+check plan	plugin-check/candy/plugin-check/plan_cmd.go	23-31	-	58f1560629fd339e
+command:agent	plugin-agent/candy/plugin-agent/control.go	37-49	AgentCmd	5a2e99e1f326e081
+command:agentteams	plugin-agentteams/candy/plugin-agentteams/control.go	28-34	AgentTeamsCmd	9e14505afeecf7ff
+command:alias	plugin-alias/candy/plugin-alias/alias.go	213-218	AliasCmd	a7b88dcda014c540
+command:cache	plugin-cache/candy/plugin-cache/plugin.go	101-108	CacheCmd	cb7759b02fea03d2
+command:candy	plugin-candy/candy/plugin-candy/params.go	40-47	-	bc7bee9cdd4451c5
+command:clean	plugin-clean/candy/plugin-clean/charly.yml	115-117	-	ac8b34cd362d73ab
+command:config	plugin-pod/candy/plugin-pod/pod_cmd.go	420-450	-	a7752f4f12b9b522
+command:containerd	plugin-nerdctl/candy/plugin-containerd/charly.yml	43-47	-	a91feb5e0950136f
+command:cp	plugin-pod/candy/plugin-pod/pod_cmd.go	410-415	CpCmd	c7144d6f4f27c137
+command:deploy	plugin-fleet/candy/plugin-fleet/deploy_cmd.go	28-38	DeployCmd	7ba64c193df1fe85
+command:docs	plugin-docs/candy/plugin-docs/command.go	14-14	docsCLI	ab027eafd5be402f
+command:generate-packages	plugin-generate-packages/candy/generate-packages/cli.go	17-29	stderr	cd58e47493850dda
+command:gh	plugin-gh/candy/plugin-gh/cli.go	34-34	CliMain	669c46569ad203c7
+command:pipeline	plugin-pipeline/candy/plugin-pipeline/cli.go	24-31	-	185f2745515ec98e
+command:preempt	plugin-preempt/candy/plugin-preempt/command.go	24-33	-	b2a7ae8bc09a277c
+command:registry	charly-registry/candy/plugin-registry/charly.yml	30-32	-	a3a6333b4652f51a
+command:restart	plugin-pod/candy/plugin-pod/pod_cmd.go	119-119	-	c5ac749e4ceea62a
+command:secrets	plugin-secrets/candy/plugin-secrets/command.go	115-126	Run	ef31a3b697310449
+command:ssh	plugin-ssh/candy/plugin-ssh/tunnel.go	27-41	SshCmd	44462a4022d4c1b2
+command:strata	plugin-strata/candy/plugin-strata/charly.yml	33-34	-	6b82fed826233983
+command:task	plugin-task/candy/plugin-task/plugin.go	59-64	NewMeta	08015af1fd19c55f
+command:tmux	plugin-agent/candy/plugin-agent/tmux_compat.go	21-36	-	c32c271c55545811
+command:udev	plugin-udev/candy/plugin-udev/command.go	72-77	UdevCmd	9f8fe33495a775a3
+command:update	charly/charly/commands.go	29-41	podUpdateCmd	9e99857a4e6f92aa
+command:vm	plugin-vm/candy/plugin-vm/vm.go	22-44	VmCmd	851a76d1baa49e5d
+containerd namespace per deployment	plugin-deploy-pod/candy/plugin-deploy-pod/engine_ops.go	139-146	engineDefaultRuntime	932fc1ea7283e693
+containerd namespace per deployment	spec/schema/deploy.cue	159-161	#Deploy	73ff65a95870bc92
+deploy from-box|export|import	plugin-fleet/candy/plugin-fleet/deploy_cmd.go	33-34	DeployCmd	dcf9ee0c6c91b388
+deploy path|show|status	plugin-fleet/candy/plugin-fleet/deploy_cmd.go	35-38	DeployCmd	4554767870bf05c1
+deploy reset	plugin-fleet/candy/plugin-fleet/deploy_cmd.go	36-36	DeployCmd	c1ac8ef293f68d89
+engine:containerd	plugin-nerdctl/candy/plugin-containerd/charly.yml	44-44	-	f37c0cce47fc3e2d
+fast reset with --rm and read-only rootfs	spec/schema/deploy.cue	321-321	#Deploy	9477bf7179a09e8f
+Firecracker rootfs + kernel	spec/schema/firecracker.cue	56-75	#Firecracker	dba533e9fef37c0d
+Firecracker rootfs + kernel	spec/schema/vm.cue	19-19	-	0bd2f1d19826fa37
+GPU shared through CDI vs held alone through VFIO	plugin-gpu/README.md	23-29	-	bd4c32a2246cbb41
+GPU shared through CDI vs held alone through VFIO	spec/schema/arbiter.cue	40-56	#PreemptedHolder	815228e090db8a3a
+GPU shared through CDI vs held alone through VFIO	spec/schema/deploy.cue	323-323	#Deploy	5a9b0014660d2ff7
+kind:agent	plugin-agent/candy/plugin-agent/schema/agent.cue	29-52	#AgentInput	2de0c3c7d1cca97f
+kind:agent-team	plugin-agent/candy/plugin-agent/schema/agent.cue	57-111	#AgentTeamInput	bf46c8a197cd7c06
+kind:android	spec/schema/android.cue	14-24	-	f615fdb22527d614
+kind:builder	spec/schema/builder.cue	8-30	-	40cf6239fe0e930d
+kind:cua	plugin-cua/candy/plugin-cua/schema/cua.cue	173-191	#CuaDeviceInput	7b7bdd4ccee16f37
+kind:desktopentry	plugin-desktop-kind/candy/plugin-desktop-kind/schema/desktop.cue	121-153	#DesktopEntryInput	df8e7259be5152b2
+kind:displaymanager	plugin-desktop-kind/candy/plugin-desktop-kind/schema/desktop.cue	101-117	#DisplayManagerInput	492035b20ae13106
+kind:distro	plugin-distro/candy/plugin-distro/schema/distro.cue	32-47	#DistroInput	fdb988c388629d51
+kind:firecracker	spec/schema/firecracker.cue	35-61	-	77d4112bca573e60
+kind:group	charly/charly/no_kind_switch_in_kernel_test.go	42-42	-	19a40f2967852815
+kind:hook	spec/schema/hook.cue	12-20	-	a818367685f46363
+kind:init	spec/schema/init.cue	12-45	#Init	ef7ecfd7301fee75
+kind:kindcluster	spec/schema/kindcluster.cue	20-58	-	5b4bdd110d16d91a
+kind:kubernetes	spec/schema/kubernetes.cue	13-45	#Kubernetes	b4a25457c515ad23
+kind:kubevirt	spec/schema/kubevirt.cue	18-77	-	f7fd896a4fb7cae4
+kind:local	spec/schema/local.cue	9-16	#Local	578bfc988c94086f
+kind:marketplace	spec/schema/marketplace.cue	9-30	-	42b985734bb4e4a4
+kind:pipeline	spec/schema/pipeline.cue	36-200	-	2baeda419cc6d4c2
+kind:pod	spec/schema/pod.cue	10-19	#Pod	c69c414d1af3795a
+kind:resource	plugin-resource/candy/plugin-resource/schema/resource.cue	21-27	#ResourceInput	923be81c20e14952
+kind:session	plugin-desktop-kind/candy/plugin-desktop-kind/schema/desktop.cue	73-97	#SessionInput	b7df908ac46b0785
+kind:sidecar	plugin-sidecar/candy/plugin-sidecar/schema/sidecar.cue	48-89	#SidecarInput	ba51088a37c53e10
+kind:skill	plugin-harness-kind/candy/plugin-harness-kind/schema/skill.cue	19-32	#SkillInput	faefee417399e060
+kind:skill	spec/schema/skill.cue	33-38	-	62a70d2225cf652c
+kind:task	spec/schema/task.cue	41-88	-	2376e7ffd7e88f7c
+kind:theme	plugin-desktop-kind/candy/plugin-desktop-kind/schema/desktop.cue	16-69	#ThemeInput	dafbc7fdaa15f299
+kind:vm	spec/schema/vm.cue	56-126	-	1c61ea408f9a4e02
+krun annotations ram_mib/cpus	plugin-vm/candy/plugin-vm/vm_krun_plan.go	272-273	buildKrunPlan	0b01984f4ee4e034
+krun annotations ram_mib/cpus	spec/schema/vm.cue	38-57	#VmBackend	204121836b28f036
+krun annotations ram_mib/cpus	spec/schema/vm.cue	49-52	#VmBackend	597fbea774bcb0fe
+krun virtio-gpu; no NVIDIA in krun	spec/schema/vm.cue	45-48	#VmBackend	d9bba839caa92d3a
+krun VM backend (OCI image boot)	plugin-vm/candy/plugin-vm/vm_krun_plan.go	25-30	-	385c608f9b64aa9a
+krun VM backend (OCI image boot)	spec/schema/vm.cue	19-58	-	faa4817b6255700c
+loader:loader	plugin-loader/candy/plugin-loader/charly.yml	21-21	-	7e69435f2eaf2009
+local registry mirror for build inputs	plugin-build/README.md	18-24	-	7606f88f2d448d92
+nested containerd and krun in a pod	layer-container-nesting/charly.yml	132-141	-	92d782fb7cdace8e
+NVIDIA CDI rootful and rootless	plugin-gpu/README.md	9-20	-	68caaa877662a84c
+pipeline run|validate|resume|schedule|agent|probe	plugin-pipeline/candy/plugin-pipeline/cli.go	139-141	runCLI	c696cdbe2ef7038e
+pipeline run|validate|resume|schedule|agent|probe	plugin-pipeline/candy/plugin-pipeline/cli.go	176-183	runCLI	61c834f567384d1a
+pooled fan-out (lanes)	sdk/workflowkit/graph_test.go	63-78	-	000f815dbfe3f5ee
+pooled fan-out (lanes)	spec/schema/pipeline.cue	89-97	#PipelineArms	18484c0ffc73b48a
+preempt status|restore	plugin-preempt/candy/plugin-preempt/command.go	26-58	preemptUsage	87ee3a388ee674a6
+refs:refs	plugin-refs/candy/plugin-refs/charly.yml	21-21	-	7e30172f1cc60303
+rootful vs rootless daemon	spec/schema/deploy.cue	162-166	#Deploy	0e691ca53e6b666e
+rootful vs rootless daemon	spec/schema/deploy.cue	58-63	#DeployTraits	698844570957a001
+rootful vs rootless daemon	spec/schema/engine.cue	94-94	-	82f6f9ca1156d5f4
+runtime handler crun/krun (one switch to a microVM)	spec/container/engine.go	198-198	engineCapabilities	cc274245dbc0ce1c
+secrets get|set|list|delete|import|export|gpg|encrypt|decrypt|edit|env|recipients|setup|show|unset|doctor	plugin-secrets/candy/plugin-secrets/command.go	115-125	Run	cbfe0a60f2472af6
+secrets get|set|list|delete|import|export|gpg|encrypt|decrypt|edit|env|recipients|setup|show|unset|doctor	plugin-secrets/candy/plugin-secrets/secrets_gpg.go	25-36	SecretsGpgCmd	d929a1631d542e04
+skill and agent bodies under .agents/	spec/schema/skill.cue	1-52	-	5fe917dcff8e08fb
+ssh spice|vnc	plugin-ssh/candy/plugin-ssh/tunnel.go	31-41	-	a0cd71a5971bcf03
+ssh tunnel	plugin-ssh/candy/plugin-ssh/tunnel.go	31-41	-	a0cd71a5971bcf03
+step:apk-install	plugin-installstep/candy/plugin-installstep/charly.yml	45-45	-	e529a8fb71a3c8db
+step:apk-install	spec/spec/union_types.go	353-359	UnmarshalJSON	b137738b78bc3ea1
+step:builder	plugin-installstep/candy/plugin-installstep/charly.yml	48-48	-	e1f89f1fd3cb5613
+step:builder	spec/spec/install_step_vocab.go	140-185	BuilderStep	246b575cf7a938bc
+step:file	plugin-installstep/candy/plugin-installstep/charly.yml	39-39	-	a8046d02613a4f04
+step:helm-release	layer-helm-chart/charly.yml	41-54	-	c17a834588f9abc4
+step:helm-release	layer-helm-chart/charly.yml	45-54	-	74b11cd0248a0d57
+step:local-pkg-install	plugin-installstep/candy/plugin-installstep/charly.yml	49-49	-	4524317a439492af
+step:op	plugin-installstep/candy/plugin-installstep/charly.yml	50-50	-	abe96085d5de2561
+step:op	spec/spec/install_step_vocab.go	211-260	OpStep	104c655670bc8a53
+step:reboot	plugin-installstep/candy/plugin-installstep/charly.yml	46-46	-	89e4370519471a30
+step:repo-change	plugin-installstep/candy/plugin-installstep/charly.yml	44-44	-	b64afe1329bb1e8c
+step:service-custom	plugin-installstep/candy/plugin-installstep/charly.yml	43-43	-	635a8dc075a9108f
+step:service-packaged	plugin-installstep/candy/plugin-installstep/charly.yml	42-42	-	da9c24e49be9f387
+step:shell-hook	plugin-installstep/candy/plugin-installstep/charly.yml	40-40	-	0ad5a0b5cf2a5b28
+step:shell-snippet	plugin-installstep/candy/plugin-installstep/charly.yml	41-41	-	c33a718a77f2c672
+step:system-packages	plugin-installstep/candy/plugin-installstep/charly.yml	47-47	-	13ad2a460062a72a
+terminal:tmux	plugin-tmux/candy/plugin-tmux/charly.yml	5-18	-	9d5b438fcfc617e1
+tmux attach|capture|cmd|kill|list|run|send|shell	plugin-agent/candy/plugin-agent/tmux_compat.go	21-36	-	c32c271c55545811
+udev generate|install|remove|status	plugin-udev/candy/plugin-udev/command.go	72-77	UdevCmd	9f8fe33495a775a3
+verb:adb	plugin-adb/candy/plugin-adb/schema/adb.cue	38-38	#AdbInput	39210d3fc3665e95
+verb:addr	plugin-addr/candy/plugin-addr/schema/addr.cue	2-4	-	f279eddc3b4c4905
+verb:appium	plugin-appium/candy/plugin-appium/schema/appium.cue	33-33	#AppiumInput	67772340848b77e9
+verb:bpf	plugin-bpf/candy/plugin-bpf/schema/bpf.cue	1-8	-	df150ea835ea0129
+verb:cdp	plugin-cdp/candy/plugin-cdp/schema/cdp.cue	29-29	#CdpInput	c30e9c346920ca94
+verb:command	plugin-command/candy/plugin-command/schema/command.cue	1-45	-	dafb060905e8ed54
+verb:credential	charly/charly.yml	466-466	-	ba7f841f7b7427ad
+verb:credential	charly/charly.yml	466-487	-	fb2d67259192cf12
+verb:cua	plugin-cua/candy/plugin-cua/schema/cua.cue	167-167	#CuaMethod	8060061f696fdc62
+verb:dbus	plugin-dbus/candy/plugin-dbus/schema/dbus.cue	28-28	#DbusInput	fe3d6164b9155b40
+verb:dns	plugin-dns/candy/plugin-dns/schema/dns.cue	1-12	-	f00a37be51239e61
+verb:egress	plugin-egress/candy/plugin-egress/main.go	145-145	validateInput	504f8529d34ab7c1
+verb:enc	plugin-enc/candy/plugin-enc/enc.go	1-24	-	41dd0ae1fe3a5974
+verb:file	plugin-file/candy/plugin-file/schema/file.cue	1-45	-	9fc785d74dfa7ea9
+verb:git-submodules	plugin-task/candy/plugin-task/schema/task.cue	9-16	-	78ecb699110b3e96
+verb:gpu	plugin-gpu/candy/plugin-gpu/main.go	40-80	provider	c5bcb8792efa2119
+verb:http	plugin-http/candy/plugin-http/schema/http.cue	1-40	-	8291027e28ded5d4
+verb:k8sgen	plugin-k8sgen/candy/plugin-k8sgen/main.go	2-2	-	a751c4a73492c500
+verb:k8sgen	plugin-k8sgen/candy/plugin-k8sgen/main.go	28-47	-	fa7019420b210351
+verb:kernel-param	plugin-kernel-param/candy/plugin-kernel-param/schema/kernel_param.cue	1-6	-	dcb24d454741cdf3
+verb:kube	plugin-kube/candy/plugin-kube/schema/kube.cue	44-44	#KubeInput	d8017d99f49fdbe2
+verb:libvirt	plugin-vm/candy/plugin-vm/schema/vm.cue	1-10	-	b1f14661b1055139
+verb:matching	plugin-matching/candy/plugin-matching/schema/matching.cue	1-8	-	1712635928b0c34f
+verb:mcp	plugin-mcp/candy/plugin-mcp/schema/mcp.cue	29-29	#McpInput	92a1fa5e02efc778
+verb:mise	plugin-mise/candy/plugin-mise/schema/mise.cue	1-11	-	819fd0a69d6408d5
+verb:mount	plugin-mount/candy/plugin-mount/schema/mount.cue	1-12	-	1ece8d31441476a7
+verb:omarchy	plugin-omarchy/candy/plugin-omarchy/schema/omarchy.cue	7-19	#OmarchyInput	7864f83babdb93b0
+verb:package	plugin-package/candy/plugin-package/schema/package.cue	1-14	-	064887c282492ae8
+verb:pipeline	plugin-pipeline/candy/plugin-pipeline/plugin.go	55-80	Invoke	25e0139094355254
+verb:port	plugin-port/candy/plugin-port/schema/port.cue	1-10	-	c43cf0991e3f1112
+verb:process	plugin-process/candy/plugin-process/schema/process.cue	1-6	-	fe1db44720836407
+verb:prune	plugin-task/candy/plugin-task/schema/task.cue	22-28	-	25d0cd3e0fc81a1a
+verb:punktfunk	plugin-punktfunk/candy/plugin-punktfunk/schema/punktfunk.cue	21-36	#PunktfunkInput	7395b3f3cd618f61
+verb:record	plugin-record/candy/plugin-record/schema/record.cue	1-40	-	77c2f5e8a1717026
+verb:retention	plugin-clean/candy/plugin-clean/provider.go	30-70	-	3cac06fc93498057
+verb:service	plugin-service/candy/plugin-service/schema/service.cue	1-45	-	cd6330abac258762
+verb:spice	plugin-spice/candy/plugin-spice/schema/spice.cue	27-27	#SpiceInput	0b1c7bc490a122a1
+verb:task	plugin-task/candy/plugin-task/schema/task.cue	1-4	-	33841979c9ff5fd7
+verb:transcode	plugin-media/candy/plugin-media/schema/transcode.cue	1-8	-	fe2d47559ccfdf36
+verb:tunnel	plugin-tunnel/candy/plugin-tunnel/schema/tunnel.cue	1-20	-	20355dbbffc8b2f2
+verb:unit	plugin-unit/candy/plugin-unit/schema/unit.cue	1-8	-	eac7738edf374be5
+verb:unix_group	plugin-unix-group/candy/plugin-unix-group/schema/unix_group.cue	1-4	-	0e895fd1d85e4eb7
+verb:user	plugin-user/candy/plugin-user/schema/user.cue	1-60	-	54e9c667f555aaf1
+verb:vision	plugin-vision/candy/plugin-vision/schema/vision.cue	1-12	-	88cbc37a822f61d7
+verb:vnc	plugin-vnc/candy/plugin-vnc/schema/vnc.cue	29-29	#VncInput	6c4057f4855c599e
+verb:wl	plugin-wl/candy/plugin-wl/schema/wl.cue	31-80	#WlInput	1da4488e5416a7b2
+vm bake|build|import|import-container-disk|clone|cp-box|retag|seed	plugin-vm/candy/plugin-vm/vm.go	25-25	VmCmd	313102226d00d796
+vm console|ssh|scp	plugin-vm/candy/plugin-vm/vm.go	26-26	VmCmd	45593fb5334684a0
+vm create|start|stop|destroy|list	plugin-vm/candy/plugin-vm/vm.go	28-33	VmCmd	ed226d96e1a3c327
+vm gpu status|list|mode	plugin-vm/candy/plugin-vm/vm_gpu_cmd.go	11-17	VmGpuCmd	26c80f6f6fab7816
+vm screenshot|sendkey|type	plugin-vm/candy/plugin-vm/vm.go	35-35	VmCmd	0a7f1a891ced3322
+vm snapshot create|create-consistent|capture-declared	plugin-vm/candy/plugin-vm/libvirt_cmd.go	896-900	LibvirtSnapshotGroup	b34dc621b047271e
+vm snapshot revert|revert-and-start|promote|list|delete	plugin-vm/candy/plugin-vm/libvirt_cmd.go	896-900	LibvirtSnapshotGroup	b34dc621b047271e
+workflow:lobster	plugin-lobster/candy/plugin-lobster/charly.yml	33-33	-	05ae798f95027b7b

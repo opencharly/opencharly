@@ -144,12 +144,24 @@ check_all() {
 # def_names_check <file> <evidence-index> <out> <defs> — the definitions a row NAMES are real,
 # and its `evidence` cell cites each of them. A name that is real but uncited is the defect this
 # control exists for: the reader is told which definition the row is about and cannot verify it.
+#
+# A name a row cites as `<pinned path>:#<Name>` is a claim about THAT FILE, not about DESIGN.cue: it
+# says "the pinned module declares this construct", and scripts/design-cite.sh resolves it at the
+# pin (A.13). Without this split the two forms would collide — every pinned module's definition
+# would have to be a `DESIGN.cue` definition too, which is exactly what §10.2 means by moving a
+# definition into its owning module — so the name's home decides which control answers for it.
 def_names_check() {
-	local file="$1" eidx="$2" out="$3" defs="$4" ev name
+	local file="$1" eidx="$2" out="$3" defs="$4" ev name row
 	while IFS=$'\t' read -r -a f; do
 		[[ "${f[0]}" == "capability" || "${f[0]}" == "path" ]] && continue
 		ev="${f[$eidx]:-}"
+		row="$(printf '%s' "${f[*]}")"
 		for name in $(printf '%s\n' "${f[*]}" | grep -oE '`?#[A-Z][A-Za-z0-9]*`?' | tr -d '`' | sort -u); do
+			# a construct of a pinned module: design-cite.sh checks it is declared at the pin
+			if grep -qE "(^|[[:space:];])([A-Za-z0-9_.@/-]+):#${name#\#}([^A-Za-z0-9]|$)" <<<"$row" &&
+				! grep -qE "(^|[[:space:];])DESIGN\.cue:#${name#\#}([^A-Za-z0-9]|$)" <<<"$row"; then
+				continue
+			fi
 			if ! grep -qx -- "$name" "$defs"; then
 				printf 'FAIL %s:%s: %s is not a definition of DESIGN.cue\n' \
 					"$(basename "$file")" "${f[0]}" "$name" >>"$out"
@@ -233,8 +245,21 @@ if [[ "${1:-}" == "--self-test" ]]; then
 		exit 1
 	fi
 
+	# fixture_digest — one digest over every input check_all reads, so a case can prove it changed
+	# at least one of them. The set is the fixture's own, not the repository's.
+	fixture_digest() {
+		cat "$work/design/dulling.tsv" "$work/design/dulling-admission.tsv" \
+			"$work/DESIGN.md" "$work/DESIGN.cue" "$work/design/dulling-disposition.md" |
+			sha256sum | cut -c1-16
+	}
+	pristine="$(fixture_digest)"
+
 	expect() { # expect <name> <pattern>
 		cases=$((cases + 1))
+		if [[ "$(fixture_digest)" == "$pristine" ]]; then
+			printf 'FAIL self-test: %s mutated nothing — a case that applies no mutation dies for free\n' "$1"
+			exit 1
+		fi
 		check_all "$work/design/dulling.tsv" "$work/design/dulling-admission.tsv" "$work/out.$cases" "$work"
 		if [[ ! -s "$work/out.$cases" ]]; then
 			printf 'FAIL self-test: %s did NOT fail the check\n' "$1"
@@ -342,20 +367,35 @@ if [[ "${1:-}" == "--self-test" ]]; then
 	cp "$schema" "$work/DESIGN.cue"
 	printf '  self-test %-38s fails as designed\n' "a duplicated definition"
 
-	# a row quoting a definition's SHAPE with a stale field list -> the shape must be quoted whole
+	# a row quoting a definition's SHAPE with a stale field list -> the shape must be quoted whole.
+	# The mutation is written against the QUOTE THE ROW CARRIES, not against the text it carried on
+	# the day this case was authored: a literal that stops matching turns the case into a silent
+	# no-op, and a no-op "dies" for free, which is how this case read red on a healthy tree
+	# (opencharly/opencharly#963 discovered it). `expect` also asserts, generically, that every
+	# mutation changed the fixture, so an unapplied one can never pass again.
 	cases=$((cases + 1))
-	python3 - "$work/design/dulling.tsv" <<'SHAPE_PY'
+	python3 - "$work/design/dulling.tsv" <<'SHAPE_PY' || {
+import re
 import sys
 path = sys.argv[1]
 lines = open(path, encoding="utf-8").read().splitlines()
 for i, line in enumerate(lines):
     if line.startswith("kind:pipeline\t"):
         cells = line.split("\t")
-        cells[5] = cells[5].replace("#StageAsk: {prompt!}", "#StageAsk: {prompt, stale}")
+        m = re.search(r"#StageAsk: \{([^}]*)\}", cells[5])
+        if not m:
+            sys.exit("the kind:pipeline row no longer quotes #StageAsk")
+        first = m.group(1).split(",")[0].strip()
+        cells[5] = cells[5][: m.start()] + "#StageAsk: {" + first + "}" + cells[5][m.end() :]
         lines[i] = "\t".join(cells)
         break
+else:
+    sys.exit("no kind:pipeline row")
 open(path, "w", encoding="utf-8").write("\n".join(lines) + "\n")
 SHAPE_PY
+		printf 'FAIL self-test: the stale-shape-quote mutation did not apply\n'
+		exit 1
+	}
 	check_all "$work/design/dulling.tsv" "$work/design/dulling-admission.tsv" "$work/out.$cases" "$work"
 	if [[ ! -s "$work/out.$cases" ]] || ! grep -qE 'is quoted as' "$work/out.$cases"; then
 		printf 'FAIL self-test: a stale shape quote did not fail the check\n'
