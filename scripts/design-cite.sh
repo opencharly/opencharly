@@ -236,19 +236,50 @@ constructs() {
 	case "$ext" in
 	.cue)
 		awk '
-			# one string-literal pattern for both languages: a CUE string is "…" with \-escapes, exactly
-			# like a Go one. Blanking it keeps a `{` inside a string from moving the end line of a construct.
-			function strip(s) { gsub(/"([^"\\]|\\.)*"/, "\"\"", s); sub(/\/\/.*$/, "", s); return s }
+			# LEXICAL BEFORE STRUCTURAL. A brace inside a comment or a string is not a brace, and a
+			# walker that counts it runs a definition past its own closing brace and then records none
+			# of the definitions after it — the mis-anchor class this control exists to catch, turned
+			# on itself. So every line is BLANKED first (positions preserved), with state carried
+			# ACROSS lines for the constructs that span them: `"""` strings here, and in the Go arm
+			# `/* */` comments and multi-line raw strings.
+			function clean(s,   out, i, n, c, rest) {
+				out = ""; i = 1; n = length(s)
+				while (i <= n) {
+					c = substr(s, i, 1)
+					if (s3) {                                  # inside a """ string
+						if (substr(s, i, 3) == "\"\"\"") { s3 = 0; out = out "   "; i += 3; continue }
+						out = out " "; i++; continue
+					}
+					if (s1) {                                  # inside a "…" string
+						if (c == "\\") { out = out "  "; i += 2; continue }
+						if (c == "\"") { s1 = 0; out = out c; i++; continue }
+						out = out " "; i++; continue
+					}
+					if (sc) {                                  # inside a '\''…'\'' rune/bytes literal
+						if (c == "\\") { out = out "  "; i += 2; continue }
+						if (c == "'\''") { sc = 0; out = out c; i++; continue }
+						out = out " "; i++; continue
+					}
+					if (c == "/" && substr(s, i, 2) == "//") break
+					if (substr(s, i, 3) == "\"\"\"") { s3 = 1; out = out "   "; i += 3; continue }
+					if (c == "\"") { s1 = 1; out = out c; i++; continue }
+					if (c == "'\''") { sc = 1; out = out c; i++; continue }
+					out = out c; i++
+				}
+				return out
+			}
 			function balance(s,   d, t) { t = s; d = gsub(/\{/, "", t); t = s; d += gsub(/\(/, "", t); t = s; d += gsub(/\[/, "", t); t = s; d -= gsub(/\}/, "", t); t = s; d -= gsub(/\)/, "", t); t = s; d -= gsub(/\]/, "", t); return d }
 			{ line[NR] = $0 }
 			END {
+				# the CLEANED text of each line, computed once: a definition body is usually read twice
+				s1 = 0; s3 = 0; sc = 0
+				for (i = 1; i <= NR; i++) code[i] = clean(line[i])
 				for (i = 1; i <= NR; i++) {
-					if (line[i] !~ /^(#[A-Za-z][A-Za-z0-9_]*|_[A-Za-z][A-Za-z0-9_]*)[ \t]*:/) continue
-					name = line[i]; sub(/[ \t]*:.*$/, "", name)
+					if (code[i] !~ /^(#[A-Za-z][A-Za-z0-9_]*|_[A-Za-z][A-Za-z0-9_]*)[ \t]*:/) continue
+					name = code[i]; sub(/[ \t]*:.*$/, "", name)
 					depth = 0; end = i
 					for (k = i; k <= NR; k++) {
-						s = strip(line[k])
-						depth += balance(s)
+						depth += balance(code[k])
 						end = k
 						if (depth <= 0) break
 					}
@@ -259,21 +290,54 @@ constructs() {
 		;;
 	.go)
 		awk '
+			# the same discipline as the CUE arm, over the constructs Go has that CUE does not:
+			# `/* … */` comments and `` `…` `` raw strings both span lines, so their state is carried.
+			function clean(s,   out, i, n, c, rest) {
+				out = ""; i = 1; n = length(s)
+				while (i <= n) {
+					c = substr(s, i, 1)
+					if (blk) {                                 # inside a /* … */ comment
+						rest = substr(s, i)
+						if (index(rest, "*/") == 0) { out = out "  "; i = n + 1; continue }
+						out = out "  "; i += index(rest, "*/") + 1; blk = 0; continue
+					}
+					if (raw) {                                 # inside a `…` raw string
+						if (c == "`") { raw = 0; out = out c; i++; continue }
+						out = out " "; i++; continue
+					}
+					if (str) {                                 # inside a "…" string
+						if (c == "\\") { out = out "  "; i += 2; continue }
+						if (c == "\"") { str = 0; out = out c; i++; continue }
+						out = out " "; i++; continue
+					}
+					if (c == "/" && substr(s, i, 2) == "//") break
+					if (c == "/" && substr(s, i, 2) == "/*") { blk = 1; out = out "  "; i += 2; continue }
+					if (c == "\"") { str = 1; out = out c; i++; continue }
+					if (c == "`") { raw = 1; out = out c; i++; continue }
+					if (c == "'"'"'") {                          # a rune literal, e.g. a brace written as a char
+						rest = substr(s, i)
+						if (match(rest, /^'\''(\\.|[^'\''\\])+'\''/)) { out = out substr(rest, 1, RLENGTH); i += RLENGTH; continue }
+						out = out " "; i++; continue
+					}
+					out = out c; i++
+				}
+				return out
+			}
 			function balance(s,   d, t) { t = s; d = gsub(/\{/, "", t); t = s; d += gsub(/\(/, "", t); t = s; d -= gsub(/\}/, "", t); t = s; d -= gsub(/\)/, "", t); return d }
 			{ line[NR] = $0 }
 			END {
+				blk = 0; raw = 0; str = 0
+				for (i = 1; i <= NR; i++) code[i] = clean(line[i])
 				for (i = 1; i <= NR; i++) {
-					if (line[i] !~ /^(func|type|var|const)[ \t]/) continue
-					name = line[i]
+					if (code[i] !~ /^(func|type|var|const)[ \t]/) continue
+					name = code[i]
 					if (name ~ /^func[ \t]+\(/) sub(/^func[ \t]+\([^)]*\)[ \t]*/, "", name)
 					else sub(/^(func|type|var|const)[ \t]+/, "", name)
 					sub(/[^A-Za-z0-9_].*$/, "", name)
 					if (name == "") continue
 					depth = 0; end = i
 					for (k = i; k <= NR; k++) {
-						s = line[k]
-						gsub(/"([^"\\]|\\.)*"/, "\"\"", s); sub(/\/\/.*$/, "", s)
-						depth += balance(s)
+						depth += balance(code[k])
 						end = k
 						if (depth <= 0) break
 					}
@@ -336,6 +400,19 @@ judge() {
 		return 0
 	fi
 
+	# THE HEADER IS PART OF THE ARTIFACT: a census whose explanation drifted from the control that
+	# writes it is a file that says something the code no longer does. Compare it before the rows, so
+	# a re-record that dropped the header is caught by the same run that would accept the data.
+	if [[ -f "$root/$BASELINE" ]]; then
+		local want_head have_head
+		want_head="$WORK/hdr.$$"
+		baseline_header >"$want_head"
+		have_head=$(awk -v n="$(wc -l <"$want_head" | tr -d ' ')" 'NR <= n' "$root/$BASELINE")
+		if [[ "$have_head" != "$(cat "$want_head")" ]]; then
+			printf 'FAIL %s: the header is not the one this control emits — regenerate it with `bash scripts/design-cite.sh --emit-baseline > %s`\n' \
+				"$BASELINE" "$BASELINE" >>"$out"
+		fi
+	fi
 	if [[ -f "$root/$BASELINE" ]]; then
 		local cap0 path0 lines0 anchor0 digest0
 		while IFS=$'\t' read -r cap0 path0 lines0 anchor0 digest0; do
@@ -392,15 +469,10 @@ judge() {
 			continue
 		fi
 
-		if ! commit_readable "$module"; then
-			printf 'FAIL %s:%s: %s is pinned at %s and its repository does not have that commit — run `git submodule update --remote -- %s`; the control cannot judge a pin it cannot read\n' \
-				"$ledger_name" "$cap" "$module" "${PIN_OF[$module]:0:12}" "$module" >>"$out"
-			continue
-		fi
-		# The citation is RECOGNISED here, before any judgement can fail: the census's reverse check
-		# asks whether the LEDGER still carries a citation, so a citation the pin cannot resolve keeps
-		# its own finding and must never also be reported as a stale baseline row — which would tell
-		# the author to delete a row that is still true of the ledger.
+		# The citation is RECOGNISED here, before ANY judgement can fail — including the pin's own
+		# readability. The census's reverse check asks whether the LEDGER still carries a citation, so
+		# a citation the pin cannot resolve keeps its own finding and must never also be reported as a
+		# stale baseline row, which would tell the author to delete a row that is still true.
 		local key="" a="" b=""
 		if [[ -n "$subject" && "$subject" != "#"* ]]; then
 			a="${subject%%-*}"
@@ -410,6 +482,15 @@ judge() {
 				key="$cap"$'\t'"$path"$'\t'"$a-$b"
 				cited[$key]=1
 			fi
+		fi
+
+		# A PIN THE STORE CANNOT READ IS A FAILURE WITH A REMEDY THAT RESOLVES IT. `git submodule
+		# update --remote` moves the submodule to the remote-tracking tip — it can MOVE THE PIN and
+		# still leave the pinned commit absent, which is the opposite of a remedy.
+		if ! commit_readable "$module"; then
+			printf 'FAIL %s:%s: %s is pinned at %s and its module store does not hold that commit — run `git --git-dir %s fetch origin` (or `git submodule update --init -- %s`) to fetch it; the control cannot judge a pin it cannot read\n' \
+				"$ledger_name" "$cap" "$module" "${PIN_OF[$module]:0:12}" "${STORE_OF[$module]:-<no store>}" "$module" >>"$out"
+			continue
 		fi
 
 		kind=$(kind_at "$module" "$path")
@@ -493,6 +574,44 @@ judge() {
 	:
 }
 
+# baseline_header — the committed file's OWN first lines: what it is, what it is not, and how the
+# check fails in both directions. Emitted here rather than kept in the file, so the one command that
+# re-records the census reproduces the census instead of truncating its explanation. The rows follow.
+baseline_header() {
+	cat <<'HDR'
+# design/cite-baseline.tsv — the line citations a row was AFFIRMED against, and what they showed.
+#
+# design/dulling.tsv cites the pinned source it reasons about by `path:line`. The bytes at those
+# lines belong to somebody else's commit, so a pin advance can move a construct out from under a
+# citation with nothing in this repository changing (opencharly/opencharly#963: `jetkvm.cue:437-473`
+# ended two lines short of `#JetkvmDeviceInput`, and `481-578` spanned `_method` instead of the
+# enum). This file is what makes that loud instead of silent: `scripts/design-cite.sh` (DESIGN.md
+# A.13) resolves every line citation at the pin and fails when
+#   * the range mostly shows a different construct from the ANCHOR recorded here — the one it mostly
+#     showed when the row was affirmed — or
+#   * the DIGEST of the cited lines' bytes no longer matches.
+#
+# WHAT THIS FILE IS NOT. A digest is NOT an assertion that the range shows what the row's prose
+# means: the ledger names a `#Definition` of `DESIGN.cue`, never a construct of a pinned module, so
+# "the range contains what the row claims" is not decidable from the ledger's own data and this
+# control does not pretend to decide it (A.13 states the same split A.11 makes). It is the record of
+# the bytes the row pointed at, so that a change to them cannot pass unread. A row that wants its
+# subject CHECKED cites the construct by name instead (`<path>:#<Definition>`), which a pin advance
+# cannot falsify: `kind:jetkvm` and `verb:jetkvm` do exactly that.
+#
+# THE CHECK FAILS IN BOTH DIRECTIONS, so this file can only shrink:
+#   * a line citation ABSENT from here is a claim nobody affirmed;
+#   * a row here whose citation the ledger no longer carries overstates the record, so it is
+#     lowered in the change that re-anchored the row.
+#
+# A row is capability, path, lines, anchor, digest. Read a citation at the pin before you re-anchor
+# it, then re-record with `bash scripts/design-cite.sh --emit-baseline`; a regenerate is a reviewed
+# diff, because every row it changes is a citation whose bytes moved and that nobody re-read.
+# tracked-by: opencharly/opencharly#963
+capability	path	lines	anchor	digest
+HDR
+}
+
 # ── the census, emitted ─────────────────────────────────────────────────────────────────────
 # emit_baseline <root> — the baseline this tree's pins produce: one row per LINE citation into a
 # pinned module, with the construct enclosing its range and a digest of its bytes. Used to seed the
@@ -501,7 +620,7 @@ judge() {
 emit_baseline() {
 	local root="$1" ledger cap col path subject module file ext a b
 	load_pins "$root"
-	printf '%s\n' "$BASELINE_HEADER"
+	baseline_header
 	cite_scan "$root" >"$WORK/cites"
 	while IFS=$'\t' read -r ledger cap col path subject; do
 		[[ -n "${subject:-}" && "$subject" != "#"* ]] || continue
@@ -739,8 +858,43 @@ INSIDE2_PY
 
 	# 12. a pin the module store cannot read: a loud refusal, never a smaller scan that still
 	#     reports success
+	# the census's HEADER is part of the artifact: a re-record that drops it leaves a file that no
+	# longer says what it is or which issue tracks it, and the check must say so before it reads a row.
+	n=$((n + 1))
+	grep -v '^#' "$work/design/cite-baseline.tsv" >"$work/headerless"
+	cp "$work/headerless" "$work/design/cite-baseline.tsv"
+	judge "$work" "$work/out.hdr"
+	if ! grep -q 'the header is not the one this control emits' "$work/out.hdr"; then
+		printf 'FAIL self-test: a census whose header was dropped did not fail the check\n'
+		sed 's/^/  /' "$work/out.hdr"
+		rc=1
+	else
+		printf '  self-test %-48s fails as designed\n' "a census whose header was dropped"
+	fi
+	emit_baseline "$work" >"$work/design/cite-baseline.tsv"
+
+	# a pin the store cannot read: the failure names the module, the REMEDY RESOLVES IT (`--remote`
+	# would move the pin and still leave the commit absent), and — the round-4 finding — it must NOT
+	# also report the census as stale: the ledger still carries those citations, so a `lower the
+	# census` line there would tell the author to delete rows that are still true.
+	n=$((n + 1))
 	git -C "$work" update-index --add --cacheinfo 160000,"1111111111111111111111111111111111111111",plugin-fixture
-	expect "a pin the module store cannot read" 'does not have that commit'
+	judge "$work" "$work/out.pin"
+	if ! grep -q 'does not hold that commit' "$work/out.pin"; then
+		printf 'FAIL self-test: a pin the module store cannot read did not name the pinned commit\n'
+		sed 's/^/  /' "$work/out.pin"
+		rc=1
+	elif ! grep -q 'fetch origin' "$work/out.pin"; then
+		printf 'FAIL self-test: the unreadable-pin failure does not name a remedy that resolves it\n'
+		sed 's/^/  /' "$work/out.pin"
+		rc=1
+	elif grep -q 'lower the census' "$work/out.pin"; then
+		printf 'FAIL self-test: an unreadable pin reported the census as stale — the ledger still cites those rows\n'
+		sed 's/^/  /' "$work/out.pin"
+		rc=1
+	else
+		printf '  self-test %-48s fails as designed\n' "a pin the module store cannot read"
+	fi
 	git -C "$work" update-index --add --cacheinfo 160000,"$sha",plugin-fixture
 	emit_baseline "$work" >"$work/design/cite-baseline.tsv"
 
@@ -780,6 +934,26 @@ INSIDE2_PY
 		rc=1
 	else
 		printf '  self-test %-48s holds\n' "a brace-less declaration ends on its own line"
+	fi
+
+	# the Go arm, over the constructs a quote-and-comment stripper misses: a RAW string (`…`, which
+	# spans lines), an interpreted string, and a /* … */ block comment, each carrying a brace. Any one
+	# of them counted as code runs the first declaration to the end of the file and swallows every
+	# declaration after it — the same false pass the CUE arm was fixed for, in the other language.
+	n=$((n + 1))
+	printf 'package fixture\n\nvar raw = `a { b `\nvar z = "a { b"\n/* a { brace in a block comment */\n\nfunc AfterStrings() {\n\tprintln("ok")\n}\n' >"$work/fixture.go"
+	spans=$(constructs "$work/fixture.go" .go)
+	got_anchor=$(anchor_of "$spans" 8 8)
+	if ! grep -qxE "^3"$'\t'"3"$'\traw$' "$spans" ||
+		! grep -qxE "^4"$'\t'"4"$'\tz$' "$spans" ||
+		! grep -qxE "^7"$'\t'"9"$'\tAfterStrings$' "$spans" ||
+		[[ "$got_anchor" != "AfterStrings" ]]; then
+		printf 'FAIL self-test: the Go construct walk lets a raw string or a block comment swallow a declaration\n'
+		sed 's/^/  /' "$spans"
+		printf '  the anchor of line 8 is %s\n' "$got_anchor"
+		rc=1
+	else
+		printf '  self-test %-48s holds\n' "a Go raw string and block comment"
 	fi
 
 	if [[ "$rc" -ne 0 ]]; then

@@ -3277,13 +3277,25 @@ commit. A citation into this repository's own files is checked for existence and
 cannot drift under a third party's commit, because whoever moves those lines is editing this ledger
 too.
 
+**Reading a language, not counting characters.** The construct a range sits in is computed by blanking
+comments and string literals before a bracket is counted, with the state of the constructs that span
+lines carried from one line to the next — a CUE `"""` string, a Go `/* … */` comment, a Go raw
+string, a rune literal. A brace inside any of them is text, not structure: counted as structure it runs
+a declaration past its own closing brace, the walk then skips every declaration after it, and the
+anchor is reported for a construct that was never computed. The self-test asserts the walk itself in
+BOTH languages, over fixtures whose definitions carry a brace in each of those texts, and a walk
+regressed to the naive form turns those cases red.
+
 **The baseline is not an exemption.** `design/cite-baseline.tsv` records one row per line citation —
 capability, path, lines, anchor, digest — and the check fails in BOTH directions: a line citation
 absent from the file is a claim nobody affirmed, and a row whose citation the ledger no longer
 carries overstates the record, so it is lowered in the change that re-anchored the row. The file can
 therefore only shrink toward the rows that cite a name, and it can never bless a citation it does
-not already record. `--emit-baseline` prints it from the current pins, and its diff is reviewed like
-any other, because every row it changes is a citation whose bytes moved and that nobody re-read.
+not already record. `--emit-baseline` prints it from the current pins — the file's whole header
+included, so `bash scripts/design-cite.sh --emit-baseline > design/cite-baseline.tsv` REPRODUCES the
+committed artifact, and the check holds the committed header to the one the control emits. Its diff is
+reviewed like any other, because every row it changes is a citation whose bytes moved and that nobody
+re-read.
 
 **The measurement on this tree.** On the pins `main` carried when this control landed (2026-11-10)
 it read 409 gitlinks and judged 177 line citations in about thirteen seconds. It found two citations
