@@ -2664,9 +2664,11 @@ This document and `DESIGN.cue` state the same design twice: once in prose and ta
 once as schema for machines. Two statements of one thing drift unless something compares them.
 The design check is that comparison. It runs locally and on demand — there is no CI gate — and a
 change to `DESIGN.md`, `DESIGN.cue`, `TODO.md` or the check itself lands only with its output on
-the final committed tree pasted into the PR body. It relies on the pinned CUE v0.18.0-rc.1 and on
-`git` — the schema-pattern gate (A.11) and the pin-tag control (A.12) read the pinned modules
-through the tree's own index — and on nothing else: no Go, Python or other toolchain is needed.
+the final committed tree pasted into the PR body. It relies on the pinned CUE v0.18.0-rc.1, on
+`git` — the schema-pattern gate (A.11), the pin-tag control (A.12) and the citation control (A.13)
+read the pinned modules through the tree's own index — and on `python3`, which the ledger's
+definition-shape walk (`scripts/design-shape-check.py`) already needs. No other toolchain is
+needed, and in particular no Go.
 
 `DESIGN.cue`, beside this document, is the single copy of the schema: the authoring schema of
 Part III and the core↔plugin protocol of §4. It is written with the patterns of §10.1.
@@ -2693,6 +2695,8 @@ validated with `cue vet -d '#Document' DESIGN.cue charly.yml`, and a user config
 | `scripts/design-disposition.sh` | renders `design/dulling-disposition.md` from the ledger |
 | `design/parity.tsv` | the parity ledger: every current capability and the mechanism that absorbs it (A.7) |
 | `scripts/design-ledger.sh` | checks the capability ledger: coverage, verdicts, citations, and the disposition table's currency (A.8, A.10) |
+| `scripts/design-cite.sh` | resolves every citation into a pinned module AT THE PIN: the path exists there, a named construct is declared there, and a line range still holds the construct and the bytes its row was affirmed against (A.13) |
+| `design/cite-baseline.tsv` | the construct and the digest of every line citation into a pinned module, recorded when the row was affirmed (A.13) |
 | `design/dulling.tsv` | the capability ledger: every current capability, and whether the target form lands it whole (A.8) |
 | `design/dulling-admission.tsv` | the new-capability paths of the capability ledger (A.8) |
 
@@ -2703,15 +2707,16 @@ bash scripts/design-check.sh
 ```
 
 Runs in the repository root, in order, and stops at the first failure: the toolchain (A.3), the
-consistency check (A.4), the example check (A.5), the ledger check (A.8), the schema-pattern
-gate (A.11) and the pin-tag control (A.12). It has no logic of its own; each control lives in
-exactly one script, and no check writes to the repository. The committed negative cases (A.5) and
-the `--self-test` mutations of the ledger check (A.8), of the schema-pattern gate (A.11) and of the
-pin-tag control (A.12) are the proof that each check can fail.
+consistency check (A.4), the example check (A.5), the ledger check (A.8), the citation control
+(A.13), the schema-pattern gate (A.11) and the pin-tag control (A.12). It has no logic of its own;
+each control lives in exactly one script, and no check writes to the repository. The committed
+negative cases (A.5) and the `--self-test` mutations of the ledger check (A.8), of the citation
+control (A.13), of the schema-pattern gate (A.11) and of the pin-tag control (A.12) are the proof
+that each check can fail.
 
 **The gate has a caller.** A control that nothing runs enforces nothing, so the umbrella's
 pre-push hook (`hooks/pre-push`) runs this command for a push whose commits change one of the
-surfaces these six controls read, and refuses the push on a finding. Which pushes those are is
+surfaces these seven controls read, and refuses the push on a finding. Which pushes those are is
 defined once, in `scripts/design-gate-inputs.sh`; `scripts/check-design-gate.mjs` asserts that
 the caller is wired and FIRES it, because an unwired gate is how this one came to run only when
 somebody remembered. The command above stays runnable at any time.
@@ -2907,7 +2912,7 @@ seven columns beside the capability:
 | `target_form` | what the target design allows for it |
 | `verdict` | `sharp`, `dulled`, `forbidden` or `unknown` |
 | `dulling` | the one clause that blunts it, quoted; `—` when the row is `sharp` |
-| `evidence` | the `DESIGN.md` requirement or section that carries the rule (`D-…`/`§…`, never a line), the `DESIGN.cue` definition the row names (where it names one), and the path that shows today |
+| `evidence` | the `DESIGN.md` requirement or section that carries the rule (`D-…`/`§…`, never a line), the `DESIGN.cue` definition the row names (where it names one), and the path that shows today — a path of a pinned module, optionally narrowed to a construct by NAME (`<path>:<definition name>`, which a pin advance cannot falsify) or to a line range (A.13) |
 | `action` | `none`, `amend <id or §>`, `accept retirement` or `verify live` |
 
 A **verdict** is `sharp` when every operation, guarantee and freedom survives — a rename, a merge
@@ -2928,6 +2933,11 @@ has an empty cell, when a row cites `DESIGN.md` or `DESIGN.cue` by line rather t
 definition (a line drifts on every edit of this document; a name cannot), when a cited requirement
 or section is not one this document defines, when a row names a definition that `DESIGN.cue` does
 not define or defines more than once, or when a row names a definition its `evidence` does not cite.
+A name a row cites as `<pinned path>:<definition name>` is a different claim and belongs to a different
+control: it says "the pinned module declares this construct", so `scripts/design-cite.sh` resolves it
+at the pin (A.13), and it is not required to be a definition of `DESIGN.cue` — §10.2 moves a
+definition into its owning module, and a control demanding both homes would forbid the target the
+design is aiming at.
 
 Both ledgers are written in **current** vocabulary, exactly as A.7 is: this document's terms (§2)
 bind the design, and a ledger's job is to name what exists today. A capability therefore lands
@@ -3203,3 +3213,108 @@ malformed row, a census with no tracked issue and an absent census each fail; an
 store is skipped visibly, a run over only skipped pins fails, and a pin the store does not hold
 fails the run by name; and `--remote` fails loud on an unreachable remote and resolves a tag the
 store never fetched.
+
+### A.13 `scripts/design-cite.sh` — the citation control
+
+```bash
+bash scripts/design-cite.sh                # the control design-check.sh runs
+bash scripts/design-cite.sh --self-test    # mutate every arm and prove the check fails
+bash scripts/design-cite.sh --emit-baseline # print design/cite-baseline.tsv from the current pins
+```
+
+The ledgers of A.7 and A.8 cite the pinned source they reason about — `design/dulling.tsv` says *what shows today*
+by pointing at a file of a pinned module. Those are claims about somebody else's commit, and until
+this control existed nothing here resolved them: the ledger check (A.8) refuses a `DESIGN.md` or
+`DESIGN.cue` line citation because a line drifts on every edit of THIS document, but a citation into
+a pinned submodule was accepted in the line form and never opened. So the one citation form that
+rots on a schedule this repository does not control was the one form no gate read, and a pin advance
+that moved a construct out from under a row left `bash scripts/design-check.sh` green
+(opencharly/opencharly#963; the two `cua` rows of the same shape were falsified by the advance of
+#962 and repaired by hand in #964, and the two `jetkvm` rows it left behind are what this control
+found).
+
+**The citation forms, each judged on what its own text decides (the list below, not a count).** A
+citation names a path of a pinned module (`<module>/<path in that module>`), and its subject is one
+of:
+
+- **a path reference**, `<path>` alone — "this is the artifact that shows today". Judged: the path
+  exists in the module's tree AT THE PINNED COMMIT, as a file or a directory. A path the pin does
+  not carry is a failure, never a skip.
+- **a name citation**, `<path>:<definition name>` — "this file declares this construct". Judged: the
+  pinned file declares that name at the pin. A pin advance cannot falsify this form, because a
+  name is not a position, and it is why A.8 offers it beside the line form: the design document
+  moved its own citations off line numbers for exactly this reason.
+- **a line citation**, `<path>:<a>` or `<path>:<a>-<b>` — "these lines are the artifact". Judged on
+  three decidable facts: the range is inside the file at the pin (`1 <= a <= b <= <lines>`, and
+  non-empty); the construct the range MOSTLY showed when the row was affirmed is still the one it
+  mostly shows; and the BYTES at those lines are still the bytes the row was affirmed against.
+
+**What the control decides, and what it does not.** It does not decide whether a cited range
+contains what the row's PROSE means. The ledger states a line range's subject in prose only — a row
+names a definition of `DESIGN.cue`, never a construct of a pinned module — so "the range contains
+what the row claims" is not decidable from the ledger's own data, and a control that asserted it
+would be asserting something it cannot know. That judgement is stated here rather than faked. What
+the control does instead is make the judgement LOUD: `design/cite-baseline.tsv` records, for every
+line citation, the construct that enclosed its range and a digest of its bytes at the pin, and a pin
+advance that moves either one fails the run, naming the row, the pin, the construct it now shows and
+the construct it was affirmed against. A row that wants its subject CHECKED, rather than merely
+guarded, cites the construct by name.
+
+**Reading the pin, never a checkout.** The pin set comes from the tree's INDEX (`git ls-files
+--stage`), and each module is read from its own object store at the pinned commit — the store
+`scripts/design-module-store.sh` resolves, so this control does not carry a second copy of where a
+linked worktree keeps its submodule repositories. A checkout beside the store is never consulted: it
+can be stale, dirty or absent, and five rounds of this campaign were spent on gates that judged one.
+A pin whose store or commit cannot be read is a failure that names the module and the remedy, never
+a smaller scan that still reports success.
+
+**A citation of a repository this tree does not pin is UNCHECKED, and says so.** A row may cite
+`opencharly/<repo>@<commit>` beside a repository-relative path for a repository no gitlink carries.
+A commit id is immutable, so such a citation cannot drift, and this tree does not hold the
+repository to read it from; the run reports it as a note and never as a finding. A PINNED repository
+cited that way IS a finding: the row must name the pin, because a commit named in prose can be any
+commit. A citation into this repository's own files is checked for existence and range only — it
+cannot drift under a third party's commit, because whoever moves those lines is editing this ledger
+too.
+
+**Reading a language, not counting characters.** The construct a range sits in is computed by blanking
+comments and string literals before a bracket is counted, with the state of the constructs that span
+lines carried from one line to the next — a CUE `"""` string, a Go `/* … */` comment, a Go raw
+string, a rune literal. A brace inside any of them is text, not structure: counted as structure it runs
+a declaration past its own closing brace, the walk then skips every declaration after it, and the
+anchor is reported for a construct that was never computed. The self-test asserts the walk itself in
+BOTH languages, over fixtures whose definitions carry a brace in each of those texts, and a walk
+regressed to the naive form turns those cases red.
+
+**The baseline is not an exemption.** `design/cite-baseline.tsv` records one row per line citation —
+capability, path, lines, anchor, digest — and the check fails in BOTH directions: a line citation
+absent from the file is a claim nobody affirmed, and a row whose citation the ledger no longer
+carries overstates the record, so it is lowered in the change that re-anchored the row. The file can
+therefore only shrink toward the rows that cite a name, and it can never bless a citation it does
+not already record. `--emit-baseline` prints it from the current pins — the file's whole header
+included, so `bash scripts/design-cite.sh --emit-baseline > design/cite-baseline.tsv` REPRODUCES the
+committed artifact, and the check holds the committed header to the one the control emits. Its diff is
+reviewed like any other, because every row it changes is a citation whose bytes moved and that nobody
+re-read.
+
+**The measurement on this tree.** On the pins `main` carried when this control landed (2026-11-10)
+it read 409 gitlinks and judged 177 line citations in about thirteen seconds. It found two citations
+pointing at an artifact the pin does not carry — `charly/commands.go`, because that module's Go
+package lives under `charly/` inside its own repository, and `spec/schema/_common.cue`, renamed
+`00_common.cue` upstream with its range slid off the policy definition it meant — and three
+citations of
+repositories this tree does not pin, which it reports as unchecked. The two `jetkvm` rows #962
+falsified are the failure it cannot decide for an unnamed range: they were found by reading the pin,
+and both are repaired to the name form, so the control holds them from now on. The self-test plants a real module store — a bare repository under
+`<fixture>/.git/modules/<path>`, with the pins written into the fixture's own index — and a STALE
+CHECKOUT beside it with different content. It proves, case by case: a range past the end of the
+pinned file, a range whose start follows its end, a path the pin does not have, a citation that
+identifies no file, a line citation of a directory, a pin advance that moves the construct under a
+range, a pin advance that moves only the bytes, a definition name the pin does not declare, a line
+citation missing from the census, a census row the ledger no longer cites, a pin the store cannot
+read and a citation past the end of a file of this repository all fail; a correct fixture, a citation
+inside a file of this repository, and the same citations one construct later pass, with the stale
+checkout changing nothing either way; and the construct walk itself is asserted, because a string
+literal carrying an unbalanced brace must not swallow the definition after it — a definition walk
+that mis-spans reports the wrong anchor for every later line, and a walker whose quoting is wrong
+therefore reads as a pass.

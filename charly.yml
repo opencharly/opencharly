@@ -810,9 +810,12 @@ verify:
 # -----------------------------------------------------------------------------
 # design-check — the DESIGN gate (DESIGN.md A.1/A.2) as ONE command.
 #
-# Six controls, 79 self-test cases, and until this task existed NOTHING in the tree
-# ran them: `git grep -l design-check` found no gate, so they ran only when somebody
-# remembered — the "gate with no caller" defect the org has paid for twice. The
+# Seven controls — four carrying `--self-test` mutations of their own rules (the
+# ledger, the citation control, the schema-pattern gate, the pin-tag control), the
+# examples proven by their committed negative cases, the toolchain control proving the
+# pinned `cue`. Until this task existed NOTHING in the tree ran them: `git grep -l design-check` found no gate,
+# so they ran only when somebody remembered — the "gate with no caller" defect the org
+# has paid for twice. The
 # CALLER is hooks/pre-push, decided by the change class in
 # scripts/design-gate-inputs.sh and asserted by scripts/check-design-gate.mjs; this
 # task is the same control through the umbrella's own verb surface, so a contributor
@@ -825,10 +828,10 @@ verify:
 # -----------------------------------------------------------------------------
 design-check:
   task:
-    description: Run the DESIGN gate — the six controls of DESIGN.md A.1/A.2 (the CUE toolchain, DESIGN.md↔DESIGN.cue, the examples and their negatives, the capability ledger, the schema patterns of every pinned plugin module, and every pin's relation to a release tag) — the same command hooks/pre-push runs by change class
+    description: Run the DESIGN gate — the seven controls of DESIGN.md A.1/A.2 (the CUE toolchain, DESIGN.md↔DESIGN.cue, the examples and their negatives, the capability ledger, every citation into a pinned module resolved at its pin, the schema patterns of every pinned plugin module, and every pin's relation to a release tag) — the same command hooks/pre-push runs by change class
     dir: .
     plan:
-      - check: the six design controls pass on THIS tree
+      - check: the seven design controls pass on THIS tree
         command: bash scripts/design-check.sh
         timeout: 30m
         context: [runtime]

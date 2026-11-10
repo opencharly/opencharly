@@ -87,8 +87,11 @@
 #                          the caller's shell carries — asserted by FIRING both readers
 #                          against the same file (`node scripts/check-pr-body-cap.mjs`;
 #                          opencharly/opencharly#720)
-#  15. design gate caller — the DESIGN gate (`bash scripts/design-check.sh`, six controls
-#                          with 79 self-test cases) has a CALLER: `hooks/pre-push` runs
+#  15. design gate caller — the DESIGN gate (`bash scripts/design-check.sh`, seven
+#                          controls: four with `--self-test` mutations, the examples
+#                          proven by their committed negative cases, the toolchain
+#                          control proving the pinned `cue`) has a CALLER:
+#                          `hooks/pre-push` runs
 #                          it for a push whose commits change one of the surfaces the
 #                          controls read, decided by `scripts/design-gate-inputs.sh` and
 #                          BLOCKING on a finding. Until that leg existed, nothing in the
