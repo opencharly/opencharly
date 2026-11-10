@@ -82,8 +82,6 @@ GPU shared through CDI vs held alone through VFIO	spec/schema/deploy.cue	323-323
 kind:android	spec/schema/android.cue	14-24	#Android	f615fdb22527d614
 kind:builder	spec/schema/builder.cue	8-30	#Builder	40cf6239fe0e930d
 kind:cua	plugin-cua/candy/plugin-cua/schema/cua.cue	173-191	#CuaDeviceInput	7b7bdd4ccee16f37
-kind:desktopentry	plugin-desktop-kind/candy/plugin-desktop-kind/schema/desktop.cue	121-153	#DesktopEntryInput	df8e7259be5152b2
-kind:displaymanager	plugin-desktop-kind/candy/plugin-desktop-kind/schema/desktop.cue	101-117	#DisplayManagerInput	492035b20ae13106
 kind:distro	plugin-distro/candy/plugin-distro/schema/distro.cue	32-47	#DistroInput	fdb988c388629d51
 kind:firecracker	spec/schema/firecracker.cue	35-61	#Firecracker	77d4112bca573e60
 kind:group	charly/charly/no_kind_switch_in_kernel_test.go	42-42	-	19a40f2967852815
@@ -97,7 +95,6 @@ kind:marketplace	spec/schema/marketplace.cue	9-30	#Marketplace	42b985734bb4e4a4
 kind:pipeline	spec/schema/pipeline.cue	36-200	#PipelineArms	2baeda419cc6d4c2
 kind:pod	spec/schema/pod.cue	10-19	#Pod	c69c414d1af3795a
 kind:resource	plugin-resource/candy/plugin-resource/schema/resource.cue	21-27	#ResourceInput	923be81c20e14952
-kind:session	plugin-desktop-kind/candy/plugin-desktop-kind/schema/desktop.cue	73-97	#SessionInput	b7df908ac46b0785
 kind:sidecar	plugin-sidecar/candy/plugin-sidecar/schema/sidecar.cue	48-89	#ScSecurity	ba51088a37c53e10
 kind:skill	plugin-harness-kind/candy/plugin-harness-kind/schema/skill.cue	19-32	#SkillInput	faefee417399e060
 kind:skill	spec/schema/skill.cue	33-38	-	62a70d2225cf652c
@@ -184,7 +181,6 @@ verb:punktfunk	plugin-punktfunk/candy/plugin-punktfunk/schema/punktfunk.cue	21-2
 verb:record	plugin-record/candy/plugin-record/schema/record.cue	1-40	#RecordInput	77c2f5e8a1717026
 verb:retention	plugin-clean/candy/plugin-clean/provider.go	30-70	invokeCleanCLI	3cac06fc93498057
 verb:service	plugin-service/candy/plugin-service/schema/service.cue	1-45	#ServiceInput	cd6330abac258762
-verb:spice	plugin-spice/candy/plugin-spice/schema/spice.cue	27-27	#SpiceInput	0b1c7bc490a122a1
 verb:task	plugin-task/candy/plugin-task/schema/task.cue	1-4	-	33841979c9ff5fd7
 verb:transcode	plugin-media/candy/plugin-media/schema/transcode.cue	1-8	-	fe2d47559ccfdf36
 verb:tunnel	plugin-tunnel/candy/plugin-tunnel/schema/tunnel.cue	1-20	-	20355dbbffc8b2f2

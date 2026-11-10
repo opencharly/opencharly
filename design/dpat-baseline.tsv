@@ -41,13 +41,6 @@ plugin-crabbox/candy/plugin-crabbox/schema/crabbox.cue	open	firecracker?: {...} 
 plugin-cstream/candy/plugin-cstream/schema/cstream.cue	union	method: "status" | "login" | "frame"	1
 plugin-cstream/candy/plugin-cstream/schema/cstream.cue	union	expect?: "accept" | "reject"	1
 plugin-dbus/candy/plugin-dbus/schema/dbus.cue	union	method: "list" | "call" | "introspect" | "notify"	1
-plugin-desktop-kind/candy/plugin-desktop-kind/schema/desktop.cue	union	syntax?: *"lua" | "ini" | "sway" | "xml" | "yaml"	1
-plugin-desktop-kind/candy/plugin-desktop-kind/schema/desktop.cue	union	manager: *"sddm" | "greetd" | "gdm" | "ly"	1
-plugin-desktop-kind/candy/plugin-desktop-kind/schema/desktop.cue	union	numlock?: *"none" | "on" | "off"	1
-plugin-desktop-kind/candy/plugin-desktop-kind/schema/desktop.cue	union	placement?: *"default" | "float" | "tile" | "fullscreen" | "maximize"	1
-plugin-desktop-kind/candy/plugin-desktop-kind/schema/desktop.cue	union	#DkCategory: "AudioVideo" | "Audio" | "Video" | "Development" | "Education" |	1
-plugin-desktop-kind/candy/plugin-desktop-kind/schema/desktop.cue	union	"Game" | "Graphics" | "Network" | "Office" | "Science" | "Settings" |	1
-plugin-desktop-kind/candy/plugin-desktop-kind/schema/desktop.cue	union	"System" | "Utility"	1
 plugin-distro/candy/plugin-distro/schema/distro.cue	union	section_field?: {[string]: "list" | "list_of_maps"}	1
 plugin-distro/candy/plugin-distro/schema/distro.cue	union	sharing?: *"locked" | "shared" | "private"	1
 plugin-dsh/candy/plugin-dsh/schema/dsh.cue	union	method: ("version" | "web-running" | "profile-list" | "plugin-list") @go(Method,type=string)	1
@@ -133,9 +126,6 @@ plugin-harness-kind/candy/plugin-harness-kind/schema/skill.cue	close	#SkillInput
 plugin-harness-kind/candy/plugin-harness-kind/schema/skill.cue	union	category?: *"development" | "commands" | "kind" | "images"	1
 plugin-harness-kind/candy/plugin-harness-kind/schema/skill.cue	close	#SkillReferenceInput: close({	1
 plugin-helm/candy/plugin-helm/schema/helm.cue	union	method: ("release-exists" | "status" | "revision" | "values-hash")	1
-plugin-herdr/candy/plugin-herdr/schema/herdr.cue	union	method: ("ping" | "session-snapshot" | "workspace-list" | "tab-list" | "pane-list" | "agent-list" | "pane-wait-output" | "agent-wait" | "agent-prompt") @go(Method,type=string)	1
-plugin-herdr/candy/plugin-herdr/schema/herdr.cue	union	source?: ("visible" | "recent" | "recent-unwrapped" | "detection") @go(Source,type=string)	1
-plugin-herdr/candy/plugin-herdr/schema/herdr.cue	union	until?: ("idle" | "working" | "blocked" | "done" | "unknown") @go(Until,type=string)	1
 plugin-http/candy/plugin-http/schema/http.cue	union	#HttpMatcherList: (#HttpMatcher | [...#HttpMatcher])	1
 plugin-http/candy/plugin-http/schema/http.cue	union	#HttpMatcher: (string | bool | number | #HttpMatchOp)	1
 plugin-http/candy/plugin-http/schema/http.cue	union	#HttpMatchOp: {equals: _} | {not_equals: _} | {contains: _} | {not_contains: _} | {matches: _} | {not_matches: _} | {lt: _} | {le: _} | {gt: _} | {ge: _}	1
@@ -196,9 +186,6 @@ plugin-sidecar/candy/plugin-sidecar/schema/sidecar.cue	union	env?: {[string]: (s
 plugin-sidecar/candy/plugin-sidecar/schema/sidecar.cue	union	parameter?: {[string]: (string | number | bool)}	1
 plugin-sidecar/candy/plugin-sidecar/schema/sidecar.cue	union	cgroupns?: "host" | "private" | ""	1
 plugin-sidecar/candy/plugin-sidecar/schema/sidecar.cue	union	ipc_mode?: "host" | "private" | "shareable" | ""	1
-plugin-spice/candy/plugin-spice/schema/spice.cue	union	method: "status" | "screenshot" | "cursor" | "click" | "mouse" | "type" | "key" | "record" | "session" | "wizard"	1
-plugin-spice/candy/plugin-spice/schema/spice.cue	union	action?: "start" | "stop" | "status" @go(Action)	1
-plugin-spice/candy/plugin-spice/schema/spice.cue	union	action?: "key" | "type" | "key-combo"	1
 plugin-unit/candy/plugin-unit/schema/unit.cue	union	scope?: "system" | "user"	1
 plugin-vision/candy/plugin-vision/schema/vision.cue	union	mime?: *"image/png" | "image/jpeg" | "image/webp" | "image/gif"	1
 plugin-vm/candy/plugin-vm/schema/vm.cue	union	method: ("list" | "info" | "screenshot" | "send-key" | "passwd" | "qmp" | "domain-xml" | "console" | "events" | "guest/ping" | "guest/info" | "guest/os-info" | "guest/time" | "guest/hostname" | "guest/users" | "guest/interfaces" | "guest/disks" | "guest/fsinfo" | "guest/vcpus" | "guest/exec" | "guest/fstrim" | "snapshot/list" | "snapshot/create" | "snapshot/info" | "snapshot/revert" | "snapshot/delete" | "session") @go(Method,type=string)	1
