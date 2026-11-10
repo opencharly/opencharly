@@ -58,36 +58,6 @@ plugin-crabbox/candy/plugin-crabbox/schema/crabbox.cue	open	containerd?: {...} @
 plugin-crabbox/candy/plugin-crabbox/schema/crabbox.cue	open	firecracker?: {...} @go(Firecracker)	1
 plugin-cstream/candy/plugin-cstream/schema/cstream.cue	union	method: "status" | "login" | "frame"	1
 plugin-cstream/candy/plugin-cstream/schema/cstream.cue	union	expect?: "accept" | "reject"	1
-plugin-cua/candy/plugin-cua/schema/cua.cue	union	delivery?: "background" | "foreground"	1
-plugin-cua/candy/plugin-cua/schema/cua.cue	union	"status" |	1
-plugin-cua/candy/plugin-cua/schema/cua.cue	union	"doctor" |	1
-plugin-cua/candy/plugin-cua/schema/cua.cue	union	"version" |	1
-plugin-cua/candy/plugin-cua/schema/cua.cue	union	"list-tools" |	1
-plugin-cua/candy/plugin-cua/schema/cua.cue	union	"list-apps" |	1
-plugin-cua/candy/plugin-cua/schema/cua.cue	union	"list-windows" |	1
-plugin-cua/candy/plugin-cua/schema/cua.cue	union	"get-window-state" |	1
-plugin-cua/candy/plugin-cua/schema/cua.cue	union	"get-desktop-state" |	1
-plugin-cua/candy/plugin-cua/schema/cua.cue	union	"get-screen-size" |	1
-plugin-cua/candy/plugin-cua/schema/cua.cue	union	"screenshot" |	1
-plugin-cua/candy/plugin-cua/schema/cua.cue	union	"click" |	1
-plugin-cua/candy/plugin-cua/schema/cua.cue	union	"double-click" |	1
-plugin-cua/candy/plugin-cua/schema/cua.cue	union	"right-click" |	1
-plugin-cua/candy/plugin-cua/schema/cua.cue	union	"drag" |	1
-plugin-cua/candy/plugin-cua/schema/cua.cue	union	"type" |	1
-plugin-cua/candy/plugin-cua/schema/cua.cue	union	"press-key" |	1
-plugin-cua/candy/plugin-cua/schema/cua.cue	union	"hotkey" |	1
-plugin-cua/candy/plugin-cua/schema/cua.cue	union	"scroll" |	1
-plugin-cua/candy/plugin-cua/schema/cua.cue	union	"move-cursor" |	1
-plugin-cua/candy/plugin-cua/schema/cua.cue	union	"launch-app" |	1
-plugin-cua/candy/plugin-cua/schema/cua.cue	union	"kill-app" |	1
-plugin-cua/candy/plugin-cua/schema/cua.cue	union	"bring-to-front" |	1
-plugin-cua/candy/plugin-cua/schema/cua.cue	union	"set-window-frame" |	1
-plugin-cua/candy/plugin-cua/schema/cua.cue	union	"set-value" |	1
-plugin-cua/candy/plugin-cua/schema/cua.cue	union	"recording-start" |	1
-plugin-cua/candy/plugin-cua/schema/cua.cue	union	"recording-stop" |	1
-plugin-cua/candy/plugin-cua/schema/cua.cue	union	"recording-status" |	1
-plugin-cua/candy/plugin-cua/schema/cua.cue	union	"recording-render" |	1
-plugin-cua/candy/plugin-cua/schema/cua.cue	union	permission_mode?: "standard" | "bounded" | "unrestricted" @go(PermissionMode)	1
 plugin-dbus/candy/plugin-dbus/schema/dbus.cue	union	method: "list" | "call" | "introspect" | "notify"	1
 plugin-desktop-kind/candy/plugin-desktop-kind/schema/desktop.cue	union	syntax?: *"lua" | "ini" | "sway" | "xml" | "yaml"	1
 plugin-desktop-kind/candy/plugin-desktop-kind/schema/desktop.cue	union	manager: *"sddm" | "greetd" | "gdm" | "ly"	1
