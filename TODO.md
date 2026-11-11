@@ -112,11 +112,15 @@ the entry says otherwise:
   out-of-process e2e suites build through `hostBuildPluginForTest` with a test-local root
   (`charly/plugin_build_testhelper_test.go`: "a test that built into the operator's real cache would be a
   write outside the temp dir"), and `buildcache`'s own tests `t.Setenv("CHARLY_CACHE_DIR", t.TempDir())`.
-  No code reads the old per-user `~/.cache/charly/plugins` root any more (the surviving
-  `/usr/lib/charly/plugins/` references are the IMAGE's baked plugin dir, a different thing), so what this
-  row's evidence describes — 19 GB, 2 025 binaries, 1 762 test stubs — is that OLD root's on-disk residue,
-  whose purge the migration already assigns to its own phase 5 (`7.3`: `charly clean` purges the old
-  roots). The keying and the test roots are done; the residue is not this row's.
+  No code reads the old per-user `~/.cache/charly/plugins` root any more: that literal appears in no
+  `.go` file of `charly` or `sdk` at the pins (both sweeps exit 1 with no output, pasted in the PR
+  body). The `/usr/lib/charly/plugins/` hits are a DIFFERENT path — the packaged plugin dir every
+  native package bakes beside the binary — so they neither read nor keep the old cache root. What
+  the row's *Current* cell states for the user cache is therefore that OLD root's on-disk residue:
+  measured on 2026-11-11 it holds 35 GB across 5 126 files, 1 083 of them `.stamp` sidecars, while
+  the content-keyed root holds 2.3 GB across 231 files. Its purge is the migration's own phase 5
+  (`7.3`: `charly clean` purges the old roots). The keying and the test roots are done; the residue
+  is not this row's.
 
 - `12.7` — the `kube:` verb carries observation methods ONLY. `opencharly/plugin-kube` PR #33, merge
   `d19e95d1cad420f152a1e983430d437269b9f8d3`, tag `v2026.315.0153`: `apply` (dynamic `Create`, then
@@ -281,7 +285,7 @@ Still open:
 
 | # | Current state (evidence) | Target | Code work |
 |---|---|---|---|
-| 7.1 | Plugin binaries are keyed by absolute source path (19 GB, 2,025 binaries, 1,762 test stubs in the user cache). | D-STORE-4, D-STORE-8 | Key by content; inject test roots. |
+| 7.1 | Plugin binaries are keyed by absolute source path (19 GB, 2,025 binaries, 1,762 test stubs in the user cache). | D-STORE-4, D-STORE-8 | Key by content; inject test roots. **Answered 2026-11-11** — keyed by content: `opencharly/sdk` `b77c8a54d2331f77ee7308e43503bb051e7df6b2` (tag `v0.2026287.1747`, PR #389) keeps ONE store entry per binary, keyed by D-STORE-4's whole input set, with the per-key lock outside the store tree, and `opencharly/charly` `125a910988495170e7f2ab4d601fa4e70e1cd3bc` (tag `v2026.288.0051`, PR #910) deletes the loader's path-keyed cluster; the test root is `$XDG_CACHE_HOME/charly` with `$CHARLY_CACHE_DIR` as the sole override (D-STORE-8). The *Current* cell's figures are that OLD root's on-disk residue — 35 GB across 5 126 files, 1 083 of them `.stamp` sidecars, measured on 2026-11-11 — whose purge `7.3` owns. |
 | 7.2 | Five cache environment variables (`CHARLY_CACHE_DIR`, `_REPO_CACHE`, `_BUILD_CACHE`, `_GH_CACHE`, `_MATERIALIZED_CACHE`) and about 9 hand-built `.cache` paths mixing `UserCacheDir` and `UserHomeDir`. | D-STORE-1 | One sdk package. The four variables beyond `CHARLY_CACHE_DIR` are deleted in the phase that migrates the cache they serve, and the hand-built paths route through the same resolver — no variable and no hand-built path survives its own phase (R5). |
 | 7.3 | Five on-disk caches: per-ref repository exports (about 11k) that also cache the mutable `@main`; `materialized/` JSON carrying timestamps and temporary paths — a D-STORE-6 violation of the payload rule, while the payload/validity-metadata split itself is already implemented (the resolution record lives in the config blob, not in the payload); `vm-images/` with sidecar files; lock files never collected; and the OCI-layout store with 6 callers. | D-STORE-3, D-STORE-5..7 | The ordered migration below: one cache per cutover, each provable by one honest R10 gate, with each bespoke form deleted in the phase that migrates it (R5, no dual path), and `charly clean` purging the old roots (D-STORE-7). |
 
