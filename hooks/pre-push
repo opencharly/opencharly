@@ -224,7 +224,7 @@ design_gate_leg() {
   # is dead code. Both shapes have already cost a round (a leftover `surfaces` array
   # from the guard's first form, and two arrays assigned without `local`), so
   # scripts/check-design-gate.mjs now counts the declarations against the uses.
-  local range_shas="" sha commits="" changed="" gitlinks="" read_paths=""
+  local range_shas="" sha commits="" changed="" gitlinks="" read_paths="" published_raw=""
   local file_surfaces=() pin_surfaces=() differing=""
 
   if [ ! -f "$inputs" ]; then
@@ -260,12 +260,21 @@ design_gate_leg() {
     commits="${commits}$(git rev-list "$sha" --not --remotes 2>/dev/null || true)"$'\n'
   done <<< "$range_shas"
 
+  # EACH PUBLISHED COMMIT'S OWN DIFF, in ONE pass — and never `git log`, which walks every
+  # ANCESTOR as well: a change set built from it is the whole HISTORY's path list, so the
+  # class matched a design surface on every push and an ordinary docs push paid the gate.
+  # A TODO.md-only commit read as 1789 changed paths on 2026-11-11, and that push was
+  # refused by a finding about pins it never touched (opencharly/opencharly#979).
+  # `--root` keeps a ROOT commit's whole tree in the set, so the class still fails toward
+  # RUNNING the gate, and the file list and the gitlink list come from the SAME pass, so
+  # the two halves of the class cannot drift apart.
   if [ -n "$(printf '%s' "$commits" | tr -d '[:space:]')" ]; then
-    changed="$(git log --format= --name-only $(printf '%s' "$commits") 2>/dev/null | sed '/^$/d' | sort -u)"
-    gitlinks="$(while IFS= read -r sha; do
+    published_raw="$(while IFS= read -r sha; do
       [ -n "$sha" ] || continue
-      git diff-tree --no-commit-id --raw -r "$sha" 2>/dev/null
-    done <<< "$commits" | awk 'BEGIN {FS = "\t"} {split($1, m, " "); if (m[1] ~ /160000/ || m[2] ~ /160000/) print $2}' | sort -u)"
+      git diff-tree --no-commit-id --raw -r --root "$sha" 2>/dev/null
+    done <<< "$commits")"
+    changed="$(printf '%s\n' "$published_raw" | awk 'BEGIN {FS = "\t"} NF >= 2 { for (i = 2; i <= NF; i++) print $i }' | sed '/^$/d' | sort -u)"
+    gitlinks="$(printf '%s\n' "$published_raw" | awk 'BEGIN {FS = "\t"} {split($1, m, " "); if (m[1] ~ /160000/ || m[2] ~ /160000/) print $2}' | sort -u)"
   fi
 
   if ! design_gate_touches_input "$changed" "$gitlinks"; then
