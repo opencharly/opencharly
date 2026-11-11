@@ -155,7 +155,6 @@ verb:http	plugin-http/candy/plugin-http/schema/http.cue	1-40	#HttpInput	8291027e
 verb:k8sgen	plugin-k8sgen/candy/plugin-k8sgen/main.go	2-2	-	a751c4a73492c500
 verb:k8sgen	plugin-k8sgen/candy/plugin-k8sgen/main.go	28-47	NewMeta	fa7019420b210351
 verb:kernel-param	plugin-kernel-param/candy/plugin-kernel-param/schema/kernel_param.cue	1-6	-	dcb24d454741cdf3
-verb:kube	plugin-kube/candy/plugin-kube/schema/kube.cue	44-44	#KubeInput	d8017d99f49fdbe2
 verb:libvirt	plugin-vm/candy/plugin-vm/schema/vm.cue	1-10	-	b1f14661b1055139
 verb:matching	plugin-matching/candy/plugin-matching/schema/matching.cue	1-8	-	1712635928b0c34f
 verb:mcp	plugin-mcp/candy/plugin-mcp/schema/mcp.cue	29-29	#McpInput	92a1fa5e02efc778
