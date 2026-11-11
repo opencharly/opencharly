@@ -25,13 +25,13 @@ the status record.
 | 4. Generation | 4 | 0 | 4 | 0 |
 | 5. Modules and the plugin protocol | 11 | 0 | 11 | 0 |
 | 6. Plugins and the install IR | 9 | 0 | 8 | 1 |
-| 7. Store | 3 | 0 | 3 | 0 |
+| 7. Store | 3 | 1 | 2 | 0 |
 | 8. Command line | 3 | 0 | 1 | 2 |
 | 9. Repositories | 2 | 0 | 2 | 0 |
 | 10. Documentation | 3 | 0 | 2 | 1 |
 | 11. Final proof | 2 | 0 | 2 | 0 |
-| 12. OCE alignment | 15 | 2 | 10 | 3 |
-| **Total** | **107** | **5** | **89** | **13** |
+| 12. OCE alignment | 15 | 3 | 9 | 3 |
+| **Total** | **107** | **7** | **87** | **13** |
 
 The Decisions row counts the unnumbered decided block plus item 1.1.
 
@@ -96,6 +96,46 @@ the entry says otherwise:
   17 projects carrying a namespace, 285 discovered manifests, plus `charly`'s `charly.yml` re-read at its
   `origin/main`) finds 0 collisions, and `charly`'s whole package suite passes against the new `sdk`
   (280.5 s).
+
+- `7.1` — the plugin build cache is keyed by CONTENT and its tests inject their root.
+  `opencharly/sdk` `b77c8a54d2331f77ee7308e43503bb051e7df6b2`, tag `v0.2026287.1747`, PR #389 lands
+  `sdk/buildcache`: one store entry per binary, keyed by D-STORE-4's whole input set — the candy's source
+  tree plus every local `replace` target, `go.sum`, the toolchain, the build environment and the plugin
+  leaf name — with the per-key lock moved OUT of the store tree to the runtime root, so neither a
+  `.stamp` sidecar nor an in-cache `bin+".lock"` can exist. `opencharly/charly`
+  `125a910988495170e7f2ab4d601fa4e70e1cd3bc`, tag `v2026.288.0051`, PR #910 deletes the loader's own
+  cluster (`pluginBuildCacheDir`, `pluginSourceTag`, the cache path inside `buildPluginBinary`, and all
+  of `plugin_build_stamp.go` with its `.stamp` sidecar) and repoints both build arms at
+  `buildcache.Build`, so the path key has no implementation left — at the pins the deleted names survive
+  only inside comments that record the deletion. The test-root half is D-STORE-8 as the code states it:
+  the cache root is `$XDG_CACHE_HOME/charly` with `$CHARLY_CACHE_DIR` as the SOLE override, the
+  out-of-process e2e suites build through `hostBuildPluginForTest` with a test-local root
+  (`charly/plugin_build_testhelper_test.go`: "a test that built into the operator's real cache would be a
+  write outside the temp dir"), and `buildcache`'s own tests `t.Setenv("CHARLY_CACHE_DIR", t.TempDir())`.
+  No code reads the old per-user `~/.cache/charly/plugins` root any more (the surviving
+  `/usr/lib/charly/plugins/` references are the IMAGE's baked plugin dir, a different thing), so what this
+  row's evidence describes — 19 GB, 2 025 binaries, 1 762 test stubs — is that OLD root's on-disk residue,
+  whose purge the migration already assigns to its own phase 5 (`7.3`: `charly clean` purges the old
+  roots). The keying and the test roots are done; the residue is not this row's.
+
+- `12.7` — the `kube:` verb carries observation methods ONLY. `opencharly/plugin-kube` PR #33, merge
+  `d19e95d1cad420f152a1e983430d437269b9f8d3`, tag `v2026.315.0153`: `apply` (dynamic `Create`, then
+  `Update` on `AlreadyExists`) and `delete` (dynamic `Delete`), their `manifest` field, `runApply`,
+  `runDelete`, `readYamlDocs`, `gvrForObject` and `kindToPluralResource` are deleted, and the served
+  `#KubeInput` refuses both words while admitting the eleven observation methods. The row's premise
+  measured TRUE and its blast radius EMPTY: 0 authored uses of either word across the 430 submodule
+  `origin/HEAD` tips present on 2026-11-11, in all three authored spellings (the map `method:` key, the `kube: <word>` scalar
+  sugar, and a nested key), while the same predicates return 4 and 3 hits for live `nodes` uses, so the
+  migration is empty. Zero verdicts moved, measured live through the provider entry the host calls:
+  byte-identical `nodes`/`pods` verdicts against a reachable k3s cluster before and after, and
+  `unknown kube method "apply"` / `"delete"` for the removed two. Read at `plugin-kube`'s own
+  `origin/main` `db0392301c533cb78de35e475d3bcff432bf1dcd` — the basis this file's Status note
+  names — which is 4 merged commits ahead of the umbrella gitlink
+  `df962299eaeedc4dd83e99ca1e18aef0f4ad203c`; that advance is the deferred pin wave
+  opencharly/opencharly#983, not part of this record. The refusal is an assertion in the plugin's
+  own `methods_observe_test.go`: `TestKubeInput_ObservationMethodsOnly` accepts the 11 observation
+  methods and refuses `apply`, `delete` and a `manifest:` field, and
+  `TestDispatch_RefusesRemovedMutationMethods` asserts dispatch answers `unknown kube method`.
 
 **How to keep this current.** The status is derived by greps at the submodule pins. Whoever lands an item updates its row and the total in the same PR. TODO.md is deleted only when the last item lands (§11.2).
 
@@ -298,7 +338,7 @@ Still open:
 | 12.4 | **§14.4.** *Current:* no manager install can carry attributes: `#Package` is a scalar (`helm:<locator>`) *Target:* a manager install carries the owning plugin's own input *Migration:* none *Code:* `#ManagerPackage`/`#PackageEntry`/`#ManagerInput`; `#PackageSet` and `#ActionAlt.package` re-typed |
 | 12.5 | **§14.4/§3.1.** *Current:* the manager words are **one flat list with two phases** — a build-phase manager installs into an image and an apply-phase one onto a running target — but nothing ties a word to its phase *Target:* `_managerPhase` maps each manager word to its phase, the **build-time** set is derived (`_buildManagerWord`), and a `builder_box` key must therefore be a build-time manager (`#BuildManager`, `D-IR-7`) — while `#PackageSet` stays **unscoped**, because a body may *declare* a package of either phase: the phase decides **who does the work**, never what may be written *Migration:* none *Code:* the `_managerPhase` table + `_buildManagerWord` + `builder_box`'s key type |
 | 12.6 | **§16.1.** *Current:* **a chart installs two ways and the arms silently disagree.** `helm-release:` is an `external:` step (`helm upgrade --install`, every values file passed); `helm_charts:` is a kustomize `helmCharts:` entry applied via `kubectl kustomize --enable-helm \| kubectl apply -f -`. A kustomize entry holds exactly **one** `valuesFile`, so the emitter takes the first `values_files` entry and **discards the rest — no error, no warning** (`plugin-k8sgen/k8sgen.go:204-205`), and forces `includeCRDs: true` with no field to turn it off (`:207`) *Target:* **one arm**: a `package:` entry under the `helm` manager, lowered by the kubernetes deployment kind — the kustomize transformer and the `--enable-helm` shell-out leave the path *Migration:* an authored chart install becomes a `package:` entry with a manager input *Code:* both the `helm-release:` step kind and the `helm_charts:` field are deleted (`R5`, claim-keyed grep); the two beds re-pointed |
-| 12.7 | **§23.** *Current:* the `kube:` verb exposes `apply` and `delete`, which are **mutations** — and `D-VERB-1` says a verb observes *Target:* `kube:`/`helm:` carry observation methods only *Migration:* none *Code:* remove both methods; what they did is the workload lowering, the `package: helm:` action, or a `command:` step |
+| 12.7 | **§23.** *Current:* the `kube:` verb exposes `apply` and `delete`, which are **mutations** — and `D-VERB-1` says a verb observes *Target:* `kube:`/`helm:` carry observation methods only *Migration:* none *Code:* remove both methods; what they did is the workload lowering, the `package: helm:` action, or a `command:` step **Answered 2026-11-11** — both methods, their `manifest:` field and every helper they owned are deleted (`opencharly/plugin-kube` PR #33, merge `d19e95d1cad420f152a1e983430d437269b9f8d3`, tag `v2026.315.0153`), and the served `#KubeInput` refuses `apply`, `delete` and `manifest` while admitting the eleven observation methods; 0 authored uses exist across the 430 submodule `origin/HEAD` tips present on 2026-11-11. Read at `plugin-kube`'s own `origin/main` `db0392301c533cb78de35e475d3bcff432bf1dcd`, never at the umbrella gitlink, which is still `df962299eaeedc4dd83e99ca1e18aef0f4ad203c`; that advance is opencharly/opencharly#983. |
 | 12.8 | **§14.4.** *Current:* no lowering is **validate-only**, so `admit` is nominal for a venue while `kubectl --dry-run=server` is real *Target:* any lowering supports validate-without-persist *Migration:* none *Code:* the lowering leg + a bed that admits a revision and proves nothing changed |
 | 12.9 | **§16.1 labels.** *Current:* **host needs are unlabelled** — `grep -i "gpu\|device\|nesting\|engine_api\|mount"` matches nothing in `spec/spec/label_consts.go` or `spec/schema/boxmetadata.cue`, and `sdk/deploykit/capabilities.go` has 48 `CapabilityLabelMap` entries and 48 constants, **none for a host need**. `D-CANDY-4` is therefore **violated today**, independently of OCE: `charly deploy from-box` cannot see any host need *Target:* one label, `ai.opencharly.host_need`, carrying the resolved host-need set (`gpu`, `device`, `nesting`, `engine_api`, `mount`) *Migration:* none *Code:* **two repos, producer-first**: `spec` — `#LabelHostNeedSet` + `#LabelGpuNeed`/`#LabelNamedNeed`/`#LabelMountNeed` on **both** carriers, `LabelHostNeed`, the read path in `container/box_metadata_coneb.go`, a round-trip test, then regenerate; **then** `sdk` (after the spec pin bump) — the `CapabilityLabelMap` entry, the write path in `deploykit/render_prep.go`, and `TestCapabilityLabelCompleteness` green |
 | 12.10 | **§16.1 labels.** *Current:* three of OCE's six workload-posture requirements have no typed home (`readOnlyRootFilesystem`, `seccompProfile: RuntimeDefault`, `allowPrivilegeEscalation: false`); `runAsUser`/`runAsGroup` 1000 and `drop: [ALL]` are already covered by `ai.opencharly.uid`/`.gid` and `#Security` *Target:* `#Security` gains `read_only_rootfs?`, `seccomp_profile?`, `no_new_privileges?` — **optional only** *Migration:* none *Code:* extend `#Security`; the typed fields **replace** the raw `security_opt: ["no-new-privileges"]` rather than sitting alongside it — D-HW-5 admits no raw runtime settings — with a test that the field emits the same posture |
