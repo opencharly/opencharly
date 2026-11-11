@@ -208,6 +208,18 @@ function check() {
   }
   if (!/160000/.test(raw) && !/gitlinks/.test(hook)) fail(`${hookRel} measures the gitlink paths of the pushed commits`);
 
+  // 6. THE CLASS IS DERIVED FROM THE COMMITS THIS PUSH PUBLISHES — each one's OWN diff.
+  //   `git log <sha>` walks every ANCESTOR as well, so a change set built with it is the
+  //   whole HISTORY's path list: the class matches a design surface on every push, an
+  //   ordinary docs push pays the gate, and it can be refused by a finding about pins it
+  //   never touched. A TODO.md-only commit read as 1789 paths on 2026-11-11, and
+  //   `--root` keeps a ROOT commit's whole tree in the set, so the class still fails
+  //   toward RUNNING the gate (opencharly/opencharly#979).
+  if (/git log[^\n]*(--name-only|--name-status)/.test(hook))
+    fail(`${hookRel} builds the change set from git log (which walks ancestors) — read each published commit's own diff`);
+  if (!/diff-tree[^\n]*--root/.test(hook))
+    fail(`${hookRel} reads a ROOT commit's whole tree into the change set (git diff-tree --root)`);
+
   // 5. THE SAME GATE IS REACHABLE THROUGH THE UMBRELLA'S OWN VERB SURFACE — the task a
   //   session pastes as evidence, and the discoverable form of the gate. It DELEGATES:
   //   a task that re-implemented the set would be a second owner of what is enforced.
@@ -325,6 +337,27 @@ function fire() {
       expect(r.ran === 0, `the gate does NOT run on a diff that changes none of its inputs (ran ${r.ran}x)`);
       expect(/changes none of its inputs/.test(r.out), "the class skip SAYS so, with the by-hand command");
       expect(r.code === 0, "a skip is not a failure");
+      rmSync(fixture.scratch, { recursive: true, force: true });
+    }
+
+    // A DESIGN-BEARING BASE THAT IS ALREADY PUBLISHED, with a docs-only commit on top:
+    // the class must judge THE COMMITS THIS PUSH PUBLISHES, not their ancestry. This is
+    // the case the whole-history reading missed — every real push sits on a history that
+    // touches `design/`, so the class matched unconditionally and a docs push paid (and
+    // could be refused by) the gate (opencharly/opencharly#979). A remote-tracking ref is
+    // what `--not --remotes` reads; no network is needed to have one.
+    {
+      const fixture = mkRepo((scratch, repo, git) => {
+        writeFileSync(join(scratch, "msg.txt"), "c\n");
+        git("commit", "-q", "-F", join(scratch, "msg.txt"));
+      });
+      const base = stage(fixture, "DESIGN.md", "the published baseline\n");
+      fixture.git("update-ref", "refs/remotes/origin/main", base);
+      stage(fixture, "TODO.md", "a docs row\n");
+      const r = runHook(fixture);
+      expect(r.ran === 0, `the gate does NOT run on a docs-only commit above a design-bearing PUBLISHED base (ran ${r.ran}x)`);
+      expect(r.code === 0, "a docs-only push above a design-bearing base is not blocked");
+      expect(/changes none of its inputs/.test(r.out), "the docs-only push SAYS the class was not touched");
       rmSync(fixture.scratch, { recursive: true, force: true });
     }
 
