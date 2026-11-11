@@ -129,7 +129,6 @@ plugin-init/candy/plugin-init/schema/init.cue	union	model: "fragment_assembly" |
 plugin-kernel-param/candy/plugin-kernel-param/schema/kernel_param.cue	union	#KernelParamMatcherList: (#KernelParamMatcher | [...#KernelParamMatcher])	1
 plugin-kernel-param/candy/plugin-kernel-param/schema/kernel_param.cue	union	#KernelParamMatcher: (string | bool | number | #KernelParamMatchOp)	1
 plugin-kernel-param/candy/plugin-kernel-param/schema/kernel_param.cue	union	#KernelParamMatchOp: {equals: _} | {not_equals: _} | {contains: _} | {not_contains: _} | {matches: _} | {not_matches: _} | {lt: _} | {le: _} | {gt: _} | {ge: _}	1
-plugin-kube/candy/plugin-kube/schema/kube.cue	union	method: ("nodes" | "wait-nodes" | "pods" | "wait-ready" | "ingress" | "ingressclass" | "storageclass" | "service" | "lb-external-ip" | "addons" | "apply" | "delete" | "raw" | "k3s-post-provision") @go(Method,type=string)	1
 plugin-kubevirt/candy/plugin-kubevirt/schema/kubevirt.cue	union	method: ("vm" | "vmi" | "wait-ready" | "printable-status" | "guest-info" | "migration" | "datavolume" | "snapshot" | "start" | "stop" | "restart" | "console" | "port-forward") @go(Method,type=string)	1
 plugin-lobster/candy/plugin-lobster/schema/lobster.cue	union	on_error?: "stop" | "continue" | "skip_rest"	1
 plugin-lobster/candy/plugin-lobster/schema/lobster.cue	union	on_fail?: [...string] | string	1
