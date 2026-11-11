@@ -291,7 +291,7 @@ Still open:
 
 **The ordered migration — one cache per cutover, deletions inside their own phase:**
 
-0. **The store and the roots** (`sdk/storekit`): the OCI-layout store (D-STORE-3), the four roots from one resolver (D-STORE-1), entries and views. Every phase below depends on it, and none may invent a second on-disk format.
+0. **The store and the roots** (`sdk/storekit` for the store, `spec/storeroot` for the roots it lives under): the OCI-layout store (D-STORE-3), the four roots from one resolver (D-STORE-1), entries and views. Every phase below depends on it, and none may invent a second on-disk format.
 1. **The plugin-build cache** → the store (`sdk/buildcache`): one content-addressed entry per binary, keyed by module source, `go.sum`, the toolchain and the platform (D-STORE-4), with the per-binary lock moved out of the store tree to the runtime root.
 2. **The repo cache and its derived views** → the store: `.ref`, `.charly-view-ok` and `.stamp` sidecars die by construction, because a mutable name resolves to a commit before it reaches the store and that resolution record is the entry's config blob (D-STORE-5).
 3. **The `materialized/` and load caches** → the store: the JSON-with-timestamps form disappears, and no payload carries a timestamp or an absolute path that is not an input (D-STORE-6).

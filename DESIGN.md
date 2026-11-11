@@ -202,7 +202,7 @@ plugin; it reaches core through the host service (§4.6) and other plugins throu
 | D-MOD-1 | The import graph is exactly the arrows above; plugins never import core; core reaches plugins compiled into the binary only through the generated registry. |
 | D-MOD-2 | Every type, function and constant is defined in exactly one module; re-exports and aliases do not exist. |
 | D-SPEC-1 | `spec` contains the §10.2 packages and the code generated from them; no mechanism, no hand-written logic beyond behaviour methods on generated types. |
-| D-SDK-1 | `sdk` contains `Serve` (the one plugin entrypoint, D-PROTO-1), the role interfaces, the typed host client, the protocol conformance harness (§4.7), and the shared mechanisms: executors (shell, ssh, container, adb), the store and its roots (§20), locks, readiness waits, matchers, repository fetching, CalVer, check sessions and recording. |
+| D-SDK-1 | `sdk` contains `Serve` (the one plugin entrypoint, D-PROTO-1), the role interfaces, the typed host client, the protocol conformance harness (§4.7), and the shared mechanisms: executors (shell, ssh, container, adb), the store (§20), locks, readiness waits, matchers, repository fetching, CalVer, check sessions and recording. |
 | D-SDK-2 | `sdk` contains no domain logic or domain type; each package owns one mechanism, has no package-level mutable state, and has tests that fail without it. |
 | D-CORE-1 | Core consists of: the CLI shell and its commands (§3.1), the loader and linker (§11–§12), the registry, one gRPC transport, schema composition and validation, the capability solver (§8), the stage driver (§14.3), the venue accesses (§17.7), leases, the store instance (built on the sdk store, §20) and its registry view, the protocol and host service (§4.3–§4.6), and the MCP server. |
 | D-CORE-2 | Core contains no domain data and no kind, verb or capability-type word. Its words are the directives, the intents, the phases, the modifiers and step-level matchers, the role words, and the command words §3.1 assigns to it. |
@@ -2479,7 +2479,7 @@ charly deploy add hello-vm-next     # realizes and captures hello-vm first if ne
 
 | ID | Requirement |
 |---|---|
-| D-STORE-1 | The roots, resolved by one sdk package: configuration `$XDG_CONFIG_HOME/charly`, cache `$XDG_CACHE_HOME/charly` (single override `CHARLY_CACHE_DIR`), state `$XDG_STATE_HOME/charly`, runtime `$XDG_RUNTIME_DIR/charly`. |
+| D-STORE-1 | The roots, resolved by ONE resolver on the contract surface — `spec/storeroot`, so the plugin host and every plugin it serves resolve the same trees from the same code, with `sdk/storekit` re-exporting it as its own API — configuration `$XDG_CONFIG_HOME/charly`, cache `$XDG_CACHE_HOME/charly` (single override `CHARLY_CACHE_DIR`), state `$XDG_STATE_HOME/charly`, runtime `$XDG_RUNTIME_DIR/charly` (the state root when there is no runtime dir to use). |
 | D-STORE-2 | The user configuration (`#UserConfig`) holds only what the user sets — one driver per subsystem (D-DRV-1), the leasable host resources (D-HW-4), image registry, the project-less `plugin:` list, whether the OS packages a plugin needs may be installed on the host (D-STORE-9), and each plugin's own section — under its own schema. |
 | D-STORE-3 | One content-addressed store holds every cached item: fetched repositories, CUE modules, plugin binaries, load results and artifacts. Its on-disk form IS an OCI Image Layout, and no other on-disk cache format exists: a store tree is that layout and nothing else — no `.lock`, no `locks/`, and no sidecar file of any kind. A view is a derived, hardlinked reconstruction of an entry for a consumer that needs real files; it is not a second store and holds no content of its own. The payload/validity split that keeps a resolution record out of the payload's digest is D-STORE-6. Entries are immutable, keyed by input digest, published by atomic rename; reads take no lock. |
 | D-STORE-4 | A plugin binary's key covers its module source, `go.sum`, the toolchain and the platform. |
@@ -2649,7 +2649,7 @@ sshd-account:
 
 CI gates: the import graph (D-MOD-1, D-MOD-2); schema patterns on every plugin CUE module (D-PAT-1..3); no domain words in core (D-CORE-2); manifest ≡
 `describe` (§4.4); typed protocol (D-ROLE-2, D-PROTO-6); protocol conformance in every plugin repository (§4.7); generation reproducibility (D-GEN-2); store roots
-only via sdk (D-STORE-1); test roots (D-STORE-8); no unused kinds or fields (D-LAW-2); the
+only via the contract resolver (D-STORE-1); test roots (D-STORE-8); no unused kinds or fields (D-LAW-2); the
 deployment conformance check (every deployment kind: realize, venue exec, service start, port
 binding, need grants, destroy, fresh rebuild; every box as both `pod` and `vm`). The design
 check (Appendix A) is not a CI gate: it runs locally and on demand (A.1).
