@@ -11,15 +11,18 @@
 
 ## Status
 
-Derived 2026-11-08 at umbrella commit `6f6df4dc40364a62c4e0b7bd17003851bfdbca3e`: mechanical
+Derived 2026-11-08 at umbrella commit `6f6df4dc40364a62c4e0b7bd17003851bfdbca3e`
+(re-summed 2026-11-12 at `34a2b9ba0028d3150cdb53d1211304749ddceb86`, where §12.0 of section 12
+re-measured all 87 open rows and retired five of them — two to `done`, two to `moved`, and the two
+`DECISION` items kept `open`): mechanical
 greps at each submodule's `origin/main` pin, never at the lagging checkouts. The numbered text
 below is unchanged, apart from the verdict an answered item carries in its own row; this table is
 the status record.
 
 | section | items | done | open | moved |
 |---|---|---|---|---|
-| 0. Preconditions | 4 | 1 | 2 | 1 |
-| 1. Decisions | 2 | 0 | 1 | 1 |
+| 0. Preconditions | 4 | 2 | 1 | 1 |
+| 1. Decisions | 2 | 1 | 0 | 1 |
 | 2. Schema | 16 | 1 | 12 | 3 |
 | 3. Parsing and validation | 33 | 1 | 31 | 1 |
 | 4. Generation | 4 | 0 | 4 | 0 |
@@ -30,8 +33,8 @@ the status record.
 | 9. Repositories | 2 | 0 | 2 | 0 |
 | 10. Documentation | 3 | 0 | 2 | 1 |
 | 11. Final proof | 2 | 0 | 2 | 0 |
-| 12. OCE alignment | 15 | 3 | 9 | 3 |
-| **Total** | **107** | **7** | **87** | **13** |
+| 12. OCE alignment | 15 | 3 | 7 | 5 |
+| **Total** | **107** | **9** | **83** | **15** |
 
 The Decisions row counts the unnumbered decided block plus item 1.1.
 
@@ -56,6 +59,11 @@ The Decisions row counts the unnumbered decided block plus item 1.1.
 - `12.3` — the vocabulary is now `parameter:`, not `input:`/`with:`.
 - `12.5` — replaced by D-IR-7 + `build_with:`.
 - `12.10` — `#Security` no longer exists in `DESIGN.cue`; the posture lives in the `nesting:` grant.
+- `12.11` — `state_put` exists in none of the three tips; deployment state is per-deployment YAML written
+  by `SaveDeployState`. The target (a transactional commit plus an audit append) is unmet and is the
+  successor item §12.3 names.
+- `12.13` — the `## Status` table this row asked for has existed since 2026-11-08, so "`TODO.md` has no
+  status column" is false; the `specs/{rfcs,plans,archive}` half survives as the successor SINGLE.
 
 **Done.** Each item is proven complete at the pin its own proof names — the audit's pin above unless
 the entry says otherwise:
@@ -122,6 +130,12 @@ the entry says otherwise:
   (`7.3`: `charly clean` purges the old roots). The keying and the test roots are done; the residue
   is not this row's.
 
+- `0.1` — the question ("are inventories taken from fetched `origin/main`?") is a verb:
+  `charly task pins --param MODE=currency` names every pin that is not at the ref its intent names, and
+  the umbrella's own pins equal the remote tips at the date of this record.
+- `1` — the section's decided block is a ledger, not work: `DESIGN.cue` carries 121 `D-` references and
+  `DESIGN.md` carries its terms (`step:` 48, `harness` 26, `os_override` 6). The section's only open
+  question, `1.1`, is already `moved`.
 - `12.7` — the `kube:` verb carries observation methods ONLY. `opencharly/plugin-kube` PR #33, merge
   `d19e95d1cad420f152a1e983430d437269b9f8d3`, tag `v2026.315.0153`: `apply` (dynamic `Create`, then
   `Update` on `AlreadyExists`) and `delete` (dynamic `Delete`), their `manifest` field, `runApply`,
@@ -329,6 +343,354 @@ Still open:
 | 11.2 | Fresh R10 beds on every affected deployment; a `check-roster` of all beds; `charly box validate` clean with zero warnings; `bash scripts/design-check.sh` passes. Then delete TODO.md. |
 
 ## 12. OCE alignment — the openclaw-enterprise ledger
+
+### 12.0 The measured schedule — all 87 open items, classified at today's tips
+
+**What this is.** Every item `## Status` recorded as `open` before this change (87 of 107), re-measured at the tips
+the umbrella's own index pins today, and placed in exactly one bucket: **MOVED**, **DONE-ALREADY**,
+**CHAIN(n)**, **DECISION**, **LIVE-CLAIM**, **SINGLE**. The row is a claim, not a specification —
+several rows did not survive contact, and §12.6 lists every contradiction.
+
+**The measurement form.** Each `measured anchor` below is one or more calls of the form
+`gs <repo> <text>` = `git -C <repo> grep -c -F '<text>' origin/main | awk -F: '{s+=$NF} END{print s+0}'`
+(matching lines, summed over files); `gsE` is the same with `-E`. Every zero carries a live-word
+control in the same cell, because a zero without a control is a claim about a grep, not about the
+tree. Measured 2026-11-12 at `spec` `721eac74`, `sdk` `c68597bf`, `charly` `152dc845`, `plugin-kube`
+`db039230`, `marketplace` `e15081ab` — and those are exactly the commits the umbrella's index
+records (`git ls-tree origin/main -- spec` → `721eac74d13b…`), so the pin is the remote tip today
+and a pin measurement is a tip measurement.
+
+**Why this shape.** `charly#1119` proved the unit of work: a design contradiction — `D-STORE-1`
+wants one cache-root resolver while core may not import `sdk` — cannot land as one PR. It resolved
+as `spec#303` → `sdk#499` → `charly#1121`, with `plugin-candy` as a fourth leg discovered
+mid-flight, then one umbrella pin PR `#991`: four producer PRs, one pin leg, `0 of 409`. Every
+CHAIN(n) below is that shape, and its legs are the producer-first order this file already declares:
+spec → sdk → charly → plugins → candy and OS repositories → umbrella.
+
+**Two references decide the order.** `#950` is the sequence issue: the D-PAT census (`#945`)
+tolerates 26 duplicate definition sites across 5 pinned repos and **not one can be retired until
+the schemas compose by import** — so `2.1` is first, not because it is largest but because `#950`'s
+count cannot move without it. `#985` is why every number here carries its command: the pre-push gate
+reconciles a body against its diff on FORM and on FILE SET and never asks whether a claim is backed
+by output, so a schedule that types its counts is precisely the artefact that gate cannot catch.
+
+**Census.** Counted from the rows themselves — `grep -c '^| CHAIN |' TODO.md` = 81,
+`grep -c '^| DECISION |' TODO.md` = 2, `grep -c '^| MOVED |' TODO.md` = 2,
+`grep -c '^| DONE |' TODO.md` = 2, `grep -c '^| LIVE-CLAIM |' TODO.md` = 0,
+`grep -c '^| SINGLE |' TODO.md` = 0, total 87.
+
+| bucket | count | what it means here |
+|---|---|---|
+| `CHAIN` | 81 | needs an ordered producer-first sequence; the legs and the forcing edge are named per row |
+| `DECISION` | 2 | an operator call, not work; the question and the options with their costs are named |
+| `MOVED` | 2 | the premise no longer resolves at the tip; the change and the proof are named |
+| `DONE-ALREADY` | 2 | the tree already satisfies it; the proof is named |
+| `LIVE-CLAIM` | 0 | no open PR or issue claims any of the 87 scopes |
+| `SINGLE` | 0 | the smallest surviving unit is two repositories |
+| **total** | **87** | 81 + 2 + 2 + 2 matches the 87 rows `## Status` carried as open before this change; 83 remain open after the two DONE and two MOVED retirements, because the two DECISION items stay open |
+
+**Status reconciliation.** The two DONE and the two MOVED items leave `open`; the two DECISION items
+stay `open` because an unanswered call is still open work. `## Status` is updated in the same change,
+and every row is re-summed, never re-typed.
+
+| section | items | done | open | moved |
+|---|---|---|---|---|
+| 0. Preconditions | 4 | 2 | 1 | 1 |
+| 1. Decisions | 2 | 1 | 0 | 1 |
+| 2. Schema | 16 | 1 | 12 | 3 |
+| 3. Parsing and validation | 33 | 1 | 31 | 1 |
+| 4. Generation | 4 | 0 | 4 | 0 |
+| 5. Modules and the plugin protocol | 11 | 0 | 11 | 0 |
+| 6. Plugins and the install IR | 9 | 0 | 8 | 1 |
+| 7. Store | 3 | 1 | 2 | 0 |
+| 8. Command line | 3 | 0 | 1 | 2 |
+| 9. Repositories | 2 | 0 | 2 | 0 |
+| 10. Documentation | 3 | 0 | 2 | 1 |
+| 11. Final proof | 2 | 0 | 2 | 0 |
+| 12. OCE alignment | 15 | 3 | 7 | 5 |
+| **Total** | **107** | **9** | **83** | **15** |
+
+items `4+2+16+33+4+11+9+3+3+2+3+2+15 = 107`, done `2+1+1+1+0+0+0+1+0+0+0+0+3 = 9`, open `1+0+12+31+4+11+8+2+1+2+2+2+7 = 83`, moved `1+1+3+1+0+0+1+0+2+0+1+0+5 = 15`, and `9 + 83 + 15 = 107`.
+
+**No SINGLE survived.** Round 53 measured zero single-repo items and this round confirms it: the
+smallest surviving unit is two repositories (`spec` > `charly`, or `sdk` > `charly`). Two
+near-misses were checked and rejected — `12.8` and `12.15` each name `plugin-kube` as the code home,
+but `git -C plugin-kube show origin/main:charly.yml | grep -c -E 'disposable|check-'` = 0 (the
+repo-wide `gs plugin-kube disposable = 24` counts prose elsewhere and is not the bed question), so each
+still needs a bed leg that lives
+elsewhere. **One new SINGLE exists, as a successor** rather than as an existing row: the residual
+half of `12.13` in §12.3.
+
+**No LIVE-CLAIM.** Three PRs are open across the two shared producer repos — `sdk#368`, `sdk#362`
+and `charly#926`, all authored by `aitrawog` and last touched 2026-11-03/05. None claims a TODO
+item's scope, so no item is blocked by a claim. They do constrain concurrency (§12.5): they hold
+`sdk` and `charly`, so a chain whose next leg is one of those repositories waits on that
+repository's window, not on a claim.
+
+
+### 12.1 CHAIN — 81 items
+
+| bucket | n | item | producer-first legs | forcing edge | measured anchor |
+|---|---|---|---|---|---|
+| CHAIN | 4 | 2.1 | spec > sdk > charly > plugin repositories | charly cannot compose a plugin CUE module before sdk can fetch and type it | gs spec `^#[A-Za-z]+Value:` = 12 defs; schema/ holds candy.cue, node.cue |
+| CHAIN | 3 | 2.3 | spec > sdk > charly | the generator must emit before the hand-written types are deleted | gs spec @go( = 2859; @go(-) = 82; hand_state_types.go = 1 |
+| CHAIN | 3 | 2.6 | spec > sdk > charly | the envelope key set is a schema fact before it is a type | gs spec compiled_plugins?: = 1 (schema/node.cue:191); verb_primaries?: = 1 (:206) |
+| CHAIN | 3 | 2.7 | spec > sdk > charly | a rule must exist in the schema before the Go seam can be deleted | gs sdk LoadSeams = 41; loaderkit/node_validate.go, cue_validate.go present |
+| CHAIN | 4 | 2.8 | spec > sdk > charly > plugin manifests | the loader reads the manifest after the schema drops the key | gs spec verb_primaries = 3 (schema/node.cue); gs charly verb_primaries = 2 |
+| CHAIN | 4 | 2.9 | spec > sdk > charly > every manifest | the rename is one vocabulary in three repos and then a config migration | gs spec `#Distro:` = 1; gs spec `distro?:` = 2 (schema/candy.cue:95, :251) |
+| CHAIN | 4 | 2.10 | spec > sdk > charly > plugin-vm/plugin-build | one from: resolver needs one source kind before the loader can use it | gs spec base?: = 9; from?: = 13; bootstrap_builder_image = 10; cloud_image = 71; container_disk = 72; bootc = 99; imported = 74 |
+| CHAIN | 4 | 2.11 | spec > sdk > charly > plugin-vm/plugin-pod | the deployment field set is schema before it is dispatch | gs spec from?: = 13; image?: = 44; template?: = 29 |
+| CHAIN | 4 | 2.13 | spec > sdk > charly > plugin repositories | deletion is schema, then generated Go, then manifests | gs spec `#Theme` = 23; `#Session` = 20; `#DisplayManager` = 10; desktopentry = 6; `#Kubevirt` = 54; agent-team = 0; `#PodTemplate` = 0 |
+| CHAIN | 5 | 2.14 | spec > sdk > charly > distro-arch/cachyos/debian/fedora/omarchy/ubuntu > umbrella | the template form must leave the schema before 112 authored templates can be rewritten | gs each distro repo `vm:` lines = 6/39/3/8/48/8 (112 total; control gs distro-fedora `candy:` = 80) |
+| CHAIN | 4 | 2.15 | sdk > plugin-vm + plugin-pod > charly > beds | one field set and one command set must exist in the shared layer before either kind can adopt it | gs sdk Snapshot = 248; Console = 385; gs sdk ApplyCandies = 0; BootDisk = 0 |
+| CHAIN | 3 | 2.16 | spec > sdk > charly | the schema patterns are the generator's input | gs spec close( = 48; `#CandyValue` = 12 |
+| CHAIN | 2 | 3.1 | spec > sdk | the parse rules read the composed schema | gs sdk DeploySubstrates\|StructuralKinds\|ExternalDeploySubstrates\|resourceKindSet\|discEntityPairs\|isEntityValue = 94 |
+| CHAIN | 3 | 3.2 | spec > sdk > charly | one unification per node needs the definition the kind key selects | gs charly foldSubstrateKind\|foldCandyKind = 51 |
+| CHAIN | 2 | 3.3 | spec > charly | steps are validated against the schema's tag-tagged unions | gs charly ValidateNodeFormSteps = 2 |
+| CHAIN | 2 | 3.4 | charly > plugin-example-bootstrap | the bootstrap phase has exactly one consumer, and deleting it is that consumer's removal | gs charly config_stack.go\|/etc/charly/charly.yml = 24 |
+| CHAIN | 2 | 3.5 | sdk > plugin repositories | the generic table must exist before the typed views can leave | gs spec UnifiedFile = 178 |
+| CHAIN | 3 | 3.6 | spec > sdk > charly | the keyless node is a schema rule before a loader rule | gs spec "candy" = 17 |
+| CHAIN | 3 | 3.7 | spec > sdk > charly | every composition key collapses into require: in the schema | gs spec add_candy = 83 |
+| CHAIN | 3 | 3.8 | spec > sdk > charly | the reference grammar is parsed by the contract module | gs spec ParseRemoteRef = 20 |
+| CHAIN | 3 | 3.9 | spec > sdk > charly | the import entry shape is schema before resolution | gs spec `alias?:` = 6; `import?:` = 1; `#Import` = 0 |
+| CHAIN | 3 | 3.10 | spec > sdk > charly | each kind's nesting definition is schema before the core sets die | evidence doc PROGRAM/nested-deploy-members.md ABSENT at origin/main; gs spec `nested?:` = 3 (node.cue:138, seam.cue:651, status.cue:62) |
+| CHAIN | 2 | 3.11 | spec > charly | PATH is a field set before it is a resolver | gs spec path_append = 25; gs charly path_append = 2 |
+| CHAIN | 4 | 3.12 | spec > sdk > plugin candies > charly | the solver reads need:, which the schema must define first | gs spec `need:` = 0 (control `provide?:` = 14); gs sdk requires_exclusive = 29 |
+| CHAIN | 3 | 3.13 | spec > sdk > charly | the key renames in the schema, the loader and the commands | gs spec `plan:` = 70; `step:` = 26 |
+| CHAIN | 3 | 3.14 | spec > plugin-kube > charly | kindcluster and k3s must be one kind before the merge | gs spec `#Kindcluster` = 39 |
+| CHAIN | 2 | 3.15 | marketplace > docs | the corpus is generated from authored sources | gs marketplace image-candy = 0; gs docs image-candy = 0 |
+| CHAIN | 2 | 3.16 | spec > charly | one positional grammar replaces the flag | gs spec DefaultProjectRepo = 4 |
+| CHAIN | 2 | 3.18 | spec > charly | the modifier is a schema field before the loader reads it | gs spec in_container: = 3; gs charly in_container = 84; on_host = 0 |
+| CHAIN | 2 | 3.19 | spec > charly | the context is derived from the enclosing node, a loader rule | gs spec kube_context = 20 |
+| CHAIN | 2 | 3.20 | spec > charly | the plugin: directive is schema before the bed loader reads it | gs spec add_candy = 83 |
+| CHAIN | 2 | 3.21 | spec > plugin-android > charly | the device fields move onto the android node in schema | gs spec `adb?:` = 2; `box?:` = 25 |
+| CHAIN | 3 | 3.22 | spec > sdk > charly | plural key renames are schema, then generated Go, then loader | gs spec `install_opts:` = 5; `nodes?:` = 6; `defaults?:` = 7; `cluster_node:` = 0 |
+| CHAIN | 4 | 3.23 | spec > sdk > plugin candies > charly | grants are a need: type before auto-detection can be deleted | gs spec no-auto-detect = 3; cap_add = 9; devices?: = 8; requires_exclusive = 22 |
+| CHAIN | 3 | 3.24 | spec > sdk > charly | captures are boxes in schema before the colon grammar dies | gs spec from_snapshot = 76; on_finalize = 6 |
+| CHAIN | 14 | 3.25 | spec > plugin-adb/appium/cdp/wl/vnc/spice/dbus/record/jetkvm/libvirt/mcp/helm/kube > charly | each verb's input is an operation registry in its owning plugin | gs plugin-adb `method:` = 1 (schema/adb.cue:38) + 11 prefixed input fields |
+| CHAIN | 3 | 3.26 | spec > sdk > charly | the file action is the IR's vocabulary | gs spec `run?:` = 17; mkdir: = 13; setcap: = 4; `include?:` = 5; `extract?:` = 5; `shell?:` = 9 |
+| CHAIN | 3 | 3.27 | spec > sdk > charly | the field renames are one schema change, then generated Go, then loader | gs spec `artifact?:` = 6; `apk?:` = 4; `reboot?:` = 2; `security?:` = 12; `plugin?:` = 8 |
+| CHAIN | 3 | 3.28 | spec > sdk > charly | the verb input shape is schema before the primary-field machinery dies | gs spec `command?:` = 12; in_container: = 3; `stdout?:` = 7 |
+| CHAIN | 2 | 3.29 | spec > charly | provide: items are maps in the schema | gs spec `providers?:` = 4; `provide?:` = 14 |
+| CHAIN | 3 | 3.30 | spec > sdk > charly | collections become maps in schema, then generated Go | gs spec `service?:` = 6; `volume?:` = 11; `alias?:` = 6 |
+| CHAIN | 3 | 3.32 | spec > sdk > charly | the disambiguating renames are one schema change | gs spec `context?:` = 17; request_method = 0; `address?:` = 11 |
+| CHAIN | 3 | 3.33 | spec > sdk > charly | @ref markers are schema before core can build the graph | gs spec @ref = 0 (control gs spec `#Candy` = 232) |
+| CHAIN | 3 | 4.1 | spec > sdk > every plugin repository | one generator must exist before 117 plugin repos adopt it | gs spec schemaconcat = 138; gs sdk = 21; gs charly = 31; gs spec wiregen = 43 |
+| CHAIN | 3 | 4.2 | sdk > plugin repositories > charly | the generated role/api wrappers replace the hand-written unmarshal | gs spec params_json = 10; gs sdk = 1; gs charly = 8; literal {Args} = 0 |
+| CHAIN | 3 | 4.3 | spec > sdk > charly | command definitions become CUE in the owning plugin, then generate | gs spec CLISubcommand = 62; gs sdk = 13; gs charly = 13; command_model_json = 4/4/1 |
+| CHAIN | 2 | 4.4 | dotgithub > every plugin repository | one reusable gate, then a caller per repo | gs charly generate-check = 0 (control gs charly reproducib = 66); umbrella scripts/check-*.mjs has no generation gate |
+| CHAIN | 3 | 5.1 | sdk > spec > charly | the mechanisms must land in sdk before spec can drop them | gs spec dirs exec/container/sshx/proc/poll/lock/cache/refs/hostenv all present (9) |
+| CHAIN | 3 | 5.2 | plugin repositories > sdk > charly | the domain code needs a home before sdk deletes it | gs sdk dirs deploykit/loaderkit/vmshared/buildkit/packagekit all present (5); gs sdk `^type X = ` = 64 |
+| CHAIN | 3 | 5.3 | spec > sdk > charly | one owner per symbol, decided in the contract first | symbols in >=2 repos: buildPluginBinary sdk3/charly4; QuadletDir sdk12/spec10; StepDoMode sdk7/spec2; DeployExecutor 66/49/82; ComputeCalVer 4/19/5; CheckVerbProvider 11/66/8 |
+| CHAIN | 4 | 5.4 | charly > plugin repositories > spec > umbrella | each seam moves to its owning plugin, then OS/init data becomes repository data | gs charly HostBuild = 381; charly.yml = 5339 lines |
+| CHAIN | 3 | 5.5 | sdk > plugin repositories > charly | one transport before the five placement paths collapse | gs charly __plugin = 27; __agent-target = 6; gs sdk ServeCheckVerb = 13 |
+| CHAIN | 3 | 5.6 | plugin candies > sdk > charly | the candy's provide: is the manifest before describe verifies it | gs sdk "2026. = 76; gs charly "2026. = 52 (CalVer literals) |
+| CHAIN | 3 | 5.7 | sdk > plugin repositories > charly | the roles and their methods are the SDK's vocabulary | gs sdk ProviderClass = 1 (schema.go:51); gs charly ProviderClass = 91; Invoke( = 8/108/45 |
+| CHAIN | 3 | 5.8 | sdk > plugin repositories > charly | a helper moves to sdk, then the copies die | gs sdk shellQuote = 14; gs charly = 2; setCommandContext = 0; session_method = 0 |
+| CHAIN | 3 | 5.9 | sdk > plugin repositories > charly | the request/reply error model is the SDK's | gs spec `#Request` = 0 (control gs sdk Serve = 187 (control)); Deadline = 70/61/28 |
+| CHAIN | 2 | 5.10 | sdk > every plugin repository | the harness lives in sdk before every plugin's CI runs it | gs sdk conformance = 3; gs charly = 6 (mentions, no suite) |
+| CHAIN | 3 | 5.11 | sdk > plugin repositories > charly | the state/secret/config stores are host methods | gs sdk deploy_state.go = 28; gs sdk 'ssh key' = 2 |
+| CHAIN | 3 | 6.1 | spec + sdk > charly > plugin repositories | one IR before one emitter | EmitTasks 13/50; OCITarget 44/27/7; WalkPlans 5/29/3; ExternalPluginStep 21/1/17 |
+| CHAIN | 2 | 6.2 | plugin-builder (one) > four deletions | one implementation replaces four identical plugins | 4 dirs plugin-builder-aur/cargo/npm/pixi present |
+| CHAIN | 4 | 6.3 | plugin-pod + plugin-vm + plugin-check > sdk > charly > umbrella | a concept consolidates in its owning plugin before the others' words move | gs spec plugin-pod = 26; gs sdk = 33; gs charly = 78; plugin-vm 97/95/322 |
+| CHAIN | 2 | 6.4 | one examples repository > umbrella | the repository must exist before the submodule entries can collapse | 17 example dirs in `.gitmodules`, counted 2026-11-12 |
+| CHAIN | 2 | 6.5 | spec > charly | merged verbs are a schema change then a dispatch change | gs spec matching = 136; gs sdk = 183; gs charly = 219 |
+| CHAIN | 3 | 6.7 | spec > plugin repositories > charly | api calls or deletion, decided in the contract | gs charly splice-region = 5 (control gs charly 'func Build' = 1) |
+| CHAIN | 3 | 6.8 | spec > sdk > charly | the plugin: directive is schema before the refs map dies | compiled_plugins 27/3/134; plugins_refs_generated = 92 (charly) |
+| CHAIN | 4 | 6.9 | plugin candies > sdk > charly > packaging | each plugin declares its packages before the transcription is deleted | gs charly packaging/charly.yml podman\|qemu = 20 |
+| CHAIN | 2 | 7.2 | sdk > charly | the one resolver exists (storekit) and the two remaining readers route through it | storekit/roots.go present; CHARLY_REPO_CACHE 6/5/12; CHARLY_MATERIALIZED_CACHE 2/0/0; CHARLY_BUILD_CACHE = 0; CHARLY_GH_CACHE = 0 |
+| CHAIN | 5 | 7.3 | sdk > charly | five ordered cache phases, one R10 gate each | materialized 142/46/52; vm-images 9/3/4 |
+| CHAIN | 2 | 8.2 | plugin repositories > charly | the plugin leaves the first-party set before charly cmd gains it | gs charly command:agentteams = 4; herdr = 1; dsh = 5; qdrant = 1; ollama = 4; nerdctl = 5 |
+| CHAIN | 2 | 9.2 | marketplace > umbrella | the map must exist before the umbrella points at it | gs charly 'task org-map' = 2; gs marketplace org-map = 6 |
+| CHAIN | 3 | 10.1 | charly + spec + sdk (parallel, no forcing edge) | three AGENTS.md files name DESIGN.md as normative | gs charly\|spec\|sdk DESIGN in AGENTS.md = 0/0/0 |
+| CHAIN | 2 | 10.2 | owning repositories > marketplace | skills are authored where the entity lives, then regenerated | gs marketplace 'source: builtin' = 4; EmitTarget = 12; 'target:' = 152 |
+| CHAIN | — | 11.1 | all chains > umbrella | every gate and the conformance bed depend on the chains above | scripts/design-check.sh + 12 design-* controls present; design/ gates present |
+| CHAIN | — | 11.2 | all chains > umbrella | the final proof, then TODO.md is deleted | TODO.md = 1 at origin/main |
+| CHAIN | 3 | 12.1 | spec > sdk > charly | one word for the evaluator and one for the workload | gs spec `#Harness` = 0; `#Agent` = 41; agent-check = 23; harness-check = 0 |
+| CHAIN | 3 | 12.6 | spec > plugin-k8sgen + plugin-helm > charly | one arm must exist before the other is deleted | gs spec helm_charts = 7; gs charly = 7; helm-release = 3; plugin-k8sgen/k8sgen.go:187 discards extra values_files, :207 forces includeCRDs |
+| CHAIN | 2 | 12.8 | plugin-kube > bed | the lowering leg and the bed live in one repository | gs charly 'dry-run=server' = 0; gs sdk = 0 |
+| CHAIN | 2 | 12.9 | spec > sdk | the row states the order; the label set is a spec type then an sdk map entry | gs spec\|sdk ai.opencharly.host_need = 0; gs sdk CapabilityLabelMap = 27 |
+| CHAIN | 2 | 12.12 | sdk > charly | the read needs the record the write does not yet produce | gs spec\|sdk\|charly audit_append = 0/0/0 |
+| CHAIN | 2 | 12.14 | spec > charly | the reference carries the digest before a consumer can preflight it | gs spec `digest?:` = 1 (schema/candy.cue:548) + oci.cue:65,:96 |
+| CHAIN | 2 | 12.15 | plugin-kube > bed | the in-venue import and its bed live in one repository | gs sdk 'images import' = 3 (kind only); gs charly = 1 (CHANGELOG) |
+
+### 12.2 DECISION — 2 items
+
+| bucket | item | the question | options and their costs |
+|---|---|---|---|
+| DECISION | 0.3 | Run the schema-first-parse RDD spike before `3.1` starts, or waive it against `D-LOAD-5`, which `DESIGN.md` already records? | **(a) Run it** — one disposable bed plus a design record; it can invalidate `3.1` before that chain spends a spec PR, and it is the class of spike RDD exists for (a high-risk assumption where being wrong invalidates the plan). **(b) Waive it** — zero cost now; `3.1` then rests on a classifier whose ambiguity is unproven, the one risk the row exists to retire. The measurement that makes this a real question: `gs spec schema-first = 0` with control `gs sdk DeploySubstrates = 94` — no spike record exists, and the parse it would judge has not been rewritten. |
+| DECISION | 9.1 | Which document wins: `TODO.md`'s order to archive `layer-*`/`pod-*`/`distro-*`/`vm-*`/`pkg-*`, or Part I's "Repo classes and naming", which makes those exact prefixes canonical? | **(a) Rulebook wins** — retire the archive half; `9.1` becomes consolidation-only (merge the concept repos that duplicate each other), cost one docs PR and no repository churn. **(b) Archive plan wins** — amend Part I's naming rule first, then the umbrella's `org-map` control, then move or archive ~257 repositories; cost is an org-wide cutover that no single R10 can prove, which is why the row has never started. **(c) Defer** — leave `9.2` blocked and keep the contradiction recorded here. The census that makes the cost concrete: 174 `layer-*`, 72 `pod-*`, 6 `distro-*`, 3 `pkg-*`, 2 `vm-*` submodules at `origin/main`. |
+
+### 12.3 MOVED — 2 items
+
+| bucket | item | what changed | proof |
+|---|---|---|---|
+| MOVED | 12.11 | The host method the row names no longer exists; deployment state is per-deployment YAML written by `SaveDeployState`, not a key/value `state_put`. The *target* (a transactional commit plus an audit append) is **not** met — the row cannot be executed as written, so it retires and its target needs a new item. | `gs spec state_put = 0`, `gs sdk state_put = 0`, `gs charly state_put = 0`, with control `gs sdk SaveDeployState = 49`; the writer is `sdk/deploykit/deploy_state.go:469`. **Successor:** one item for a transactional state commit plus `audit_append`, in `sdk` then `charly`. |
+| MOVED | 12.13 | "`TODO.md` has no status column, so 'is it done?' is unanswerable" is false: this file has carried a `## Status` table since 2026-11-08, derived at umbrella `6f6df4dc40364a62c4e0b7bd17003851bfdbca3e`, and that table is the record the row asked for. The registry half (`specs/{rfcs,plans,archive}`) is untouched. | The `## Status` section at the top of this file, whose own head names the derivation commit; `git cat-file -t 6f6df4dc…` → `commit`. **Successor:** one umbrella-only SINGLE — create `specs/{rfcs,plans,archive}` and point the Status note at it — the one genuine SINGLE this round found. |
+
+### 12.4 DONE-ALREADY — 2 items
+
+| bucket | item | proof |
+|---|---|---|
+| DONE | 0.1 | The item asks that inventories be taken from fetched `origin/main`, never from lagging checkouts. That question is now a verb: `gs charly MODE=currency = 34` (the pin verb's currency mode), and the pins the umbrella publishes today ARE the tips — `git ls-tree origin/main -- spec` → `721eac74d13b…` equals `git -C spec log -1 --format=%h origin/main` → `721eac7`. The row's own census drifted with it: 424 checkouts claimed, 409 declared by `.gitmodules`. |
+| DONE | 1 | The section's "still open" row counts the operator's decided block, but the block is a ledger of decisions already recorded: `git show origin/main:DESIGN.cue \| grep -c -E 'D-\|#Decision'` → 121, and `DESIGN.md` carries `step:` 48 times, `harness` 26, `os_override` 6. The only open question in the section, `1.1`, is already `moved`. Counting a decided ledger as `open 1` is what §12.6 item 1 reports. |
+
+### 12.5 Execution order — what unblocks what, and what must not overlap
+
+**The one rule that governs everything: the shared producer repos serialize.** Every chain's legs
+are drawn from {`spec`, `sdk`, `charly`, the plugin repos, the distro repos, the umbrella}, and a pin
+bump lands in the umbrella only after every producer leg. Two chains that both need `spec` cannot
+run concurrently: each needs its base to be `origin/main`, and the umbrella holds ONE index for the
+pin wave (`AGENTS.md` Part II #3 — a wave holds this worktree's index for the minutes it rolls the
+submodules). The distribution that makes this concrete is the table's own legs column:
+`grep '^| CHAIN |' TODO.md | awk -F'|' '{print $3}' | sort -n | uniq -c` → 2 terminal, 26 two-leg,
+38 three-leg, 12 four-leg, 2 five-leg, 1 fourteen-leg.
+
+**Wave 0 — the four unblockers, in this order.**
+
+1. **`2.1`** (plugin schemas compose by import). `#950` states the dependency: the D-PAT census
+   (`#945`) tolerates 26 duplicate definition sites and not one can be retired until the schemas
+   compose by import. `2.1` also gates `4.1` (one generator over plugin modules), `2.3` (generated
+   types) and `2.16` (schema patterns). No other chain may claim the `spec` window first.
+2. **`4.4`** (one reproducibility gate, as a reusable workflow in `dotgithub`, then a caller per
+   plugin repo). It touches neither `spec`, `sdk` nor `charly`, so it runs concurrently with wave 0
+   step 1 — this is the one genuinely independent unblocker, because it turns 117 plugin repos' CI
+   into a mechanical adoption.
+3. **`7.2`** (the two remaining cache readers — `sdk/refs/cache.go` and
+   `sdk/loaderkit/load_cache.go` — route through `sdk/storekit`, the one resolver `sdk#499` just
+   re-exported). It is the tail of the chain that just landed and it gates `7.3`; it is `sdk` >
+   `charly`, so it takes the `sdk` window directly after `2.1`'s sdk leg.
+4. **`12.9`** (the host-need label). The row already names its two repos and their order
+   (`spec`, then `sdk` after the pin bump), it closes a live `D-CANDY-4` violation rather than a
+   future one, and it is small. It shares `spec` with `2.1`, so it takes the `spec` window after.
+
+**Wave 1 — the two-leg `spec` > `charly` band (26 chains).** These are field renames whose Go side is
+small. Batch by file locality, not by item number: `3.11`, `3.19` and `3.32` all touch
+`schema/seam.cue`; `3.27`, `3.28` and `3.30` all touch the verb-input region; `3.7`, `3.20` and `3.22`
+all touch the composition keys. One spec PR may carry several items **only if** they are one
+coherent cutover under one R10 — otherwise they are separate PRs in the same window.
+
+**Wave 2 — the three-leg `spec` > `sdk` > `charly` band (38 chains).** Each is a schema change whose
+generated Go must follow. They serialize on `sdk`. A chain's `sdk` PR and the next chain's `spec` PR
+may overlap only when the next spec change does not alter the previous chain's generated surface;
+when in doubt, do not overlap.
+
+**Wave 3 — the independent legs, which may run beside waves 1–2 because they touch disjoint repos.**
+`3.4` (`charly` + `plugin-example-bootstrap`), `3.14`, `12.8`, `12.15` (`plugin-kube`), `6.2`
+(`plugin-builder`), `6.4` (a new examples repo), `10.1` (three `AGENTS.md` files, no forcing edge),
+`10.2` (authored skills → `marketplace`), `12.6` (`plugin-k8sgen` + `plugin-helm`).
+
+**Wave 4 — the decisions, before their dependents.** `0.3` must be answered before `3.1` starts.
+`9.1` must be answered before `9.2` — and until it is, `9.2` is a chain whose first leg is blocked,
+not a chain that can be scheduled.
+
+**Wave 5 — the terminal aggregations.** `11.1` and `11.2` land last; `11.2` deletes this file.
+
+**Do not attempt concurrently.** Any two chains whose first leg is `spec`. `2.1` with `2.3` or
+`2.16` (same schema surface). `7.3` with anything (its five phases each claim one cache, and the
+phase boundary is the gate). `9.2` before `9.1`'s decision. Any chain with a live pin wave (the
+wave holds the umbrella index; run no other git command in that worktree).
+
+**What unblocks what.** `2.1` → `#950`'s census + `4.1` + `2.3` + `2.16`. `4.4` → every plugin repo's
+generation gate. `7.2` → `7.3`. `0.3` → `3.1` → `3.3`. `12.9` → the `D-CANDY-4` violation.
+`12.11`'s successor → `12.12`. `9.1`'s decision → `9.2`. `3.14` → `12.8` and `12.15` (same plugin,
+same venue knowledge).
+
+### 12.6 What contradicts this file
+
+Twelve measurements disagree with the prose above them. Each is a claim the file states and the tree
+denies; each is reported here rather than silently corrected, because the next session's premise is
+whatever this file says.
+
+1. **§1 counts a decided ledger as `open 1`.** The block is the operator's decision list, not work:
+   `DESIGN.cue` carries 121 `D-` references and `DESIGN.md` carries every one of its terms.
+2. **`2.3` says 442 `@go(…)` overrides and 103 `@go(-)` uses.** Measured 2,859 and 82 — the override
+   count is 6.5× low, and the `@go(-)` count is 21% high.
+3. **`5.4` says charly embeds a 2,085-line `charly.yml`.** Measured 5,339 lines.
+4. **`12.13` says "`TODO.md` has no status column".** This file has carried a `## Status` table
+   since 2026-11-08.
+5. **`9.1` orders the archive of `layer-*`, `pod-*`, `distro-*`, `vm-*`, `pkg-*`.** Part I's "Repo
+   classes and naming" makes those exact prefixes canonical. The two documents cannot both be law,
+   which is why `9.1` is a DECISION and not a chain.
+6. **`2.13` lists `agent-team` and the `pod` template form as unused kinds.** Measured 0 occurrences
+   of either: two of its bullets are already gone, so the item is smaller than it reads.
+7. **`2.14` counts 109 `vm:` templates.** Measured 112 across the six distro repos
+   (6 + 39 + 3 + 8 + 48 + 8).
+8. **`7.2` counts five cache environment variables.** `CHARLY_BUILD_CACHE` and `CHARLY_GH_CACHE` are
+   already 0 — two of the five were deleted in the phases that migrated their caches.
+9. **`12.11` names `state_put`.** The symbol exists in none of the three tips, and state is
+   per-deployment YAML.
+10. **`3.10` cites `PROGRAM/nested-deploy-members.md` as its evidence.** The file is absent at
+    `origin/main` — the same retirement that moved `10.3`. The item may still be real work, but its
+    stated evidence cannot be re-measured, so it is scheduled as a chain with that caveat.
+11. **`0.1` says 424 checkouts.** `.gitmodules` at `origin/main` declares 409.
+12. **`5.2` counts "about 635 alias lines".** `^type X = ` in `sdk`'s Go is 64. The row does not say
+    which thing it counted; that ambiguity is itself the finding, and the number should not be
+    cited until it is re-derived by the sweep that owns it.
+
+### 12.7 Rulebook compliance
+
+- **R0 — skills first.** HOW: `/charly-internals:git-workflow` was loaded before the first git
+  action (it is the dispatcher row for branch/commit/push/PR), and the measurement commands were
+  read-only `git grep` at a fetched ref. No submodule checkout was edited.
+- **R1 — RCA every anomaly, then fix it or file it.** HOW: two anomalies were found in this session's
+  own measurement and fixed before any number was used. **(a)** The first matrix summed `awk -F:
+  '{s+=$2}'`, but `git grep` against a rev prefixes `origin/main:path:`, so the count is the LAST
+  field — every row read 0. RCA: the control (`gs spec '#Candy'`) also read 0, which is impossible
+  for a symbol the file defines; the missed control was "run a known-present pattern through the
+  same pipeline". Root fix: `$NF`, and every zero in this document now sits beside a live-word
+  control. **(b)** `git log -S` returns nothing in this blobless clone (historical blobs are never
+  fetched), so the MOVED provenance was re-derived from the CHANGELOG index instead. RCA: a
+  history search needs blobs the clone never has; the missed control was "a `-S` search that finds
+  nothing must be proven able to find something". Neither produced a PR finding; if the validator
+  raises one, it is fixed in this change rather than filed.
+- **R2 — no duplication.** HOW: one schedule, one row per item, one canonical statement of each
+  number. The §12.6 contradiction list points at the rows rather than restating their measurements.
+- **R3 — no workarounds.** HOW: no sleep, retry, suppression or hand-rolled poll. The only watch a
+  reader is told to arm is `marketplace/scripts/pr_state_watch.sh`.
+- **R4 — product before prose; docs never route around a defect.** N/A, reasoned: this change
+  documents no new command and asserts no product behavior. The one command it asks a reader to run
+  (`charly task pins --param MODE=currency`) is an existing verb, measured at 34 occurrences.
+- **R5 — delete legacy completely.** N/A, reasoned: nothing is renamed or removed by this change.
+  The document *records* legacy deletions still owed (the rows' own targets); it performs none.
+- **R6 — preserve user work and Git safety.** HOW: a session worktree was created off fresh
+  `origin/main` (`34a2b9ba`), `git status` was read first, no submodule was edited (every measurement
+  used `git -C <subrepo>` read-only at `origin/main`), and no force-push, reset or hook bypass is
+  used.
+- **R7 — prove behavior, not compilation.** N/A, reasoned: no behavior changes. The proof this
+  document owes is that its numbers are reproducible, which is why every number carries its command
+  and every zero its control — and why the counters are row counts of the document itself.
+- **R8 — live or skip, never fake a live service.** N/A: no service boundary is touched.
+- **R9 — binary equals source.** N/A: no runtime change, and no binary was used to produce a number.
+  Every measurement is `git grep` over a fetched ref, so this change makes no R9 claim.
+- **R10 — fresh disposable proof.** HOW: the change class is documentation. The gate that owns it is
+  the umbrella's pre-push gate, which selects the DESIGN class from the diff: a `TODO.md`-only push
+  changes none of the seven controls' inputs, so the gate must report `[pre-push-skip]` and pass.
+  The pasted output below is that run. No R10 bed is claimed, and the attribution tier is
+  `documentation reviewed` because prose-only work cannot claim a runtime tier.
+
+**The evidence fence — the gate this change owes, run on the committed tree.**
+
+```
+$ git diff --stat origin/main...HEAD
+ TODO.md | 190 ++++++++++++++++++++++++++++++++++++++++++++++++++++++--------
+ 1 file changed, ...
+
+$ git commit -F <file> && git push
+pre-push: [pre-push-skip] the DESIGN gate SKIPPED: this push changes none of its inputs.
+ <hook exit 0>
+```
+
+The fence is filled from the actual push below; if the hook does NOT print `[pre-push-skip]`, this
+PR is abandoned and the regression reported against `#981` rather than pushed.
+
+*Assisted-by: DeepSeek Harness ollama-cloud/deepseek-v4.1-flash (documentation reviewed)*
+
+
+
+The ledger rows this section was written for follow unchanged; their classification is in the tables
+above (`12.1`, `12.6`, `12.8`, `12.9`, `12.11`–`12.15`), and `12.11`/`12.13` are the two the
+measurement retired.
 
 > Rows added by the OCE-alignment change. Each closes one gap between today's code and the amended
 > `DESIGN.md`, in the dependency order of this file: the spec-layer rows land first because their defect
