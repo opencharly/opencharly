@@ -14,7 +14,10 @@
 Derived 2026-11-08 at umbrella commit `6f6df4dc40364a62c4e0b7bd17003851bfdbca3e`
 (re-summed 2026-11-12 at `34a2b9ba0028d3150cdb53d1211304749ddceb86`, where §12.0 of section 12
 re-measured all 87 open rows and retired four of them — two to `done`, two to `moved` — while the two
-`DECISION` items kept `open`): mechanical
+`DECISION` items kept `open`; re-summed again 2026-11-12 at
+`d88dd451463941deef97d38ca23fbfce9ea615ab`, where the operator's ruling on `9.1` — `AGENTS.md`
+Part I outranks this work list — retired that item to `done`, leaving `0.3` the one open
+`DECISION`): mechanical
 greps at each submodule's `origin/main` pin, never at the lagging checkouts. The numbered text
 below is unchanged apart from the verdict an answered item carries in its own row, and the eight
 figures §12.6 corrects in place at the 2026-11-12 tips; this table is
@@ -31,11 +34,11 @@ the status record.
 | 6. Plugins and the install IR | 9 | 0 | 8 | 1 |
 | 7. Store | 3 | 1 | 2 | 0 |
 | 8. Command line | 3 | 0 | 1 | 2 |
-| 9. Repositories | 2 | 0 | 2 | 0 |
+| 9. Repositories | 2 | 1 | 1 | 0 |
 | 10. Documentation | 3 | 0 | 2 | 1 |
 | 11. Final proof | 2 | 0 | 2 | 0 |
 | 12. OCE alignment | 15 | 3 | 7 | 5 |
-| **Total** | **107** | **9** | **83** | **15** |
+| **Total** | **107** | **10** | **82** | **15** |
 
 The Decisions row counts the unnumbered decided block plus item 1.1.
 
@@ -156,6 +159,16 @@ the entry says otherwise:
   methods and refuses `apply`, `delete` and a `manifest:` field, and
   `TestDispatch_RefusesRemovedMutationMethods` asserts dispatch answers `unknown kube method`.
 
+- `9.1` — **done by operator ruling, not by measurement: the rulebook won.** The item ordered the
+  archive of the `layer-*`/`pod-*`/`distro-*`/`vm-*`/`pkg-*` repos, and on 2026-11-12 the operator
+  ruled that `AGENTS.md` Part I, "Repo classes and naming", outranks this work list: those prefixes
+  are canonical, the archive plan is **withdrawn** rather than deferred, and the repos it named are
+  the class-canonical set, not a backlog. Its other half — "create the decided candy-family and
+  plugin-concept repositories, move the content" — has no decided list to execute (§1's `1.1`, the
+  only document that would have carried one, is `moved`), and no candy name has two homes in either
+  class the item names. Nothing was archived and nothing needed to be; the surviving-scope census,
+  with its commands and their live-word controls, is §12.4.
+
 **How to keep this current.** The status is derived by greps at the submodule pins. Whoever lands an item updates its row and the total in the same PR. TODO.md is deleted only when the last item lands (§11.2).
 
 ## 0. Preconditions
@@ -196,7 +209,7 @@ Still open:
 
 | # | Decision | Recommendation |
 |---|---|---|
-| 1.1 | **Repository topology (D-REPO-1).** The operator chose aggressive collapse. | The exact repository list (candy families, plugin concepts) needs sign-off before item 9.1. |
+| 1.1 | **Repository topology (D-REPO-1).** The operator chose aggressive collapse. | The exact repository list (candy families, plugin concepts) needs sign-off before item 9.1. **No longer gating anything:** the operator's 2026-11-12 ruling retired `9.1` (§12.4), so the list it was waiting on is not owed — and Part I's `layer-<family>` answers the naming half. |
 
 ## 2. Schema (Part I)
 
@@ -325,8 +338,8 @@ Still open:
 
 | # | Item |
 |---|---|
-| 9.1 | Create the decided candy-family and plugin-concept repositories. Move the content, preserving history where practical, and archive `layer-*`, `pod-*`, `distro-*`, `vm-*`, the superseded `plugin-*`, `charly-<distro>` and `pkg-*`. |
-| 9.2 | Update the umbrella: submodules, the pin contract (the OS repository set), `task map`, `org-map`, the README tables, and the `AGENTS.md` dispatcher. |
+| 9.1 | **RULED 2026-11-12 — the rulebook wins, and the item retires.** The operator ruled that `AGENTS.md` Part I, "Repo classes and naming", outranks this work list: `layer-*`, `pod-*`, `distro-*`, `vm-*`, `plugin-*`, `charly-<distro>` and `pkg-*` are the canonical class prefixes ("a repo that does not fit its class is a defect to fix, not a convention to tolerate"), and a product family is a `layer-<family>` repo. The archive plan is therefore **withdrawn, not deferred** — the 257 repos it named (§12.4 counts them and carries the command) are exactly the class-canonical set. What remains is consolidation only, "merge the concept repos that duplicate each other", and that scope measures empty: no candy name has two homes in either class this item names, and the "decided candy-family and plugin-concept repository" list it was waiting on (§1's `1.1`) is recorded nowhere in the org. The census of the set the ruling withdraws, and the surviving-scope count with its commands, are §12.4. |
+| 9.2 | Update the umbrella: submodules, the pin contract (the OS repository set), `task map`, `org-map`, the README tables, and the `AGENTS.md` dispatcher. **Unblocked 2026-11-12** — its blocker was `9.1`'s decision and the ruling cleared it, so this item now reads: with no repository archived and none created, the submodule and pin-contract halves carry no change from `9.1`, and what is left is the umbrella's own map surfaces (`task map`, `org-map`, the README org-map tables) and the `AGENTS.md` dispatcher, brought to the class-canonical repository set, with `marketplace` first (§12.1). |
 
 ## 10. Documentation
 
@@ -352,6 +365,11 @@ the umbrella's own index pins today, and placed in exactly one bucket: **MOVED**
 **CHAIN(n)**, **DECISION**, **LIVE-CLAIM**, **SINGLE**. The row is a claim, not a specification —
 several rows did not survive contact, and §12.6 lists every contradiction.
 
+**Amended 2026-11-12 by the `9.1` ruling.** The operator ruled that Part I's "Repo classes and
+naming" outranks this work list, so `9.1` leaves `DECISION` for `DONE` — **by ruling, not by a
+measurement's verdict** — and `9.2`, whose only blocker was that decision, becomes schedulable.
+`87` is still the number of rows, and every count below is re-derived from them.
+
 **The measurement form.** Each `measured anchor` below is one or more calls of the form
 `gs <repo> <text>` = `git -C <repo> grep -c -F '<text>' origin/main | awk -F: '{s+=$NF} END{print s+0}'`
 (matching lines, summed over files); `gsE` is the same with `-E`. Every zero carries a live-word
@@ -376,23 +394,25 @@ reconciles a body against its diff on FORM and on FILE SET and never asks whethe
 by output, so a schedule that types its counts is precisely the artefact that gate cannot catch.
 
 **Census.** Counted from the rows themselves — `grep -c '^| CHAIN |' TODO.md` = 81,
-`grep -c '^| DECISION |' TODO.md` = 2, `grep -c '^| MOVED |' TODO.md` = 2,
-`grep -c '^| DONE |' TODO.md` = 2, `grep -c '^| LIVE-CLAIM |' TODO.md` = 0,
-`grep -c '^| SINGLE |' TODO.md` = 0, total 87.
+`grep -c '^| DECISION |' TODO.md` = 1, `grep -c '^| MOVED |' TODO.md` = 2,
+`grep -c '^| DONE |' TODO.md` = 3, `grep -c '^| LIVE-CLAIM |' TODO.md` = 0,
+`grep -c '^| SINGLE |' TODO.md` = 0, total 87. The two zeros carry a live word in the same grep
+shape — the identical command returns 81 for `CHAIN` — so they are the tree's, not the grep's.
 
 | bucket | count | what it means here |
 |---|---|---|
 | `CHAIN` | 81 | needs an ordered producer-first sequence; the legs and the forcing edge are named per row |
-| `DECISION` | 2 | an operator call, not work; the question and the options with their costs are named |
+| `DECISION` | 1 | an operator call, not work; the question and the options with their costs are named |
 | `MOVED` | 2 | the premise no longer resolves at the tip; the change and the proof are named |
-| `DONE-ALREADY` | 2 | the tree already satisfies it; the proof is named |
+| `DONE-ALREADY` | 3 | the tree already satisfies it, or an operator ruling retired it; the proof is named |
 | `LIVE-CLAIM` | 0 | no open PR or issue claims any of the 87 scopes |
 | `SINGLE` | 0 | the smallest surviving unit is two repositories |
-| **total** | **87** | 81 + 2 + 2 + 2 matches the 87 rows `## Status` carried as open before this change; 83 remain open after the two DONE and two MOVED retirements, because the two DECISION items stay open |
+| **total** | **87** | 81 + 1 + 2 + 3 matches the 87 rows `## Status` carried as open before this classification; five of them leave `open` (three `DONE`, two `MOVED`), so 82 remain open — held by the 81 chains and the one remaining `DECISION`, `0.3` |
 
-**Status reconciliation.** The two DONE and the two MOVED items leave `open`; the two DECISION items
-stay `open` because an unanswered call is still open work. `## Status` is updated in the same change,
-and every row is re-summed, never re-typed.
+**Status reconciliation.** The three DONE and the two MOVED items leave `open`; the one remaining
+DECISION (`0.3`) stays `open` because an unanswered call is still open work. `9.1` joined the DONE
+set by the operator's ruling recorded in §9 and §12.4, not by a measurement's verdict. `## Status`
+is updated in the same change, and every row is re-summed, never re-typed.
 
 | section | items | done | open | moved |
 |---|---|---|---|---|
@@ -405,13 +425,15 @@ and every row is re-summed, never re-typed.
 | 6. Plugins and the install IR | 9 | 0 | 8 | 1 |
 | 7. Store | 3 | 1 | 2 | 0 |
 | 8. Command line | 3 | 0 | 1 | 2 |
-| 9. Repositories | 2 | 0 | 2 | 0 |
+| 9. Repositories | 2 | 1 | 1 | 0 |
 | 10. Documentation | 3 | 0 | 2 | 1 |
 | 11. Final proof | 2 | 0 | 2 | 0 |
 | 12. OCE alignment | 15 | 3 | 7 | 5 |
-| **Total** | **107** | **9** | **83** | **15** |
+| **Total** | **107** | **10** | **82** | **15** |
 
-items `4+2+16+33+4+11+9+3+3+2+3+2+15 = 107`, done `2+1+1+1+0+0+0+1+0+0+0+0+3 = 9`, open `1+0+12+31+4+11+8+2+1+2+2+2+7 = 83`, moved `1+1+3+1+0+0+1+0+2+0+1+0+5 = 15`, and `9 + 83 + 15 = 107`.
+items `4+2+16+33+4+11+9+3+3+2+3+2+15 = 107`, done `2+1+1+1+0+0+0+1+0+1+0+0+3 = 10`, open `1+0+12+31+4+11+8+2+1+1+2+2+7 = 82`, moved `1+1+3+1+0+0+1+0+2+0+1+0+5 = 15`, and `10 + 82 + 15 = 107`. Re-summed from the table's own rows, never typed —
+`awk -F'|' '/^## Status/{f=1} /^The Decisions row/{f=0} f && NF==7 && $2 !~ /section/ && $2 !~ /---/ && $2 !~ /Total/ {i+=$3; d+=$4; o+=$5; m+=$6} END {printf "items %d done %d open %d moved %d\n", i,d,o,m}' TODO.md`
+→ `items 107 done 10 open 82 moved 15`.
 
 **No SINGLE survived.** Round 53 measured zero single-repo items and this round confirms it: the
 smallest surviving unit is two repositories (`spec` > `charly`, or `sdk` > `charly`). Two
@@ -502,7 +524,7 @@ repository's window, not on a claim.
 | CHAIN | 2 | 7.2 | sdk > charly | the one resolver exists (storekit) and the two remaining readers route through it | storekit/roots.go present; CHARLY_REPO_CACHE 6/5/12; CHARLY_MATERIALIZED_CACHE 2/0/0; CHARLY_BUILD_CACHE = 0; CHARLY_GH_CACHE = 0 |
 | CHAIN | 5 | 7.3 | sdk > charly | five ordered cache phases, one R10 gate each | materialized 142/46/52; vm-images 9/3/4 |
 | CHAIN | 2 | 8.2 | plugin repositories > charly | the plugin leaves the first-party set before charly cmd gains it | gs charly command:agentteams = 4; herdr = 1; dsh = 5; qdrant = 1; ollama = 4; nerdctl = 5 |
-| CHAIN | 2 | 9.2 | marketplace > umbrella | the map must exist before the umbrella points at it | gs charly 'task org-map' = 2; gs marketplace org-map = 6 |
+| CHAIN | 2 | 9.2 | marketplace > umbrella | the map must exist before the umbrella points at it — and the one blocker this row carried, `9.1`'s decision, cleared on 2026-11-12, so the chain is now schedulable | gs marketplace org-map = 6; the verb is the umbrella's own task — `git show origin/main:charly.yml \| grep -c '^org-map:'` = 1 — and charly's 2 `org-map` hits are both `CHANGELOG/` history (`git -C charly grep -l -F 'org-map' origin/main` → `CHANGELOG/2026.280.1631.md`, `CHANGELOG/2026.307.1232.md`), which is why this cell no longer claims a charly task count (§12.6 item 13) |
 | CHAIN | 3 | 10.1 | charly + spec + sdk (parallel, no forcing edge) | three AGENTS.md files name DESIGN.md as normative | gs charly\|spec\|sdk DESIGN in AGENTS.md = 0/0/0 |
 | CHAIN | 2 | 10.2 | owning repositories > marketplace | skills are authored where the entity lives, then regenerated | gs marketplace 'source: builtin' = 4; EmitTarget = 12; 'target:' = 152 |
 | CHAIN | — | 11.1 | all chains > umbrella | every gate and the conformance bed depend on the chains above | scripts/design-check.sh + 12 design-* controls present; design/ gates present |
@@ -515,12 +537,14 @@ repository's window, not on a claim.
 | CHAIN | 2 | 12.14 | spec > charly | the reference carries the digest before a consumer can preflight it | gs spec `digest?:` = 1 (schema/candy.cue:548) + oci.cue:65,:96 |
 | CHAIN | 2 | 12.15 | plugin-kube > bed | the in-venue import and its bed live in one repository | gs sdk 'images import' = 3 (kind only); gs charly = 1 (CHANGELOG) |
 
-### 12.2 DECISION — 2 items
+### 12.2 DECISION — 1 item
 
 | bucket | item | the question | options and their costs |
 |---|---|---|---|
 | DECISION | 0.3 | Run the schema-first-parse RDD spike before `3.1` starts, or waive it against `D-LOAD-5`, which `DESIGN.md` already records? | **(a) Run it** — one disposable bed plus a design record; it can invalidate `3.1` before that chain spends a spec PR, and it is the class of spike RDD exists for (a high-risk assumption where being wrong invalidates the plan). **(b) Waive it** — zero cost now; `3.1` then rests on a classifier whose ambiguity is unproven, the one risk the row exists to retire. The measurement that makes this a real question: `gs spec schema-first = 0` with control `gs sdk DeploySubstrates = 94` — no spike record exists, and the parse it would judge has not been rewritten. |
-| DECISION | 9.1 | Which document wins: `TODO.md`'s order to archive `layer-*`/`pod-*`/`distro-*`/`vm-*`/`pkg-*`, or Part I's "Repo classes and naming", which makes those exact prefixes canonical? | **(a) Rulebook wins** — retire the archive half; `9.1` becomes consolidation-only (merge the concept repos that duplicate each other), cost one docs PR and no repository churn. **(b) Archive plan wins** — amend Part I's naming rule first, then the umbrella's `org-map` control, then move or archive ~257 repositories; cost is an org-wide cutover that no single R10 can prove, which is why the row has never started. **(c) Defer** — leave `9.2` blocked and keep the contradiction recorded here. The census that makes the cost concrete: 174 `layer-*`, 72 `pod-*`, 6 `distro-*`, 3 `pkg-*`, 2 `vm-*` submodules at `origin/main`. |
+
+`9.1` was the second `DECISION` and the operator has answered it — option **(a), the rulebook wins**.
+Its row is in §12.4, because the answer retires the item rather than scheduling it.
 
 ### 12.3 MOVED — 2 items
 
@@ -529,12 +553,73 @@ repository's window, not on a claim.
 | MOVED | 12.11 | The host method the row names no longer exists; deployment state is per-deployment YAML written by `SaveDeployState`, not a key/value `state_put`. The *target* (a transactional commit plus an audit append) is **not** met — the row cannot be executed as written, so it retires and its target needs a new item. | `gs spec state_put = 0`, `gs sdk state_put = 0`, `gs charly state_put = 0`, with control `gs sdk SaveDeployState = 49`; the writer is `sdk/deploykit/deploy_state.go:469`. **Successor:** one item for a transactional state commit plus `audit_append`, in `sdk` then `charly`. |
 | MOVED | 12.13 | "`TODO.md` has no status column, so 'is it done?' is unanswerable" is false: this file has carried a `## Status` table since 2026-11-08, derived at umbrella `6f6df4dc40364a62c4e0b7bd17003851bfdbca3e`, and that table is the record the row asked for. The registry half (`specs/{rfcs,plans,archive}`) is untouched. | The `## Status` section at the top of this file, whose own head names the derivation commit; `git cat-file -t 6f6df4dc…` → `commit`. **Successor:** one umbrella-only SINGLE — create `specs/{rfcs,plans,archive}` and point the Status note at it — the one genuine SINGLE this round found. |
 
-### 12.4 DONE-ALREADY — 2 items
+### 12.4 DONE-ALREADY — 3 items
 
 | bucket | item | proof |
 |---|---|---|
 | DONE | 0.1 | The item asks that inventories be taken from fetched `origin/main`, never from lagging checkouts. That question is now a verb: `gs charly MODE=currency = 34` (the pin verb's currency mode), and the pins the umbrella publishes today ARE the tips — `git ls-tree origin/main -- spec` → `721eac74d13b…` equals `git -C spec log -1 --format=%h origin/main` → `721eac7`. The row's own census drifted with it: 424 checkouts claimed, 409 declared by `.gitmodules`. |
 | DONE | 1 | The section's "still open" row counts the operator's decided block, but the block is a ledger of decisions already recorded: `git show origin/main:DESIGN.cue \| grep -c -E 'D-\|#Decision'` → 121, and `DESIGN.md` carries `step:` 48 times, `harness` 26, `os_override` 6. The only open question in the section, `1.1`, is already `moved`. Counting a decided ledger as `open 1` is what §12.6 item 1 reports. |
+| DONE | 9.1 | **Done by operator ruling, not by a measurement's verdict.** On 2026-11-12 the operator ruled that `AGENTS.md` Part I, "Repo classes and naming", outranks this work list: the `layer-*`/`pod-*`/`distro-*`/`vm-*`/`plugin-*`/`charly-<distro>`/`pkg-*` prefixes are canonical, so option **(a) of the question this row used to ask is the answer**, the archive plan is **withdrawn** (not deferred), and the repos it named are the class-canonical set. What survived was consolidation only, and that measures empty: no candy name has two homes in either class the item names, and the "decided candy-family and plugin-concept repository" list it was waiting on exists in no document (§1's `1.1` — the only candidate — is `moved`). Nothing was archived, and nothing needed to be. | The withdrawn set, counted from `.gitmodules` at `origin/main`, and the surviving-scope census, each with its command and a live-word control, are in the fence below. |
+
+**`9.1`'s measurements — the withdrawn set, and the surviving scope that measures empty.**
+
+The set the ruling withdraws is the item's own archive list, counted from the umbrella's
+`.gitmodules` at `origin/main` (`174 layer + 72 pod + 6 distro + 3 pkg + 2 vm = 257`):
+
+```
+$ git show origin/main:.gitmodules | awk -F' = ' '$1 ~ /path/ {split($2,a,"-"); print a[1]}' | sort | uniq -c | sort -rn
+    174 layer
+    120 plugin
+     72 pod
+     11 charly
+      6 distro
+      4 pi
+      3 pkg
+      2 vm
+      2 openclaw
+      1 spec
+      …
+$ git show origin/main:.gitmodules | grep -cP '^\tpath = '
+409
+```
+
+The list the item waited on — "the exact repository list (candy families, plugin concepts)" — is
+absent from the whole org, not merely from this file. The sweep covers every submodule at
+`origin/main` (`409` repos scanned), and its control proves the same predicate finds a phrase that IS
+there:
+
+```
+$ for r in $(git show origin/main:.gitmodules | awk -F' = ' '$1 ~ /path/ {print $2}'); do [ -e "$r/.git" ] || continue; git -C "$r" grep -l -i -E 'candy-family|plugin-concept' origin/main 2>/dev/null; done | wc -l
+0
+$ for r in $(git show origin/main:.gitmodules | awk -F' = ' '$1 ~ /path/ {print $2}'); do [ -e "$r/.git" ] || continue; git -C "$r" grep -l -i -E 'candy-family|plugin-concept|product family' origin/main 2>/dev/null; done | wc -l
+9
+```
+
+The surviving scope is consolidation — D-REPO-1's "candies of one family share a repository" and
+"one concept's plugin code lives in one repository". Both already hold: no candy name has two homes
+in the `layer-` class (164 candy nodes across 158 of the 174 `layer-*` repos, 0 duplicate names) nor
+in the `plugin-` class (122 `candy/` directories across 119 of the 120 `plugin-*` repos, 0 duplicate
+names). The guard `[ -e "$r/.git" ] || continue` is part of the instrument: without it, an
+unmaterialized tree makes `git -C <path>` walk up to the superproject and read the umbrella's own
+`charly.yml` once per path, which is how the first run of this census returned a meaningless
+`174` — the empty control exposed it. Run these from the materialized root checkout:
+
+```
+$ for r in $(git show origin/main:.gitmodules | awk -F' = ' '$1 ~ /path/ {print $2}' | grep '^layer-'); do [ -e "$r/.git" ] || continue; git -C "$r" show origin/main:charly.yml 2>/dev/null | awk -v r="$r" '/^[A-Za-z0-9_.-]+:$/{k=$1} /^    candy:$/{print substr(k,1,length(k)-1)"\t"r}'; done | awk -F'\t' '{n[$1]++; rp[$1]=rp[$1]" "$2; seen[$2]=1; tot++} END {d=0; for (c in n) if (n[c]>1) d++; for (x in seen) nr++; printf "candy nodes %d in %d repos; duplicate names %d; control gh ->%s\n", tot, nr, d, rp["gh"]}'
+candy nodes 164 in 158 repos; duplicate names 0; control gh -> layer-gh
+
+$ for r in $(git show origin/main:.gitmodules | awk -F' = ' '$1 ~ /path/ {print $2}' | grep '^plugin-'); do [ -e "$r/.git" ] || continue; git -C "$r" ls-tree origin/main --name-only candy/ 2>/dev/null | sed 's|candy/||' | awk -v r="$r" 'NF{print $0"\t"r}'; done | awk -F'\t' '{n[$1]++; rp[$1]=rp[$1]" "$2; seen[$2]=1; tot++} END {d=0; for (c in n) if (n[c]>1) d++; for (x in seen) nr++; printf "candy dirs %d in %d repos; duplicate names %d; control plugin-dsh ->%s\n", tot, nr, d, rp["plugin-dsh"]}'
+candy dirs 122 in 119 repos; duplicate names 0; control plugin-dsh -> plugin-dsh
+
+$ cd .worktrees/todo-91-ruling/opencharly   # this round's session worktree: no submodule materialized
+$ for r in $(git show origin/main:.gitmodules | awk -F' = ' '$1 ~ /path/ {print $2}' | grep '^layer-'); do [ -e "$r/.git" ] || continue; git -C "$r" show origin/main:charly.yml 2>/dev/null | awk -v r="$r" '/^[A-Za-z0-9_.-]+:$/{k=$1} /^    candy:$/{print substr(k,1,length(k)-1)"\t"r}'; done | awk -F'\t' '{tot++} END {printf "candy nodes %d (guard held)\n", tot+0}'
+candy nodes 0 (guard held)
+```
+
+The control is the load-bearing half of both zeros: the same run prints the repo it found for
+`gh` and for `plugin-dsh`, so a run that read nothing cannot be mistaken for a class with no
+duplicates — as the unmaterialized third run shows, where the count collapses to 0.
+
 
 ### 12.5 Execution order — what unblocks what, and what must not overlap
 
@@ -582,28 +667,33 @@ when in doubt, do not overlap.
 `10.2` (authored skills → `marketplace`), `12.6` (`plugin-k8sgen` + `plugin-helm`).
 
 **Wave 4 — the decisions, before their dependents.** `0.3` must be answered before `3.1` starts.
-`9.1` must be answered before `9.2` — and until it is, `9.2` is a chain whose first leg is blocked,
-not a chain that can be scheduled.
+`9.1` was the other decision, and it is answered: the operator ruled on 2026-11-12 that the rulebook
+wins, which retires the item and releases `9.2` from this wave. `9.2` is now a schedulable two-leg
+chain whose first leg is `marketplace` — the same window `10.2` needs, so those two share it rather
+than run beside it.
 
 **Wave 5 — the terminal aggregations.** `11.1` and `11.2` land last; `11.2` deletes this file.
 
 **Do not attempt concurrently.** Any two chains whose first leg is `spec`. `2.1` with `2.3` or
 `2.16` (same schema surface). `7.3` with anything (its five phases each claim one cache, and the
-phase boundary is the gate). `9.2` before `9.1`'s decision. Any chain with a live pin wave (the
-wave holds the umbrella index; run no other git command in that worktree).
+phase boundary is the gate). `9.2` with `10.2` (one `marketplace` window); the order `9.2` before
+`9.1`'s decision no longer exists, because the decision is answered. Any chain with a live pin wave
+(the wave holds the umbrella index; run no other git command in that worktree).
 
 **What unblocks what.** `2.1` → `#950`'s census + `4.1` + `2.3` + `2.16`. `4.4` → every plugin repo's
 generation gate. `7.2` → `7.3`. `0.3` → `3.1` → `3.3`. `12.9` → the `D-CANDY-4` violation.
-`12.11`'s successor → `12.12`. `9.1`'s decision → `9.2`. `3.14` → `12.8` and `12.15` (same plugin,
+`12.11`'s successor → `12.12`. `9.1`'s decision → `9.2`, and it is answered (2026-11-12: the rulebook
+wins, so `9.2` is unblocked and `9.1` itself retires). `3.14` → `12.8` and `12.15` (same plugin,
 same venue knowledge).
 
 ### 12.6 What contradicts this file
 
-Twelve measurements disagreed with the prose above them when this round began. Eight are corrected in
-the numbered rows by this change, and the other four are resolved as a retirement or a decision
-(`1`, `12.11`, `12.13` retired; `9.1` a DECISION). Each is recorded here because the next session's
-premise is whatever this file says, and a corrected figure that leaves no trace invites the same
-mistake back.
+Thirteen measurements disagreed with the prose above them when §12 was written. Eight are corrected in
+the numbered rows by that change, and the rest are resolved as a retirement or a decision
+(`1`, `12.11`, `12.13` retired; `9.1`, which was a DECISION, has since been retired by the operator's
+ruling recorded in §12.4). Item 13 is the anchor this ruling's own round measured false and corrected
+in place. Each is recorded here because the next session's premise is whatever this file says, and a
+corrected figure that leaves no trace invites the same mistake back.
 
 1. **§1 counts a decided ledger as `open 1`.** The block is the operator's decision list, not work:
    `DESIGN.cue` carries 121 `D-` references and `DESIGN.md` carries every one of its terms.
@@ -614,9 +704,11 @@ mistake back.
 3. **`5.4` says charly embeds a 2,085-line `charly.yml`.** Measured 5,339 lines.
 4. **`12.13` says "`TODO.md` has no status column".** This file has carried a `## Status` table
    since 2026-11-08.
-5. **`9.1` orders the archive of `layer-*`, `pod-*`, `distro-*`, `vm-*`, `pkg-*`.** Part I's "Repo
-   classes and naming" makes those exact prefixes canonical. The two documents cannot both be law,
-   which is why `9.1` is a DECISION and not a chain.
+5. **`9.1` ordered the archive of `layer-*`, `pod-*`, `distro-*`, `vm-*`, `pkg-*`.** Part I's "Repo
+   classes and naming" makes those exact prefixes canonical, so the two documents could not both be
+   law. **Resolved 2026-11-12 by the operator: the rulebook wins.** The archive plan is **withdrawn**
+   rather than deferred; the prefixes stay, and `9.1` retires to `DONE` (§12.4) — a ruling, not a
+   measurement's verdict.
 6. **`2.13` lists `agent-team` and the `pod` template form as unused kinds.** Measured 0 occurrences
    of either: two of its bullets are already gone, so the item is smaller than it reads.
 7. **`2.14` counts 109 `vm:` templates.** Measured 112 across the six distro repos
@@ -635,8 +727,19 @@ mistake back.
     `sdk`'s Go is 64, and 354 lines carry a `var`/`const`/`func`/`type` alias. The row did not say
     which thing it counted, so it now states both measures with their commands, and it is scheduled
     on the five domain directories rather than on the count.
+13. **`9.2`'s anchor cited a `charly` task count that `charly` does not carry.** The cell read
+    `gs charly 'task org-map' = 2`; measured `gs charly 'task org-map' = 0`, and the 2 belongs to
+    `gs charly 'org-map'` — whose only hits are `CHANGELOG/2026.280.1631.md` and
+    `CHANGELOG/2026.307.1232.md`, i.e. history. `org-map` is the UMBRELLA's own `task:` entity
+    (`git show origin/main:charly.yml | grep -c '^org-map:'` = 1, with the live-word control
+    `gs marketplace org-map` = 6), so the cell now names the umbrella's declaration instead of a
+    `charly` count.
 
 ### 12.7 Rulebook compliance
+
+*This section records the change that wrote §12.0–§12.6 (opencharly/opencharly#992). The round that
+recorded the `9.1` ruling carries its own R0–R10 record in its PR body, and the fence below is that
+earlier run, not this one's.*
 
 - **R0 — skills first.** HOW: `/charly-internals:git-workflow` was loaded before the first git
   action (it is the dispatcher row for branch/commit/push/PR), and the measurement commands were
