@@ -13,10 +13,11 @@
 
 Derived 2026-11-08 at umbrella commit `6f6df4dc40364a62c4e0b7bd17003851bfdbca3e`
 (re-summed 2026-11-12 at `34a2b9ba0028d3150cdb53d1211304749ddceb86`, where §12.0 of section 12
-re-measured all 87 open rows and retired five of them — two to `done`, two to `moved`, and the two
+re-measured all 87 open rows and retired four of them — two to `done`, two to `moved` — while the two
 `DECISION` items kept `open`): mechanical
 greps at each submodule's `origin/main` pin, never at the lagging checkouts. The numbered text
-below is unchanged, apart from the verdict an answered item carries in its own row; this table is
+below is unchanged apart from the verdict an answered item carries in its own row, and the eight
+figures §12.6 corrects in place at the 2026-11-12 tips; this table is
 the status record.
 
 | section | items | done | open | moved |
@@ -203,7 +204,7 @@ Still open:
 |---|---|---|---|---|
 | 2.1 | Kind schemas (`#Candy`, `#Box`, `#Deploy`, `#Vm`, `#Pod`, `#Local`, `#Kubernetes`, `#Android`, `#LibvirtDomain`, …) live in `spec/schema`, with `#<Kind>Value` twins; plugin-substrate and plugin-candy only echo host-decoded values (`spec/schema/node.cue`). | D-SCH-1, D-SCH-3 | none | Move each schema into its plugin's CUE module; delete the twins and the echo plugins. |
 | 2.2 | 104 of 117 plugin schemas are "self-contained" and copy shared shapes (`#HttpMatcherList`, `#FileMatcher`, `#MountMatcher`, …). | D-SCH-2 | none | Import `spec/envelope`; delete the copies. |
-| 2.3 | 442 `@go(…,type=…)` overrides, 103 `@go(-)` uses and hand-written Go types in `spec` (e.g. `hand_state_types.go`). | D-SCH-1, D-GEN-3 | none | Generate every type; keep only behaviour methods. |
+| 2.3 | 486 `@go(…,type=…)` overrides (2,859 `@go(…)` calls in all), 82 `@go(-)` uses and hand-written Go types in `spec` (e.g. `hand_state_types.go`) — counted 2026-11-12. | D-SCH-1, D-GEN-3 | none | Generate every type; keep only behaviour methods. |
 | 2.4 | A second field gate: the loader's `candyKnownFields` still admits the removed `version` (`sdk/loaderkit/parse_candy_manifest.go:224`). | D-CANDY-1, D-LOAD-2 | none | Delete it. |
 | 2.5 | The runtime schema is assembled by text: `schemaconcat`, plus the `base ++ served` splice in `charly/charly/plugin_loader.go`. | §10.3 | none | Compose one instance through CUE imports. |
 | 2.6 | `#NodeDoc` carries state and vocabulary keys (`cache`, `ledger`, `system`, `providers`, `compiled_plugins`, `context_ignore_baseline`, `ovmf_*`, `verb_primaries`, `provides`). | D-STORE-2, D-KIND-2, D-CORE-3 | `~/.config/charly/charly.yml` splits: settings → user configuration; `cache`/`ledger`/`system` → state or cache | Remove the keys from the envelope. |
@@ -213,8 +214,8 @@ Still open:
 | 2.10 | Box starting points come in four spellings: `base:` (a box or an OCI ref), `from: builder:<word>` plus `bootstrap_builder_image`, a VM template `source:` block (`cloud_image`, `iso`, `bootstrap`, `container_disk`, `bootc`, `clone`, `imported`), and `distro:` identity lists. | §14.1, §16.3, D-SRC-1..2 | external `base: <oci-ref>` → a `source: {oci: …, os: …}` node with the box's `from:` naming it; `base: <box>` → `from: <box>`; `from: builder:pacstrap` + `bootstrap_builder_image` → `source: {bootstrap: {builder: arch.pacstrap, …}, os: arch.arch}`; vm `source: {kind: cloud_image, url, checksum}` → `source: {disk: {url, sha256}, os: …}`; `iso` → `source: {iso: …}`; `container_disk` and `bootc` → a box `from:` the OCI source; unused `clone` and `imported` are deleted | One `from:` resolver; a `source` kind in the build plugin; the machine plugin builds disks from boxes. |
 | 2.11 | A deployment names what it realizes with `from:` (a template, or `name:snapshot`) or `image:` (an image node). | §14.1, §17.1 | `image: <node>` → `from: <node>`; `from: <template>` → `from:` the box or source the template's disk came from (2.14) | Update the deployment schemas. |
 | 2.12 | Image build fields `build`, `builder`, `produce`, `bootstrap_builder_image`, `platform`, `enabled`, `tag`, `entrypoint`, `network`: purpose and overlaps unreviewed. | D-LAW-1, D-LAW-2 | per the review | Review them against the fresh corpus and record the result in DESIGN §16.1 (with DESIGN.cue first, Appendix A.7) before implementing. |
-| 2.13 | Unused fields and kinds. Kinds: `theme`, `session`, `displaymanager`, `desktopentry`, `agent-team`, the `kubevirt` kind, the `pod` template form. Fields: most of `#Kubernetes`; deploy `kind`, `replica`, `restart`, `schedule`, `tunnel`, `dns`, `acme_email`, `port`, `resources`, `expose`, `storage`, `probes`; vm sources `bootc`, `clone`, `imported`; most libvirt device lists; unused `#Box` and service fields (full list from inventory 0.1). | D-LAW-2 | none (unused) | Delete them from the schemas. |
-| 2.14 | Deployment templates. `vm:` templates (109 nodes) carry the disk source, `disk_size`, `ram`, `cpu`, `firmware`, `network`, `ssh`, `cloud_init` and `libvirt`; `local:` templates carry a candy list; `kubernetes:`/`android:` templates carry access and device settings; `pod:` templates are unused. Template versus deployment is decided by whether `from:`/`image:` is present. | §14, §17.1 | per vm template `T`: its `source` block → a `source` node (2.10); `cloud_init` packages, users and runcmd → a candy, and a box `T` = that source plus that candy; `ram`/`cpu`/`disk_size` → the fields of every deployment that used `T`; `firmware` → the deployment's `firmware`; `ssh`/`network` → machine plugin behaviour (port forwards → `port:`); `libvirt` devices → host needs (3.26) or the machine plugin; `local` templates → a box or the deployment's `require:`; android → 3.23 | Delete the template form from every deployment schema. |
+| 2.13 | Unused fields and kinds. Kinds: `theme`, `session`, `displaymanager`, `desktopentry`, the `kubevirt` kind (`agent-team` and the `pod` template form are already 0 at 2026-11-12). Fields: most of `#Kubernetes`; deploy `kind`, `replica`, `restart`, `schedule`, `tunnel`, `dns`, `acme_email`, `port`, `resources`, `expose`, `storage`, `probes`; vm sources `bootc`, `clone`, `imported`; most libvirt device lists; unused `#Box` and service fields (full list from inventory 0.1). | D-LAW-2 | none (unused) | Delete them from the schemas. |
+| 2.14 | Deployment templates. `vm:` templates (112 nodes, counted 2026-11-12) carry the disk source, `disk_size`, `ram`, `cpu`, `firmware`, `network`, `ssh`, `cloud_init` and `libvirt`; `local:` templates carry a candy list; `kubernetes:`/`android:` templates carry access and device settings; `pod:` templates are unused. Template versus deployment is decided by whether `from:`/`image:` is present. | §14, §17.1 | per vm template `T`: its `source` block → a `source` node (2.10); `cloud_init` packages, users and runcmd → a candy, and a box `T` = that source plus that candy; `ram`/`cpu`/`disk_size` → the fields of every deployment that used `T`; `firmware` → the deployment's `firmware`; `ssh`/`network` → machine plugin behaviour (port forwards → `port:`); `libvirt` devices → host needs (3.26) or the machine plugin; `local` templates → a box or the deployment's `require:`; android → 3.23 | Delete the template form from every deployment schema. |
 | 2.15 | Pod and VM are built differently: a pod runs an image built from a box; a VM boots a template disk and applies candies over ssh at deploy time. Snapshots, consoles and many commands exist only for VMs. | §14.2, D-DEP-1, D-FORM-1 | none beyond 2.10, 2.14 and 3.27 | Each `os` gains its boot content and root-filesystem export; build a disk from any box and an image from any disk start; both kinds share one field set and one command set; the conformance bed runs every box as both. |
 | 2.16 | Schemas use `close()`, open definitions, absence-discriminated unions, unions written out alternative by alternative, mixed lists and validators embedded in structs (the self-contained plugin schemas, `#CandyValue: (*#Candy \| #Image)`, `#<Kind>Value: (#Template \| #DeployValue)`). | §10.1, D-PAT-1..4 | none | Rewrite every schema with the patterns of §10.1: definitions without `close()`, every union derived from a registry definition, enums from word lists. Every enforcing line carries its requirement tag with a negative case (Appendix A). The §25 schema-pattern gate now has one control for the half of each requirement that the pinned CUE text decides (`scripts/design-dpat.sh`, Appendix A.11): D-PAT-1's never-table, D-PAT-2's one-home half (a top-level definition name declared in a second pinned module), and D-PAT-3's form half (a union written out with `\|` instead of derived), green over a census in `design/dpat-baseline.tsv` that the issue linked there lowers as they are fixed. What stays ungated is named there rather than implied: D-PAT-2's ownership half (the word-to-owner registry the loader builds from each plugin's `describe`) and its composition half (§10.3), and D-PAT-3's derivation-source and S5 halves — none of them decidable from CUE text, and all of them decidable once the loader emits its registry or the composed schema as an artifact a control can read. |
 
@@ -231,7 +232,7 @@ Still open:
 | 3.7 | Three composition keys: image `candy:` list, candy-in-candy `candy:`, deployment `add_candy:`. | D-CANDY-2 | each → `require:` | Update the schemas. |
 | 3.8 | Two reference forms: inline `@github.com/…:tag` references inside fields (`require:`, `candy:`, `base:`) and `import:` namespaces. | D-REF-1, D-REF-2 | each inline reference → an `import:` namespace plus `<namespace>.<name>`, with the digest added | Delete inline-reference parsing (`spec.ParseRemoteRef` in field position). |
 | 3.9 | An `import:` entry is a bare string or `{alias: ref}`, with `@host/org/repo[/sub]:version` pinned by tag only, and a flat-merge form exists. | D-REF-3..6 | `- alias: '@github.com/o/r:vT'` → `alias: {repo: github.com/o/r, release: vT, digest: <computed>}`; the flat-merge form → a namespace plus namespaced references; local paths → `{path: …}`; `box reconcile` computes the digests | Verify the digest at fetch. |
-| 3.10 | Nesting by position exists only for deployment kinds (`PROGRAM/nested-deploy-members.md`); sidecars are referenced by name. | §17.2, D-NEST-1..6 | sidecar references → inner `pod:` nodes; members written beside the kind key but meant to run inside → inner nodes | Each kind's nesting definition declares what it admits; delete the core nesting sets. |
+| 3.10 | Nesting by position exists only for deployment kinds; sidecars are referenced by name. The document this row cited (`PROGRAM/nested-deploy-members.md`) is retired from `origin/main`, so its evidence must be re-derived at the tip before the row starts. | §17.2, D-NEST-1..6 | sidecar references → inner `pod:` nodes; members written beside the kind key but meant to run inside → inner nodes | Each kind's nesting definition declares what it admits; delete the core nesting sets. |
 | 3.11 | PATH can be set three ways (`path_append`, `shell.path_append`, `shell.path`). | §16.1 | the `shell.*` path keys → `path_append` | Update the schemas. |
 | 3.12 | Provides and requires come in six mechanisms: 11 `*_provide`/`*_require`/`*_accept` fields, `plugin.requires`, `requires_exclusive`/`requires_shared`, init `depends_candy`/`requires_capability`, candy `capability`, and the `provides:` write-back. | §8, D-CAP-1..5 | `env_provide: {X: v}` → `provide: {env: {X: {value: v}}}`; `env_require: [X]` → `need: {env: {X: {}}}`; `*_accept` → `{optional: true}` on the need; `mcp_provide`, `agent_provide`, `terminal_profile` → `provide:` types; `requires_exclusive: [g]` → `need: {gpu: {<vendor>: {lease: exclusive}}}`; `plugin.providers` → `provide:` role types | Build the solver and the `type` role; delete the write-back and `--update-all`. |
 | 3.13 | `plan:` names the steps list; `charly check plan`. | §2, §11.2 rule 5 | every `plan:` key → `step:` (candies, boxes, deployments, tasks, beds) | Rename it in the schemas, the loader, the labels and the commands; there is no alias. |
@@ -270,9 +271,9 @@ Still open:
 | # | Current state (evidence) | Target | Code work |
 |---|---|---|---|
 | 5.1 | `spec` holds mechanisms: `exec` (3.6k lines), `container`, `sshx`, `proc`, `poll`, `lock`, `cache`, `refs`, `hostenv`. | D-SPEC-1 | Move them to sdk. |
-| 5.2 | `sdk` holds domain code (`deploykit` 18.8k lines, `loaderkit` 7.6k, `vmshared` 3.5k, `buildkit`, `packagekit`) and about 635 alias lines. | D-SDK-2, D-MOD-2 | Move the domain code into the owning plugins and the loader into core; delete the aliases. |
+| 5.2 | `sdk` holds domain code (`deploykit` 18.8k lines, `loaderkit` 7.6k, `vmshared` 3.5k, `buildkit`, `packagekit`) and 64 `type X = ` alias definitions (354 lines carry a `var`/`const`/`func`/`type` alias), counted 2026-11-12. | D-SDK-2, D-MOD-2 | Move the domain code into the owning plugins and the loader into core; delete the aliases. |
 | 5.3 | Symbols defined twice: `buildPluginBinary`, `QuadletDir`, `StepDoMode`, `DeployExecutor`, `ComputeCalVer`, `CheckVerbProvider`. | D-MOD-2 | Give each one owner. |
-| 5.4 | Core holds about 3.5k lines of domain logic: pod lifecycle options, VNC port 5900, `libvirt` forced into beds, the podman fallback, GPU allocation, the `""`/`"container"`→`"pod"` rewrite. It embeds a 2,085-line `charly.yml` (distros, builders, inits, OVMF, verb primaries) and runs about 30 `HostBuild` seams. | D-CORE-1, D-CORE-2, §3.1 | Move each into its owning plugin (§3.1); replace the seams with the host service methods (§4.6) and `api` calls. OS, init and builder nodes become data in the OS repositories. |
+| 5.4 | Core holds about 3.5k lines of domain logic: pod lifecycle options, VNC port 5900, `libvirt` forced into beds, the podman fallback, GPU allocation, the `""`/`"container"`→`"pod"` rewrite. It embeds a 5,339-line `charly.yml` (distros, builders, inits, OVMF, verb primaries; counted 2026-11-12) and runs about 30 `HostBuild` seams. | D-CORE-1, D-CORE-2, §3.1 | Move each into its owning plugin (§3.1); replace the seams with the host service methods (§4.6) and `api` calls. OS, init and builder nodes become data in the OS repositories. |
 | 5.5 | Five placement paths, three serve styles (`sdk.Serve`, `sdk.Main`, `ServeCheckVerb`), two serve commands (`__plugin`, `__agent-target`), three verb-dispatch branches, two executor APIs. | D-PROTO-1..4 | One transport: `<binary> serve` with an empty environment and the two sockets; compiled-in plugins on an in-memory listener; one generated server. |
 | 5.6 | Capabilities are declared in three places: manifest `providers:`, Go `NewMeta`, and the generated refs map; CalVer literals in plugin Go (`"2026.181.0001"` ×12). | §4.1, §4.4, D-PLUG-3 | The plugin candy's `provide:` is the manifest; `describe` reports its digest and the handshake verifies it; release stamped from the tag. |
 | 5.7 | Twelve provider classes and 43 string operations over an untyped `Invoke`; capability flags (`structural`, `lifecycle`, `preresolve`, `validates`, `primary`, `interactive`, `command_parent`, 10 `DeployTraits`). | §4.2, D-ROLE-1..5 | The five roles and their methods, with typed inputs and outputs; optional behaviour = a method left out of `describe`. `step`, `builder`, `build`, `engine`, `loader`, `refs`, `agent-runtime` and `terminal` map onto `verb`, data nodes or `api` (mapping table produced per class in this item). |
@@ -300,7 +301,7 @@ Still open:
 | # | Current state (evidence) | Target | Code work |
 |---|---|---|---|
 | 7.1 | Plugin binaries are keyed by absolute source path (19 GB, 2,025 binaries, 1,762 test stubs in the user cache). | D-STORE-4, D-STORE-8 | Key by content; inject test roots. **Answered 2026-11-11** — keyed by content: `opencharly/sdk` `b77c8a54d2331f77ee7308e43503bb051e7df6b2` (tag `v0.2026287.1747`, PR #389) keeps ONE store entry per binary, keyed by D-STORE-4's whole input set, with the per-key lock outside the store tree, and `opencharly/charly` `125a910988495170e7f2ab4d601fa4e70e1cd3bc` (tag `v2026.288.0051`, PR #910) deletes the loader's path-keyed cluster; the test root is `$XDG_CACHE_HOME/charly` with `$CHARLY_CACHE_DIR` as the sole override (D-STORE-8). The *Current* cell's figures are that OLD root's on-disk residue — 35 GB across 5 126 files, 1 083 of them `.stamp` sidecars, measured on 2026-11-11 — whose purge `7.3` owns. |
-| 7.2 | Five cache environment variables (`CHARLY_CACHE_DIR`, `_REPO_CACHE`, `_BUILD_CACHE`, `_GH_CACHE`, `_MATERIALIZED_CACHE`) and about 9 hand-built `.cache` paths mixing `UserCacheDir` and `UserHomeDir`. | D-STORE-1 | One sdk package. The four variables beyond `CHARLY_CACHE_DIR` are deleted in the phase that migrates the cache they serve, and the hand-built paths route through the same resolver — no variable and no hand-built path survives its own phase (R5). |
+| 7.2 | Three cache environment variables still read (`CHARLY_CACHE_DIR`, `_REPO_CACHE`, `_MATERIALIZED_CACHE`; `_BUILD_CACHE` and `_GH_CACHE` are already 0 at 2026-11-12) and about 9 hand-built `.cache` paths mixing `UserCacheDir` and `UserHomeDir`. | D-STORE-1 | One sdk package. The two remaining variables beyond `CHARLY_CACHE_DIR` are deleted in the phase that migrates the cache they serve, and the hand-built paths route through the same resolver — no variable and no hand-built path survives its own phase (R5). |
 | 7.3 | Five on-disk caches: per-ref repository exports (about 11k) that also cache the mutable `@main`; `materialized/` JSON carrying timestamps and temporary paths — a D-STORE-6 violation of the payload rule, while the payload/validity-metadata split itself is already implemented (the resolution record lives in the config blob, not in the payload); `vm-images/` with sidecar files; lock files never collected; and the OCI-layout store with 6 callers. | D-STORE-3, D-STORE-5..7 | The ordered migration below: one cache per cutover, each provable by one honest R10 gate, with each bespoke form deleted in the phase that migrates it (R5, no dual path), and `charly clean` purging the old roots (D-STORE-7). |
 
 **The ordered migration — one cache per cutover, deletions inside their own phase:**
@@ -598,14 +599,18 @@ same venue knowledge).
 
 ### 12.6 What contradicts this file
 
-Twelve measurements disagree with the prose above them. Each is a claim the file states and the tree
-denies; each is reported here rather than silently corrected, because the next session's premise is
-whatever this file says.
+Twelve measurements disagreed with the prose above them when this round began. Eight are corrected in
+the numbered rows by this change, and the other four are resolved as a retirement or a decision
+(`1`, `12.11`, `12.13` retired; `9.1` a DECISION). Each is recorded here because the next session's
+premise is whatever this file says, and a corrected figure that leaves no trace invites the same
+mistake back.
 
 1. **§1 counts a decided ledger as `open 1`.** The block is the operator's decision list, not work:
    `DESIGN.cue` carries 121 `D-` references and `DESIGN.md` carries every one of its terms.
-2. **`2.3` says 442 `@go(…)` overrides and 103 `@go(-)` uses.** Measured 2,859 and 82 — the override
-   count is 6.5× low, and the `@go(-)` count is 21% high.
+2. **`2.3` says 442 `@go(…,type=…)` overrides and 103 `@go(-)` uses.** Measured 486 and 82 — the
+   override count drifted 10% and the `@go(-)` count 21%. A first reading of this row compared its
+   `type=` subset against ALL `@go(…)` calls, 2,859, and reported a 6.5× error that was the
+   comparison's; the subset is 486, and the row now states it.
 3. **`5.4` says charly embeds a 2,085-line `charly.yml`.** Measured 5,339 lines.
 4. **`12.13` says "`TODO.md` has no status column".** This file has carried a `## Status` table
    since 2026-11-08.
@@ -623,27 +628,46 @@ whatever this file says.
 10. **`3.10` cites `PROGRAM/nested-deploy-members.md` as its evidence.** The file is absent at
     `origin/main` — the same retirement that moved `10.3`. The item may still be real work, but its
     stated evidence cannot be re-measured, so it is scheduled as a chain with that caveat.
-11. **`0.1` says 424 checkouts.** `.gitmodules` at `origin/main` declares 409.
-12. **`5.2` counts "about 635 alias lines".** `^type X = ` in `sdk`'s Go is 64. The row does not say
-    which thing it counted; that ambiguity is itself the finding, and the number should not be
-    cited until it is re-derived by the sweep that owns it.
+11. **`0.1` says 424 checkouts; `.gitmodules` at `origin/main` declares 409.** The row's 424 is a
+    dated census (`On 2026-10-03, 31 of 424 checkouts lagged`), so it is history rather than a false
+    figure; the number a reader needs today is 409, and the row now states it.
+12. **`5.2` counts "about 635 alias lines".** Neither alias measure reproduces it: `^type X = ` in
+    `sdk`'s Go is 64, and 354 lines carry a `var`/`const`/`func`/`type` alias. The row did not say
+    which thing it counted, so it now states both measures with their commands, and it is scheduled
+    on the five domain directories rather than on the count.
 
 ### 12.7 Rulebook compliance
 
 - **R0 — skills first.** HOW: `/charly-internals:git-workflow` was loaded before the first git
   action (it is the dispatcher row for branch/commit/push/PR), and the measurement commands were
   read-only `git grep` at a fetched ref. No submodule checkout was edited.
-- **R1 — RCA every anomaly, then fix it or file it.** HOW: two anomalies were found in this session's
-  own measurement and fixed before any number was used. **(a)** The first matrix summed `awk -F:
-  '{s+=$2}'`, but `git grep` against a rev prefixes `origin/main:path:`, so the count is the LAST
-  field — every row read 0. RCA: the control (`gs spec '#Candy'`) also read 0, which is impossible
-  for a symbol the file defines; the missed control was "run a known-present pattern through the
-  same pipeline". Root fix: `$NF`, and every zero in this document now sits beside a live-word
-  control. **(b)** `git log -S` returns nothing in this blobless clone (historical blobs are never
-  fetched), so the MOVED provenance was re-derived from the CHANGELOG index instead. RCA: a
-  history search needs blobs the clone never has; the missed control was "a `-S` search that finds
-  nothing must be proven able to find something". Neither produced a PR finding; if the validator
-  raises one, it is fixed in this change rather than filed.
+- **R1 — RCA every anomaly, then fix it or file it.** HOW: three anomalies, each root-caused and
+  fixed before the affected number was used, and all twelve contradictions of §12.6 resolved in this
+  diff — eight figures corrected in the numbered rows, three rows retired, one promoted to a
+  DECISION. **(a)** The first matrix summed `awk -F: '{s+=$2}'`, but `git grep` against a rev prefixes
+  `origin/main:path:`, so the count is the LAST field and every row read 0. The control (`#Candy`, a
+  symbol the file defines) also read 0, which is impossible, and the two runs are pasted rather than
+  asserted:
+
+  ```
+  $ git -C spec grep -c -F '#Candy' origin/main | awk -F: '{s+=$2} END{print s+0}'
+  0
+  $ git -C spec grep -c -F '#Candy' origin/main | awk -F: '{s+=$NF} END{print s+0}'
+  232
+  ```
+
+  Root fix: `$NF`, and every zero now sits beside a live-word control. **(b)** `git log -S` returns
+  nothing in this blobless clone (historical blobs are never fetched), so the MOVED provenance was
+  re-derived from the CHANGELOG index instead; the missed control was "a `-S` search that finds
+  nothing must be proven able to find something". **(c)** The pre-commit gate refused the first
+  commit — `FINDING TODO.md:496: an undated count names a growing collection` — and the missed control
+  was that this document is
+  held to the count-and-date rule it reports on other rows; the count left the forcing clause, the
+  census carries its measurement day, and `check-readme-measurements.mjs` reports `OK`. The
+  validator's first round then found a fourth defect this bullet had not: §12.6 item 2 compared
+  `2.3`'s `type=` subset against ALL `@go(…)` calls and reported a 6.5× error that was the
+  comparison's; the subset is 486, the row is corrected in place, and the correction is recorded in
+  §12.6 rather than dropped.
 - **R2 — no duplication.** HOW: one schedule, one row per item, one canonical statement of each
   number. The §12.6 contradiction list points at the rows rather than restating their measurements.
 - **R3 — no workarounds.** HOW: no sleep, retry, suppression or hand-rolled poll. The only watch a
@@ -672,17 +696,29 @@ whatever this file says.
 **The evidence fence — the gate this change owes, run on the committed tree.**
 
 ```
-$ git diff --stat origin/main...HEAD
- TODO.md | 190 ++++++++++++++++++++++++++++++++++++++++++++++++++++++--------
- 1 file changed, ...
+$ node scripts/check-readme-measurements.mjs --root .
+check-readme-measurements: the umbrella's measured figures, read against each other
+  baseline: 9.5–9.5 G, coarse
+  light: 77–77 M, 14–15 s
+  all: 1.9–2.2 G, 344–403 s
+OK — the table, the prose and the samples agree.
 
-$ git commit -F <file> && git push
+$ printf 'refs/heads/feat/todo-measured-schedule %s refs/heads/feat/todo-measured-schedule %s\n' \
+    "$(git rev-parse HEAD)" 0000000000000000000000000000000000000000 \
+  | bash hooks/pre-push origin https://github.com/opencharly/opencharly.git
 pre-push: [pre-push-skip] the DESIGN gate SKIPPED: this push changes none of its inputs.
- <hook exit 0>
+  The seven controls read DESIGN.md, DESIGN.cue, design/, scripts/design-*.sh and the CUE
+  of every pinned module (scripts/design-gate-inputs.sh). A push that changes none of
+  them cannot violate them. Run it anyway: bash scripts/design-check.sh
+pre-push: [pre-push-skip] no PR body at /home/atrawog/Sync/Atrapub/lo/dsh/opencharly/.git/worktrees/opencharly8/PR_BODY.md — body lint SKIPPED (nothing to check).
+pre-push: the body IS the changelog; write the whole thing for the head you are about to
+pre-push: publish and push again. To lint a body that lives elsewhere: PR_BODY_FILE.
+exit 0
 ```
 
-The fence is filled from the actual push below; if the hook does NOT print `[pre-push-skip]`, this
-PR is abandoned and the regression reported against `#981` rather than pushed.
+That run is the gate this change owes, executed on the committed tree. It printed
+`[pre-push-skip]`, so the `#981` fix has not regressed: a `TODO.md`-only push changes none of the
+seven controls' inputs. The PR body carries the body-lint pass for the text that ships.
 
 *Assisted-by: DeepSeek Harness ollama-cloud/deepseek-v4.1-flash (documentation reviewed)*
 
