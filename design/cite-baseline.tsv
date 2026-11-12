@@ -55,7 +55,7 @@ command:deploy	plugin-fleet/candy/plugin-fleet/deploy_cmd.go	28-38	DeployCmd	7ba
 command:docs	plugin-docs/candy/plugin-docs/command.go	14-14	docsCLI	ab027eafd5be402f
 command:generate-packages	plugin-generate-packages/candy/generate-packages/cli.go	17-29	cli	cd58e47493850dda
 command:gh	plugin-gh/candy/plugin-gh/cli.go	34-34	CliMain	669c46569ad203c7
-command:pipeline	plugin-pipeline/candy/plugin-pipeline/cli.go	24-31	-	185f2745515ec98e
+command:pipeline	plugin-pipeline/candy/plugin-pipeline/cli.go	20-26	-	913e238ae782131f
 command:preempt	plugin-preempt/candy/plugin-preempt/command.go	24-33	runPreemptCLI	b2a7ae8bc09a277c
 command:registry	charly-registry/candy/plugin-registry/charly.yml	30-32	-	a3a6333b4652f51a
 command:restart	plugin-pod/candy/plugin-pod/pod_cmd.go	119-119	-	c5ac749e4ceea62a
@@ -103,10 +103,9 @@ loader:loader	plugin-loader/candy/plugin-loader/charly.yml	21-21	-	7e69435f2eaf2
 local registry mirror for build inputs	plugin-build/README.md	18-24	-	7606f88f2d448d92
 nested containerd and krun in a pod	layer-container-nesting/charly.yml	132-141	-	92d782fb7cdace8e
 NVIDIA CDI rootful and rootless	plugin-gpu/README.md	9-20	-	68caaa877662a84c
-pipeline run|validate|resume|schedule|agent|probe	plugin-pipeline/candy/plugin-pipeline/cli.go	139-141	runCLI	c696cdbe2ef7038e
-pipeline run|validate|resume|schedule|agent|probe	plugin-pipeline/candy/plugin-pipeline/cli.go	176-183	runCLI	61c834f567384d1a
-pooled fan-out (lanes)	sdk/workflowkit/graph_test.go	63-78	TestGraphEdgesKnowLanes	000f815dbfe3f5ee
-pooled fan-out (lanes)	spec/schema/pipeline.cue	89-97	#PipelineArms	18484c0ffc73b48a
+pipeline run|validate|resume|schedule|agent|probe	plugin-pipeline/candy/plugin-pipeline/cli.go	140-143	runCLI	6d8d6ae5ea22056d
+pipeline run|validate|resume|schedule|agent|probe	plugin-pipeline/candy/plugin-pipeline/cli.go	177-186	runCLI	29a7e319164007fc
+pooled fan-out (lanes)	plugin-pipeline/candy/plugin-pipeline/workflowkit/graph_test.go	63-78	TestGraphEdgesKnowLanes	b7e72e987e95d087
 preempt status|restore	plugin-preempt/candy/plugin-preempt/command.go	26-58	runPreemptCLI	87ee3a388ee674a6
 refs:refs	plugin-refs/candy/plugin-refs/charly.yml	21-21	-	7e30172f1cc60303
 rootful vs rootless daemon	spec/schema/deploy.cue	162-166	#Deploy	0e691ca53e6b666e
