@@ -204,7 +204,7 @@ resolve_published_refs() {
 # controls read would be a green light over a tree nobody looked at.
 #
 # THE TREE IT JUDGES IS THE TREE THE PUSH PUBLISHES. The controls read the WORKING
-# TREE (DESIGN.md, DESIGN.cue, design/, scripts/design-*) and the INDEX's gitlinks,
+# TREE (DESIGN.md, DESIGN.cue, TODO.md, design/, scripts/design-*) and the INDEX's gitlinks,
 # while a push can publish a branch other than the checked-out one — the false-PASS /
 # false-BLOCK pair opencharly/opencharly#744 taught this hook to fear. So the leg
 # REFUSES to run on a tree that differs from the published commit on exactly the
@@ -279,7 +279,7 @@ design_gate_leg() {
 
   if ! design_gate_touches_input "$changed" "$gitlinks"; then
     echo "pre-push: [pre-push-skip] the DESIGN gate SKIPPED: this push changes none of its inputs."
-    echo "  The seven controls read DESIGN.md, DESIGN.cue, design/, scripts/design-*.sh and the CUE"
+    echo "  The seven controls read DESIGN.md, DESIGN.cue, TODO.md, design/, scripts/design-*.sh and the CUE"
     echo "  of every pinned module (scripts/design-gate-inputs.sh). A push that changes none of"
     echo "  them cannot violate them. Run it anyway: bash scripts/design-check.sh"
     return 0
@@ -289,7 +289,7 @@ design_gate_leg() {
   # reads — each compared the way the controls READ it, because the two halves have
   # different sources and a single worktree diff would judge the wrong one:
   #
-  #   * DESIGN.md, DESIGN.cue, design/ and scripts/design-* are read from the WORKING
+  #   * DESIGN.md, DESIGN.cue, TODO.md, design/ and scripts/design-* are read from the WORKING
   #     TREE, so they are compared against the worktree;
   #   * a PIN is read from the INDEX (`git ls-files --stage`, which is what both gates
   #     read), so the gitlinks are compared against the INDEX — never the checkout, or

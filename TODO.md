@@ -12,7 +12,7 @@
 ## Status
 
 Derived 2026-11-08 at umbrella commit `6f6df4dc40364a62c4e0b7bd17003851bfdbca3e`
-(re-summed 2026-11-12 at `34a2b9ba0028d3150cdb53d1211304749ddceb86`, where §12.0 of section 12
+(re-summed 2026-11-12 at `34a2b9ba0028d3150cdb53d1211304749ddceb86`, where the opening of section 12
 re-measured all 87 open rows and retired four of them — two to `done`, two to `moved` — while the two
 `DECISION` items kept `open`; re-summed again 2026-11-12 at
 `d88dd451463941deef97d38ca23fbfce9ea615ab`, where the operator's ruling on `9.1` — `AGENTS.md`
@@ -20,7 +20,7 @@ Part I outranks this work list — retired that item to `done`, leaving `0.3` th
 `DECISION`): mechanical
 greps at each submodule's `origin/main` pin, never at the lagging checkouts. The numbered text
 below is unchanged apart from the verdict an answered item carries in its own row, and the eight
-figures §12.6 corrects in place at the 2026-11-12 tips; this table is
+figures section 12.6 corrects in place at the 2026-11-12 tips; this table is
 the status record.
 
 | section | items | done | open | moved |
@@ -215,7 +215,7 @@ Still open:
 
 | # | Current state (evidence) | Target | Config migration | Code work |
 |---|---|---|---|---|
-| 2.1 | Kind schemas (`#Candy`, `#Box`, `#Deploy`, `#Vm`, `#Pod`, `#Local`, `#Kubernetes`, `#Android`, `#LibvirtDomain`, …) live in `spec/schema`, with `#<Kind>Value` twins; plugin-substrate and plugin-candy only echo host-decoded values (`spec/schema/node.cue`). | D-SCH-1, D-SCH-3 | none | Move each schema into its plugin's CUE module; delete the twins and the echo plugins. |
+| 2.1 | Kind schemas (`#Candy`, `#Box`, `#Deploy`, `#Vm`, `#Pod`, `#Local`, `#Kubernetes`, `#Android`, `#LibvirtDomain`, …) live in `spec/schema`, with `#<Kind>Value` twins; plugin-substrate and plugin-candy only echo host-decoded values (`spec/schema/node.cue`). **Measured correction (2026-11-12):** the D-PAT census (`#945`) is the whole census — 382 violations before `plugin-pipeline#60`, 357 after — and this item unblocks only its `dup` rows (19 over 9 definition names before, 7 over 3 after), not 382. Its chain is 13 units, not the four legs summarized in section 12.1: unit 0 is a `charly` host-gate change (`validateKindValueCUE` reads `spec.KindValueDefs` plus a base-only schema while a plugin definition lands in `pluginSchemas.unified`); the full table is at `opencharly/spec#304`. | D-SCH-1, D-SCH-3 | none | Move each schema into its plugin's CUE module; delete the twins and the echo plugins. |
 | 2.2 | 104 of 117 plugin schemas are "self-contained" and copy shared shapes (`#HttpMatcherList`, `#FileMatcher`, `#MountMatcher`, …). | D-SCH-2 | none | Import `spec/envelope`; delete the copies. |
 | 2.3 | 486 `@go(…,type=…)` overrides (2,859 `@go(…)` calls in all), 82 `@go(-)` uses and hand-written Go types in `spec` (e.g. `hand_state_types.go`) — counted 2026-11-12. | D-SCH-1, D-GEN-3 | none | Generate every type; keep only behaviour methods. |
 | 2.4 | A second field gate: the loader's `candyKnownFields` still admits the removed `version` (`sdk/loaderkit/parse_candy_manifest.go:224`). | D-CANDY-1, D-LOAD-2 | none | Delete it. |
@@ -363,7 +363,7 @@ Still open:
 **What this is.** Every item `## Status` recorded as `open` before this change (87 of 107), re-measured at the tips
 the umbrella's own index pins today, and placed in exactly one bucket: **MOVED**, **DONE-ALREADY**,
 **CHAIN(n)**, **DECISION**, **LIVE-CLAIM**, **SINGLE**. The row is a claim, not a specification —
-several rows did not survive contact, and §12.6 lists every contradiction.
+several rows did not survive contact, and section 12.6 lists every contradiction.
 
 **Amended 2026-11-12 by the `9.1` ruling.** The operator ruled that Part I's "Repo classes and
 naming" outranks this work list, so `9.1` leaves `DECISION` for `DONE` — **by ruling, not by a
@@ -446,7 +446,7 @@ half of `12.13` in §12.3.
 
 **No LIVE-CLAIM.** Three PRs are open across the two shared producer repos — `sdk#368`, `sdk#362`
 and `charly#926`, all authored by `aitrawog` and last touched 2026-11-03/05. None claims a TODO
-item's scope, so no item is blocked by a claim. They do constrain concurrency (§12.5): they hold
+item's scope, so no item is blocked by a claim. They do constrain concurrency (section 12.5): they hold
 `sdk` and `charly`, so a chain whose next leg is one of those repositories waits on that
 repository's window, not on a claim.
 
@@ -524,7 +524,7 @@ repository's window, not on a claim.
 | CHAIN | 2 | 7.2 | sdk > charly | the one resolver exists (storekit) and the two remaining readers route through it | storekit/roots.go present; CHARLY_REPO_CACHE 6/5/12; CHARLY_MATERIALIZED_CACHE 2/0/0; CHARLY_BUILD_CACHE = 0; CHARLY_GH_CACHE = 0 |
 | CHAIN | 5 | 7.3 | sdk > charly | five ordered cache phases, one R10 gate each | materialized 142/46/52; vm-images 9/3/4 |
 | CHAIN | 2 | 8.2 | plugin repositories > charly | the plugin leaves the first-party set before charly cmd gains it | gs charly command:agentteams = 4; herdr = 1; dsh = 5; qdrant = 1; ollama = 4; nerdctl = 5 |
-| CHAIN | 2 | 9.2 | marketplace > umbrella | the map must exist before the umbrella points at it — and the one blocker this row carried, `9.1`'s decision, cleared on 2026-11-12, so the chain is now schedulable | gs marketplace org-map = 6; the verb is the umbrella's own task — `git show origin/main:charly.yml \| grep -c '^org-map:'` = 1 — and charly's 2 `org-map` hits are both `CHANGELOG/` history (`git -C charly grep -l -F 'org-map' origin/main` → `CHANGELOG/2026.280.1631.md`, `CHANGELOG/2026.307.1232.md`), which is why this cell no longer claims a charly task count (§12.6 item 13) |
+| CHAIN | 2 | 9.2 | marketplace > umbrella | the map must exist before the umbrella points at it — and the one blocker this row carried, `9.1`'s decision, cleared on 2026-11-12, so the chain is now schedulable | gs marketplace org-map = 6; the verb is the umbrella's own task — `git show origin/main:charly.yml \| grep -c '^org-map:'` = 1 — and charly's 2 `org-map` hits are both `CHANGELOG/` history (`git -C charly grep -l -F 'org-map' origin/main` → `CHANGELOG/2026.280.1631.md`, `CHANGELOG/2026.307.1232.md`), which is why this cell no longer claims a charly task count (section 12.6 item 13) |
 | CHAIN | 3 | 10.1 | charly + spec + sdk (parallel, no forcing edge) | three AGENTS.md files name DESIGN.md as normative | gs charly\|spec\|sdk DESIGN in AGENTS.md = 0/0/0 |
 | CHAIN | 2 | 10.2 | owning repositories > marketplace | skills are authored where the entity lives, then regenerated | gs marketplace 'source: builtin' = 4; EmitTarget = 12; 'target:' = 152 |
 | CHAIN | — | 11.1 | all chains > umbrella | every gate and the conformance bed depend on the chains above | scripts/design-check.sh + 12 design-* controls present; design/ gates present |
@@ -558,8 +558,8 @@ Its row is in §12.4, because the answer retires the item rather than scheduling
 | bucket | item | proof |
 |---|---|---|
 | DONE | 0.1 | The item asks that inventories be taken from fetched `origin/main`, never from lagging checkouts. That question is now a verb: `gs charly MODE=currency = 34` (the pin verb's currency mode), and the pins the umbrella publishes today ARE the tips — `git ls-tree origin/main -- spec` → `721eac74d13b…` equals `git -C spec log -1 --format=%h origin/main` → `721eac7`. The row's own census drifted with it: 424 checkouts claimed, 409 declared by `.gitmodules`. |
-| DONE | 1 | The section's "still open" row counts the operator's decided block, but the block is a ledger of decisions already recorded: `git show origin/main:DESIGN.cue \| grep -c -E 'D-\|#Decision'` → 121, and `DESIGN.md` carries `step:` 48 times, `harness` 26, `os_override` 6. The only open question in the section, `1.1`, is already `moved`. Counting a decided ledger as `open 1` is what §12.6 item 1 reports. |
-| DONE | 9.1 | **Done by operator ruling, not by a measurement's verdict.** On 2026-11-12 the operator ruled that `AGENTS.md` Part I, "Repo classes and naming", outranks this work list: the `layer-*`/`pod-*`/`distro-*`/`vm-*`/`plugin-*`/`charly-<distro>`/`pkg-*` prefixes are canonical, so option **(a) of the question this row used to ask is the answer**, the archive plan is **withdrawn** (not deferred), and the repos it named are the class-canonical set. What survived was consolidation only, and that measures empty: no candy name has two homes in either class the item names, and the "decided candy-family and plugin-concept repository" list it was waiting on exists in no document (§1's `1.1` — the only candidate — is `moved`). Nothing was archived, and nothing needed to be. | The withdrawn set, counted from `.gitmodules` at `origin/main`, and the surviving-scope census, each with its command and a live-word control, are in the fence below. |
+| DONE | 1 | The section's "still open" row counts the operator's decided block, but the block is a ledger of decisions already recorded: `git show origin/main:DESIGN.cue \| grep -c -E 'D-\|#Decision'` → 121, and `DESIGN.md` carries `step:` 48 times, `harness` 26, `os_override` 6. The only open question in the section, `1.1`, is already `moved`. Counting a decided ledger as `open 1` is what section 12.6 item 1 reports. |
+| DONE | 9.1 | **Done by operator ruling, not by a measurement's verdict.** On 2026-11-12 the operator ruled that `AGENTS.md` Part I, "Repo classes and naming", outranks this work list: the `layer-*`/`pod-*`/`distro-*`/`vm-*`/`plugin-*`/`charly-<distro>`/`pkg-*` prefixes are canonical, so option **(a) of the question this row used to ask is the answer**, the archive plan is **withdrawn** (not deferred), and the repos it named are the class-canonical set. What survived was consolidation only, and that measures empty: no candy name has two homes in either class the item names, and the "decided candy-family and plugin-concept repository" list it was waiting on exists in no document (§1's `1.1` — the only candidate — is `moved`). Nothing was archived, and nothing needed to be. The withdrawn set, counted from `.gitmodules` at `origin/main`, and the surviving-scope census, each with its command and a live-word control, are in the fence below. |
 
 **`9.1`'s measurements — the withdrawn set, and the surviving scope that measures empty.**
 
@@ -654,8 +654,13 @@ submodules). The distribution that makes this concrete is the table's own legs c
 **Wave 0 — the four unblockers, in this order.**
 
 1. **`2.1`** (plugin schemas compose by import). `#950` states the dependency: the D-PAT census
-   (`#945`) tolerates 26 duplicate definition sites and not one can be retired until the schemas
-   compose by import. `2.1` also gates `4.1` (one generator over plugin modules), `2.3` (generated
+   (`#945`) is the whole census — 382 violations before `plugin-pipeline#60`, 357 after — and `2.1`
+   retires only its `dup` rows (19 over 9 definition names before, 7 over 3 after), not the whole
+   set; not one can be retired until the schemas compose by import. `2.1`'s chain is 13 units, not
+   the four legs in section 12.1's table: unit 0 is a `charly` host-gate change
+   (`validateKindValueCUE` reads `spec.KindValueDefs` plus a base-only schema while a plugin
+   definition lands in `pluginSchemas.unified`), and the full table is at `opencharly/spec#304`.
+   `2.1` also gates `4.1` (one generator over plugin modules), `2.3` (generated
    types) and `2.16` (schema patterns). No other chain may claim the `spec` window first.
 2. **`4.4`** (one reproducibility gate, as a reusable workflow in `dotgithub`, then a caller per
    plugin repo). It touches neither `spec`, `sdk` nor `charly`, so it runs concurrently with wave 0
@@ -756,7 +761,7 @@ corrected figure that leaves no trace invites the same mistake back.
 
 ### 12.7 Rulebook compliance
 
-*This section records the change that wrote §12.0–§12.6 (opencharly/opencharly#992). The round that
+*This section records the change that wrote sections 12.0–12.6 (opencharly/opencharly#992). The round that
 recorded the `9.1` ruling carries its own R0–R10 record in its PR body, and the fence below is that
 earlier run, not this one's.*
 
@@ -764,7 +769,7 @@ earlier run, not this one's.*
   action (it is the dispatcher row for branch/commit/push/PR), and the measurement commands were
   read-only `git grep` at a fetched ref. No submodule checkout was edited.
 - **R1 — RCA every anomaly, then fix it or file it.** HOW: three anomalies, each root-caused and
-  fixed before the affected number was used, and all twelve contradictions of §12.6 resolved in this
+  fixed before the affected number was used, and all twelve contradictions of section 12.6 resolved in this
   diff — eight figures corrected in the numbered rows, three rows retired, one promoted to a
   DECISION. **(a)** The first matrix summed `awk -F: '{s+=$2}'`, but `git grep` against a rev prefixes
   `origin/main:path:`, so the count is the LAST field and every row read 0. The control (`#Candy`, a
@@ -786,12 +791,12 @@ earlier run, not this one's.*
   was that this document is
   held to the count-and-date rule it reports on other rows; the count left the forcing clause, the
   census carries its measurement day, and `check-readme-measurements.mjs` reports `OK`. The
-  validator's first round then found a fourth defect this bullet had not: §12.6 item 2 compared
+  validator's first round then found a fourth defect this bullet had not: section 12.6 item 2 compared
   `2.3`'s `type=` subset against ALL `@go(…)` calls and reported a 6.5× error that was the
   comparison's; the subset is 486, the row is corrected in place, and the correction is recorded in
-  §12.6 rather than dropped.
+  section 12.6 rather than dropped.
 - **R2 — no duplication.** HOW: one schedule, one row per item, one canonical statement of each
-  number. The §12.6 contradiction list points at the rows rather than restating their measurements.
+  number. The section 12.6 contradiction list points at the rows rather than restating their measurements.
 - **R3 — no workarounds.** HOW: no sleep, retry, suppression or hand-rolled poll. The only watch a
   reader is told to arm is `marketplace/scripts/pr_state_watch.sh`.
 - **R4 — product before prose; docs never route around a defect.** N/A, reasoned: this change

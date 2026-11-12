@@ -203,7 +203,7 @@ function check() {
   //    enough (the schema-pattern gate reads each `spec`/`plugin-*` pin's CUE and the
   //    pin-tag control reads every pin of the index), and so is a design file.
   if (!/design_gate_touches_input\(\)/.test(inputs)) fail(`${inputsRel} defines the class test`);
-  for (const surface of ["DESIGN.md", "DESIGN.cue", "design/", "scripts/design-"]) {
+  for (const surface of ["DESIGN.md", "DESIGN.cue", "TODO.md", "design/", "scripts/design-"]) {
     if (!inputs.includes(surface)) fail(`${inputsRel} watches ${surface} — a surface the controls read`);
   }
   if (!/160000/.test(raw) && !/gitlinks/.test(hook)) fail(`${hookRel} measures the gitlink paths of the pushed commits`);
@@ -310,6 +310,7 @@ function fire() {
     const inputs = [
       ["a DESIGN.md change", (f) => stage(f, "DESIGN.md", "doc\n")],
       ["a DESIGN.cue change", (f) => stage(f, "DESIGN.cue", "x\n")],
+      ["a TODO.md change", (f) => stage(f, "TODO.md", "a work-list row\n")],
       ["a design/ change", (f) => stage(f, "design/parity.tsv", "row\n")],
       ["a scripts/design-*.sh change", (f) => stage(f, "scripts/design-dpat.sh", "#!/bin/sh\n")],
       ["a pinned-module gitlink", (f) => stageGitlink(f, "plugin-example")],
@@ -353,7 +354,7 @@ function fire() {
       });
       const base = stage(fixture, "DESIGN.md", "the published baseline\n");
       fixture.git("update-ref", "refs/remotes/origin/main", base);
-      stage(fixture, "TODO.md", "a docs row\n");
+      stage(fixture, "CHANGELOG/README.md", "a docs row\n");
       const r = runHook(fixture);
       expect(r.ran === 0, `the gate does NOT run on a docs-only commit above a design-bearing PUBLISHED base (ran ${r.ran}x)`);
       expect(r.code === 0, "a docs-only push above a design-bearing base is not blocked");
@@ -382,6 +383,7 @@ function fire() {
     // one fired case cannot falsify the others.
     for (const [label, path] of [
       ["the normative pair", "DESIGN.md"],
+      ["the work list", "TODO.md"],
       ["the design tree", "design/parity.tsv"],
       ["the controls", "scripts/design-dpat.sh"],
     ]) {
