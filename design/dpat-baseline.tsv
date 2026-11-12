@@ -157,6 +157,10 @@ plugin-openclaw/candy/plugin-openclaw/schema/openclaw.cue	union	method: "health"
 plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	union	type: "string" | "int" | "bool" | "enum" | "string_list" | "object"	1
 plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	union	#RedoSpec: { on_fail?: [...string] | string, triggers?: {[string]: string}, max?: int & >0, escalate_after?: int & >0 }	1
 plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	union	format?: "yaml" | "json" @go(Format)	1
+plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	absence	env?: {PATH?: _|_, [string]: schema.#StrVal} @go(Env,type=map[string]string)	2
+plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	union	charly?: [string, ...string] | (string & !="") @go(Charly,type=[]string)	2
+plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	union	approval?: bool | string | #PipelineApproval @go(Approval,type=any)	1
+plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	open	entities?: {[string]: {...}} @go(Entities,type=map[string]map[string]any)	1
 plugin-qdrant/candy/plugin-qdrant/schema/qdrant.cue	union	method: ("health" | "version" | "auth-required" | "collections-list" | "collection-create" | "collection-info" | "collection-delete" | "collection-exists" | "points-upsert" | "points-query" | "points-scroll" | "points-count" | "points-get" | "points-delete" | "snapshot-list" | "snapshot-create" | "snapshot-delete") @go(Method,type=string)	1
 plugin-qdrant/candy/plugin-qdrant/schema/qdrant.cue	union	distance?: ("cosine" | "euclid" | "dot" | "manhattan") @go(Distance,type=string)	1
 plugin-qdrant/candy/plugin-qdrant/schema/qdrant.cue	union	payload?: {[string]: string | number | bool} @go(Payload,type=map[string]any)	1
@@ -282,10 +286,6 @@ spec/schema/node.cue	absence	#DeployValue: #Deploy & {nested?: _|_, peer?: _|_, 
 spec/schema/node.cue	open	#Node: {...}	1
 spec/schema/node.cue	close	#NodeDoc: close({	1
 spec/schema/oci.cue	close	#PluginArtifactMetadata: close({	1
-spec/schema/pipeline.cue	absence	env?: {PATH?: _|_, [string]: #StrVal} @go(Env,type=map[string]string)	2
-spec/schema/pipeline.cue	union	charly?: [string, ...string] | (string & !="") @go(Charly,type=[]string)	2
-spec/schema/pipeline.cue	union	approval?: bool | string | #PipelineApproval @go(Approval,type=any)	1
-spec/schema/pipeline.cue	open	entities?: {[string]: {...}} @go(Entities,type=map[string]map[string]any)	1
 spec/schema/resolvedproject.cue	absence	env?: {PATH?: _|_, [string]: #StrVal} @go(Env,type=map[string]string)	1
 spec/schema/skill.cue	close	#Skill: close({	1
 spec/schema/skill.cue	close	#SkillReference: close({	1
