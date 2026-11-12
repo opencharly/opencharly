@@ -338,7 +338,7 @@ Still open:
 
 | # | Item |
 |---|---|
-| 9.1 | **RULED 2026-11-12 — the rulebook wins, and the item retires.** The operator ruled that `AGENTS.md` Part I, "Repo classes and naming", outranks this work list: `layer-*`, `pod-*`, `distro-*`, `vm-*`, `plugin-*`, `charly-<distro>` and `pkg-*` are the canonical class prefixes ("a repo that does not fit its class is a defect to fix, not a convention to tolerate"), and a product family is a `layer-<family>` repo. The archive plan is therefore **withdrawn, not deferred** — the 257 repos it named (§12.4 counts them and carries the command) are exactly the class-canonical set. What remains is consolidation only, "merge the concept repos that duplicate each other", and that scope measures empty: no candy name has two homes in either class this item names, and the "decided candy-family and plugin-concept repository" list it was waiting on (§1's `1.1`) is recorded nowhere in the org. The census of the set the ruling withdraws, and the surviving-scope count with its commands, are §12.4. |
+| 9.1 | **RULED 2026-11-12 — the rulebook wins, and the item retires.** The operator ruled that `AGENTS.md` Part I, "Repo classes and naming", outranks this work list: `layer-*`, `pod-*`, `distro-*`, `vm-*`, `plugin-*`, `charly-<distro>` and `pkg-*` are the canonical class prefixes ("a repo that does not fit its class is a defect to fix, not a convention to tolerate"), and a product family is a `layer-<family>` repo. The archive plan is therefore **withdrawn, not deferred** — the repos it named are exactly the class-canonical set: 383 across its seven prefixes, of which 257 are the five unqualified ones and 126 are the qualified pair (`plugin-*` 120, `charly-<distro>` 6). §12.4 counts every one of them and carries the command. What remains is consolidation only, "merge the concept repos that duplicate each other", and that scope measures empty: no candy name has two homes in either class this item names, and the "decided candy-family and plugin-concept repository" list it was waiting on (§1's `1.1`) is recorded nowhere in the org. The census of the set the ruling withdraws, and the surviving-scope count with its commands, are §12.4. |
 | 9.2 | Update the umbrella: submodules, the pin contract (the OS repository set), `task map`, `org-map`, the README tables, and the `AGENTS.md` dispatcher. **Unblocked 2026-11-12** — its blocker was `9.1`'s decision and the ruling cleared it, so this item now reads: with no repository archived and none created, the submodule and pin-contract halves carry no change from `9.1`, and what is left is the umbrella's own map surfaces (`task map`, `org-map`, the README org-map tables) and the `AGENTS.md` dispatcher, brought to the class-canonical repository set, with `marketplace` first (§12.1). |
 
 ## 10. Documentation
@@ -563,22 +563,41 @@ Its row is in §12.4, because the answer retires the item rather than scheduling
 
 **`9.1`'s measurements — the withdrawn set, and the surviving scope that measures empty.**
 
-The set the ruling withdraws is the item's own archive list, counted from the umbrella's
-`.gitmodules` at `origin/main` (`174 layer + 72 pod + 6 distro + 3 pkg + 2 vm = 257`):
+The set the ruling withdraws is the item's own archive list. The item names **seven** prefixes —
+`layer-*`, `pod-*`, `distro-*`, `vm-*`, the superseded `plugin-*`, `charly-<distro>` and `pkg-*` —
+and the census counts every one of them from the umbrella's `.gitmodules` at `origin/main`:
+**383 repos**, of which **257** are the five UNQUALIFIED prefixes. So `257` is a subtotal and never
+"the item's archive list": the other 126 are `plugin-*` (120 — the item qualifies these as "the
+superseded" ones, a subset no measurement defines, so the whole class is counted) and
+`charly-<distro>` (6 of the 10 `charly-*` repos, the ones whose suffix names an OS). The `.gitmodules`
+path total is the denominator.
 
 ```
-$ git show origin/main:.gitmodules | awk -F' = ' '$1 ~ /path/ {split($2,a,"-"); print a[1]}' | sort | uniq -c | sort -rn
-    174 layer
-    120 plugin
-     72 pod
-     11 charly
-      6 distro
-      4 pi
-      3 pkg
-      2 vm
-      2 openclaw
-      1 spec
-      …
+$ git show origin/main:.gitmodules | awk -F' = ' '
+  $1 ~ /path/ { p=$2
+    if      (p ~ /^layer-/)                                              n["layer-*"]++
+    else if (p ~ /^pod-/)                                                n["pod-*"]++
+    else if (p ~ /^distro-/)                                             n["distro-*"]++
+    else if (p ~ /^vm-/)                                                 n["vm-*"]++
+    else if (p ~ /^pkg-/)                                                n["pkg-*"]++
+    else if (p ~ /^plugin-/)                                             n["plugin-*"]++
+    else if (p ~ /^charly-(alpine|arch|debian|fedora|openwrt|ubuntu)$/)   n["charly-<distro>"]++
+  }
+  END { split("layer-* pod-* distro-* vm-* pkg-* plugin-* charly-<distro>", o, " ")
+        for (i=1;i<=7;i++) { printf "%-17s %3d\n", o[i], n[o[i]]+0; t+=n[o[i]] }
+        for (i=1;i<=5;i++) f+=n[o[i]]
+        printf "%-17s %3d   (the five unqualified prefixes)\n", "  of which", f
+        printf "%-17s %3d\n", "TOTAL named set", t }'
+layer-*           174
+pod-*              72
+distro-*            6
+vm-*                2
+pkg-*               3
+plugin-*          120
+charly-<distro>     6
+  of which        257   (the five unqualified prefixes)
+TOTAL named set   383
+
 $ git show origin/main:.gitmodules | grep -cP '^\tpath = '
 409
 ```
