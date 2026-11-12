@@ -156,19 +156,6 @@ plugin-nerdctl/candy/plugin-containerd/schema/plugin.cue	union	method: "info" | 
 plugin-openclaw/candy/plugin-openclaw/schema/openclaw.cue	union	method: "health" | "ready" | "startup" | "status" | "models" | "channels" | "version"	1
 plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	union	type: "string" | "int" | "bool" | "enum" | "string_list" | "object"	1
 plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	union	#RedoSpec: { on_fail?: [...string] | string, triggers?: {[string]: string}, max?: int & >0, escalate_after?: int & >0 }	1
-plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	close	#LLMSpec: close({	1
-plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	close	#LLMParams: close({	1
-plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	union	stop?: string | [...string]	1
-plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	union	reasoning_effort?: "high" | "medium" | "low" | "none" @go(Reasoning_effort,type=string)	1
-plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	union	tool_choice?: "none" | "auto" | "required" | #LLMNamedToolChoice	1
-plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	close	#LLMResponseFormat: close({	1
-plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	union	type: "text" | "json_object" | "json_schema" @go(Type,type=string)	1
-plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	close	json_schema?: close({	1
-plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	close	#LLMReasoning: close({	1
-plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	union	effort?: "high" | "medium" | "low" | "none" @go(Effort,type=string)	1
-plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	close	#LLMStreamOptions: close({	1
-plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	close	#LLMNamedToolChoice: close({	1
-plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	close	function: close({name: string})	1
 plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	union	format?: "yaml" | "json" @go(Format)	1
 plugin-qdrant/candy/plugin-qdrant/schema/qdrant.cue	union	method: ("health" | "version" | "auth-required" | "collections-list" | "collection-create" | "collection-info" | "collection-delete" | "collection-exists" | "points-upsert" | "points-query" | "points-scroll" | "points-count" | "points-get" | "points-delete" | "snapshot-list" | "snapshot-create" | "snapshot-delete") @go(Method,type=string)	1
 plugin-qdrant/candy/plugin-qdrant/schema/qdrant.cue	union	distance?: ("cosine" | "euclid" | "dot" | "manhattan") @go(Distance,type=string)	1
@@ -332,20 +319,8 @@ spec/schema/vm.cue	open	source: {	1
 spec/schema/workflow.cue	union	#WorkflowArgVal: #StrVal | [...#StrVal] @go(-)	1
 plugin-egress/candy/plugin-egress/egress-schemas/egress_ledger.cue	dup	#DeployRecord	1
 plugin-egress/candy/plugin-egress/egress-schemas/egress_ledger.cue	dup	#CandyRecord	1
-plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	dup	#LLMSpec	1
-plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	dup	#LLMParams	1
-plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	dup	#LLMResponseFormat	1
-plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	dup	#LLMReasoning	1
-plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	dup	#LLMStreamOptions	1
-plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue	dup	#LLMNamedToolChoice	1
 plugin-tunnel/candy/plugin-tunnel/schema/tunnel.cue	dup	#TunnelInput	1
 spec/schema/deploy.cue	dup	#DeployRecord	1
 spec/schema/deploy.cue	dup	#CandyRecord	1
-spec/schema/llm.cue	dup	#LLMSpec	1
-spec/schema/llm.cue	dup	#LLMParams	1
-spec/schema/llm.cue	dup	#LLMResponseFormat	1
-spec/schema/llm.cue	dup	#LLMReasoning	1
-spec/schema/llm.cue	dup	#LLMStreamOptions	1
-spec/schema/llm.cue	dup	#LLMNamedToolChoice	1
 spec/schemaparams/testdata/import/schema/tunnel.cue	dup	#TunnelInput	1
 spec/schemaparams/testdata/twin/schema/tunnel.cue	dup	#TunnelInput	1
