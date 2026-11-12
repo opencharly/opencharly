@@ -169,6 +169,119 @@ the entry says otherwise:
   class the item names. Nothing was archived and nothing needed to be; the surviving-scope census,
   with its commands and their live-word controls, is §12.4.
 
+**In progress — `2.1`'s unit 1 of eleven is DONE (the `pipeline` kind), and the ITEM stays `open`.**
+`2.1` asks for *each* kind body to move into its plugin's CUE module. One of the eleven host-value-gated
+kinds has moved; the tracker is `opencharly/spec#304`, which stays open for the remaining ten. Unit 1
+landed across seven PRs in four repos and one umbrella pin wave, measured at the pins that wave set
+(`spec` `9301181`, `sdk` `4aabb80`, `charly` `36c2dc4a`, `plugin-pipeline` `b32a25e`, `plugin-task`
+`8faff1f`):
+
+| # | repo | PR | what it did | squash (40) | merge tag |
+|---|---|---|---|---|---|
+| 1 | `sdk` | #501 | exports `PlanRefs` / `RewritePlanRefs` and lifts `walkScalarValues` beside them (still unexported) | `e91e784332ae4e33b375891deae6b2d5cc84e565` | `v0.2026316.1524` |
+| 1.5 | `charly` | #1124 | `validateKindValueCUE` unifies with the def as receiver (`def.Unify(entity)`), so a served def citing `schema.#…` resolves; witness `TestKindValueGate_ValidatesAServedDefCarryingAContractReference` | `b8de0f93d5bbf607c9ad24698eaa3097b20170bd` | `v2026.316.1711` |
+| 2 | `plugin-pipeline` | #63 | declares the 13 `#Pipeline*` defs in its own schema (7 → 20) and relocates `workflowkit/{validate,lower,graph}.go` + tests + 8 goldens | `75e5fc903afdbe6a32f382ea9eac4db6122aa457` | `v2026.316.1740` |
+| 2.5 | `plugin-pipeline` | #64 | carries `sdk#368`'s lowering fix and the 34-case (`29 + 5`) `#PipelineValue` closedness corpus off `spec` | `fc2cec31b813b2c5a5d079167c24e488ce5eba3a` | `v2026.316.1819` |
+| 3 | `sdk` | #502 | deletes `workflowkit/{validate,lower,graph}.go`, their tests and the 8 goldens (16 files, all deletions) | `ca36ca576b39a9ad9cff2767d010725948ba69bf` | `v0.2026316.1848` |
+| 4 | `spec` | #305 | deletes the `#Pipeline*` body defs, keeps `#PipelineClassRoutes`, regenerates | `984ca6aa1b9aa03b7a10c3ee03035764744550a2` | `v0.2026316.1928` |
+| 4c | `charly` | #1126 | pins `sdk`+`spec` in lockstep and teaches the corpus sweep the provider-declared `InputDef` | `6ee41d87acdb6b65d98367567814a24c42f9737b` | `v2026.316.2018` |
+| pin | umbrella | #996 | advances the four pins | `14bee67c50addad260fd1f9934fa4b6ff6f025a0` | `v2026.316.2127` |
+
+**What it measured.** `KindValueDefs` 11 → 10 (the `pipeline` word gone); the `#<Word>Value` defs
+12 → 11; `spec/schema` keeps 13 kind bodies and exactly one `#Pipeline*` def (`#PipelineClassRoutes`);
+`plugin-pipeline`'s schema went 7 → 20 `#Pipeline*` defs (the 13 moved in). The 8 lowering goldens are
+byte-identical across the move (equal blob ids), and the 34-case closedness corpus moved with the defs
+rather than being deleted.
+
+**The census relocated; it did not grow.** `#945` tolerates 357 D-PAT violations at these pins with every
+per-rule count unchanged (close 54, absence 86, open 68, opaque 0, dup 7, union 142), and the emission's
+four changed rows are four RE-HOMED keys (`env?`, `charly?`, `approval?`, `entities?`) from
+`spec/schema/pipeline.cue` to `plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue` — four removed,
+four added. The pin wave is the first **pin-advance** emission in the record to add rows; `#959` (the
+gate's own census reconciliation, 2026-11-09) added three `dup` rows earlier, so "the first emission
+ever" would be false. The design ledgers follow with 17 citations re-anchored: twelve `kind:pipeline`
+name citations to the plugin's def set, three `plugin-pipeline/…/cli.go` line citations whose bytes
+drifted, and the two on the `pooled fan-out (lanes)` row.
+
+**The contract this unit proved — it binds every remaining kind.** A kind that moves its body into its
+plugin **must** declare that def on the `kind` capability as `InputDef: "#<Word>Value"`. Without it the
+kind falls to the flat plugin-input path, which is `Concrete` (not closedness-only), so authored bodies
+start failing. `plugin-pipeline` declares `#PipelineValue`; `plugin-task` declares no kind `InputDef`
+today, so **unit 2 (`task`) must add `InputDef: "#TaskValue"` in the same change**.
+
+**The corpus-sweep trap, measured on one tree.** `charly/kind_value_corpus_sweep_test.go` selected
+bodies with `spec.KindValueDefs[pn.Disc]`; with `#PipelineValue` deleted from `spec`, that predicate
+drops every pipeline body and the test still PASSES. Run the shipped sweep twice on ONE corpus root
+(a fresh umbrella worktree whose working set is materialized — the tree unit 1's leg 2 used): the
+composed arm is the production gate, the `base` arm is its pre-change schema-source oracle.
+
+```
+$ CHARLY_CORPUS_ROOT=<fresh umbrella worktree> CHARLY_KIND_VALUE_GATE=composed \
+    go test ./charly -run TestKindValueCorpusSweep -v -count=1
+gate=composed: judged 431 entity bodies (101 files unparsable, 0 bodies the base arm cannot judge)
+  android      1
+  candy        104
+  kindcluster  24
+  kubernetes   19
+  kubevirt     3
+  local        98
+  pipeline     13
+  pod          27
+  task         40
+  vm           102
+--- PASS: TestKindValueCorpusSweep (46.51s)
+$ CHARLY_CORPUS_ROOT=<fresh umbrella worktree> CHARLY_KIND_VALUE_GATE=base \
+    go test ./charly -run TestKindValueCorpusSweep -v -count=1
+gate=base: judged 418 entity bodies (101 files unparsable, 13 bodies the base arm cannot judge)
+--- PASS: TestKindValueCorpusSweep (48.82s)
+$ wc -l <composed verdicts>
+532
+$ grep -c '^PARSE-ERR' <composed verdicts>
+101
+$ grep -c '|pipeline|' <composed verdicts>
+13
+$ wc -l <base verdicts>
+519
+$ grep -c '^PARSE-ERR' <base verdicts>
+101
+$ grep -c '|pipeline|' <base verdicts>
+0
+```
+
+The 13 bodies are the whole difference: the verdict file carries one line per judged body plus one per
+unparsable file, so `431 + 101 = 532` lines composed and `418 + 101 = 519` lines base, and the base
+arm's own log names the gap: `13 bodies the base arm cannot judge`. The silent form — the old
+selection, which never counts what it skips — measures the same 418 / 0 with no failing test; the
+guard is `TestSweepLoopJudgesAPluginDeclaredGateDef`, which drives the loop over a fixture whose def
+only a served unit declares and is red on assertions when the selection reverts. It passes at the pins:
+
+```
+$ go test ./charly -run 'TestSweepLoopJudgesAPluginDeclaredGateDef|TestSweepSelectionResolvesAPluginDeclaredGateDef' -v -count=1
+--- PASS: TestSweepSelectionResolvesAPluginDeclaredGateDef (0.02s)
+    kind_value_corpus_sweep_test.go:195: gate=composed: judged 1 entity bodies (0 files unparsable, 0 bodies the base arm cannot judge)
+    kind_value_corpus_sweep_test.go:195:   gateprobe    1
+--- PASS: TestSweepLoopJudgesAPluginDeclaredGateDef (0.00s)
+```
+
+**Every kind move must teach the sweep in the same change.**
+
+**What remains: ten of the eleven units**, in `opencharly/spec#304`'s measured order (unchanged):
+`task` (with the `InputDef`), `pod`, `local`, `kubernetes`+`kindcluster`, `kubevirt`, `firecracker`
+(its plugin is not a pinned umbrella submodule — `git config -f .gitmodules --get
+submodule.plugin-firecracker.path` exits 1, with the `plugin-pipeline` path as the live-word control —
+so a pin comes first), `vm`+`#LibvirtDomain`, `candy`+`#Box`, `android` (no owning plugin yet; served
+only by `plugin-substrate`'s echo arm), `deploy` (`#Deploy`/`#DeployValue`, the shared disjunct every
+substrate arm uses, last). Until those land, `#950`'s dependency holds and `#945`'s census cannot move
+past its `dup` rows; `2.1` also gates `4.1`, `2.3` and `2.16`.
+
+**The table is re-summed from its own rows, never typed, and it is unchanged** because `2.1` stays
+`open` (the old and the new totals are the same line):
+
+```
+$ awk -F'|' '/^## Status/{f=1} /^The Decisions row/{f=0} f && NF==7 && $2 !~ /section/ && $2 !~ /---/ && $2 !~ /Total/ {i+=$3; d+=$4; o+=$5; m+=$6} END {printf "items %d done %d open %d moved %d\n", i,d,o,m}' TODO.md
+items 107 done 10 open 82 moved 15
+```
+
 **How to keep this current.** The status is derived by greps at the submodule pins. Whoever lands an item updates its row and the total in the same PR. TODO.md is deleted only when the last item lands (§11.2).
 
 ## 0. Preconditions
@@ -215,7 +328,7 @@ Still open:
 
 | # | Current state (evidence) | Target | Config migration | Code work |
 |---|---|---|---|---|
-| 2.1 | Kind schemas (`#Candy`, `#Box`, `#Deploy`, `#Vm`, `#Pod`, `#Local`, `#Kubernetes`, `#Android`, `#LibvirtDomain`, …) live in `spec/schema`, with `#<Kind>Value` twins; plugin-substrate and plugin-candy only echo host-decoded values (`spec/schema/node.cue`). **Measured correction (2026-11-12):** the D-PAT census (`#945`) is the whole census — 382 violations before `plugin-pipeline#60`, 357 after — and this item unblocks only its `dup` rows (19 over 9 definition names before, 7 over 3 after), not 382. Its chain is 13 units, not the four legs summarized in section 12.1: unit 0 is a `charly` host-gate change (`validateKindValueCUE` reads `spec.KindValueDefs` plus a base-only schema while a plugin definition lands in `pluginSchemas.unified`); the full table is at `opencharly/spec#304`. | D-SCH-1, D-SCH-3 | none | Move each schema into its plugin's CUE module; delete the twins and the echo plugins. |
+| 2.1 | Kind schemas (`#Candy`, `#Box`, `#Deploy`, `#Vm`, `#Pod`, `#Local`, `#Kubernetes`, `#Android`, `#LibvirtDomain`, …) live in `spec/schema`, with `#<Kind>Value` twins; plugin-substrate and plugin-candy only echo host-decoded values (`spec/schema/node.cue`). **Measured correction (2026-11-12):** the D-PAT census (`#945`) is the whole census — 382 violations before `plugin-pipeline#60`, 357 after — and this item unblocks only its `dup` rows (19 over 9 definition names before, 7 over 3 after), not 382. Its chain is 13 units, not the four legs summarized in section 12.1: unit 0 is a `charly` host-gate change (`validateKindValueCUE` reads `spec.KindValueDefs` plus a base-only schema while a plugin definition lands in `pluginSchemas.unified`); the full table is at `opencharly/spec#304`. **Unit 1 of 11 landed 2026-11-12:** the `pipeline` body is `plugin-pipeline`'s own CUE now (the contract module keeps one `#Pipeline*` def, `#PipelineClassRoutes`), `spec.KindValueDefs` reads 11 → 10 and its `#<Word>Value` defs 12 → 11, and 13 kind bodies remain in `spec/schema`; the other ten units are unchanged at `opencharly/spec#304` and the evidence is in `## Status`. | D-SCH-1, D-SCH-3 | none | Move each schema into its plugin's CUE module; delete the twins and the echo plugins. |
 | 2.2 | 104 of 117 plugin schemas are "self-contained" and copy shared shapes (`#HttpMatcherList`, `#FileMatcher`, `#MountMatcher`, …). | D-SCH-2 | none | Import `spec/envelope`; delete the copies. |
 | 2.3 | 486 `@go(…,type=…)` overrides (2,859 `@go(…)` calls in all), 82 `@go(-)` uses and hand-written Go types in `spec` (e.g. `hand_state_types.go`) — counted 2026-11-12. | D-SCH-1, D-GEN-3 | none | Generate every type; keep only behaviour methods. |
 | 2.4 | A second field gate: the loader's `candyKnownFields` still admits the removed `version` (`sdk/loaderkit/parse_candy_manifest.go:224`). | D-CANDY-1, D-LOAD-2 | none | Delete it. |
@@ -455,7 +568,7 @@ repository's window, not on a claim.
 
 | bucket | n | item | producer-first legs | forcing edge | measured anchor |
 |---|---|---|---|---|---|
-| CHAIN | 4 | 2.1 | spec > sdk > charly > plugin repositories | charly cannot compose a plugin CUE module before sdk can fetch and type it | gs spec `^#[A-Za-z]+Value:` = 12 defs; schema/ holds candy.cue, node.cue |
+| CHAIN | 4 | 2.1 | spec > sdk > charly > plugin repositories | charly cannot compose a plugin CUE module before sdk can fetch and type it | gs spec `^#[A-Za-z]+Value:` = 11 defs (12 before unit 1); 13 kind bodies still in `spec/schema`; unit 1 (`pipeline`) landed — evidence in `## Status`; the remaining ten and their order: opencharly/spec#304 |
 | CHAIN | 3 | 2.3 | spec > sdk > charly | the generator must emit before the hand-written types are deleted | gs spec @go( = 2859; @go(-) = 82; hand_state_types.go = 1 |
 | CHAIN | 3 | 2.6 | spec > sdk > charly | the envelope key set is a schema fact before it is a type | gs spec compiled_plugins?: = 1 (schema/node.cue:191); verb_primaries?: = 1 (:206) |
 | CHAIN | 3 | 2.7 | spec > sdk > charly | a rule must exist in the schema before the Go seam can be deleted | gs sdk LoadSeams = 41; loaderkit/node_validate.go, cue_validate.go present |
@@ -662,6 +775,10 @@ submodules). The distribution that makes this concrete is the table's own legs c
    definition lands in `pluginSchemas.unified`), and the full table is at `opencharly/spec#304`.
    `2.1` also gates `4.1` (one generator over plugin modules), `2.3` (generated
    types) and `2.16` (schema patterns). No other chain may claim the `spec` window first.
+   **Unit 1 of 11 landed 2026-11-12** — the `pipeline` body is `plugin-pipeline`'s now (seven PRs in
+   four repos plus the pin wave `#996`; the evidence is in `## Status`). The next `spec` window `2.1`
+   needs is unit 2, `task`, which must add `InputDef: "#TaskValue"` in the same change and must teach
+   `charly/kind_value_corpus_sweep_test.go`; `opencharly/spec#304` carries the rest of the order.
 2. **`4.4`** (one reproducibility gate, as a reusable workflow in `dotgithub`, then a caller per
    plugin repo). It touches neither `spec`, `sdk` nor `charly`, so it runs concurrently with wave 0
    step 1 — this is the one genuinely independent unblocker, because it turns 117 plugin repos' CI
