@@ -169,10 +169,10 @@ the entry says otherwise:
   class the item names. Nothing was archived and nothing needed to be; the surviving-scope census,
   with its commands and their live-word controls, is §12.4.
 
-**In progress — `2.1`'s units 1–2 of eleven are DONE (the `pipeline` and `task` kinds), and the ITEM
-stays `open`.** `2.1` asks for *each* kind body to move into its plugin's CUE module. Two of the eleven
-host-value-gated kinds have moved; the tracker is `opencharly/spec#304`, which stays open for the
-remaining nine. **Unit 1 (`pipeline`) landed 2026-11-12** across seven PRs in four repos and one umbrella
+**In progress — `2.1`'s units 1–3 of eleven are DONE (the `pipeline`, `task` and `pod` kinds), and the
+ITEM stays `open`.** `2.1` asks for *each* kind body to move into its plugin's CUE module. Three of the
+eleven host-value-gated kinds have moved; the tracker is `opencharly/spec#304`, which stays open for the
+remaining eight. **Unit 1 (`pipeline`) landed 2026-11-12** across seven PRs in four repos and one umbrella
 pin wave, measured at the pins that wave set (`spec` `9301181`, `sdk` `4aabb80`, `charly` `36c2dc4a`,
 `plugin-pipeline` `b32a25e`, `plugin-task` `8faff1f`):
 
@@ -207,7 +207,8 @@ drifted, and the two on the `pooled fan-out (lanes)` row.
 plugin **must** declare that def on the `kind` capability as `InputDef: "#<Word>Value"`. Without it the
 kind falls to the flat plugin-input path, which is `Concrete` (not closedness-only), so authored bodies
 start failing. `plugin-pipeline` declares `#PipelineValue`; **unit 2 (`task`) added
-`InputDef: "#TaskValue"` in its own change**, so the rule is held by two kinds now, not one.
+`InputDef: "#TaskValue"` in its own change**, and **unit 3 (`pod`) added `InputDef: "#PodValue"` in
+`plugin-substrate`**, so the rule is held by three kinds now, not one.
 
 **The corpus-sweep trap, measured on one tree.** `charly/kind_value_corpus_sweep_test.go` selected
 bodies with `spec.KindValueDefs[pn.Disc]`; with `#PipelineValue` deleted from `spec`, that predicate
@@ -390,6 +391,190 @@ scripts/check-retired-claims.mjs:310
 scripts/sync-pr-body.sh:498
 ```
 
+**Unit 3 (`pod`) landed 2026-11-13 as FIVE legs, not one.** The tracker's row 3 said one; measurement
+found five — the kind body had four consumers outside `spec` (two in `sdk`, one in `plugin-check`, one in
+`charly`'s test aliases) beside the plugin that owns it. Each `squash` below is the commit its own merge
+tag points at, read from the object store the pin resolution uses:
+
+```
+$ for t in plugin-substrate:v2026.317.0614 spec:v0.2026317.703 sdk:v0.2026317.712 plugin-check:v2026.317.0744 charly:v2026.317.0814; do r=${t%%:*}; printf '%s %s %s\n' "$r" "${t#*:}" "$(git -C "$r" rev-parse "${t#*:}")"; done
+plugin-substrate v2026.317.0614 937a9b07564116b8723a0a2223299bae8508c41c
+spec v0.2026317.703 8cceca6924290854600a29cb74b7daf83d7bec01
+sdk v0.2026317.712 8dfd54ff07c066f0e60c47d91fc88b0096a7feb1
+plugin-check v2026.317.0744 2c7d557d57c45ba07810a59dafcc57c861326693
+charly v2026.317.0814 8997c4809d31aa9af16e64e02ab4fbbba380205b
+$ git ls-remote --tags origin | grep 'v2026\.317\.1038$'
+253b58335b510c45fea233602c739b63a80b239c	refs/tags/v2026.317.1038
+```
+
+| # | repo | PR | what it did | squash (40) | merge tag |
+|---|---|---|---|---|---|
+| 1 | `plugin-substrate` | #32 | owns the `kind:pod` body (`#Pod`, `#PodValue`) in its own CUE module and declares `InputDef: "#PodValue"` on the `kind` capability | `937a9b07564116b8723a0a2223299bae8508c41c` | `v2026.317.0614` |
+| 2 | `spec` | #307 | deletes `#Pod` and `#PodValue`, keeps `#PodSidecar`, regenerates | `8cceca6924290854600a29cb74b7daf83d7bec01` | `v0.2026317.703` |
+| 3 | `sdk` | #504 | deletes the dead `PodSpec` alias and retargets `loaderkit`'s pod floor at `#ResolvedPod` | `8dfd54ff07c066f0e60c47d91fc88b0096a7feb1` | `v0.2026317.712` |
+| 4 | `plugin-check` | #144 | the pod include-splice decodes `spec.ResolvedPod` | `2c7d557d57c45ba07810a59dafcc57c861326693` | `v2026.317.0744` |
+| 5 | `charly` | #1130 | pins the four producers in lockstep and drops the test alias that named the deleted type | `8997c4809d31aa9af16e64e02ab4fbbba380205b` | `v2026.317.0814` |
+| pin | umbrella | #1002 | advances the five pins, re-homes the census row and the citation | `253b58335b510c45fea233602c739b63a80b239c` | `v2026.317.1038` |
+
+**Unit 3 — what it measured.** The before/after is unit 2's pin (`spec` `64f85a369c32`) against the pin
+`#1002` set (`spec` `9cfcc117c572`, the CHANGELOG commit one step above `v0.2026317.703`):
+
+```
+$ for rev in 64f85a369c32 9cfcc117c572; do printf '%s KindValueDefs=' "$rev"; git -C spec show $rev:spec/vocab_gen.go | awk '/^var KindValueDefs = map/,/^}/' | grep -cE '^[[:space:]]+"[a-z]+":[[:space:]]+"#'; done
+64f85a369c32 KindValueDefs=9
+9cfcc117c572 KindValueDefs=8
+$ for rev in 64f85a369c32 9cfcc117c572; do printf '%s #<Word>Value=' "$rev"; git -C spec grep -hcE '^#[A-Za-z]+Value:' $rev -- 'schema/*.cue' | awk -F: '{s+=$NF} END{print s+0}'; done
+64f85a369c32 #<Word>Value=10
+9cfcc117c572 #<Word>Value=9
+$ for rev in 64f85a369c32 9cfcc117c572; do printf '%s kind bodies in spec/schema = ' "$rev"; n=0; for k in Candy Box Deploy Vm Pod Local Kubernetes Android Kindcluster KubeVirt Firecracker Task Pipeline LibvirtDomain; do git -C spec grep -qE "^#$k:" $rev -- 'schema/*.cue' && n=$((n+1)); done; echo $n; done
+64f85a369c32 kind bodies in spec/schema = 12
+9cfcc117c572 kind bodies in spec/schema = 11
+```
+
+The eight entries `spec.KindValueDefs` still declares are the eight kinds still gated from the base —
+`android`, `candy`, `firecracker`, `kindcluster`, `kubernetes`, `kubevirt`, `local`, `vm` — with no `pod`,
+no `task`, no `pipeline`:
+
+```
+$ git -C spec show 9cfcc117c572:spec/vocab_gen.go | awk '/^var KindValueDefs = map/,/^}/' | grep -oE '"[a-z]+"' | tr -d '"' | sort | tr '\n' ' '; echo
+android candy firecracker kindcluster kubernetes kubevirt local vm 
+```
+
+**Two figures differ and BOTH are recorded, because `#307`'s body is pushed and cannot be amended.** This
+file's 14-name list (`#Candy #Box #Deploy #Vm #Pod #Local #Kubernetes #Android #Kindcluster #KubeVirt
+#Firecracker #Task #Pipeline #LibvirtDomain`) reads **12 → 11**. `spec#307`'s body says **13 → 12**, over a
+15-name definition that includes `#Image`. The two do not disagree about the tree: `#Image` is not a kind
+body — it is `#CandyValue`'s image arm, and `#CandyValue` is the candy kind's value-gate def:
+
+```
+$ for rev in 64f85a369c32 9cfcc117c572; do printf '%s 15-name kind bodies = ' "$rev"; n=0; for k in Candy Box Deploy Vm Pod Local Kubernetes Android Kindcluster KubeVirt Firecracker Task Pipeline LibvirtDomain Image; do git -C spec grep -qE "^#$k:" $rev -- 'schema/*.cue' && n=$((n+1)); done; echo $n; done
+64f85a369c32 15-name kind bodies = 13
+9cfcc117c572 15-name kind bodies = 12
+$ git -C spec grep -nE '^#CandyValue:' 9cfcc117c572 -- 'schema/node.cue'
+9cfcc117c572:schema/node.cue:79:#CandyValue: (*#Candy | #Image) @go(-)
+```
+
+**The tracker's 14-name list is canonical here, because this file cites it** — so a reader who finds both
+numbers has the reason beside them.
+
+**Unit 3's census is a RELOCATION, not a loss.** Both sides carry 301 non-comment lines — 300 violation
+rows plus the `file/rule/symbol/count` header — and the last-column sum is **357** both times, with every
+per-rule total identical (absence 86, close 54, dup 7, open 68, union 142). Exactly **one** row is
+re-homed, and it differs only by the `schema.` qualifier a plugin's CUE module needs:
+
+```
+$ diff <(git show 2b6413f:design/dpat-baseline.tsv) design/dpat-baseline.tsv; echo "rc=$?"
+174a175
+> plugin-substrate/candy/plugin-substrate/schema/pod.cue	union	#PodValue: (#Pod | schema.#DeployValue) @go(-)	1
+279d279
+< spec/schema/node.cue	union	#PodValue: (#Pod | #DeployValue) @go(-)	1
+rc=1
+$ for rev in 2b6413f 253b583; do printf '%s non-comment lines ' $rev; git show $rev:design/dpat-baseline.tsv | grep -vc '^#'; done
+2b6413f non-comment lines 301
+253b583 non-comment lines 301
+$ for rev in 2b6413f 253b583; do printf '%s ' $rev; git show $rev:design/dpat-baseline.tsv | grep -v '^#' | awk -F'\t' '$1!="file"{r[$2]+=$4; n[$2]++} END{for(k in r) printf "%s rows=%d count=%d; ", k, n[k], r[k]}' ; echo; done
+2b6413f union rows=134 count=142; dup rows=7 count=7; open rows=64 count=68; absence rows=41 count=86; close rows=54 count=54; 
+253b583 union rows=134 count=142; dup rows=7 count=7; open rows=64 count=68; absence rows=41 count=86; close rows=54 count=54; 
+```
+
+**Unit 3's citation: ONE row, not 17 and not 5.** A line citation cannot survive a body leaving a file:
+`spec/schema/pod.cue:10-19`, affirmed against `#Pod`, now sits inside no definition at all. The `kind:pod`
+row therefore cites the plugin's copy BY NAME — the form a pin advance cannot falsify (A.13) — naming both
+definitions the relocated body carries, and the baseline row it replaces is lowered in the same change:
+
+```
+$ git diff 2b6413f 253b583 -- design/cite-baseline.tsv | grep -E '^[+-][a-z]'
+-kind:pod	spec/schema/pod.cue	10-19	#Pod	c69c414d1af3795a
+$ git show 2b6413f:design/dulling.tsv | awk -F'\t' '$1=="kind:pod"{print $7}'
+spec/schema/pod.cue:10-19; plugin-substrate/candy/plugin-substrate/charly.yml; DESIGN.md:§17.1; DESIGN.md:§17.2; DESIGN.md:§8
+$ git show 253b583:design/dulling.tsv | awk -F'\t' '$1=="kind:pod"{print $7}'
+plugin-substrate/candy/plugin-substrate/schema/pod.cue:#Pod; plugin-substrate/candy/plugin-substrate/schema/pod.cue:#PodValue; plugin-substrate/candy/plugin-substrate/charly.yml; DESIGN.md:§17.1; DESIGN.md:§17.2; DESIGN.md:§8
+```
+
+**A THIRD keeper category: the contract's own envelope.** The unit's decisive correction was not a
+cross-plugin citation but a CONTRACT-SIDE one. `#PodSidecar` stayed in `spec` because the contract's own
+`#ResolvedPod` cites it — a def a kernel-facing wire shape references cannot move into one plugin's CUE
+module, because a plugin may import the contract and never the reverse:
+
+```
+$ git -C spec grep -nE 'sidecar\?: \[\.\.\.#PodSidecar\]' 9cfcc117c572 -- 'schema/substrate_template.cue'
+9cfcc117c572:schema/substrate_template.cue:55:	sidecar?: [...#PodSidecar] @go(Sidecar)
+$ git -C spec grep -nE '^#PodSidecar:' 9cfcc117c572 -- 'schema/pod.cue'
+9cfcc117c572:schema/pod.cue:21:#PodSidecar: {
+```
+
+Three units, three keeper categories, and they are not the same reason: unit 1's `#PipelineClassRoutes`
+stays because `spec`'s OWN vocabulary generator extracts it into `spec.PipelineClassRoutes`
+(`spec/internal/schemagen` — no sibling plugin cites it by name); unit 2's `#TaskParamSpec` stays because a
+SIBLING plugin's CUE cites it; unit 3's `#PodSidecar` stays because the CONTRACT's own envelope cites it.
+A keeper is not a leftover: it is a def with a consumer the move cannot carry.
+
+**The invariant, corrected: the base arm's loss is CUMULATIVE.** Unit 1's record read the loss as "the
+kind's count" — 13 pipeline bodies on its own tree. That was true only while exactly ONE kind had moved.
+On the migrated tree the base arm loses the sum over every moved kind:
+
+```
+$ git -C charly show 851497933ae4:CHANGELOG/2026.317.0814.md | sed -n '38p;40,41p;129,130p'
+    kind_value_corpus_sweep_test.go:223: gate=base: judged 1695 entity bodies (1646 files unparsable, 309 bodies the base arm cannot judge)
+    kind_value_corpus_sweep_test.go:223: gate=composed: judged 2004 entity bodies (1646 files unparsable, 0 bodies the base arm cannot judge)
+    kind_value_corpus_sweep_test.go:223:   pod          250
+     20 FAIL
+   1984 OK
+$ git -C charly show 851497933ae4:CHANGELOG/2026.316.1207.md | sed -n '103,105p'
+    kind_value_corpus_sweep_test.go:204:   pipeline     12
+    kind_value_corpus_sweep_test.go:204:   pod          250
+    kind_value_corpus_sweep_test.go:204:   task         47
+```
+
+```
+composed 2,004 judged · pod 250 · 1,984 OK / 20 FAIL
+base     1,695 judged · 309 the base arm cannot judge
+2004 − 309 = 1,695 ✓
+309 = 250 pod + 47 task + 12 pipeline     ← all three moved kinds
+```
+
+**`base loss == Σ(all moved kinds' body counts)`** — the stronger claim, because it covers the migration
+rather than one leg: the next unit's count ADDS to 309, and a reading that equals only the last kind's
+count is a reading of the leg, not of the tree. The per-kind split is the unit-0 one-tree reading
+(`charly`'s `CHANGELOG/2026.316.1207.md`), where all three kinds were still base-gated on this same
+2,004-body corpus root. The sweep is the leg's own final-tree run, read here from the merged `CHANGELOG`
+because this docs tree has no `charly` checkout to run it from; `CHARLY_KIND_VALUE_GATE=base go test
+-count=1 -run TestKindValueCorpusSweep -v .` is the command that re-runs it in a tree that has one.
+
+**`TestKindValueDefs_ComposedEqualsBase` needs NO edit, and that is by construction.** It iterates only the
+kinds still declared by the base (`spec.KindValueDefs`), so `pod` drops out the moment the base stops
+declaring `#PodValue`; the added `kindValueDefPath(nil, "pod")` assertion is the positive witness that the
+kind is no longer fallback-resolvable. **Recorded so a reader does not think it was forgotten.**
+
+```
+$ git -C charly show 851497933ae4:charly/kind_value_composed_test.go | sed -n '249,256p'
+	discs := make([]string, 0, len(spec.KindValueDefs))
+	for disc := range spec.KindValueDefs {
+		discs = append(discs, disc)
+	}
+	sort.Strings(discs)
+	for _, disc := range discs {
+		defPath := spec.KindValueDefs[disc]
+		baseDef := sharedCueSchema().LookupPath(cue.ParsePath(defPath))
+$ git -C charly grep -n 'kindValueDefPath(nil, "pod")' 851497933ae4 -- '*.go'
+851497933ae4:charly/kind_value_composed_test.go:228:	if def, ok := kindValueDefPath(nil, "pod"); ok {
+```
+
+**Two control defects were found on the way, and both made `main` red before this wave.** `#1001`:
+`scripts/check-cited-plugin-task-version.mjs` pairs a module MENTION with ANY version literal on the same
+line, so a leg table's unrelated version cell and a deliberately-quoted retired literal both read as live
+claims — neither line claims that module's version. `#751`: guidance in this repo reached git as a bare
+`ls-tree` pathspec where `:(literal)` was required. Both instances are made true in `#1002`, and both
+classes are filed rather than papered over. The reason `#1000` could land them is in its own gate record:
+`check-cited-plugin-task-version` **SKIPS** when the pinned `charly` is not materialized — so the prose
+landed in a tree where the control could not judge it, and every materialized tree then read red:
+
+```
+$ sed -n '210,211p' CHANGELOG/2026.317.0537.md
+`check-cited-plugin-task-version` **SKIPS visibly** here rather than judging, because this
+worktree's pinned `charly` submodule is not checked out — a skip is reported, never counted as
+```
+
 **The decisive correction for every kind is a CROSS-PLUGIN REFERENCE, and no gate will tell you.** The
 one correction unit 2's own plan needed was `#TaskParamSpec`: `plugin-pipeline`'s schema types a
 pipeline's `args:` as `{[string]: schema.#TaskParamSpec}` (`candy/plugin-pipeline/schema/pipeline.cue:354`)
@@ -405,25 +590,32 @@ plugin's schema stops resolving. The cheap instrument is one sweep of every pinn
 
 ```
 $ for p in $(git ls-tree --name-only origin/main | grep '^plugin-'); do s=$(git ls-tree origin/main -- ":(literal)$p" | awk '{print $3}'); git -C "$p" grep -ho 'schema\.[#][A-Za-z0-9_]*' "$s" -- '*.cue' 2>/dev/null; done | sed 's/^schema\.//' | sort | uniq -c | sort -rn
-      5 #StrVal
+      6 #StrVal
+      5 #Step
       4 #WorkflowArgVal
-      3 #Step
+      3 #PodSidecar
       2 #TaskParamSpec
       2 #LLMSpec
+      2 #DeploySecret
+      2 #CandyRef
       1 #TunnelConfig
+      1 #Sidecar
       1 #LLMParams
       1 #EntityRef
       1 #Duration
+      1 #DeployValue
 ```
 
-Nine defs are cross-plugin-cited at these pins, and `#TaskParamSpec` is the only one that belongs to a
-kind — the other eight are shared vocabulary, which is why the remaining nine units have no other
-ALREADY-VISIBLE kind-body pin. `#Step` is the one the next nine will need most: it is already cited 3
-times from `plugin-pipeline` and `plugin-task`, so it stays in the contract module when `candy`+`#Box` —
-whose `plan:` uses it — moves.
+Fourteen defs are cross-plugin-cited at these pins. Two of them are keeper defs a moved kind left behind
+— `#TaskParamSpec`, kept for a sibling plugin's citation, and `#PodSidecar`, kept for the contract's own
+envelope — and the other twelve are shared vocabulary, so the remaining eight units have no other
+ALREADY-VISIBLE kind-body pin. `#Step` is the one the next eight will need most: at these pins it is cited
+5 times (four references from the `plan:` fields of `plugin-pipeline`, `plugin-task` and
+`plugin-substrate`, plus one comment), so it stays in the contract module when `candy`+`#Box` — whose
+`plan:` uses it — moves.
 
-**What remains: nine of the eleven units**, in `opencharly/spec#304`'s measured order:
-`pod`, `local`, `kubernetes`+`kindcluster`, `kubevirt`, `firecracker` (its plugin is not a
+**What remains: eight of the eleven units**, in `opencharly/spec#304`'s measured order:
+`local`, `kubernetes`+`kindcluster`, `kubevirt`, `firecracker` (its plugin is not a
 pinned umbrella submodule — `git config -f .gitmodules --get
 submodule.plugin-firecracker.path` exits 1, with the `plugin-pipeline` path as the live-word control —
 so a pin comes first), `vm`+`#LibvirtDomain`, `candy`+`#Box`, `android` (no owning plugin yet; served
@@ -435,7 +627,7 @@ past its `dup` rows; `2.1` also gates `4.1`, `2.3` and `2.16`.
 unchanged** because `2.1` stays `open` (the old and the new totals are the same line):
 
 ```
-$ git show 48daf75:TODO.md | awk -F'|' '/^## Status/{f=1} /^The Decisions row/{f=0} f && NF==7 && $2 !~ /section/ && $2 !~ /---/ && $2 !~ /Total/ {i+=$3; d+=$4; o+=$5; m+=$6} END {printf "items %d done %d open %d moved %d\n", i,d,o,m}'
+$ git show origin/main:TODO.md | awk -F'|' '/^## Status/{f=1} /^The Decisions row/{f=0} f && NF==7 && $2 !~ /section/ && $2 !~ /---/ && $2 !~ /Total/ {i+=$3; d+=$4; o+=$5; m+=$6} END {printf "items %d done %d open %d moved %d\n", i,d,o,m}'
 items 107 done 10 open 82 moved 15
 $ awk -F'|' '/^## Status/{f=1} /^The Decisions row/{f=0} f && NF==7 && $2 !~ /section/ && $2 !~ /---/ && $2 !~ /Total/ {i+=$3; d+=$4; o+=$5; m+=$6} END {printf "items %d done %d open %d moved %d\n", i,d,o,m}' TODO.md
 items 107 done 10 open 82 moved 15
@@ -487,7 +679,7 @@ Still open:
 
 | # | Current state (evidence) | Target | Config migration | Code work |
 |---|---|---|---|---|
-| 2.1 | Kind schemas (`#Candy`, `#Box`, `#Deploy`, `#Vm`, `#Pod`, `#Local`, `#Kubernetes`, `#Android`, `#LibvirtDomain`, …) live in `spec/schema`, with `#<Kind>Value` twins; plugin-substrate and plugin-candy only echo host-decoded values (`spec/schema/node.cue`). **Measured correction (2026-11-12):** the D-PAT census (`#945`) is the whole census — 382 violations before `plugin-pipeline#60`, 357 after — and this item unblocks only its `dup` rows (19 over 9 definition names before, 7 over 3 after), not 382. Its chain is 13 units, not the four legs summarized in section 12.1: unit 0 is a `charly` host-gate change (`validateKindValueCUE` reads `spec.KindValueDefs` plus a base-only schema while a plugin definition lands in `pluginSchemas.unified`); the full table is at `opencharly/spec#304`. **Units 1–2 of 11 landed:** unit 1 (`pipeline`) on 2026-11-12 — the body is `plugin-pipeline`'s own CUE now (the contract module keeps one `#Pipeline*` def, `#PipelineClassRoutes`), `spec.KindValueDefs` 11 → 10 and its `#<Word>Value` defs 12 → 11; unit 2 (`task`) on 2026-11-13 across `plugin-task` #66, `sdk` #503, `spec` #306, `charly` #1128 and the umbrella pin wave #998 — the body is `plugin-task`'s now and the contract module keeps exactly one def for this kind, `#TaskParamSpec`, because `plugin-pipeline`'s schema types `args:` as `{[string]: schema.#TaskParamSpec}` and a plugin's CUE module can import only the contract module, so `spec.KindValueDefs` reads 10 → 9, its `#<Word>Value` defs 11 → 10, and 12 kind bodies remain in `spec/schema`; the other nine units and their order are unchanged at `opencharly/spec#304` and the evidence is in `## Status`. | D-SCH-1, D-SCH-3 | none | Move each schema into its plugin's CUE module; delete the twins and the echo plugins. |
+| 2.1 | Kind schemas (`#Candy`, `#Box`, `#Deploy`, `#Vm`, `#Pod`, `#Local`, `#Kubernetes`, `#Android`, `#LibvirtDomain`, …) live in `spec/schema`, with `#<Kind>Value` twins; plugin-substrate and plugin-candy only echo host-decoded values (`spec/schema/node.cue`). **Measured correction (2026-11-12):** the D-PAT census (`#945`) is the whole census — 382 violations before `plugin-pipeline#60`, 357 after — and this item unblocks only its `dup` rows (19 over 9 definition names before, 7 over 3 after), not 382. Its chain is 13 units, not the four legs summarized in section 12.1: unit 0 is a `charly` host-gate change (`validateKindValueCUE` reads `spec.KindValueDefs` plus a base-only schema while a plugin definition lands in `pluginSchemas.unified`); the full table is at `opencharly/spec#304`. **Units 1–3 of 11 landed:** unit 1 (`pipeline`) on 2026-11-12 — the body is `plugin-pipeline`'s own CUE now (the contract module keeps one `#Pipeline*` def, `#PipelineClassRoutes`), `spec.KindValueDefs` 11 → 10 and its `#<Word>Value` defs 12 → 11; unit 2 (`task`) on 2026-11-13 across `plugin-task` #66, `sdk` #503, `spec` #306, `charly` #1128 and the umbrella pin wave #998 — the body is `plugin-task`'s now and the contract module keeps exactly one def for this kind, `#TaskParamSpec`, because `plugin-pipeline`'s schema types `args:` as `{[string]: schema.#TaskParamSpec}` and a plugin's CUE module can import only the contract module, so `spec.KindValueDefs` reads 10 → 9, its `#<Word>Value` defs 11 → 10, and 12 kind bodies remained in `spec/schema`; unit 3 (`pod`) on 2026-11-13 across `plugin-substrate` #32, `spec` #307, `sdk` #504, `plugin-check` #144, `charly` #1130 and the umbrella pin wave #1002 — the body is `plugin-substrate`'s now, the contract module keeps `#PodSidecar` (a THIRD keeper category: the contract's own `#ResolvedPod` cites it, where unit 1 kept a def `spec`'s own generator extracts and unit 2 a def a sibling plugin cites), `spec.KindValueDefs` reads 9 → 8, its `#<Word>Value` defs 10 → 9, and 11 kind bodies remain in `spec/schema` over this file's 14-name list (`#307`'s pushed body says 13 → 12 over a 15-name list that counts `#Image`, which is `#CandyValue`'s image arm, not a kind body); the census stayed a relocation (one row, `node.cue` → `plugin-substrate`'s `pod.cue`) and one citation was re-anchored to name citations; the base arm's loss is CUMULATIVE — 309 = 250 `pod` + 47 `task` + 12 `pipeline`, against 2,004 judged composed and 1,695 judged on the base arm. The other eight units and their order are unchanged at `opencharly/spec#304` and the evidence is in `## Status`. | D-SCH-1, D-SCH-3 | none | Move each schema into its plugin's CUE module; delete the twins and the echo plugins. |
 | 2.2 | 104 of 117 plugin schemas are "self-contained" and copy shared shapes (`#HttpMatcherList`, `#FileMatcher`, `#MountMatcher`, …). | D-SCH-2 | none | Import `spec/envelope`; delete the copies. |
 | 2.3 | 486 `@go(…,type=…)` overrides (2,859 `@go(…)` calls in all), 82 `@go(-)` uses and hand-written Go types in `spec` (e.g. `hand_state_types.go`) — counted 2026-11-12. | D-SCH-1, D-GEN-3 | none | Generate every type; keep only behaviour methods. |
 | 2.4 | A second field gate: the loader's `candyKnownFields` still admits the removed `version` (`sdk/loaderkit/parse_candy_manifest.go:224`). | D-CANDY-1, D-LOAD-2 | none | Delete it. |
@@ -727,7 +919,7 @@ repository's window, not on a claim.
 
 | bucket | n | item | producer-first legs | forcing edge | measured anchor |
 |---|---|---|---|---|---|
-| CHAIN | 4 | 2.1 | spec > sdk > charly > plugin repositories | charly cannot compose a plugin CUE module before sdk can fetch and type it | gs spec `^#[A-Za-z]+Value:` = 10 defs (12 before unit 1, 11 before unit 2); 12 kind bodies still in `spec/schema`; units 1–2 (`pipeline`, `task`) landed — evidence in `## Status`; the remaining nine and their order: opencharly/spec#304 |
+| CHAIN | 4 | 2.1 | spec > sdk > charly > plugin repositories | charly cannot compose a plugin CUE module before sdk can fetch and type it | gs spec `^#[A-Za-z]+Value:` = 9 defs (12 before unit 1, 11 before unit 2, 10 before unit 3); 11 kind bodies still in `spec/schema` over this file's 14-name list; units 1–3 (`pipeline`, `task`, `pod`) landed — evidence in `## Status`; the remaining eight and their order: opencharly/spec#304 |
 | CHAIN | 3 | 2.3 | spec > sdk > charly | the generator must emit before the hand-written types are deleted | gs spec @go( = 2859; @go(-) = 82; hand_state_types.go = 1 |
 | CHAIN | 3 | 2.6 | spec > sdk > charly | the envelope key set is a schema fact before it is a type | gs spec compiled_plugins?: = 1 (schema/node.cue:191); verb_primaries?: = 1 (:206) |
 | CHAIN | 3 | 2.7 | spec > sdk > charly | a rule must exist in the schema before the Go seam can be deleted | gs sdk LoadSeams = 41; loaderkit/node_validate.go, cue_validate.go present |
