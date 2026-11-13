@@ -62,7 +62,7 @@ command:restart	plugin-pod/candy/plugin-pod/pod_cmd.go	119-119	-	c5ac749e4ceea62
 command:secrets	plugin-secrets/candy/plugin-secrets/command.go	115-126	Run	ef31a3b697310449
 command:ssh	plugin-ssh/candy/plugin-ssh/tunnel.go	27-41	SshTunnelCmd	44462a4022d4c1b2
 command:strata	plugin-strata/candy/plugin-strata/charly.yml	33-34	-	6b82fed826233983
-command:task	plugin-task/candy/plugin-task/plugin.go	59-64	NewMeta	08015af1fd19c55f
+command:task	plugin-task/candy/plugin-task/plugin.go	50-66	NewMeta	9b691de500778450
 command:tmux	plugin-agent/candy/plugin-agent/tmux_compat.go	21-36	TmuxCompatCmd	c32c271c55545811
 command:udev	plugin-udev/candy/plugin-udev/command.go	72-77	UdevCmd	9f8fe33495a775a3
 command:update	charly/charly/commands.go	29-41	podUpdateCmd	9e99857a4e6f92aa
@@ -92,7 +92,6 @@ kind:resource	plugin-resource/candy/plugin-resource/schema/resource.cue	21-27	#R
 kind:sidecar	plugin-sidecar/candy/plugin-sidecar/schema/sidecar.cue	48-89	#ScSecurity	ba51088a37c53e10
 kind:skill	plugin-harness-kind/candy/plugin-harness-kind/schema/skill.cue	19-32	#SkillInput	faefee417399e060
 kind:skill	spec/schema/skill.cue	33-38	-	62a70d2225cf652c
-kind:task	spec/schema/task.cue	41-88	#Task	2376e7ffd7e88f7c
 kind:theme	plugin-desktop-kind/candy/plugin-desktop-kind/schema/desktop.cue	16-69	#DkThemeTokens	dafbc7fdaa15f299
 krun annotations ram_mib/cpus	plugin-vm/candy/plugin-vm/vm_krun_plan.go	272-273	buildKrunPlan	0b01984f4ee4e034
 krun annotations ram_mib/cpus	spec/schema/vm.cue	38-57	#VmKrun	204121836b28f036
@@ -148,7 +147,6 @@ verb:dns	plugin-dns/candy/plugin-dns/schema/dns.cue	1-12	-	f00a37be51239e61
 verb:egress	plugin-egress/candy/plugin-egress/main.go	145-145	validateInput	504f8529d34ab7c1
 verb:enc	plugin-enc/candy/plugin-enc/enc.go	1-24	-	41dd0ae1fe3a5974
 verb:file	plugin-file/candy/plugin-file/schema/file.cue	1-45	#FileInput	9fc785d74dfa7ea9
-verb:git-submodules	plugin-task/candy/plugin-task/schema/task.cue	9-16	#TaskInput	78ecb699110b3e96
 verb:gpu	plugin-gpu/candy/plugin-gpu/main.go	40-80	Invoke	c5bcb8792efa2119
 verb:http	plugin-http/candy/plugin-http/schema/http.cue	1-40	#HttpInput	8291027e28ded5d4
 verb:k8sgen	plugin-k8sgen/candy/plugin-k8sgen/main.go	2-2	-	a751c4a73492c500
@@ -163,12 +161,10 @@ verb:package	plugin-package/candy/plugin-package/schema/package.cue	1-14	-	06488
 verb:pipeline	plugin-pipeline/candy/plugin-pipeline/plugin.go	55-80	Invoke	25e0139094355254
 verb:port	plugin-port/candy/plugin-port/schema/port.cue	1-10	-	c43cf0991e3f1112
 verb:process	plugin-process/candy/plugin-process/schema/process.cue	1-6	-	fe1db44720836407
-verb:prune	plugin-task/candy/plugin-task/schema/task.cue	22-28	-	25d0cd3e0fc81a1a
 verb:punktfunk	plugin-punktfunk/candy/plugin-punktfunk/schema/punktfunk.cue	21-26	#PunktfunkInput	07e47f5a3a4966a7
 verb:record	plugin-record/candy/plugin-record/schema/record.cue	1-40	#RecordInput	77c2f5e8a1717026
 verb:retention	plugin-clean/candy/plugin-clean/provider.go	30-70	invokeCleanCLI	3cac06fc93498057
 verb:service	plugin-service/candy/plugin-service/schema/service.cue	1-45	#ServiceInput	cd6330abac258762
-verb:task	plugin-task/candy/plugin-task/schema/task.cue	1-4	-	33841979c9ff5fd7
 verb:transcode	plugin-media/candy/plugin-media/schema/transcode.cue	1-8	-	fe2d47559ccfdf36
 verb:tunnel	plugin-tunnel/candy/plugin-tunnel/schema/tunnel.cue	1-20	-	20355dbbffc8b2f2
 verb:unit	plugin-unit/candy/plugin-unit/schema/unit.cue	1-8	-	eac7738edf374be5

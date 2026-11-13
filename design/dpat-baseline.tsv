@@ -172,6 +172,7 @@ plugin-sidecar/candy/plugin-sidecar/schema/sidecar.cue	union	env?: {[string]: (s
 plugin-sidecar/candy/plugin-sidecar/schema/sidecar.cue	union	parameter?: {[string]: (string | number | bool)}	1
 plugin-sidecar/candy/plugin-sidecar/schema/sidecar.cue	union	cgroupns?: "host" | "private" | ""	1
 plugin-sidecar/candy/plugin-sidecar/schema/sidecar.cue	union	ipc_mode?: "host" | "private" | "shareable" | ""	1
+plugin-task/candy/plugin-task/schema/task.cue	absence	env?: {PATH?: _|_, [string]: schema.#StrVal} @go(Env,type=map[string]string)	1
 plugin-unit/candy/plugin-unit/schema/unit.cue	union	scope?: "system" | "user"	1
 plugin-vision/candy/plugin-vision/schema/vision.cue	union	mime?: *"image/png" | "image/jpeg" | "image/webp" | "image/gif"	1
 plugin-vnc/candy/plugin-vnc/schema/vnc.cue	union	method: "status" | "screenshot" | "click" | "mouse" | "type" | "key" | "rfb" | "session"	1
@@ -289,7 +290,6 @@ spec/schema/oci.cue	close	#PluginArtifactMetadata: close({	1
 spec/schema/resolvedproject.cue	absence	env?: {PATH?: _|_, [string]: #StrVal} @go(Env,type=map[string]string)	1
 spec/schema/skill.cue	close	#Skill: close({	1
 spec/schema/skill.cue	close	#SkillReference: close({	1
-spec/schema/task.cue	absence	env?: {PATH?: _|_, [string]: #StrVal} @go(Env,type=map[string]string)	1
 spec/schema/validateproject.cue	open	diagnostics?: {...} @go(Diagnostics,type=Diagnostics)	1
 spec/schema/vm.cue	absence	box?: _|_	6
 spec/schema/vm.cue	absence	transport?: _|_	4
