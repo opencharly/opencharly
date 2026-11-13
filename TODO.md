@@ -169,12 +169,12 @@ the entry says otherwise:
   class the item names. Nothing was archived and nothing needed to be; the surviving-scope census,
   with its commands and their live-word controls, is §12.4.
 
-**In progress — `2.1`'s unit 1 of eleven is DONE (the `pipeline` kind), and the ITEM stays `open`.**
-`2.1` asks for *each* kind body to move into its plugin's CUE module. One of the eleven host-value-gated
-kinds has moved; the tracker is `opencharly/spec#304`, which stays open for the remaining ten. Unit 1
-landed across seven PRs in four repos and one umbrella pin wave, measured at the pins that wave set
-(`spec` `9301181`, `sdk` `4aabb80`, `charly` `36c2dc4a`, `plugin-pipeline` `b32a25e`, `plugin-task`
-`8faff1f`):
+**In progress — `2.1`'s units 1–2 of eleven are DONE (the `pipeline` and `task` kinds), and the ITEM
+stays `open`.** `2.1` asks for *each* kind body to move into its plugin's CUE module. Two of the eleven
+host-value-gated kinds have moved; the tracker is `opencharly/spec#304`, which stays open for the
+remaining nine. **Unit 1 (`pipeline`) landed 2026-11-12** across seven PRs in four repos and one umbrella
+pin wave, measured at the pins that wave set (`spec` `9301181`, `sdk` `4aabb80`, `charly` `36c2dc4a`,
+`plugin-pipeline` `b32a25e`, `plugin-task` `8faff1f`):
 
 | # | repo | PR | what it did | squash (40) | merge tag |
 |---|---|---|---|---|---|
@@ -187,13 +187,13 @@ landed across seven PRs in four repos and one umbrella pin wave, measured at the
 | 4c | `charly` | #1126 | pins `sdk`+`spec` in lockstep and teaches the corpus sweep the provider-declared `InputDef` | `6ee41d87acdb6b65d98367567814a24c42f9737b` | `v2026.316.2018` |
 | pin | umbrella | #996 | advances the four pins | `14bee67c50addad260fd1f9934fa4b6ff6f025a0` | `v2026.316.2127` |
 
-**What it measured.** `KindValueDefs` 11 → 10 (the `pipeline` word gone); the `#<Word>Value` defs
-12 → 11; `spec/schema` keeps 13 kind bodies and exactly one `#Pipeline*` def (`#PipelineClassRoutes`);
+**Unit 1 — what it measured.** `KindValueDefs` 11 → 10 (the `pipeline` word gone); the `#<Word>Value` defs
+12 → 11; `spec/schema` kept 13 kind bodies and exactly one `#Pipeline*` def (`#PipelineClassRoutes`);
 `plugin-pipeline`'s schema went 7 → 20 `#Pipeline*` defs (the 13 moved in). The 8 lowering goldens are
 byte-identical across the move (equal blob ids), and the 34-case closedness corpus moved with the defs
 rather than being deleted.
 
-**The census relocated; it did not grow.** `#945` tolerates 357 D-PAT violations at these pins with every
+**Unit 1's census relocated; it did not grow.** `#945` tolerates 357 D-PAT violations at these pins with every
 per-rule count unchanged (close 54, absence 86, open 68, opaque 0, dup 7, union 142), and the emission's
 four changed rows are four RE-HOMED keys (`env?`, `charly?`, `approval?`, `entities?`) from
 `spec/schema/pipeline.cue` to `plugin-pipeline/candy/plugin-pipeline/schema/pipeline.cue` — four removed,
@@ -203,11 +203,11 @@ ever" would be false. The design ledgers follow with 17 citations re-anchored: t
 name citations to the plugin's def set, three `plugin-pipeline/…/cli.go` line citations whose bytes
 drifted, and the two on the `pooled fan-out (lanes)` row.
 
-**The contract this unit proved — it binds every remaining kind.** A kind that moves its body into its
+**The contract unit 1 proved — it binds every remaining kind.** A kind that moves its body into its
 plugin **must** declare that def on the `kind` capability as `InputDef: "#<Word>Value"`. Without it the
 kind falls to the flat plugin-input path, which is `Concrete` (not closedness-only), so authored bodies
-start failing. `plugin-pipeline` declares `#PipelineValue`; `plugin-task` declares no kind `InputDef`
-today, so **unit 2 (`task`) must add `InputDef: "#TaskValue"` in the same change**.
+start failing. `plugin-pipeline` declares `#PipelineValue`; **unit 2 (`task`) added
+`InputDef: "#TaskValue"` in its own change**, so the rule is held by two kinds now, not one.
 
 **The corpus-sweep trap, measured on one tree.** `charly/kind_value_corpus_sweep_test.go` selected
 bodies with `spec.KindValueDefs[pn.Disc]`; with `#PipelineValue` deleted from `spec`, that predicate
@@ -265,19 +265,177 @@ $ go test ./charly -run 'TestSweepLoopJudgesAPluginDeclaredGateDef|TestSweepSele
 
 **Every kind move must teach the sweep in the same change.**
 
-**What remains: ten of the eleven units**, in `opencharly/spec#304`'s measured order (unchanged):
-`task` (with the `InputDef`), `pod`, `local`, `kubernetes`+`kindcluster`, `kubevirt`, `firecracker`
-(its plugin is not a pinned umbrella submodule — `git config -f .gitmodules --get
+**Unit 2 (`task`) landed 2026-11-13** as four legs in four repos, then one umbrella pin wave. Each
+`squash` below is the commit its own merge tag points at, read from the remote:
+
+```
+$ git -C plugin-task ls-remote --tags origin | grep -E 'v2026\.316\.2347$|candy/plugin-task/v0\.2026316\.2347$'
+b3264bc137e3400b1a717d0ea83a96c0f8b69349	refs/tags/candy/plugin-task/v0.2026316.2347
+b3264bc137e3400b1a717d0ea83a96c0f8b69349	refs/tags/v2026.316.2347
+$ git -C sdk ls-remote --tags origin | grep 'v0.2026317.18'
+44ede404ed382a8aec736497ae8e6cb8b6926ae4	refs/tags/v0.2026317.18
+$ git -C spec ls-remote --tags origin | grep 'v0.2026317.51'
+906f736b23a0ad12d6b880c0a6cf01a2ab4dfd31	refs/tags/v0.2026317.51
+$ git -C charly ls-remote --tags origin | grep 'v2026.317.0159'
+6b83a055367966625fa3f3a44337b1f74d460b9c	refs/tags/v2026.317.0159
+$ git ls-remote --tags origin | grep 'v2026.317.0355'
+fda7f9dd243ac0e87dbc433e098f84b09af8d318	refs/tags/v2026.317.0355
+```
+
+| # | repo | PR | what it did | squash (40) | merge tag |
+|---|---|---|---|---|---|
+| 1 | `plugin-task` | #66 | owns the `kind:task` body (`#Task`, `#TaskValue`, `#TaskInput`) in its own CUE module, declares `InputDef: "#TaskValue"`, takes the task-shaped helpers home | `b3264bc137e3400b1a717d0ea83a96c0f8b69349` | `v2026.316.2347` |
+| 2 | `sdk` | #503 | deletes the task-shaped helpers `plugin-task` now owns (`sdk/workflowkit`) | `44ede404ed382a8aec736497ae8e6cb8b6926ae4` | `v0.2026317.18` |
+| 3 | `spec` | #306 | deletes the `#Task`/`#TaskValue` body defs, keeps `#TaskParamSpec`, regenerates | `906f736b23a0ad12d6b880c0a6cf01a2ab4dfd31` | `v0.2026317.51` |
+| 4 | `charly` | #1128 | pins `plugin-task`+`sdk`+`spec` in lockstep and retargets the `task`-kind fixtures | `6b83a055367966625fa3f3a44337b1f74d460b9c` | `v2026.317.0159` |
+| pin | umbrella | #998 | advances the four pins and re-homes the `#Task` census row | `fda7f9dd243ac0e87dbc433e098f84b09af8d318` | `v2026.317.0355` |
+
+**Unit 2 — what it measured.** Measured at the pins `#998` set, each of them the CHANGELOG commit
+one step above the leg's squash — `spec` `64f85a36`, `sdk` `24279093`, `charly` `9a988fe7`,
+`plugin-task` `c83a5cac` — and, for the before/after, at unit 1's own pins. `spec.KindValueDefs` fell
+10 → 9 and spec's `#<Word>Value` defs 11 → 10, so **12** kind bodies remain in `spec/schema` — 14
+before unit 1, 13 before unit 2, over the same 14 kind words `opencharly/spec#304` enumerates.
+`spec/schema/task.cue` is **26 lines** at the pin and declares exactly one def, `#TaskParamSpec`;
+`plugin-task` owns `#Task` (`task.cue:201`) and `#TaskValue` (`:255`) and declares the capability as
+`InputDef: "#TaskValue"` (`plugin.go:52`).
+
+```
+$ for rev in 721eac74d13b 9301181694cd 64f85a369c32; do printf '%s KindValueDefs=' "$rev"; git -C spec show $rev:spec/vocab_gen.go | awk '/^var KindValueDefs = map/,/^}/' | grep -cE '^[[:space:]]+"[a-z]+":[[:space:]]+"#'; done
+721eac74d13b KindValueDefs=11
+9301181694cd KindValueDefs=10
+64f85a369c32 KindValueDefs=9
+$ for rev in 721eac74d13b 9301181694cd 64f85a369c32; do printf '%s #<Word>Value=' "$rev"; git -C spec grep -hcE '^#[A-Za-z]+Value:' $rev -- 'schema/*.cue' | awk -F: '{s+=$NF} END{print s+0}'; done
+721eac74d13b #<Word>Value=12
+9301181694cd #<Word>Value=11
+64f85a369c32 #<Word>Value=10
+$ for rev in 721eac74d13b 9301181694cd 64f85a369c32; do printf '%s kind bodies in spec/schema = ' "$rev"; n=0; for k in Candy Box Deploy Vm Pod Local Kubernetes Android Kindcluster KubeVirt Firecracker Task Pipeline LibvirtDomain; do git -C spec grep -qE "^#$k:" $rev -- 'schema/*.cue' && n=$((n+1)); done; echo $n; done
+721eac74d13b kind bodies in spec/schema = 14
+9301181694cd kind bodies in spec/schema = 13
+64f85a369c32 kind bodies in spec/schema = 12
+$ git -C spec show 64f85a369c32:schema/task.cue | wc -l
+26
+$ git -C spec grep -cE '^#[A-Za-z0-9]+:' 64f85a369c32 -- 'schema/task.cue'
+64f85a369c32:schema/task.cue:1
+$ git -C plugin-task grep -nE '^#Task(Value)?:' c83a5cac944fd59 -- 'candy/plugin-task/schema/task.cue'
+c83a5cac944fd59:candy/plugin-task/schema/task.cue:201:#Task: {
+c83a5cac944fd59:candy/plugin-task/schema/task.cue:255:#TaskValue: #Task @go(-)
+$ git -C plugin-task grep -n 'InputDef: "#TaskValue"' c83a5cac944fd59 -- '*.go'
+c83a5cac944fd59:candy/plugin-task/plugin.go:52:		{Class: "kind", Word: "task", Validates: true, InputDef: "#TaskValue"},
+```
+
+**Unit 2's census is a RELOCATION, not a loss.** Both sides carry 301 non-comment lines — 300 violation
+rows plus the `file/rule/symbol/count` header — and the last-column sum is **357** both times, with every
+per-rule total identical. Exactly **one** row is re-homed: `spec/schema/task.cue`'s
+`env?: {PATH?: _|_, [string]: #StrVal}` becomes `plugin-task`'s copy, differing only by the `schema.`
+qualification. `#945`'s `dup` rows are still 7 over 3 definition names, so `#950`'s dependency still
+holds.
+
+```
+$ for rev in 6e7b61f fda7f9d; do printf '%s non-comment lines ' $rev; git show $rev:design/dpat-baseline.tsv | grep -vc '^#\|^$'; done
+6e7b61f non-comment lines 301
+fda7f9d non-comment lines 301
+$ for rev in 6e7b61f fda7f9d; do printf '%s ' $rev; git show $rev:design/dpat-baseline.tsv | awk -F'\t' '!/^#/ && NF>0 && $1!="file" {r++; s+=$4} END {printf "rows %d sum %d\n", r, s}'; done
+6e7b61f rows 300 sum 357
+fda7f9d rows 300 sum 357
+$ for rev in 6e7b61f fda7f9d; do printf '%s  ' $rev; git show $rev:design/dpat-baseline.tsv | awk -F'\t' '!/^#/ && NF>0 && $1!="file" {c[$2]+=$4} END {for (r in c) printf "%s %d  ", r, c[r]}' | tr -s ' '; echo; done
+6e7b61f  union 142 dup 7 open 68 absence 86 close 54 
+fda7f9d  union 142 dup 7 open 68 absence 86 close 54 
+$ git diff 6e7b61f fda7f9d -- design/dpat-baseline.tsv | grep -E '^[+-][a-z]'
++plugin-task/candy/plugin-task/schema/task.cue	absence	env?: {PATH?: _|_, [string]: schema.#StrVal} @go(Env,type=map[string]string)	1
+-spec/schema/task.cue	absence	env?: {PATH?: _|_, [string]: #StrVal} @go(Env,type=map[string]string)	1
+```
+
+**Unit 2's citations: 5, not 17.** Both ledgers re-anchored the same five keys, and what moved was a
+RANGE and a DIGEST, never a def name — `command:task` (its bytes moved, `plugin.go` `59-64` → `50-66`),
+`kind:task` (its range is GONE: the citation named `spec/schema/task.cue:41-88` and that file is 26 lines
+at the pin, so it now cites `plugin-task`'s `#Task`/`#TaskValue` plus spec's `#TaskParamSpec`), and three
+construct-moved rows (`verb:task`, `verb:git-submodules`, `verb:prune`) whose line ranges became the
+symbolic def names `#TaskInput`, `#GitSubmodulesInput`, `#PruneInput`. Unit 1 caught 17 anchors and unit 2
+caught 5; this file records both counts and does not claim a cause for the difference.
+
+```
+$ git diff 6e7b61f fda7f9d -- design/cite-baseline.tsv | grep -E '^[+-][a-z]' | cut -f1 | sed 's/^[+-]//' | sort -u
+command:task
+kind:task
+verb:git-submodules
+verb:prune
+verb:task
+$ git diff 6e7b61f fda7f9d -- design/dulling.tsv | grep -E '^[+-][a-z]' | cut -f1 | sed 's/^[+-]//' | sort -u
+command:task
+kind:task
+verb:git-submodules
+verb:prune
+verb:task
+```
+
+**A category no prior brief anticipated: a pin advance moves a VERSION SENTINEL.** Three prose files cited
+`plugin-task v0.2026300.951` while the pinned `charly` compiles `v0.2026316.2347`, so `charly.yml`,
+`scripts/check-retired-claims.mjs` and `scripts/sync-pr-body.sh` were re-keyed — and the line citations
+beside the sentinel drifted with it (`verbs.go:981` → `:987`, `verbs.go:801` → `:807`). **The pre-commit
+gate refused the first commit over it.** The trap is that `plugin-task` carries TWO tags on one commit —
+`v2026.316.2347` (the release tag) and `candy/plugin-task/v0.2026316.2347` (the Go-module tag its
+subdirectory needs — see the unit-2 tag fence above) — and the prose sentinel must name the MODULE
+version, not the release one. The control is `scripts/check-cited-plugin-task-version.mjs`, which
+re-derives the version from the pinned `charly`'s `go.mod`; in a worktree whose pinned `charly` is not
+checked out it SKIPS visibly rather than judging, so the reading that counts is the one in a materialized
+tree.
+
+```
+$ git -C charly show 9a988fe793b22a10748cd5fab1c1bef45f868650:charly/go.mod | grep 'plugin-task'
+	github.com/opencharly/plugin-task/candy/plugin-task v0.2026316.2347
+$ grep -rn 'plugin-task v0\.2026316\.2347' charly.yml scripts/check-retired-claims.mjs scripts/sync-pr-body.sh | cut -d: -f1,2
+charly.yml:254
+scripts/check-retired-claims.mjs:310
+scripts/sync-pr-body.sh:498
+```
+
+**The decisive correction for every kind is a CROSS-PLUGIN REFERENCE, and no gate will tell you.** The
+one correction unit 2's own plan needed was `#TaskParamSpec`: `plugin-pipeline`'s schema types a
+pipeline's `args:` as `{[string]: schema.#TaskParamSpec}` (`candy/plugin-pipeline/schema/pipeline.cue:354`)
+and `plugin-task`'s own body types its `params:` the same way (`task.cue:244`) — and a plugin's CUE module
+can import only the CONTRACT module, never another plugin's, so the first such reference moves a def out
+of the movable set and pins it in `spec` permanently. Unit 1 hit the same shape from the other side
+(`#PipelineClassRoutes` stayed because only spec's own vocabulary generator can extract a table over
+spec's own `#ProviderClassNames`). **Finding it requires reading OTHER plugins' schemas, not the one
+being moved** — the moving def's own file says nothing about who else cites it — and no gate in the chain
+reports it: the move compiles, the corpus sweep passes, and the failure surfaces only when the OTHER
+plugin's schema stops resolving. The cheap instrument is one sweep of every pinned plugin module's CUE for
+`schema.#` citations, and it is worth running BEFORE the first leg of each remaining unit:
+
+```
+$ for p in $(git ls-tree --name-only origin/main | grep '^plugin-'); do s=$(git ls-tree origin/main -- "$p" | awk '{print $3}'); git -C "$p" grep -ho 'schema\.[#][A-Za-z0-9_]*' "$s" -- '*.cue' 2>/dev/null; done | sed 's/^schema\.//' | sort | uniq -c | sort -rn
+      5 #StrVal
+      4 #WorkflowArgVal
+      3 #Step
+      2 #TaskParamSpec
+      2 #LLMSpec
+      1 #TunnelConfig
+      1 #LLMParams
+      1 #EntityRef
+      1 #Duration
+```
+
+Nine defs are cross-plugin-cited at these pins, and `#TaskParamSpec` is the only one that belongs to a
+kind — the other eight are shared vocabulary, which is why the remaining nine units have no other
+ALREADY-VISIBLE kind-body pin. `#Step` is the one the next nine will need most: it is already cited 3
+times from `plugin-pipeline` and `plugin-task`, so it stays in the contract module when `candy`+`#Box` —
+whose `plan:` uses it — moves.
+
+**What remains: nine of the eleven units**, in `opencharly/spec#304`'s measured order:
+`pod`, `local`, `kubernetes`+`kindcluster`, `kubevirt`, `firecracker` (its plugin is not a
+pinned umbrella submodule — `git config -f .gitmodules --get
 submodule.plugin-firecracker.path` exits 1, with the `plugin-pipeline` path as the live-word control —
 so a pin comes first), `vm`+`#LibvirtDomain`, `candy`+`#Box`, `android` (no owning plugin yet; served
 only by `plugin-substrate`'s echo arm), `deploy` (`#Deploy`/`#DeployValue`, the shared disjunct every
 substrate arm uses, last). Until those land, `#950`'s dependency holds and `#945`'s census cannot move
 past its `dup` rows; `2.1` also gates `4.1`, `2.3` and `2.16`.
 
-**The table is re-summed from its own rows, never typed, and it is unchanged** because `2.1` stays
-`open` (the old and the new totals are the same line):
+**The table is re-summed from its own rows, never typed, at the base commit and at this tree — and it is
+unchanged** because `2.1` stays `open` (the old and the new totals are the same line):
 
 ```
+$ git show 48daf75:TODO.md | awk -F'|' '/^## Status/{f=1} /^The Decisions row/{f=0} f && NF==7 && $2 !~ /section/ && $2 !~ /---/ && $2 !~ /Total/ {i+=$3; d+=$4; o+=$5; m+=$6} END {printf "items %d done %d open %d moved %d\n", i,d,o,m}'
+items 107 done 10 open 82 moved 15
 $ awk -F'|' '/^## Status/{f=1} /^The Decisions row/{f=0} f && NF==7 && $2 !~ /section/ && $2 !~ /---/ && $2 !~ /Total/ {i+=$3; d+=$4; o+=$5; m+=$6} END {printf "items %d done %d open %d moved %d\n", i,d,o,m}' TODO.md
 items 107 done 10 open 82 moved 15
 ```
@@ -328,7 +486,7 @@ Still open:
 
 | # | Current state (evidence) | Target | Config migration | Code work |
 |---|---|---|---|---|
-| 2.1 | Kind schemas (`#Candy`, `#Box`, `#Deploy`, `#Vm`, `#Pod`, `#Local`, `#Kubernetes`, `#Android`, `#LibvirtDomain`, …) live in `spec/schema`, with `#<Kind>Value` twins; plugin-substrate and plugin-candy only echo host-decoded values (`spec/schema/node.cue`). **Measured correction (2026-11-12):** the D-PAT census (`#945`) is the whole census — 382 violations before `plugin-pipeline#60`, 357 after — and this item unblocks only its `dup` rows (19 over 9 definition names before, 7 over 3 after), not 382. Its chain is 13 units, not the four legs summarized in section 12.1: unit 0 is a `charly` host-gate change (`validateKindValueCUE` reads `spec.KindValueDefs` plus a base-only schema while a plugin definition lands in `pluginSchemas.unified`); the full table is at `opencharly/spec#304`. **Unit 1 of 11 landed 2026-11-12:** the `pipeline` body is `plugin-pipeline`'s own CUE now (the contract module keeps one `#Pipeline*` def, `#PipelineClassRoutes`), `spec.KindValueDefs` reads 11 → 10 and its `#<Word>Value` defs 12 → 11, and 13 kind bodies remain in `spec/schema`; the other ten units are unchanged at `opencharly/spec#304` and the evidence is in `## Status`. | D-SCH-1, D-SCH-3 | none | Move each schema into its plugin's CUE module; delete the twins and the echo plugins. |
+| 2.1 | Kind schemas (`#Candy`, `#Box`, `#Deploy`, `#Vm`, `#Pod`, `#Local`, `#Kubernetes`, `#Android`, `#LibvirtDomain`, …) live in `spec/schema`, with `#<Kind>Value` twins; plugin-substrate and plugin-candy only echo host-decoded values (`spec/schema/node.cue`). **Measured correction (2026-11-12):** the D-PAT census (`#945`) is the whole census — 382 violations before `plugin-pipeline#60`, 357 after — and this item unblocks only its `dup` rows (19 over 9 definition names before, 7 over 3 after), not 382. Its chain is 13 units, not the four legs summarized in section 12.1: unit 0 is a `charly` host-gate change (`validateKindValueCUE` reads `spec.KindValueDefs` plus a base-only schema while a plugin definition lands in `pluginSchemas.unified`); the full table is at `opencharly/spec#304`. **Units 1–2 of 11 landed:** unit 1 (`pipeline`) on 2026-11-12 — the body is `plugin-pipeline`'s own CUE now (the contract module keeps one `#Pipeline*` def, `#PipelineClassRoutes`), `spec.KindValueDefs` 11 → 10 and its `#<Word>Value` defs 12 → 11; unit 2 (`task`) on 2026-11-13 across `plugin-task` #66, `sdk` #503, `spec` #306, `charly` #1128 and the umbrella pin wave #998 — the body is `plugin-task`'s now and the contract module keeps exactly one def for this kind, `#TaskParamSpec`, because `plugin-pipeline`'s schema types `args:` as `{[string]: schema.#TaskParamSpec}` and a plugin's CUE module can import only the contract module, so `spec.KindValueDefs` reads 10 → 9, its `#<Word>Value` defs 11 → 10, and 12 kind bodies remain in `spec/schema`; the other nine units and their order are unchanged at `opencharly/spec#304` and the evidence is in `## Status`. | D-SCH-1, D-SCH-3 | none | Move each schema into its plugin's CUE module; delete the twins and the echo plugins. |
 | 2.2 | 104 of 117 plugin schemas are "self-contained" and copy shared shapes (`#HttpMatcherList`, `#FileMatcher`, `#MountMatcher`, …). | D-SCH-2 | none | Import `spec/envelope`; delete the copies. |
 | 2.3 | 486 `@go(…,type=…)` overrides (2,859 `@go(…)` calls in all), 82 `@go(-)` uses and hand-written Go types in `spec` (e.g. `hand_state_types.go`) — counted 2026-11-12. | D-SCH-1, D-GEN-3 | none | Generate every type; keep only behaviour methods. |
 | 2.4 | A second field gate: the loader's `candyKnownFields` still admits the removed `version` (`sdk/loaderkit/parse_candy_manifest.go:224`). | D-CANDY-1, D-LOAD-2 | none | Delete it. |
@@ -568,7 +726,7 @@ repository's window, not on a claim.
 
 | bucket | n | item | producer-first legs | forcing edge | measured anchor |
 |---|---|---|---|---|---|
-| CHAIN | 4 | 2.1 | spec > sdk > charly > plugin repositories | charly cannot compose a plugin CUE module before sdk can fetch and type it | gs spec `^#[A-Za-z]+Value:` = 11 defs (12 before unit 1); 13 kind bodies still in `spec/schema`; unit 1 (`pipeline`) landed — evidence in `## Status`; the remaining ten and their order: opencharly/spec#304 |
+| CHAIN | 4 | 2.1 | spec > sdk > charly > plugin repositories | charly cannot compose a plugin CUE module before sdk can fetch and type it | gs spec `^#[A-Za-z]+Value:` = 10 defs (12 before unit 1, 11 before unit 2); 12 kind bodies still in `spec/schema`; units 1–2 (`pipeline`, `task`) landed — evidence in `## Status`; the remaining nine and their order: opencharly/spec#304 |
 | CHAIN | 3 | 2.3 | spec > sdk > charly | the generator must emit before the hand-written types are deleted | gs spec @go( = 2859; @go(-) = 82; hand_state_types.go = 1 |
 | CHAIN | 3 | 2.6 | spec > sdk > charly | the envelope key set is a schema fact before it is a type | gs spec compiled_plugins?: = 1 (schema/node.cue:191); verb_primaries?: = 1 (:206) |
 | CHAIN | 3 | 2.7 | spec > sdk > charly | a rule must exist in the schema before the Go seam can be deleted | gs sdk LoadSeams = 41; loaderkit/node_validate.go, cue_validate.go present |
