@@ -87,7 +87,6 @@ kind:firecracker	spec/schema/firecracker.cue	35-61	#Firecracker	77d4112bca573e60
 kind:group	charly/charly/no_kind_switch_in_kernel_test.go	42-42	-	19a40f2967852815
 kind:hook	spec/schema/hook.cue	12-20	#Hook	a818367685f46363
 kind:local	spec/schema/local.cue	9-16	#Local	578bfc988c94086f
-kind:pod	spec/schema/pod.cue	10-19	#Pod	c69c414d1af3795a
 kind:resource	plugin-resource/candy/plugin-resource/schema/resource.cue	21-27	#ResourceInput	923be81c20e14952
 kind:sidecar	plugin-sidecar/candy/plugin-sidecar/schema/sidecar.cue	48-89	#ScSecurity	ba51088a37c53e10
 kind:skill	plugin-harness-kind/candy/plugin-harness-kind/schema/skill.cue	19-32	#SkillInput	faefee417399e060
