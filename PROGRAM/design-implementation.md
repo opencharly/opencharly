@@ -250,13 +250,13 @@ No wave closes holding an unregistered IOU, and the next wave's plan is built fr
 | IOU-07 | `12.14`'s digest preflight for charts | the reference grammar carrying the digest | P23 | W3 | open |
 | IOU-08 | the two pins that were `behind` (`sdk`, `dotgithub`) | one pin wave (`charly task sync` + PR) | Lead | W0 | collected — umbrella #1004 (`4a6111f`) |
 | IOU-09 | `TODO.md`'s rows are keyed to their `D-*` requirements but not to DESIGN §1.1's mechanism rows and not to a `design/parity.tsv` row (`opencharly/opencharly#594`'s third scope line) | the parity ledger's shape is settled and green; the key is an umbrella-only analysis over the existing rows | Lead | W7 | open |
-| IOU-10 | `distro-cachyos` is `derived-from:charly` and `blocked-by charly:box/cachyos` (not-on-the-served-line) | a `charly` pin wave to the commit that serves `box/cachyos` (the `charly` pin itself trails its tip) | Lead | W0 | open |
+| IOU-10 | `distro-cachyos` is `derived-from:charly` and `blocked-by charly:box/cachyos` (not-on-the-served-line), and `sdk`/`charly` trail their tips (opencharly/opencharly#1009) | a `charly` pin wave to the commit that serves `box/cachyos` (the `charly` pin itself trails its tip) | Lead | W0 | open |
 
 ### 6.2 Decisions the operator owns
 
 | id | question | blocks | recommendation |
 |---|---|---|---|
-| D-1 | `DESIGN.md` contradicts itself: `D-CLI-2` lists `config setup`, `candy set`/`add-<fmt>`/`params`, `vm clone`/`import` and `udev install` as writers, and `§22`'s group table omits them while `8.1` retires three of those renames | P37's `8.4` leg | correct `DESIGN.md` (the list becomes the post-8.1 set), because `§22`'s table is the command surface the design intends |
+| D-1 | `DESIGN.md` contradicts itself: `D-CLI-2` lists `config setup`, `candy set`/`add-<fmt>`/`params`, `vm clone`/`import` and `udev install` as writers, and `§22`'s group table omits them while `8.1` retires three of those renames — filed as opencharly/opencharly#1007 | P37's `8.4` leg | correct `DESIGN.md` (the list becomes the post-8.1 set), because `§22`'s table is the command surface the design intends |
 | D-2 | run the schema-first-parse spike (`0.3`) or waive it | P00 → P20 | run it: it can invalidate P20 before a `spec` PR is spent |
 | D-3 | `9.2` and `10.2` share one `marketplace` window | P39, P40 | `P39` then `P40` — the corpus is regenerated before the map is pointed at it |
 | D-4 | the width grant (slots), and confirming that every bed this programme runs is `disposable: true` | every wave | grant the width once; the disposable rule is not optional |
@@ -286,13 +286,14 @@ The list is the north-star protocol's part (c): every mis-step caught so far, na
 
 ### 6.5 Open measurements — claims this programme cannot yet check
 
-| claim | why unmeasured | owner |
-|---|---|---|
-| `5.4`'s "about 3.5k lines" of core domain logic | the row never defines the set; its six markers are measured individually | P33 (IOU-05) |
-| `5.1`'s `exec` size | 4,166 production Go lines measured; the row's "3.6k" matches no reproducible shape | P33 |
-| `5.5`'s "five placement paths", "three verb-dispatch branches", "two executor APIs" | not enumerated anywhere | P32 |
-| `7.2`'s "about 9 hand-built `.cache` paths" | occurrence counts reproduce, a distinct-path count does not | P05 |
-| `11.1`/`11.2` | the gates and the beds have not been run as a roster | P43 |
+| claim | why unmeasured | owner | filed |
+|---|---|---|---|
+| `5.4`'s "about 3.5k lines" of core domain logic | the row never defines the set; its six markers are measured individually | P33 (IOU-05) | opencharly/opencharly#1008 |
+| `5.1`'s `exec` size | 4,166 production Go lines measured; the row's "3.6k" matches no reproducible shape | P33 | opencharly/opencharly#1008 |
+| `5.5`'s "five placement paths", "three verb-dispatch branches", "two executor APIs" | not enumerated anywhere | P32 | opencharly/opencharly#1008 |
+| `7.2`'s "about 9 hand-built `.cache` paths" | occurrence counts reproduce, a distinct-path count does not | P05 | opencharly/opencharly#1008 |
+
+Rows `11.1` and `11.2` are **not** debt: they are the completion test (§1), unrun by design until the packages have landed, and no issue can retire them before then.
 
 ### 6.6 In flight — agents, PRs, beds, threads
 
@@ -316,7 +317,7 @@ rounds is an RCA on the estimating method, never another per-row reassignment.
 | the schema-pattern debt | `scripts/design-dpat.sh`'s census | 357 violations (close 54, absence 86, open 68, opaque 0, dup 7, union 142) — must not grow |
 | the design gate | `bash scripts/design-check.sh` | all controls pass |
 | the coverage census | the script in `TODO.md`'s `## Status` | 200 requirements, 0 unnamed |
-| pin currency | `charly task pins --param MODE=currency`, cross-checked against each repo's `origin/main` | three not current when measured; umbrella #1004 then advanced `sdk` and `dotgithub` (IOU-08 collected). At the `5d81005` base `sdk` (`e44f0ce` → `f5fb1c0`) and `charly` (`8514979` → `d4c1d55`) again trail the tips their remotes serve, and `distro-cachyos` stays blocked (IOU-10) |
+| pin currency | `charly task pins --param MODE=currency`, cross-checked against each repo's `origin/main` | three not current when measured; umbrella #1004 then advanced `sdk` and `dotgithub` (IOU-08 collected). At the `5d81005` base `sdk` (`e44f0ce` → `f5fb1c0`) and `charly` (`8514979` → `d4c1d55`) again trail the tips their remotes serve, and `distro-cachyos` stays blocked — filed as opencharly/opencharly#1009 (IOU-10) |
 | core's domain LOC | unmeasured (IOU-05) | — |
 
 ## 8. Update protocol
@@ -370,6 +371,12 @@ rounds is an RCA on the estimating method, never another per-row reassignment.
 - Tracker claimed: `opencharly/opencharly#1005` (the programme). `opencharly/opencharly#594` (the `TODO.md`
   re-derivation) is claimed with the evidence and stays open for its mechanism/parity keying, now IOU-09.
 - Still nothing implemented: every package remains `planned`, 0 teammates, no bed, no package PR.
+- Review round 1: the `charly/pr-validator` BLOCKed PR #1006 on two R1 findings — surfaced findings that were
+  recorded in this ledger but never FILED (a register entry is not a filed issue), and a body that claimed zero
+  findings while the pasted gate carried tracked baselines. Fixed by filing the findings as real issues
+  (#1007 the `DESIGN.md` contradiction, #1008 the four unmeasurable totals, #1009 the pin advance) and by
+  making every register row name the issue that owns it; `11.1`/`11.2` are stated as the completion test
+  rather than as debt.
 
 ### 2026-11-13 — the programme goal is armed
 

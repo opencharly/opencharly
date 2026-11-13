@@ -1409,8 +1409,8 @@ trace invites the same mistake back.
 20. **`D-CLI-2`'s allowed-writer list names commands DESIGN §22's group table does not carry**
     (`config setup`, `candy set`/`add-<fmt>`/`params`, `vm clone`/`import`/`import-container-disk`,
     `udev install`), and `8.1` withdraws three of those renames. One of the two texts must be
-    corrected before `8.4` can land. It is a DESIGN.md fix, recorded here because this file does not
-    edit the normative document.
+    corrected before `8.4` can land. It is a DESIGN.md fix, filed as opencharly/opencharly#1007 and
+    recorded here because this file does not edit the normative document.
 
 ### 12.7 Rulebook compliance
 
