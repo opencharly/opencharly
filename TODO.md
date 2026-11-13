@@ -315,7 +315,7 @@ $ for rev in 721eac74d13b 9301181694cd 64f85a369c32; do printf '%s kind bodies i
 $ git -C spec show 64f85a369c32:schema/task.cue | wc -l
 26
 $ git -C spec grep -cE '^#[A-Za-z0-9]+:' 64f85a369c32 -- 'schema/task.cue'
-schema/task.cue:1
+64f85a369c32:schema/task.cue:1
 $ git -C plugin-task grep -nE '^#Task(Value)?:' c83a5cac944fd59 -- 'candy/plugin-task/schema/task.cue'
 c83a5cac944fd59:candy/plugin-task/schema/task.cue:201:#Task: {
 c83a5cac944fd59:candy/plugin-task/schema/task.cue:255:#TaskValue: #Task @go(-)
