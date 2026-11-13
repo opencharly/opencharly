@@ -285,7 +285,7 @@ fda7f9dd243ac0e87dbc433e098f84b09af8d318	refs/tags/v2026.317.0355
 | # | repo | PR | what it did | squash (40) | merge tag |
 |---|---|---|---|---|---|
 | 1 | `plugin-task` | #66 | owns the `kind:task` body (`#Task`, `#TaskValue`, `#TaskInput`) in its own CUE module, declares `InputDef: "#TaskValue"`, takes the task-shaped helpers home | `b3264bc137e3400b1a717d0ea83a96c0f8b69349` | `v2026.316.2347` |
-| 2 | `sdk` | #503 | deletes the task-shaped helpers `plugin-task` now owns (`sdk/workflowkit`) | `44ede404ed382a8aec736497ae8e6cb8b6926ae4` | `v0.2026317.18` |
+| 2 | `sdk` | #503 | deletes the task-shaped helpers the task plugin now owns (`sdk/workflowkit`) | `44ede404ed382a8aec736497ae8e6cb8b6926ae4` | `v0.2026317.18` |
 | 3 | `spec` | #306 | deletes the `#Task`/`#TaskValue` body defs, keeps `#TaskParamSpec`, regenerates | `906f736b23a0ad12d6b880c0a6cf01a2ab4dfd31` | `v0.2026317.51` |
 | 4 | `charly` | #1128 | pins `plugin-task`+`sdk`+`spec` in lockstep and retargets the `task`-kind fixtures | `6b83a055367966625fa3f3a44337b1f74d460b9c` | `v2026.317.0159` |
 | pin | umbrella | #998 | advances the four pins and re-homes the `#Task` census row | `fda7f9dd243ac0e87dbc433e098f84b09af8d318` | `v2026.317.0355` |
@@ -369,16 +369,17 @@ verb:task
 ```
 
 **A category no prior brief anticipated: a pin advance moves a VERSION SENTINEL.** Three prose files cited
-`plugin-task v0.2026300.951` while the pinned `charly` compiles `v0.2026316.2347`, so `charly.yml`,
-`scripts/check-retired-claims.mjs` and `scripts/sync-pr-body.sh` were re-keyed — and the line citations
-beside the sentinel drifted with it (`verbs.go:981` → `:987`, `verbs.go:801` → `:807`). **The pre-commit
-gate refused the first commit over it.** The trap is that `plugin-task` carries TWO tags on one commit —
-`v2026.316.2347` (the release tag) and `candy/plugin-task/v0.2026316.2347` (the Go-module tag its
-subdirectory needs — see the unit-2 tag fence above) — and the prose sentinel must name the MODULE
-version, not the release one. The control is `scripts/check-cited-plugin-task-version.mjs`, which
-re-derives the version from the pinned `charly`'s `go.mod`; in a worktree whose pinned `charly` is not
-checked out it SKIPS visibly rather than judging, so the reading that counts is the one in a materialized
-tree.
+a plugin-task module version one release behind the pinned `charly`'s, so `charly.yml`,
+`scripts/check-retired-claims.mjs` and `scripts/sync-pr-body.sh` were re-keyed to `v0.2026316.2347` — and the
+line citations beside the sentinel drifted with it (`verbs.go:981` → `:987`, `verbs.go:801` → `:807`). **The
+pre-commit gate refused the first commit over it**; the retired literal itself is history, kept once in
+`CHANGELOG/2026.317.0537.md`, while this live record keeps the rule it taught. The trap is that `plugin-task`
+carries TWO tags on one commit — `v2026.316.2347` (the release tag) and
+`candy/plugin-task/v0.2026316.2347` (the Go-module tag its subdirectory needs — see the unit-2 tag fence
+above) — and the prose sentinel must name the MODULE version, not the release one. The control is
+`scripts/check-cited-plugin-task-version.mjs`, which re-derives the version from the pinned `charly`'s
+`go.mod`; in a worktree whose pinned `charly` is not checked out it SKIPS visibly rather than judging, so
+the reading that counts is the one in a materialized tree.
 
 ```
 $ git -C charly show 9a988fe793b22a10748cd5fab1c1bef45f868650:charly/go.mod | grep 'plugin-task'
@@ -403,7 +404,7 @@ plugin's schema stops resolving. The cheap instrument is one sweep of every pinn
 `schema.#` citations, and it is worth running BEFORE the first leg of each remaining unit:
 
 ```
-$ for p in $(git ls-tree --name-only origin/main | grep '^plugin-'); do s=$(git ls-tree origin/main -- "$p" | awk '{print $3}'); git -C "$p" grep -ho 'schema\.[#][A-Za-z0-9_]*' "$s" -- '*.cue' 2>/dev/null; done | sed 's/^schema\.//' | sort | uniq -c | sort -rn
+$ for p in $(git ls-tree --name-only origin/main | grep '^plugin-'); do s=$(git ls-tree origin/main -- ":(literal)$p" | awk '{print $3}'); git -C "$p" grep -ho 'schema\.[#][A-Za-z0-9_]*' "$s" -- '*.cue' 2>/dev/null; done | sed 's/^schema\.//' | sort | uniq -c | sort -rn
       5 #StrVal
       4 #WorkflowArgVal
       3 #Step
