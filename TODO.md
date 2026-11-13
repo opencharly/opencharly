@@ -290,11 +290,14 @@ fda7f9dd243ac0e87dbc433e098f84b09af8d318	refs/tags/v2026.317.0355
 | 4 | `charly` | #1128 | pins `plugin-task`+`sdk`+`spec` in lockstep and retargets the `task`-kind fixtures | `6b83a055367966625fa3f3a44337b1f74d460b9c` | `v2026.317.0159` |
 | pin | umbrella | #998 | advances the four pins and re-homes the `#Task` census row | `fda7f9dd243ac0e87dbc433e098f84b09af8d318` | `v2026.317.0355` |
 
-**Unit 2 — what it measured.** `spec.KindValueDefs` fell 10 → 9 and spec's `#<Word>Value` defs 11 → 10,
-so **12** kind bodies remain in `spec/schema` — 14 before unit 1, 13 before unit 2, over the same 14 kind
-words `opencharly/spec#304` enumerates. `spec/schema/task.cue` is **26 lines** at the pin and declares
-exactly one def, `#TaskParamSpec`; `plugin-task` owns `#Task` (`task.cue:201`) and `#TaskValue` (`:255`)
-and declares the capability as `InputDef: "#TaskValue"` (`plugin.go:52`).
+**Unit 2 — what it measured.** Measured at the pins `#998` set, each of them the CHANGELOG commit
+one step above the leg's squash — `spec` `64f85a36`, `sdk` `24279093`, `charly` `9a988fe7`,
+`plugin-task` `c83a5cac` — and, for the before/after, at unit 1's own pins. `spec.KindValueDefs` fell
+10 → 9 and spec's `#<Word>Value` defs 11 → 10, so **12** kind bodies remain in `spec/schema` — 14
+before unit 1, 13 before unit 2, over the same 14 kind words `opencharly/spec#304` enumerates.
+`spec/schema/task.cue` is **26 lines** at the pin and declares exactly one def, `#TaskParamSpec`;
+`plugin-task` owns `#Task` (`task.cue:201`) and `#TaskValue` (`:255`) and declares the capability as
+`InputDef: "#TaskValue"` (`plugin.go:52`).
 
 ```
 $ for rev in 721eac74d13b 9301181694cd 64f85a369c32; do printf '%s KindValueDefs=' "$rev"; git -C spec show $rev:spec/vocab_gen.go | awk '/^var KindValueDefs = map/,/^}/' | grep -cE '^[[:space:]]+"[a-z]+":[[:space:]]+"#'; done
