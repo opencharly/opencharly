@@ -172,11 +172,22 @@ plugin-sidecar/candy/plugin-sidecar/schema/sidecar.cue	union	env?: {[string]: (s
 plugin-sidecar/candy/plugin-sidecar/schema/sidecar.cue	union	parameter?: {[string]: (string | number | bool)}	1
 plugin-sidecar/candy/plugin-sidecar/schema/sidecar.cue	union	cgroupns?: "host" | "private" | ""	1
 plugin-sidecar/candy/plugin-sidecar/schema/sidecar.cue	union	ipc_mode?: "host" | "private" | "shareable" | ""	1
-plugin-substrate/candy/plugin-substrate/schema/local.cue	absence	env?: {PATH?: _|_, [string]: schema.#StrVal} @go(Env,type=map[string]string)	1
-plugin-substrate/candy/plugin-substrate/schema/local.cue	union	#LocalValue: (#Local | schema.#DeployValue) @go(-)	1
+plugin-substrate/candy/plugin-substrate/schema/kindcluster.cue	union	#KindclusterValue: (#Kindcluster | schema.#DeployValue) @go(-)	1
 plugin-substrate/candy/plugin-substrate/schema/kubernetes.cue	open	tolerations?: [...{...}]	1
 plugin-substrate/candy/plugin-substrate/schema/kubernetes.cue	union	#KubernetesValue: (#Kubernetes | schema.#DeployValue) @go(-)	1
-plugin-substrate/candy/plugin-substrate/schema/kindcluster.cue	union	#KindclusterValue: (#Kindcluster | schema.#DeployValue) @go(-)	1
+plugin-substrate/candy/plugin-substrate/schema/kubevirt.cue	union	machine?: "q35" | "pc-i440fx" | "" @go(Machine)	1
+plugin-substrate/candy/plugin-substrate/schema/kubevirt.cue	open	affinity?: {...}	1
+plugin-substrate/candy/plugin-substrate/schema/kubevirt.cue	absence	data_volume?: _|_	3
+plugin-substrate/candy/plugin-substrate/schema/kubevirt.cue	absence	pvc?: _|_	3
+plugin-substrate/candy/plugin-substrate/schema/kubevirt.cue	absence	clone?: _|_	3
+plugin-substrate/candy/plugin-substrate/schema/kubevirt.cue	absence	size?: _|_	2
+plugin-substrate/candy/plugin-substrate/schema/kubevirt.cue	union	} | {	3
+plugin-substrate/candy/plugin-substrate/schema/kubevirt.cue	absence	image?: _|_	3
+plugin-substrate/candy/plugin-substrate/schema/kubevirt.cue	absence	pull_policy?: _|_	3
+plugin-substrate/candy/plugin-substrate/schema/kubevirt.cue	absence	pull_secret?: _|_	3
+plugin-substrate/candy/plugin-substrate/schema/kubevirt.cue	union	#KubevirtValue: (#KubeVirt | schema.#DeployValue) @go(-)	1
+plugin-substrate/candy/plugin-substrate/schema/local.cue	absence	env?: {PATH?: _|_, [string]: schema.#StrVal} @go(Env,type=map[string]string)	1
+plugin-substrate/candy/plugin-substrate/schema/local.cue	union	#LocalValue: (#Local | schema.#DeployValue) @go(-)	1
 plugin-substrate/candy/plugin-substrate/schema/pod.cue	union	#PodValue: (#Pod | schema.#DeployValue) @go(-)	1
 plugin-task/candy/plugin-task/schema/task.cue	absence	env?: {PATH?: _|_, [string]: schema.#StrVal} @go(Env,type=map[string]string)	1
 plugin-unit/candy/plugin-unit/schema/unit.cue	union	scope?: "system" | "user"	1
@@ -253,16 +264,6 @@ spec/schema/instrument.cue	open	plugin_input?: {...} @go(PluginInput,type=map[st
 spec/schema/instrument.cue	union	phase?: *["live"] | [...#Phase] @go(Phase,type=[]string)	1
 spec/schema/instrument.cue	open	#EvidenceSegment: {	1
 spec/schema/instrument.cue	open	validators?: {...}	1
-spec/schema/kubevirt.cue	union	machine?: "q35" | "pc-i440fx" | "" @go(Machine)	1
-spec/schema/kubevirt.cue	open	affinity?: {...}	1
-spec/schema/kubevirt.cue	absence	data_volume?: _|_	3
-spec/schema/kubevirt.cue	absence	pvc?: _|_	3
-spec/schema/kubevirt.cue	absence	clone?: _|_	3
-spec/schema/kubevirt.cue	absence	size?: _|_	2
-spec/schema/kubevirt.cue	union	} | {	3
-spec/schema/kubevirt.cue	absence	image?: _|_	3
-spec/schema/kubevirt.cue	absence	pull_policy?: _|_	3
-spec/schema/kubevirt.cue	absence	pull_secret?: _|_	3
 spec/schema/llm.cue	close	#LLMSpec: close({	1
 spec/schema/llm.cue	close	#LLMParams: close({	1
 spec/schema/llm.cue	union	stop?: string | [...string]	1
@@ -281,7 +282,6 @@ spec/schema/node.cue	union	#Image: #Box & ({base: string & !=""} | {from: string
 spec/schema/node.cue	union	#CandyValue: (*#Candy | #Image) @go(-)	1
 spec/schema/node.cue	union	#VmValue: (#Vm | #DeployValue) @go(-)	1
 spec/schema/node.cue	union	#AndroidValue: (#Android | #DeployValue) @go(-)	1
-spec/schema/node.cue	union	#KubevirtValue: (#KubeVirt | #DeployValue) @go(-)	1
 spec/schema/node.cue	union	#FirecrackerValue: (#Firecracker | #DeployValue) @go(-)	1
 spec/schema/node.cue	absence	#DeployValue: #Deploy & {nested?: _|_, peer?: _|_, target?: _|_, member_of?: _|_, inside?: _|_, descent?: _|_}	1
 spec/schema/node.cue	open	#Node: {...}	1
