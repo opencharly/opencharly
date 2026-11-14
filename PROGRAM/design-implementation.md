@@ -118,7 +118,7 @@ prove it, it is decomposed before dispatch, never landed as a clean slice plus a
 | id | package | rows | producer-first order | gate | depends on | state |
 |---|---|---|---|---|---|---|
 | P00 | Schema-first-parse spike (the open RDD decision) | 0.3 | one disposable bed + a design record; no repo lane | the spike's own disposable bed and its written answer | none | `planned` |
-| P01 | Kind bodies into their plugins (5 units left) | 2.1 | spec > sdk > charly > plugin-{substrate,pipeline,task,check,candy,local,kubernetes,kubevirt,vm,android,deploy} > umbrella | kind-value corpus sweep (composed arm) + the affected R10 beds + `charly task verify` | none | `in progress` — unit 6 (`kubevirt`) landed 2026-11-14 across five merged legs; units 1–5 before it, five after |
+| P01 | Kind bodies into their plugins (4 units left: `vm`, `candy`, `android`, `deploy`) | 2.1 | spec > sdk > charly > plugin-{substrate,pipeline,task,check,candy,local,kubernetes,kubevirt,vm,android,deploy} > umbrella | kind-value corpus sweep (composed arm) + the affected R10 beds + `charly task verify` | none | `in progress` — unit 6 (`kubevirt`) landed 2026-11-14 across five merged legs; units 1–5 before it, five after |
 | P02 | One generation pipeline | 4.1, 4.2, 4.5, 4.6 | spec > sdk > charly | `charly task cue-gen` reproducibility (no-op on a clean tree) + the generator tests | P01 | `planned` |
 | P03 | Generation reproducibility gate | 4.4 | dotgithub > two plugin repositories as callers | the reusable workflow green in both callers | none | `planned` |
 | P04 | Generated types only | 2.3 | spec > sdk | `cue-gen` diff empty + `go build ./...` + the unit suites | P02 | `planned` |
@@ -432,6 +432,28 @@ rounds is an RCA on the estimating method, never another per-row reassignment.
 - **The census relocated again** (the unit-4 pattern, now routine): the two kind rows, the `verb:k8sgen` citation and
   three D-PAT rows follow the code; the census stays 357.
 
+
+### 2026-11-14 — `P01` unit 7 (`firecracker`) landed: the largest body, and the claims a move constructs
+
+- **Three legs, all merged** (two of them as successors after auto-close): `plugin-substrate`#40 — **thirty-two
+  defs**: `#Firecracker` + thirty named sub-defs + the `#FirecrackerValue` twin, the `InputDef`, and the module's
+  single contract import moved to `firecracker.cue`, the file that now sorts FIRST (the third time a body's arrival
+  moved the import; five files' order notes were swept with it) — `plugin-substrate`#41 (the body's five
+  `#FirecrackerValue` validation tests moved BEFORE the deletion) and `spec`#319 (the contract deletion: the body,
+  its sub-defs, the vocabulary tables and the twin; the `#KindValueDefs` map-entry test deleted with the entry, and
+  the three VOCABULARY assertions kept because words are the contract's, not bodies).
+- **No consumer legs, measured rather than assumed:** nothing outside the resolve arm ever read the authored Go type
+  (`grep -rn 'spec\.Firecracker\b'` over every merged main → no match outside the wire types) and `loaderkit` has no
+  firecracker entry; the resolve envelope projects NOTHING (it carries the raw bytes; the venue fills the host).
+- **Counts at the served tree:** `spec.KindValueDefs` 4 → 3, `#<Word>Value` defs 5 → 4, six kind bodies remain.
+- **The decisive measurement** (the assembled graph): 2,014 bodies judged, ZERO verdict classes moved,
+  `firecracker` differing in zero.
+- **Six rounds, two auto-closes, two rules.** (a) **A moved body's OWN claims are part of the sweep** — the
+  vocabulary owners (`@vocab(spec)` and "compiled into THIS contract module", unit 6's lesson, missed once more),
+  every count derived from the file rather than the previous text, and every citation list verified with comments
+  EXCLUDED (a regex that counted a prose mention built a header claiming a def the code never cites). (b) **A PR
+  body describes the CURRENT tree, never the cutover's end state** — "landed and merged" written while its own
+  `WAITING` named an unmerged PR cost one whole thread, and the successor that stated the true order landed.
 
 ### 2026-11-14 — `P01` unit 6 (`kubevirt`) landed: the largest consumer, and the sweep-by-subject lesson
 

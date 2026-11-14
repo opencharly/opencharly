@@ -74,7 +74,7 @@ deploy path|show|status	plugin-fleet/candy/plugin-fleet/deploy_cmd.go	35-38	Depl
 deploy reset	plugin-fleet/candy/plugin-fleet/deploy_cmd.go	36-36	DeployCmd	c1ac8ef293f68d89
 engine:containerd	plugin-nerdctl/candy/plugin-containerd/charly.yml	44-44	-	f37c0cce47fc3e2d
 fast reset with --rm and read-only rootfs	spec/schema/deploy.cue	321-321	#Deploy	9477bf7179a09e8f
-Firecracker rootfs + kernel	spec/schema/firecracker.cue	56-75	#Firecracker	dba533e9fef37c0d
+Firecracker rootfs + kernel	plugin-substrate/candy/plugin-substrate/schema/firecracker.cue	38-57	#Firecracker	35a43a3e9de14ec4
 Firecracker rootfs + kernel	spec/schema/vm.cue	19-19	-	0bd2f1d19826fa37
 GPU shared through CDI vs held alone through VFIO	plugin-gpu/README.md	23-29	-	bd4c32a2246cbb41
 GPU shared through CDI vs held alone through VFIO	spec/schema/arbiter.cue	40-56	#PreemptLease	815228e090db8a3a
@@ -83,7 +83,7 @@ kind:android	spec/schema/android.cue	14-24	#Android	f615fdb22527d614
 kind:builder	spec/schema/builder.cue	8-30	#Builder	40cf6239fe0e930d
 kind:cua	plugin-cua/candy/plugin-cua/schema/cua.cue	173-191	#CuaDeviceInput	7b7bdd4ccee16f37
 kind:distro	plugin-distro/candy/plugin-distro/schema/distro.cue	32-47	#DistroInput	fdb988c388629d51
-kind:firecracker	spec/schema/firecracker.cue	35-61	#Firecracker	77d4112bca573e60
+kind:firecracker	plugin-substrate/candy/plugin-substrate/schema/firecracker.cue	17-43	#Firecracker	14f1f819602aaa36
 kind:group	charly/charly/no_kind_switch_in_kernel_test.go	42-42	-	19a40f2967852815
 kind:hook	spec/schema/hook.cue	12-20	#Hook	a818367685f46363
 kind:resource	plugin-resource/candy/plugin-resource/schema/resource.cue	21-27	#ResourceInput	923be81c20e14952
