@@ -3,7 +3,7 @@
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/opencharly/opencharly)
 
 **One clone of the whole org — and the place all charly development happens.**
-`opencharly/opencharly` is an org-level umbrella repo: every OpenCharly repo (409 today)
+`opencharly/opencharly` is an org-level umbrella repo: every OpenCharly repo (392 today)
 is pinned here as a git submodule ("gitlink", in the org's vocabulary), flat at the
 root — submodule path == repo name for all but one alias (`.github`, pinned at the
 `dotgithub/` path).
@@ -264,7 +264,7 @@ above only *place* each class. The authoring procedure is `/charly-internals:rep
 
 ### Distro image families
 
-6 repos — each maps to a `box/<distro>` inside `charly`; their pins follow charly's own gitlinks (the pin contract's edge).
+5 repos — each maps to a `box/<distro>` inside `charly`; their pins follow charly's own gitlinks (the pin contract's edge).
 
 | path | repo | role |
 |---|---|---|
@@ -272,7 +272,6 @@ above only *place* each class. The authoring procedure is `/charly-internals:rep
 | `distro-cachyos/` | [opencharly/distro-cachyos](https://github.com/opencharly/distro-cachyos) | OpenCharly — the CachyOS image family |
 | `distro-debian/` | [opencharly/distro-debian](https://github.com/opencharly/distro-debian) | OpenCharly — the Debian image family |
 | `distro-fedora/` | [opencharly/distro-fedora](https://github.com/opencharly/distro-fedora) | OpenCharly — the Fedora image family (incl. the nvidia GPU base) |
-| `distro-omarchy/` | [opencharly/distro-omarchy](https://github.com/opencharly/distro-omarchy) | Omarchy image family (charly's box/omarchy) - vanilla Arch + Hyprland |
 | `distro-ubuntu/` | [opencharly/distro-ubuntu](https://github.com/opencharly/distro-ubuntu) | OpenCharly — the Ubuntu image family |
 
 
@@ -335,37 +334,6 @@ six vendored OpenClaw upstream forks.
 |---|---|---|
 | `layer-charly-check/` | [opencharly/layer-charly-check](https://github.com/opencharly/layer-charly-check) | The charly-check candy — 14 check skills (extracted from charly/candy) |
 | `layer-charly-tools/` | [opencharly/layer-charly-tools](https://github.com/opencharly/layer-charly-tools) | image layer / candy |
-
-
-### Omarchy layers
-
-13 repos — the omarchy desktop image composition layers.
-
-| path | repo | role |
-|---|---|---|
-| `layer-omarchy-base/` | [opencharly/layer-omarchy-base](https://github.com/opencharly/layer-omarchy-base) | Omarchy base - the [omarchy] pacman repo, keyring and core runtime |
-| `layer-omarchy-boot/` | [opencharly/layer-omarchy-boot](https://github.com/opencharly/layer-omarchy-boot) | Omarchy boot chain - limine, snapper, plymouth, sddm (machine-only) |
-| `layer-omarchy-desktop-apps/` | [opencharly/layer-omarchy-desktop-apps](https://github.com/opencharly/layer-omarchy-desktop-apps) | Omarchy desktop applications - files, productivity, input methods, web apps |
-| `layer-omarchy-dev/` | [opencharly/layer-omarchy-dev](https://github.com/opencharly/layer-omarchy-dev) | Omarchy developer toolchain - editors, language runtimes, containers |
-| `layer-omarchy-fonts/` | [opencharly/layer-omarchy-fonts](https://github.com/opencharly/layer-omarchy-fonts) | Omarchy font set |
-| `layer-omarchy-gpu-nvidia/` | [opencharly/layer-omarchy-gpu-nvidia](https://github.com/opencharly/layer-omarchy-gpu-nvidia) | Omarchy NVIDIA GPU stack (machine-only, opt-in) |
-| `layer-omarchy-hardware/` | [opencharly/layer-omarchy-hardware](https://github.com/opencharly/layer-omarchy-hardware) | Omarchy hardware and laptop support - dkms and vendor quirks (machine-only, opt-in) |
-| `layer-omarchy-hyprland/` | [opencharly/layer-omarchy-hyprland](https://github.com/opencharly/layer-omarchy-hyprland) | Omarchy Hyprland compositor stack and desktop portals |
-| `layer-omarchy-media/` | [opencharly/layer-omarchy-media](https://github.com/opencharly/layer-omarchy-media) | Omarchy media stack - audio, video, imaging, capture |
-| `layer-omarchy-network/` | [opencharly/layer-omarchy-network](https://github.com/opencharly/layer-omarchy-network) | Omarchy networking - NetworkManager, bluetooth, printing, firewall (machine-only) |
-| `layer-omarchy-shell/` | [opencharly/layer-omarchy-shell](https://github.com/opencharly/layer-omarchy-shell) | Omarchy Quickshell desktop shell - bar, notifier, launcher, OSD |
-| `layer-omarchy-terminal/` | [opencharly/layer-omarchy-terminal](https://github.com/opencharly/layer-omarchy-terminal) | Omarchy terminal and CLI toolkit - foot, starship, modern coreutils |
-| `layer-omarchy-themes/` | [opencharly/layer-omarchy-themes](https://github.com/opencharly/layer-omarchy-themes) | Omarchy's 22 themes and the theme-token renderers |
-
-
-### Omarchy evaluation
-
-2 repos — the omarchy PR evaluation beds and their run artifacts.
-
-| path | repo | role |
-|---|---|---|
-| `eval-omarchy/` | [opencharly/eval-omarchy](https://github.com/opencharly/eval-omarchy) | omarchy PR evaluation: check beds + eval results |
-| `omarchy-eval-artifacts/` | [opencharly/omarchy-eval-artifacts](https://github.com/opencharly/omarchy-eval-artifacts) | omarchy PR evaluation artifacts (screenshots, GIFs, run logs) |
 
 
 ### Check & fixture layers
@@ -545,7 +513,7 @@ six vendored OpenClaw upstream forks.
 
 ### Plugins
 
-120 repos — charly plugin candies. Their `providers:` blocks register the kinds,
+119 repos — charly plugin candies. Their `providers:` blocks register the kinds,
 deploys, verbs, steps, builds, builders, commands, engines, loaders, refs,
 agent runtimes and terminals charly speaks.
 
@@ -636,7 +604,6 @@ agent runtimes and terminals charly speaks.
 | `plugin-nerdctl/` | [opencharly/plugin-nerdctl](https://github.com/opencharly/plugin-nerdctl) | charly plugin: engine:containerd — the containerd engine provider (the nerdctl CLI drives it) |
 | `plugin-oci/` | [opencharly/plugin-oci](https://github.com/opencharly/plugin-oci) | charly plugin |
 | `plugin-ollama/` | [opencharly/plugin-ollama](https://github.com/opencharly/plugin-ollama) | charly plugin |
-| `plugin-omarchy/` | [opencharly/plugin-omarchy](https://github.com/opencharly/plugin-omarchy) | charly plugin: the omarchy CLI surface as a check verb |
 | `plugin-openclaw/` | [opencharly/plugin-openclaw](https://github.com/opencharly/plugin-openclaw) | charly plugin |
 | `plugin-package/` | [opencharly/plugin-package](https://github.com/opencharly/plugin-package) | charly plugin |
 | `plugin-pipeline/` | [opencharly/plugin-pipeline](https://github.com/opencharly/plugin-pipeline) | charly plugin: the generic agent/workflow engine — the bare agent runtime, the plan executor, the `kind:pipeline` entity |
