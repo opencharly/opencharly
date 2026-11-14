@@ -313,6 +313,20 @@ the base lacks, so the `candy` row must leave `cueKindDefs` in the same commit t
 
 Taken from the parallel measurement at `7b3cad5`; file:line evidence in the agents' reports.
 
+**How the three headline counts were measured** (re-run for this PR):
+
+```console
+$ grep -hE '^#[A-Za-z0-9_]*:' spec/schema/*.cue | wc -l
+646
+$ (grep -rhoP -- '- kind:[a-z0-9-]+' plugin-*/candy/*/charly.yml | sed 's/- kind://'; \
+   grep -rhoP 'Class: "kind", Word: "\K[a-z0-9-]+' plugin-*/candy/*/plugin.go) | sort -u | wc -l
+31
+$ grep -c 'VmBackendNameWord\|VmCloudInitWord\|VmSmbiosWord\|VmStrategyWord' spec/schema/vm.cue
+4
+```
+
+The four `#Vm*Word` re-exports are the "proven dead" row: at the merged contract each is cited by no CUE def and no Go file, and only by `schema/vm_vocab_reexports_test.go`, whose own comment claims a sibling-plugin citer that does not exist.
+
 | measure | value |
 |---|---|
 | kind words | **31** (29 manifests + `docs` + `check-roster`) |
