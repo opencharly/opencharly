@@ -91,9 +91,9 @@ kind:sidecar	plugin-sidecar/candy/plugin-sidecar/schema/sidecar.cue	48-89	#ScSec
 kind:skill	plugin-harness-kind/candy/plugin-harness-kind/schema/skill.cue	19-32	#SkillInput	faefee417399e060
 kind:skill	spec/schema/skill.cue	33-38	-	62a70d2225cf652c
 kind:theme	plugin-desktop-kind/candy/plugin-desktop-kind/schema/desktop.cue	16-69	#DkThemeTokens	dafbc7fdaa15f299
+krun annotations ram_mib/cpus	plugin-substrate/candy/plugin-substrate/schema/vm.cue	38-57	#Vm	061086d13962e77a
+krun annotations ram_mib/cpus	plugin-substrate/candy/plugin-substrate/schema/vm.cue	49-52	#Vm	4c898239aa75e026
 krun annotations ram_mib/cpus	plugin-vm/candy/plugin-vm/vm_krun_plan.go	272-273	buildKrunPlan	0b01984f4ee4e034
-krun annotations ram_mib/cpus	spec/schema/vm.cue	38-57	#VmKrun	204121836b28f036
-krun annotations ram_mib/cpus	spec/schema/vm.cue	49-52	#VmKrun	597fbea774bcb0fe
 krun virtio-gpu; no NVIDIA in krun	spec/schema/vm.cue	45-48	#VmKrun	d9bba839caa92d3a
 krun VM backend (OCI image boot)	plugin-vm/candy/plugin-vm/vm_krun_plan.go	25-30	-	385c608f9b64aa9a
 loader:loader	plugin-loader/candy/plugin-loader/charly.yml	21-21	-	7e69435f2eaf2009

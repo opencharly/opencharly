@@ -190,6 +190,7 @@ plugin-substrate/candy/plugin-substrate/schema/kubevirt.cue	union	#KubevirtValue
 plugin-substrate/candy/plugin-substrate/schema/local.cue	absence	env?: {PATH?: _|_, [string]: schema.#StrVal} @go(Env,type=map[string]string)	1
 plugin-substrate/candy/plugin-substrate/schema/local.cue	union	#LocalValue: (#Local | schema.#DeployValue) @go(-)	1
 plugin-substrate/candy/plugin-substrate/schema/pod.cue	union	#PodValue: (#Pod | schema.#DeployValue) @go(-)	1
+plugin-substrate/candy/plugin-substrate/schema/vm.cue	union	#VmValue: (#Vm | schema.#DeployValue) @go(-)	1
 plugin-task/candy/plugin-task/schema/task.cue	absence	env?: {PATH?: _|_, [string]: schema.#StrVal} @go(Env,type=map[string]string)	1
 plugin-unit/candy/plugin-unit/schema/unit.cue	union	scope?: "system" | "user"	1
 plugin-vision/candy/plugin-vision/schema/vision.cue	union	mime?: *"image/png" | "image/jpeg" | "image/webp" | "image/gif"	1
@@ -281,7 +282,6 @@ spec/schema/marketplace.cue	close	#MarketplaceMCPServer: close({	1
 spec/schema/marketplace.cue	close	#MarketplaceSettings: close({	1
 spec/schema/node.cue	union	#Image: #Box & ({base: string & !=""} | {from: string & !=""})	1
 spec/schema/node.cue	union	#CandyValue: (*#Candy | #Image) @go(-)	1
-spec/schema/node.cue	union	#VmValue: (#Vm | #DeployValue) @go(-)	1
 spec/schema/node.cue	union	#AndroidValue: (#Android | #DeployValue) @go(-)	1
 spec/schema/node.cue	absence	#DeployValue: #Deploy & {nested?: _|_, peer?: _|_, target?: _|_, member_of?: _|_, inside?: _|_, descent?: _|_}	1
 spec/schema/node.cue	open	#Node: {...}	1
