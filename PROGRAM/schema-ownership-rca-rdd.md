@@ -325,7 +325,19 @@ $ grep -c 'VmBackendNameWord\|VmCloudInitWord\|VmSmbiosWord\|VmStrategyWord' spe
 4
 ```
 
-The four `#Vm*Word` re-exports are the "proven dead" row: at the merged contract each is cited by no CUE def and no Go file, and only by `schema/vm_vocab_reexports_test.go`, whose own comment claims a sibling-plugin citer that does not exist.
+The four `#Vm*Word` re-exports are the "proven dead" row. The sweep, run repo-wide over `spec/`:
+
+```console
+$ for d in VmBackendNameWord VmCloudInitWord VmSmbiosWord VmStrategyWord; do
+>   grep -rn "$d" --include='*.cue' --include='*.go' spec/ | grep -v '^spec/CHANGELOG'
+> done
+spec/schema/vm.cue:979:#VmBackendNameWord: _vmBackendNameWord
+spec/schema/vm_vocab_reexports_test.go:24:		"#VmBackendNameWord": "libvirt",
+spec/spec/cue_types_gen.go:11318:type VmBackendNameWord []any /* CUE closed list */
+... (the same three-site pattern for each of the four)
+```
+
+Each name has exactly three sites: its own definition, the GENERATED Go type (a projection of that definition, not a consumer), and the re-export test that pins it. No hand-written Go and no other CUE def cites any of them — and that test's own comment claims a sibling-plugin citer that does not exist.
 
 | measure | value |
 |---|---|
