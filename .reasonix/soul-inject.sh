@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# soul-inject.sh — reasonix SessionStart hook: inject the SOUL.md identity.
+# soul-inject.sh — reasonix SessionStart hook: inject the SOUL.md identity AND the
+# reasonix harness binding (design/REASONIX.md).
 #
 # reasonix has no additive `instructions` config key (opencode's mechanism), but
 # its hooks DO deliver session context: a SessionStart hook's stdout is injected
@@ -13,10 +14,17 @@
 # premise that is measurably false (SessionStart is a hook event, and its stdout
 # is context, not a verdict). Corrected here rather than left standing.
 #
-# A difference from a hooks-based harness: the identity arrives once per session
+# The SECOND payload is the harness binding. reasonix loads instruction files ONLY
+# from the workspace root (`REASONIX.md` / `AGENTS.md` / `CLAUDE.md`); the binding
+# lives in `design/` beside the design ledger, so it is injected here too — the
+# same mechanism, the same once-per-session contract. Both payloads are asserted
+# by `scripts/check-harness-config.mjs` (check 7 the identity, check 7b the
+# binding), so a hook that stops emitting either one is RED, not silent.
+#
+# A difference from a hooks-based harness: the context arrives once per session
 # (a hook that re-injects every turn no longer exists in this tree).
 #
-# Exit 0 always — a missing SOUL.md must never block a session.
+# Exit 0 always — a missing SOUL.md or a missing binding must never block a session.
 
 set -u
 
@@ -35,6 +43,27 @@ else
   printf 'WARNING: SOUL.md is NOT present at the project root, so the charly identity\n'
   printf 'is NOT injected this session. That is the content-loss signature\n'
   printf 'opencharly/opencharly#356 named — restore SOUL.md at the umbrella root.\n'
+fi
+
+# The reasonix harness binding. reasonix auto-loads only the instruction files it
+# finds in the WORKSPACE ROOT (`REASONIX.md` / `AGENTS.md` / `CLAUDE.md`), and this
+# binding lives in `design/` beside the design ledger — so it is delivered here, by
+# the same SessionStart mechanism, rather than left to be loaded natively. A hook
+# that stops emitting it is a silent capability loss: the session would run with
+# `AGENTS.md`'s `/charly-<family>:<skill>` references and no mapping from them to a
+# bare-name skill call. `scripts/check-harness-config.mjs` check 7b asserts it.
+printf '## The reasonix harness binding — design/REASONIX.md\n\n'
+
+RIX="$ROOT/design/REASONIX.md"
+if [ -f "$RIX" ]; then
+  cat "$RIX"
+  printf '\n'
+else
+  printf 'WARNING: design/REASONIX.md is NOT present, so the reasonix harness binding\n'
+  printf '(how every /charly-<family>:<skill> reference resolves to a skill call, and\n'
+  printf 'which gate hooks this repo arms) is NOT injected this session — reasonix runs\n'
+  printf 'with AGENTS.md alone. That is the content-loss signature\n'
+  printf 'opencharly/opencharly#356 named — restore design/REASONIX.md.\n'
 fi
 
 exit 0

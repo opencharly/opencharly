@@ -1,9 +1,18 @@
 # reasonix harness instructions
 
 This file binds the harness-neutral `AGENTS.md` rulebook to this harness's
-mechanics. It is reasonix-specific by construction: it lives at the repo root
-because that is where reasonix looks for instructions, and it never restates
-policy that `AGENTS.md` owns.
+mechanics. It is reasonix-specific by construction, and it never restates policy
+that `AGENTS.md` owns.
+
+It lives in `design/` beside the design ledger, and NOT at the repo root — which
+is why `.reasonix/soul-inject.sh` (the `SessionStart` hook wired in
+`.reasonix/settings.json`) prints it into the session the way it prints
+`SOUL.md`. reasonix auto-loads only the instruction files it finds in the
+WORKSPACE ROOT (`REASONIX.md` / `AGENTS.md` / `CLAUDE.md`), so a binding file
+living anywhere else has to be INJECTED, and a hook that stops emitting it is a
+silent capability loss. `scripts/check-harness-config.mjs` asserts both halves
+(check 7: the hook is wired and emits; check 7b: this file exists and the hook
+emits THIS binding).
 
 ## Skill addressing
 
@@ -91,8 +100,9 @@ with `hookSpecificOutput.additionalContext`") *"is injected once into the next
 real user turn"*. `scripts/check-harness-config.mjs` check 7 asserts the arm.
 
 `AGENTS.md` is loaded natively (reasonix reads `REASONIX.md` / `AGENTS.md` /
-`CLAUDE.md` from the workspace) — no hook needed for it. `SOUL.md` is not in
-that recognised set, which is why it needs the hook.
+`CLAUDE.md` from the workspace root) — no hook needed for it. `SOUL.md` is not
+in that recognised set, and this file is no longer at the root either, which is
+why the same hook injects BOTH.
 
 ## Gate hooks
 
