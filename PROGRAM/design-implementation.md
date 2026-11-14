@@ -433,6 +433,33 @@ rounds is an RCA on the estimating method, never another per-row reassignment.
   three D-PAT rows follow the code; the census stays 357.
 
 
+### 2026-11-14 — `P01` unit 8 (`vm`) measured: the envelope pins the body, and the split is a decision
+
+**Measured, not read.** `spec/schema/vm.cue` carries **78 defs in 1,152 lines**: the `#Vm` body plus 16
+`#Vm*` sub-defs, **sixty `#Libvirt*` defs** (a DOMAIN MODEL — the renderer's schema), the `#ResolvedVm`
+envelope, and 48 private vocabulary tables. The renderer does NOT live in charly (the tracker's premise is
+outdated): `libvirtDomainSpec`/`RenderDomainXML` are in **`plugin-vm`**, with `sdk/vmshared`'s helper, and
+`#LibvirtDomain` is cited in `spec`'s comments only.
+
+**The blocker the tracker named is real, and it is the ENVELOPE.** `#ResolvedVm` cites the BODY types —
+`#VmSource`, `#VmNetwork`, `#VmSsh`, `#VmCloudInit`, `#LibvirtDomain`, `#VmKrun`, `#VmSnapshot` — and the
+envelope is a WIRE type read by three consumers (`charly`'s fallback resolver, `plugin-check` through the
+`vmshared.VmSpec IS spec.ResolvedVm` alias, and `plugin-deploy-vm`, which reads `Source` ×10, `SSH` ×7 and
+`CloudInit` ×3). The previous units' envelopes (`#ResolvedKubeVirt`, `#ResolvedLocal`) are FLAT — strings
+plus `raw` — because their bodies had no typed envelope citations. Moving `#Vm` while leaving the envelope
+would leave the contract citing a def in another module.
+
+**The split this implies (the `#PodSidecar` keeper precedent, scaled):** the contract KEEPS `#ResolvedVm`
+and every def it cites (`#VmSource`, `#VmNetwork`, `#VmSsh`, `#VmCloudInit` + its sub-defs, the
+`#LibvirtDomain` family, `#VmKrun`, `#VmSnapshot`, `#VmBackend*`), because a wire type cites them; the
+plugin TAKES `#Vm` itself and the defs no envelope cites (`#VmInstaller`, `#VmChecksum`, `#VmKeyInjection`,
+`#VmCharlyInstall`), with `#Vm` citing the keepers as `schema.#…`. The vocabulary tables split the same way
+(the twelve the domain family cites stay; the body's move), which the 48-def tail's citation map shows.
+
+**Not started.** The producer leg needs this decision recorded first — it changes what "the body's home"
+means for a kind whose envelope is typed. The next round starts with the keeper list above, builds
+`schema/vm.cue` from the non-keeper defs, and proves it with the two-arm corpus sweep exactly as units 4–7 did.
+
 ### 2026-11-14 — `P01` unit 7 (`firecracker`) landed: the largest body, and the claims a move constructs
 
 - **Three legs, all merged** (two of them as successors after auto-close): `plugin-substrate`#40 — **thirty-two
