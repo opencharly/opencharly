@@ -172,6 +172,7 @@ plugin-sidecar/candy/plugin-sidecar/schema/sidecar.cue	union	env?: {[string]: (s
 plugin-sidecar/candy/plugin-sidecar/schema/sidecar.cue	union	parameter?: {[string]: (string | number | bool)}	1
 plugin-sidecar/candy/plugin-sidecar/schema/sidecar.cue	union	cgroupns?: "host" | "private" | ""	1
 plugin-sidecar/candy/plugin-sidecar/schema/sidecar.cue	union	ipc_mode?: "host" | "private" | "shareable" | ""	1
+plugin-substrate/candy/plugin-substrate/schema/firecracker.cue	union	#FirecrackerValue: (#Firecracker | schema.#DeployValue) @go(-)	1
 plugin-substrate/candy/plugin-substrate/schema/kindcluster.cue	union	#KindclusterValue: (#Kindcluster | schema.#DeployValue) @go(-)	1
 plugin-substrate/candy/plugin-substrate/schema/kubernetes.cue	open	tolerations?: [...{...}]	1
 plugin-substrate/candy/plugin-substrate/schema/kubernetes.cue	union	#KubernetesValue: (#Kubernetes | schema.#DeployValue) @go(-)	1
@@ -282,7 +283,6 @@ spec/schema/node.cue	union	#Image: #Box & ({base: string & !=""} | {from: string
 spec/schema/node.cue	union	#CandyValue: (*#Candy | #Image) @go(-)	1
 spec/schema/node.cue	union	#VmValue: (#Vm | #DeployValue) @go(-)	1
 spec/schema/node.cue	union	#AndroidValue: (#Android | #DeployValue) @go(-)	1
-spec/schema/node.cue	union	#FirecrackerValue: (#Firecracker | #DeployValue) @go(-)	1
 spec/schema/node.cue	absence	#DeployValue: #Deploy & {nested?: _|_, peer?: _|_, target?: _|_, member_of?: _|_, inside?: _|_, descent?: _|_}	1
 spec/schema/node.cue	open	#Node: {...}	1
 spec/schema/node.cue	close	#NodeDoc: close({	1
