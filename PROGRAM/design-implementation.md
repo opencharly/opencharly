@@ -435,9 +435,10 @@ rounds is an RCA on the estimating method, never another per-row reassignment.
 
 ### 2026-11-14 — `P01` unit 8 (`vm`) measured: the envelope pins the body, and the split is a decision
 
-**Measured, not read.** `spec/schema/vm.cue` carries **78 defs in 1,152 lines**: the `#Vm` body plus 16
-`#Vm*` sub-defs, **sixty `#Libvirt*` defs** (a DOMAIN MODEL — the renderer's schema), the `#ResolvedVm`
-envelope, and 48 private vocabulary tables. The renderer does NOT live in charly (the tracker's premise is
+**Measured, not read.** `spec/schema/vm.cue` carries **78 exported `#`-defs in 1,152 lines** — 17
+`#Vm*` (the `#Vm` body itself plus 16 sub-defs), **60 `#Libvirt*`** (a DOMAIN MODEL — the renderer's schema)
+and 1 `#ResolvedVm` (the envelope), so `17 + 60 + 1 = 78` — plus, *separately*, **48 private `_*`
+vocabulary tables** (they are not `#`-defs, so they sit outside the 78). The renderer does NOT live in charly (the tracker's premise is
 outdated): `libvirtDomainSpec`/`RenderDomainXML` are in **`plugin-vm`**, with `sdk/vmshared`'s helper, and
 `#LibvirtDomain` is cited in `spec`'s comments only.
 
@@ -453,8 +454,8 @@ would leave the contract citing a def in another module.
 and every def it cites (`#VmSource`, `#VmNetwork`, `#VmSsh`, `#VmCloudInit` + its sub-defs, the
 `#LibvirtDomain` family, `#VmKrun`, `#VmSnapshot`, `#VmBackend*`), because a wire type cites them; the
 plugin TAKES `#Vm` itself and the defs no envelope cites (`#VmInstaller`, `#VmChecksum`, `#VmKeyInjection`,
-`#VmCharlyInstall`), with `#Vm` citing the keepers as `schema.#…`. The vocabulary tables split the same way
-(the twelve the domain family cites stay; the body's move), which the 48-def tail's citation map shows.
+`#VmCharlyInstall`), with `#Vm` citing the keepers as `schema.#…`. The vocabulary tables split the same way (the domain family's stay; the body's move); the exact word set is
+the producer leg's own measurement, not a figure this record asserts.
 
 **Not started.** The producer leg needs this decision recorded first — it changes what "the body's home"
 means for a kind whose envelope is typed. The next round starts with the keeper list above, builds
