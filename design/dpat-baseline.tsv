@@ -174,6 +174,9 @@ plugin-sidecar/candy/plugin-sidecar/schema/sidecar.cue	union	cgroupns?: "host" |
 plugin-sidecar/candy/plugin-sidecar/schema/sidecar.cue	union	ipc_mode?: "host" | "private" | "shareable" | ""	1
 plugin-substrate/candy/plugin-substrate/schema/local.cue	absence	env?: {PATH?: _|_, [string]: schema.#StrVal} @go(Env,type=map[string]string)	1
 plugin-substrate/candy/plugin-substrate/schema/local.cue	union	#LocalValue: (#Local | schema.#DeployValue) @go(-)	1
+plugin-substrate/candy/plugin-substrate/schema/kubernetes.cue	open	tolerations?: [...{...}]	1
+plugin-substrate/candy/plugin-substrate/schema/kubernetes.cue	union	#KubernetesValue: (#Kubernetes | schema.#DeployValue) @go(-)	1
+plugin-substrate/candy/plugin-substrate/schema/kindcluster.cue	union	#KindclusterValue: (#Kindcluster | schema.#DeployValue) @go(-)	1
 plugin-substrate/candy/plugin-substrate/schema/pod.cue	union	#PodValue: (#Pod | schema.#DeployValue) @go(-)	1
 plugin-task/candy/plugin-task/schema/task.cue	absence	env?: {PATH?: _|_, [string]: schema.#StrVal} @go(Env,type=map[string]string)	1
 plugin-unit/candy/plugin-unit/schema/unit.cue	union	scope?: "system" | "user"	1
@@ -250,7 +253,6 @@ spec/schema/instrument.cue	open	plugin_input?: {...} @go(PluginInput,type=map[st
 spec/schema/instrument.cue	union	phase?: *["live"] | [...#Phase] @go(Phase,type=[]string)	1
 spec/schema/instrument.cue	open	#EvidenceSegment: {	1
 spec/schema/instrument.cue	open	validators?: {...}	1
-spec/schema/kubernetes.cue	open	tolerations?: [...{...}]	1
 spec/schema/kubevirt.cue	union	machine?: "q35" | "pc-i440fx" | "" @go(Machine)	1
 spec/schema/kubevirt.cue	open	affinity?: {...}	1
 spec/schema/kubevirt.cue	absence	data_volume?: _|_	3
@@ -278,8 +280,6 @@ spec/schema/marketplace.cue	close	#MarketplaceSettings: close({	1
 spec/schema/node.cue	union	#Image: #Box & ({base: string & !=""} | {from: string & !=""})	1
 spec/schema/node.cue	union	#CandyValue: (*#Candy | #Image) @go(-)	1
 spec/schema/node.cue	union	#VmValue: (#Vm | #DeployValue) @go(-)	1
-spec/schema/node.cue	union	#KubernetesValue: (#Kubernetes | #DeployValue) @go(-)	1
-spec/schema/node.cue	union	#KindclusterValue: (#Kindcluster | #DeployValue) @go(-)	1
 spec/schema/node.cue	union	#AndroidValue: (#Android | #DeployValue) @go(-)	1
 spec/schema/node.cue	union	#KubevirtValue: (#KubeVirt | #DeployValue) @go(-)	1
 spec/schema/node.cue	union	#FirecrackerValue: (#Firecracker | #DeployValue) @go(-)	1

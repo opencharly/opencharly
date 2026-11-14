@@ -118,7 +118,7 @@ prove it, it is decomposed before dispatch, never landed as a clean slice plus a
 | id | package | rows | producer-first order | gate | depends on | state |
 |---|---|---|---|---|---|---|
 | P00 | Schema-first-parse spike (the open RDD decision) | 0.3 | one disposable bed + a design record; no repo lane | the spike's own disposable bed and its written answer | none | `planned` |
-| P01 | Kind bodies into their plugins (7 units left) | 2.1 | spec > sdk > charly > plugin-{substrate,pipeline,task,check,candy,local,kubernetes,kubevirt,vm,android,deploy} > umbrella | kind-value corpus sweep (composed arm) + the affected R10 beds + `charly task verify` | none | `in progress` — unit 4 (`local`) landed 2026-11-14 across seven merged legs; units 1–3 before it, seven after |
+| P01 | Kind bodies into their plugins (6 units left) | 2.1 | spec > sdk > charly > plugin-{substrate,pipeline,task,check,candy,local,kubernetes,kubevirt,vm,android,deploy} > umbrella | kind-value corpus sweep (composed arm) + the affected R10 beds + `charly task verify` | none | `in progress` — unit 5 (`kubernetes` + `kindcluster`) landed 2026-11-14 across seven merged legs; units 1–4 before it, six after |
 | P02 | One generation pipeline | 4.1, 4.2, 4.5, 4.6 | spec > sdk > charly | `charly task cue-gen` reproducibility (no-op on a clean tree) + the generator tests | P01 | `planned` |
 | P03 | Generation reproducibility gate | 4.4 | dotgithub > two plugin repositories as callers | the reusable workflow green in both callers | none | `planned` |
 | P04 | Generated types only | 2.3 | spec > sdk | `cue-gen` diff empty + `go build ./...` + the unit suites | P02 | `planned` |
@@ -406,6 +406,31 @@ rounds is an RCA on the estimating method, never another per-row reassignment.
 - Cost observed: four reviewer BLOCK rounds on two tiny consumer legs, ONE defect behind all of them — a pasted
   proof taken at a head other than the one shipping. §8's push gate now carries that as a rule: create the head,
   run every pasted command AT it, and change no file afterwards.
+
+
+### 2026-11-14 — `P01` unit 5 (`kubernetes` + `kindcluster`) landed; the assembled graph found what reading did not
+
+- **Seven legs, all merged:** `plugin-substrate`#35 (both bodies + five policy sub-defs + four vocabulary tables + both
+  `InputDef`s; the module's single import moved to `kindcluster.cue`, which sorts first), `sdk`#511 (the `loaderkit`
+  kind table — the `pod`/`local` precedent, landed BEFORE the deletion so it could never panic), `charly`#1143 (an unused
+  test-only alias), `plugin-k8sgen`#6 and `plugin-kube`#36 (each decodes the opaque `cluster_raw` into its OWN view;
+  `Cutover K` had already built the wire — and the kube leg pins its projection's JSON against bytes CAPTURED from the
+  implementation it replaced, which immediately caught a `kubevirt:{}` key a memory-written golden would have missed),
+  `plugin-substrate`#36 (the body's five validation tests moved before the deletion) and `sdk`#512 (`vmshared`'s six
+  unused aliases) — then `spec`#316 (bodies, sub-defs, tables, twins, alias and `#KubernetesGenInput`'s typed `cluster`
+  field; `cluster_raw` is the ONE path).
+- **Counts at the served tree:** `spec.KindValueDefs` 7 → 5, its `#<Word>Value` defs 8 → 6, eight kind bodies remain
+  over TODO 2.1's 14-name list.
+- **The decisive measurement** (deleted contract + the body's plugin + both decoders + the loader + charly, one
+  workspace): **2,014 bodies judged, ZERO verdict classes moved** against the pre-change arm, one `vm` message refinement.
+- **What the assembled graph caught that no reading did:** `sdk/vmshared` aliased six of the deleted types (#512);
+  charly's `go.mod` still resolved pre-unit-4 `plugin-box`/`plugin-check` versions using `spec.Local`; the pinned plugins
+  predate their own legs. The last two are the wave's own first acts — **opencharly/opencharly#1011**.
+- **Lessons this unit paid for:** a deferral is a LINK not a noun (#1011 exists because of it); a measurement's SCOPE is
+  part of its evidence (`pwd` + counts over both populations); a patch that leaves glued text is worse than the defect it
+  fixes; COORD pairs go up WITH the body; and `gofmt` runs before the push, not just the build.
+- **The census relocated again** (the unit-4 pattern, now routine): the two kind rows, the `verb:k8sgen` citation and
+  three D-PAT rows follow the code; the census stays 357.
 
 ## 10. What would make this ledger wrong
 

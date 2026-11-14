@@ -148,7 +148,7 @@ verb:file	plugin-file/candy/plugin-file/schema/file.cue	1-45	#FileInput	9fc785d7
 verb:gpu	plugin-gpu/candy/plugin-gpu/main.go	40-80	Invoke	c5bcb8792efa2119
 verb:http	plugin-http/candy/plugin-http/schema/http.cue	1-40	#HttpInput	8291027e28ded5d4
 verb:k8sgen	plugin-k8sgen/candy/plugin-k8sgen/main.go	2-2	-	a751c4a73492c500
-verb:k8sgen	plugin-k8sgen/candy/plugin-k8sgen/main.go	28-47	NewMeta	fa7019420b210351
+verb:k8sgen	plugin-k8sgen/candy/plugin-k8sgen/main.go	28-40	NewMeta	19d74e43b07db453
 verb:kernel-param	plugin-kernel-param/candy/plugin-kernel-param/schema/kernel_param.cue	1-6	-	dcb24d454741cdf3
 verb:libvirt	plugin-vm/candy/plugin-vm/schema/vm.cue	1-10	-	b1f14661b1055139
 verb:matching	plugin-matching/candy/plugin-matching/schema/matching.cue	1-8	-	1712635928b0c34f
