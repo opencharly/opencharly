@@ -118,7 +118,7 @@ prove it, it is decomposed before dispatch, never landed as a clean slice plus a
 | id | package | rows | producer-first order | gate | depends on | state |
 |---|---|---|---|---|---|---|
 | P00 | Schema-first-parse spike (the open RDD decision) | 0.3 | one disposable bed + a design record; no repo lane | the spike's own disposable bed and its written answer | none | `planned` |
-| P01 | Kind bodies into their plugins (6 units left) | 2.1 | spec > sdk > charly > plugin-{substrate,pipeline,task,check,candy,local,kubernetes,kubevirt,vm,android,deploy} > umbrella | kind-value corpus sweep (composed arm) + the affected R10 beds + `charly task verify` | none | `in progress` — unit 5 (`kubernetes` + `kindcluster`) landed 2026-11-14 across seven merged legs; units 1–4 before it, six after |
+| P01 | Kind bodies into their plugins (5 units left) | 2.1 | spec > sdk > charly > plugin-{substrate,pipeline,task,check,candy,local,kubernetes,kubevirt,vm,android,deploy} > umbrella | kind-value corpus sweep (composed arm) + the affected R10 beds + `charly task verify` | none | `in progress` — unit 6 (`kubevirt`) landed 2026-11-14 across five merged legs; units 1–5 before it, five after |
 | P02 | One generation pipeline | 4.1, 4.2, 4.5, 4.6 | spec > sdk > charly | `charly task cue-gen` reproducibility (no-op on a clean tree) + the generator tests | P01 | `planned` |
 | P03 | Generation reproducibility gate | 4.4 | dotgithub > two plugin repositories as callers | the reusable workflow green in both callers | none | `planned` |
 | P04 | Generated types only | 2.3 | spec > sdk | `cue-gen` diff empty + `go build ./...` + the unit suites | P02 | `planned` |
@@ -431,6 +431,27 @@ rounds is an RCA on the estimating method, never another per-row reassignment.
   fixes; COORD pairs go up WITH the body; and `gofmt` runs before the push, not just the build.
 - **The census relocated again** (the unit-4 pattern, now routine): the two kind rows, the `verb:k8sgen` citation and
   three D-PAT rows follow the code; the census stays 357.
+
+
+### 2026-11-14 — `P01` unit 6 (`kubevirt`) landed: the largest consumer, and the sweep-by-subject lesson
+
+- **Five legs, all merged:** `plugin-substrate`#37 (thirteen defs + the twin + the `InputDef`), `sdk`#513 (the
+  `loaderkit` entry → `#ResolvedKubeVirt`; the capital V is what a case-folded grep finds), `plugin-kubevirt`#46 —
+  **the largest consumer this programme has moved**: 43 references across 11 files, a 26-field view, eleven sub-types
+  and the hand-written union, with the renderer's 34 assertions as the behavioural pin and a decode test (plus a
+  per-arm source test) as the tag-divergence guard — `plugin-substrate`#38 (the body's tests moved before the deletion)
+  and `spec`#317 (the contract deletion, the hand-written union included).
+- **Counts at the served tree:** `spec.KindValueDefs` 5 → 4, `#<Word>Value` defs 6 → 5, seven kind bodies remain.
+- **The decisive measurement** (the assembled graph, all legs merged): 2,014 bodies, ZERO verdict classes moved,
+  `kubevirt` 26/26.
+- **Three reviewer rounds, one CI cycle, one rule:** a cutover's record lists SUBJECTS — a def WITH its commentary
+  (a four-line rationale left over a deleted `#KubevirtValue`), a FILE WITH each test in it (`kubevirt_test.go` held
+  four; I accounted for three), a COUNT as a claim to read ("the four that have moved" vs the five, twice in one file) —
+  never lines. And the generator plus the formatter run LAST: `TestGenReproducible` failed because the generated types
+  carry the CUE doc comments, so a later comment edit made the committed generation stale.
+- **A defect worth carrying forward:** the moved test's first version unified values from two CUE contexts and reported
+  an empty disjunction that named nothing. Compile a literal in `v.Context()` — the kindcluster helper's lesson, now
+  recorded where the next helper will look.
 
 ## 10. What would make this ledger wrong
 
