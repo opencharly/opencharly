@@ -118,7 +118,7 @@ prove it, it is decomposed before dispatch, never landed as a clean slice plus a
 | id | package | rows | producer-first order | gate | depends on | state |
 |---|---|---|---|---|---|---|
 | P00 | Schema-first-parse spike (the open RDD decision) | 0.3 | one disposable bed + a design record; no repo lane | the spike's own disposable bed and its written answer | none | `planned` |
-| P01 | Kind bodies into their plugins (8 units left) | 2.1 | spec > sdk > charly > plugin-{substrate,pipeline,task,check,candy,local,kubernetes,kubevirt,vm,android,deploy} > umbrella | kind-value corpus sweep (composed arm) + the affected R10 beds + `charly task verify` | none | `planned` |
+| P01 | Kind bodies into their plugins (7 units left) | 2.1 | spec > sdk > charly > plugin-{substrate,pipeline,task,check,candy,local,kubernetes,kubevirt,vm,android,deploy} > umbrella | kind-value corpus sweep (composed arm) + the affected R10 beds + `charly task verify` | none | `in progress` — unit 4 (`local`) landed 2026-11-14 across seven merged legs; units 1–3 before it, seven after |
 | P02 | One generation pipeline | 4.1, 4.2, 4.5, 4.6 | spec > sdk > charly | `charly task cue-gen` reproducibility (no-op on a clean tree) + the generator tests | P01 | `planned` |
 | P03 | Generation reproducibility gate | 4.4 | dotgithub > two plugin repositories as callers | the reusable workflow green in both callers | none | `planned` |
 | P04 | Generated types only | 2.3 | spec > sdk | `cue-gen` diff empty + `go build ./...` + the unit suites | P02 | `planned` |
@@ -248,7 +248,7 @@ No wave closes holding an unregistered IOU, and the next wave's plan is built fr
 | IOU-05 | `5.4`'s "about 3.5k lines" and `5.1`'s `exec` figure are unmeasured totals | a per-file boundary-law decomposition of core's domain logic before P33 cuts | P33 | W5 | open |
 | IOU-06 | `D-LOAD-6`'s "the document a reference is written in" clause | the reference-graph rows | P22 | W3 | open |
 | IOU-07 | `12.14`'s digest preflight for charts | the reference grammar carrying the digest | P23 | W3 | open |
-| IOU-08 | the two pins that were `behind` (`sdk`, `dotgithub`) | one pin wave (`charly task sync` + PR) | Lead | W0 | collected — umbrella #1004 (`4a6111f`) |
+| IOU-08 | the two pins that were `behind` (`sdk`, `dotgithub`) | one pin wave (`charly task sync` — it advances EVERY pin the repo declares, so a wave here rolls all 409 — plus its PR) | Lead | W0 | collected — umbrella #1004 (`4a6111f`) |
 | IOU-09 | `TODO.md`'s rows are keyed to their `D-*` requirements but not to DESIGN §1.1's mechanism rows and not to a `design/parity.tsv` row (`opencharly/opencharly#594`'s third scope line) | the parity ledger's shape is settled and green; the key is an umbrella-only analysis over the existing rows | Lead | W7 | open |
 | IOU-10 | `distro-cachyos` is `derived-from:charly` and `blocked-by charly:box/cachyos` (not-on-the-served-line), and `sdk`/`charly` trail their tips (opencharly/opencharly#1009) | a `charly` pin wave to the commit that serves `box/cachyos` (the `charly` pin itself trails its tip) | Lead | W0 | open |
 
@@ -267,7 +267,7 @@ No wave closes holding an unregistered IOU, and the next wave's plan is built fr
 |---|---|---|---|
 | B-1 | the `contract` lane is serial — P01, P09, P18, P19, P24, P29 and more all start in `spec` | every wave's first leg | the Lead, by admitting one `spec` leg at a time |
 | B-2 | a pin wave holds the umbrella's index for its whole run | any concurrent git command in that worktree | the Lead, by not overlapping a wave with a wave |
-| B-3 | `plugin-firecracker` is not a pinned submodule, so `2.1`'s `firecracker` unit needs a pin first | one unit of P01 | the Lead (`charly task sync` + PR) |
+| B-3 | `plugin-firecracker` is not a pinned submodule, so `2.1`'s `firecracker` unit needs a pin first | one unit of P01 | the Lead (the IOU-08 pin wave + PR) |
 
 ### 6.4 Risks and the anti-patterns already measured
 
@@ -297,12 +297,12 @@ Rows `11.1` and `11.2` are **not** debt: they are the completion test (§1), unr
 
 ### 6.6 In flight — agents, PRs, beds, threads
 
-Empty: no agent has been spawned and no PR is open for this programme. The columns are the ones a session must
+One item is in flight: the pin wave that carries unit 4's landed legs. The columns are the ones a session must
 fill the moment one is, because the ledger is the resume point after an interruption.
 
 | item | kind | owner | state | artifact (worktree / PR / bed / thread) | next update due |
 |---|---|---|---|---|---|
-| — | — | — | — | — | — |
+| unit 4's pin wave | umbrella PR | lead | open, waiting on its gate | `chore(pins)!` branch off `origin/main`; ten pins advanced by `charly task sync` | at its merge |
 
 ## 7. Measurement — at every merge
 
@@ -317,7 +317,7 @@ rounds is an RCA on the estimating method, never another per-row reassignment.
 | the schema-pattern debt | `scripts/design-dpat.sh`'s census | 357 violations (close 54, absence 86, open 68, opaque 0, dup 7, union 142) — must not grow |
 | the design gate | `bash scripts/design-check.sh` | all controls pass |
 | the coverage census | the script in `TODO.md`'s `## Status` | 200 requirements, 0 unnamed |
-| pin currency | `charly task pins --param MODE=currency`, cross-checked against each repo's `origin/main` | three not current when measured; umbrella #1004 then advanced `sdk` and `dotgithub` (IOU-08 collected). At the `5d81005` base `sdk` (`e44f0ce` → `f5fb1c0`) and `charly` (`8514979` → `d4c1d55`) again trail the tips their remotes serve, and `distro-cachyos` stays blocked — filed as opencharly/opencharly#1009 (IOU-10) |
+| pin currency | `charly task pins --param MODE=currency`, cross-checked against each repo's `origin/main` | three not current when measured; umbrella #1004 then advanced `sdk` and `dotgithub` (IOU-08 collected). At the `5d81005` base `sdk` (`e44f0ce` → `f5fb1c0`) and `charly` (`8514979` → `d4c1d55`) again trail the tips their remotes serve, and `distro-cachyos` stays blocked — filed as opencharly/opencharly#1009 (IOU-10). The unit-4 pin wave (measured 2026-11-14) then advanced 10 pins and left the question at **4 of 409**: the three `distro-*` edges stay `blocked-by charly:box/<distro>` (a `blocked-by` that names its producer PASSES — the remedy is the served line, not a wave), and `charly` moved again DURING the wave (another session's merge), so its pin is one advance behind and the next wave collects it. |
 | core's domain LOC | unmeasured (IOU-05) | — |
 
 ## 8. Update protocol
@@ -386,6 +386,26 @@ rounds is an RCA on the estimating method, never another per-row reassignment.
   report are read before a push, and every finding is fixed in one commit before that push.
 - The programme state is unchanged by arming it: all 44 packages remain `planned`, no agent exists, and no
   branch, PR, bed or pin wave has been started.
+
+### 2026-11-13/14 — `P01` unit 4 (`local`) landed through SEVEN legs
+
+- The chain was MEASURED, not assumed: unit 4 is seven legs, and `plugin-substrate` — not `plugin-deploy-local` —
+  owns `kind:local` (its `substrateWords` serves it, exactly as `pod` taught unit 3). Two corrections are recorded
+  on `opencharly/spec#304`: my first consumer survey grepped repo-relative basenames that matched nothing (so the
+  count was wrong), and the sdk's `loaderkit` kind table was invisible to any code read and visible to one
+  assembled run.
+- Legs, in landing order: `plugin-substrate#34`, `plugin-box#78`, `plugin-check#148`, `charly#1142`, `sdk#507`,
+  `plugin-loader#13`, `sdk#510` (the `loaderkit` kind table: it named the authored `#Local` and PANICKED once the
+  contract leg deleted it; it now names `#ResolvedLocal`, pinned by a test that fails on an assertion), and
+  `spec#314` (the contract deletion, with the regenerated artifacts).
+- The decisive proof is `spec#314`'s assembled corpus sweep on a MERGED-mains graph: 2,008 bodies judged, every
+  PASS/FAIL identical to the run taken while the base still carried `#Local`/`#LocalValue`, `local` = 203 on both
+  arms.
+- The pin wave in this PR advances the ten pins that were not current (the six legs plus four squash-advanced
+  paths) and collects IOU-10's currency question for the six.
+- Cost observed: four reviewer BLOCK rounds on two tiny consumer legs, ONE defect behind all of them — a pasted
+  proof taken at a head other than the one shipping. §8's push gate now carries that as a rule: create the head,
+  run every pasted command AT it, and change no file afterwards.
 
 ## 10. What would make this ledger wrong
 

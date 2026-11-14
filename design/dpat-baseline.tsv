@@ -172,6 +172,8 @@ plugin-sidecar/candy/plugin-sidecar/schema/sidecar.cue	union	env?: {[string]: (s
 plugin-sidecar/candy/plugin-sidecar/schema/sidecar.cue	union	parameter?: {[string]: (string | number | bool)}	1
 plugin-sidecar/candy/plugin-sidecar/schema/sidecar.cue	union	cgroupns?: "host" | "private" | ""	1
 plugin-sidecar/candy/plugin-sidecar/schema/sidecar.cue	union	ipc_mode?: "host" | "private" | "shareable" | ""	1
+plugin-substrate/candy/plugin-substrate/schema/local.cue	absence	env?: {PATH?: _|_, [string]: schema.#StrVal} @go(Env,type=map[string]string)	1
+plugin-substrate/candy/plugin-substrate/schema/local.cue	union	#LocalValue: (#Local | schema.#DeployValue) @go(-)	1
 plugin-substrate/candy/plugin-substrate/schema/pod.cue	union	#PodValue: (#Pod | schema.#DeployValue) @go(-)	1
 plugin-task/candy/plugin-task/schema/task.cue	absence	env?: {PATH?: _|_, [string]: schema.#StrVal} @go(Env,type=map[string]string)	1
 plugin-unit/candy/plugin-unit/schema/unit.cue	union	scope?: "system" | "user"	1
@@ -269,14 +271,12 @@ spec/schema/llm.cue	close	#LLMReasoning: close({	1
 spec/schema/llm.cue	close	#LLMStreamOptions: close({	1
 spec/schema/llm.cue	close	#LLMNamedToolChoice: close({	1
 spec/schema/llm.cue	close	function: close({name: string})	1
-spec/schema/local.cue	absence	env?: {PATH?: _|_, [string]: #StrVal} @go(Env,type=map[string]string)	1
 spec/schema/marketplace.cue	close	#Marketplace: close({	1
 spec/schema/marketplace.cue	close	#MarketplaceFamily: close({	1
 spec/schema/marketplace.cue	close	#MarketplaceMCPServer: close({	1
 spec/schema/marketplace.cue	close	#MarketplaceSettings: close({	1
 spec/schema/node.cue	union	#Image: #Box & ({base: string & !=""} | {from: string & !=""})	1
 spec/schema/node.cue	union	#CandyValue: (*#Candy | #Image) @go(-)	1
-spec/schema/node.cue	union	#LocalValue: (#Local | #DeployValue) @go(-)	1
 spec/schema/node.cue	union	#VmValue: (#Vm | #DeployValue) @go(-)	1
 spec/schema/node.cue	union	#KubernetesValue: (#Kubernetes | #DeployValue) @go(-)	1
 spec/schema/node.cue	union	#KindclusterValue: (#Kindcluster | #DeployValue) @go(-)	1
