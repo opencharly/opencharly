@@ -185,7 +185,6 @@ verb:mise	verb	plugin-mise	merged	M1	D-PLUG-2	a `builder:` data node	candy manif
 verb:module-pins	verb	plugin-task	retired	M7	D-LAW-2	zero corpus uses	candy manifest providers
 verb:mount	verb	plugin-mount	kept	M7	§23 D-VERB-6	fact verb `mount`	candy manifest providers
 verb:oci	verb	plugin-oci	merged	M2	D-ROLE-3	an `api` of the build plugin	candy manifest providers
-verb:omarchy	verb	plugin-omarchy	non-first-party	M7	D-PLUG-7 D-VERB-6	`omarchy.<verb>` or `http`/`command`	candy manifest providers
 verb:openclaw	verb	plugin-openclaw	non-first-party	M7	D-PLUG-7 D-VERB-6	`openclaw.<verb>` or `http`/`command`	candy manifest providers
 verb:package	verb	plugin-package	kept	M7	§23 D-VERB-6	fact verb `package`	candy manifest providers
 verb:pipeline	verb	plugin-pipeline	merged	workflow	D-FLOW-1	a `pipeline:` stage arm	candy manifest providers
