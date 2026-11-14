@@ -250,7 +250,7 @@ krun annotations ram_mib/cpus	capability	—	kept	M3	§8 §9.1	`need: {cpu: {cor
 krun VM backend (OCI image boot)	capability	—	kept	M3	D-DRV-1 D-FORM-3	the `krun` hypervisor driver row	spec#266
 Firecracker rootfs + kernel	capability	—	kept	M2	§14.2 D-FORM-3	the disk form beside the `os` `boot` kernel	spec#227, spec#229
 rootful vs rootless daemon	capability	—	kept	M4	D-HW-7	`need: {privilege: {rootful: {}}}`	CONTAINERD.md §1.1
-containerd namespace per deployment	capability	—	kept	M6	§17.7	the container venue's `namespace`	CONTAINERD-IMAGES.md §1
+containerd namespace per deployment	capability	—	kept	M6	§17.7	the container venue's `namespace`	IMAGES.md §1
 narrow seccomp profile for userns sandboxes	capability	—	kept	M4	D-HW-7 §9.1	`need: {nesting: {userns: {}}}`	CONTAINERD.md §10.1.1
 snapshot and revert of a container's layer, the store, a microVM	capability	—	kept	M5	D-CAPTURE-4 D-CAPTURE-5	capture and `restore`	CONTAINERD.md §10.3.4, §17, §18
 CRIU process checkpoint (rootful runc; krun in-guest)	capability	—	kept	M5	D-CAPTURE-4 D-VAL-11	`capture: process`	CONTAINERD.md §15; LIBKRUN.md §3
@@ -260,7 +260,7 @@ NVIDIA CDI rootful and rootless	capability	—	kept	M4	§9.1	the `gpu` need's `p
 krun virtio-gpu; no NVIDIA in krun	capability	—	kept	M4	D-HW-7	`device: render` under microVM isolation	CONTAINERD.md §14.3; LIBKRUN.md §12
 GPU shared through CDI vs held alone through VFIO	capability	—	kept	M4	D-HW-8	a need entry's `exclusive`, and the lease the grant imposes	CONTAINERD.md §7; LIBKRUN.md §12
 nested containerd and krun in a pod	capability	—	kept	M4	§9.1	`nesting: container` and `nesting: vm`	CONTAINERD.md §14
-lease readiness hook with a deadline	capability	—	kept	M5	D-LAW-5 §23	a check step in the `ready` phase	CONTAINERD-IMAGES.md §2.1
+lease readiness hook with a deadline	capability	—	kept	M5	D-LAW-5 §23	a check step in the `ready` phase	IMAGES.md §2.1
 fast reset with --rm and read-only rootfs	capability	—	kept	M5	D-DEP-3	`disposable: true`	CONTAINERD.md §15
 BuildKit as the one image builder	capability	—	kept	M2	§14.3	the build plugin's one builder	opencharly#481
 local registry mirror for build inputs	capability	—	kept	M8	D-STORE-10	the store's registry view	sdk#428

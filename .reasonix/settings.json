@@ -16,7 +16,7 @@
     ],
     "SessionStart": [
       {
-        "description": "Inject the SOUL.md identity (reasonix's additive session-context mechanism)",
+        "description": "Inject the SOUL.md identity and the reasonix harness binding (design/REASONIX.md) — reasonix's additive session-context mechanism",
         "command": "bash -c '[ -x \"$PWD/.reasonix/soul-inject.sh\" ] && exec \"$PWD/.reasonix/soul-inject.sh\" || exit 0'",
         "timeout": 10000
       },

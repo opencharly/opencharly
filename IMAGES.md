@@ -1,4 +1,4 @@
-# CONTAINERD-IMAGES.md — the image contract for the containerd substrate
+# IMAGES.md — the image contract for the containerd substrate
 
 `CONTAINERD.md`, `K3S.md` and `LIBKRUN.md` describe what a **prepared host** must look
 like. This file describes the **images** that prepare one, and the **lease images** a
