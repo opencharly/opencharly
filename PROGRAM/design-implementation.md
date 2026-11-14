@@ -118,7 +118,7 @@ prove it, it is decomposed before dispatch, never landed as a clean slice plus a
 | id | package | rows | producer-first order | gate | depends on | state |
 |---|---|---|---|---|---|---|
 | P00 | Schema-first-parse spike (the open RDD decision) | 0.3 | one disposable bed + a design record; no repo lane | the spike's own disposable bed and its written answer | none | `planned` |
-| P01 | Kind bodies into their plugins (3 units left: `vm`, `candy`, `android`/`deploy`) | 2.1 | spec > sdk > charly > plugin-{substrate,pipeline,task,check,candy,local,kubernetes,kubevirt,vm,android,deploy} > umbrella | kind-value corpus sweep (composed arm) + the affected R10 beds + `charly task verify` | none | `in progress` — unit 6 (`kubevirt`) landed 2026-11-14 across five merged legs; units 1–5 before it, five after |
+| P01 | Kind bodies into their plugins (4 units left: `vm`, `candy`, `android`, `deploy`) | 2.1 | spec > sdk > charly > plugin-{substrate,pipeline,task,check,candy,local,kubernetes,kubevirt,vm,android,deploy} > umbrella | kind-value corpus sweep (composed arm) + the affected R10 beds + `charly task verify` | none | `in progress` — unit 6 (`kubevirt`) landed 2026-11-14 across five merged legs; units 1–5 before it, five after |
 | P02 | One generation pipeline | 4.1, 4.2, 4.5, 4.6 | spec > sdk > charly | `charly task cue-gen` reproducibility (no-op on a clean tree) + the generator tests | P01 | `planned` |
 | P03 | Generation reproducibility gate | 4.4 | dotgithub > two plugin repositories as callers | the reusable workflow green in both callers | none | `planned` |
 | P04 | Generated types only | 2.3 | spec > sdk | `cue-gen` diff empty + `go build ./...` + the unit suites | P02 | `planned` |
