@@ -474,6 +474,14 @@ why they stay green) while a sibling plugin can now cite `schema.#<Word>`. The s
 `#VmKindWord: _machineWord` it fails naming the real list. The plugin leg (the seven non-keeper defs + the twin,
 citing `schema.#…`) is next, followed by the loader, the resolve arm's local view and the contract's deletion.
 
+### 2026-11-14 — the schema-ownership mechanism, step 1: the load wire carries opaque bytes
+
+- **The RCA is in-repo**: `PROGRAM/schema-ownership-rca-rdd.md` (landed as opencharly/opencharly#1035). Its root cause: the cutover treated the wire's shape as a constraint on the kind instead of as part of the cutover, so every kind whose wire named an authored type stayed in `spec` and was recorded as a "keeper". Ten entities were still in that state.
+- **Step 1 landed across five repos**: `spec#322` collapsed both authored-type channels (`#StructuralKindLoadEnv.members` to bytes, `#StandaloneLoad` to `shape` + one opaque `body`), and the four readers followed — `plugin-substrate#48`, `plugin-kubevirt#47`, `plugin-candy-kind#9`, `plugin-example-structkind#11`.
+- **What it guarantees**: `spec` no longer carries `#Deploy`, `#Box` or `#Candy` on any load wire. That was the single thing pinning ten authored bodies in the contract; with it gone, `candy`/`box` can move to the build plugin (DESIGN.md §3.1) and `deploy` becomes the §3.1 clarification the RCA proposes rather than a "not movable" verdict.
+- **The cost, recorded honestly**: eleven review rounds across the wave, ZERO code findings — every block was a prose claim (an inverted sentence about the pre-cutover envelope, two slogan rule answers, a stale diffstat, an unaccounted dependency). The checker in the RCA's step 4 is the fix for that class, and this wave is its evidence.
+- **Filed**: opencharly/opencharly#1026 (`plugin-k8sgen`'s pin no longer compiles after unit 5's reshape — the one red in any assembled build) and #1033 (the ownership class: the loaderkit init panic, two missing floors, four dead re-exports, one stale contract claim).
+
 ### 2026-11-14 — `P01` unit 8 (`vm`) landed: nine legs, the pin lesson, and the census as the auditor
 
 - **Nine legs, all merged**: `spec#320` (eight public vocabulary re-exports), `plugin-substrate`#42 (the body + the
