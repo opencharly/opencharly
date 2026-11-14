@@ -2516,11 +2516,13 @@ no read path for one. Records live in the state root (D-DEP-5), so they inherit 
 | Group | Commands |
 |---|---|
 | boxes | `box build <box> [--form image\|disk] [--emit]`, `box validate`, `box new`, `box pull`, `box push`, `box inspect`, `box list`, `box load <box> <deployment>`, `box merge`, `box reconcile`, `box set`, `box add-candy`, `box rm-candy`, `box write`, `box cat` |
+| candy | `candy set`, `candy add-<fmt>`, `candy params` |
 | deployments (every kind) | `deploy add`, `deploy del`, `deploy adopt`, `deploy from-box`, `deploy export`, `deploy import`, `update`, `start`, `stop`, `restart`, `restore`, `status`, `log`, `shell`, `cmd`, `cp`, `console`, `display`, `forward`, `power`, `service`, `volume` |
+| vm | `vm clone`, `vm import`, `vm import-container-disk` (the authored-file writers; the VM surface itself is §17.6) |
 | checks | `check box`, `check step`, `check live`, `check harness`, `check run`, `check list`, `check report`, `check note`, `check stop`, `check scope`, `check last-tag`, `check self-evaluate`, `check list-harness`, `check sync-credential` |
 | agents | `agent …` (runtime, session, run, followup, steer, dispatch, delegate, team, federation, terminal, incident, rca, recover), `tui` |
 | project | `pipeline`, `migrate`, `doc generate`, `marketplace generate`, `review`, `release-package` |
-| host | `secret`, `config`, `cache`, `clean`, `doctor`, `local-install [--local-install]`, `preempt`, `alias`, `audit`, `registry`, `mcp serve`, `version`, `help` |
+| host | `secret`, `config` (`config setup` writes), `cache`, `clean`, `doctor`, `local-install [--local-install]`, `preempt`, `alias`, `audit`, `registry`, `mcp serve`, `version`, `help`, `udev install` |
 
 A capture needs no command: building a capture box realizes and checks the captured deployment if
 needed, then captures it. The interaction commands — `shell`, `cmd`, `cp`, `log`, `console`,

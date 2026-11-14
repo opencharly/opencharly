@@ -86,7 +86,6 @@ kind:distro	plugin-distro/candy/plugin-distro/schema/distro.cue	32-47	#DistroInp
 kind:firecracker	spec/schema/firecracker.cue	35-61	#Firecracker	77d4112bca573e60
 kind:group	charly/charly/no_kind_switch_in_kernel_test.go	42-42	-	19a40f2967852815
 kind:hook	spec/schema/hook.cue	12-20	#Hook	a818367685f46363
-kind:local	spec/schema/local.cue	9-16	#Local	578bfc988c94086f
 kind:resource	plugin-resource/candy/plugin-resource/schema/resource.cue	21-27	#ResourceInput	923be81c20e14952
 kind:sidecar	plugin-sidecar/candy/plugin-sidecar/schema/sidecar.cue	48-89	#ScSecurity	ba51088a37c53e10
 kind:skill	plugin-harness-kind/candy/plugin-harness-kind/schema/skill.cue	19-32	#SkillInput	faefee417399e060
@@ -115,7 +114,7 @@ secrets get|set|list|delete|import|export|gpg|encrypt|decrypt|edit|env|recipient
 ssh spice|vnc	plugin-ssh/candy/plugin-ssh/tunnel.go	31-41	SshTunnelCmd	a0cd71a5971bcf03
 ssh tunnel	plugin-ssh/candy/plugin-ssh/tunnel.go	31-41	SshTunnelCmd	a0cd71a5971bcf03
 step:apk-install	plugin-installstep/candy/plugin-installstep/charly.yml	45-45	-	e529a8fb71a3c8db
-step:apk-install	spec/spec/union_types.go	353-359	UnmarshalJSON	b137738b78bc3ea1
+step:apk-install	spec/spec/union_types.go	353-359	UnmarshalJSON	4e4ac51420145c4f
 step:builder	plugin-installstep/candy/plugin-installstep/charly.yml	48-48	-	e1f89f1fd3cb5613
 step:builder	spec/spec/install_step_vocab.go	140-185	BuilderStep	246b575cf7a938bc
 step:file	plugin-installstep/candy/plugin-installstep/charly.yml	39-39	-	a8046d02613a4f04
@@ -149,7 +148,7 @@ verb:file	plugin-file/candy/plugin-file/schema/file.cue	1-45	#FileInput	9fc785d7
 verb:gpu	plugin-gpu/candy/plugin-gpu/main.go	40-80	Invoke	c5bcb8792efa2119
 verb:http	plugin-http/candy/plugin-http/schema/http.cue	1-40	#HttpInput	8291027e28ded5d4
 verb:k8sgen	plugin-k8sgen/candy/plugin-k8sgen/main.go	2-2	-	a751c4a73492c500
-verb:k8sgen	plugin-k8sgen/candy/plugin-k8sgen/main.go	28-47	NewMeta	fa7019420b210351
+verb:k8sgen	plugin-k8sgen/candy/plugin-k8sgen/main.go	28-40	NewMeta	19d74e43b07db453
 verb:kernel-param	plugin-kernel-param/candy/plugin-kernel-param/schema/kernel_param.cue	1-6	-	dcb24d454741cdf3
 verb:libvirt	plugin-vm/candy/plugin-vm/schema/vm.cue	1-10	-	b1f14661b1055139
 verb:matching	plugin-matching/candy/plugin-matching/schema/matching.cue	1-8	-	1712635928b0c34f

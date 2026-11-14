@@ -113,6 +113,7 @@ const SURFACES = [
   { id: "pin-intent-and-currency.md — the contract's opening", rel: ".agents/skills/git-workflow/references/pin-intent-and-currency.md", kind: "block", anchor: /^The umbrella records one commit per submodule/ },
   { id: "agents/SKILL.md — the remedy for a pin lag", rel: ".agents/skills/agents/SKILL.md", kind: "block", anchor: /^\*\*Remedy\.\*\* Identify the submodule/ },
   { id: "repo-setup/SKILL.md — the checklist's pin-advance step", rel: ".agents/skills/repo-setup/SKILL.md", kind: "block", anchor: /^5\. Add it to the umbrella as a submodule/ },
+  { id: "PROGRAM/design-implementation.md — the IOU-08 pin-wave row", rel: "PROGRAM/design-implementation.md", kind: "line", anchor: /^\| IOU-08 \|/ },
 ];
 
 /**
