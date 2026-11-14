@@ -457,9 +457,22 @@ plugin TAKES `#Vm` itself and the defs no envelope cites (`#VmInstaller`, `#VmCh
 `#VmCharlyInstall`), with `#Vm` citing the keepers as `schema.#…`. The vocabulary tables split the same way (the domain family's stay; the body's move); the exact word set is
 the producer leg's own measurement, not a figure this record asserts.
 
-**Not started.** The producer leg needs this decision recorded first — it changes what "the body's home"
-means for a kind whose envelope is typed. The next round starts with the keeper list above, builds
-`schema/vm.cue` from the non-keeper defs, and proves it with the two-arm corpus sweep exactly as units 4–7 did.
+**The producer leg's first measurement OVERTURNED the split above.** The non-keeper set is SEVEN defs
+(`#Vm`, `#VmBackend`, `#VmBackendName`, `#VmChecksum`, `#VmInstaller`, `#VmKeyInjection`, `#VmCharlyInstall`), and all
+eight private vocabulary words they cite (`backendWord`, `cloudInitWord`, `machineWord`, `smbiosWord`, `strategyWord`,
+`vmBackendNameWord`, `vmFirmwareWord`, `vmKindWord`) are **ALSO cited by the keepers** — measured by partitioning every
+def block and intersecting the `_<word>` references. A plugin's CUE module cannot reference a private def, so the body
+cannot move while the keepers stay. The envelope cannot simply flatten either: its typed fields are read deeply
+(`vm.Source.Kind`, `vm.SSH.User`, `vm.Source.Installer` in `plugin-deploy-vm`; `vmshared.VmSpec` is a real type used by
+`RenderCloudInit`).
+
+**Three roads were put to the operator, and the ruling was (b): make the eight words public.** Landed as
+`spec`#320: eight one-line PUBLIC re-exports (`#VmBackendNameWord` … `#VmKindWord`) pointing at the unchanged private
+derivations, so the S3 shape is untouched (a RENAME broke three vocabulary tests — measured, and the alias form is
+why they stay green) while a sibling plugin can now cite `schema.#<Word>`. The surface is pinned by
+`TestVmVocabularyReExports`, which asserts each name carries one word only its OWN table has — planted with
+`#VmKindWord: _machineWord` it fails naming the real list. The plugin leg (the seven non-keeper defs + the twin,
+citing `schema.#…`) is next, followed by the loader, the resolve arm's local view and the contract's deletion.
 
 ### 2026-11-14 — `P01` unit 7 (`firecracker`) landed: the largest body, and the claims a move constructs
 
