@@ -433,6 +433,34 @@ rounds is an RCA on the estimating method, never another per-row reassignment.
   three D-PAT rows follow the code; the census stays 357.
 
 
+### 2026-11-14 — `P01` unit 8 (`vm`) measured: the envelope pins the body, and the split is a decision
+
+**Measured, not read.** `spec/schema/vm.cue` carries **78 exported `#`-defs in 1,152 lines** — 17
+`#Vm*` (the `#Vm` body itself plus 16 sub-defs), **60 `#Libvirt*`** (a DOMAIN MODEL — the renderer's schema)
+and 1 `#ResolvedVm` (the envelope), so `17 + 60 + 1 = 78` — plus, *separately*, **48 private `_*`
+vocabulary tables** (they are not `#`-defs, so they sit outside the 78). The renderer does NOT live in charly (the tracker's premise is
+outdated): `libvirtDomainSpec`/`RenderDomainXML` are in **`plugin-vm`**, with `sdk/vmshared`'s helper, and
+`#LibvirtDomain` is DEFINED in `spec/schema/vm.cue` and cited as a TYPE only inside that file (`#Vm.libvirt` and `#ResolvedVm.libvirt`); OUTSIDE it, the only references are two comments in `node.cue`.
+
+**The blocker the tracker named is real, and it is the ENVELOPE.** `#ResolvedVm` cites the BODY types —
+`#VmSource`, `#VmNetwork`, `#VmSsh`, `#VmCloudInit`, `#LibvirtDomain`, `#VmKrun`, `#VmSnapshot` — and the
+envelope is a WIRE type read by three consumers (`charly`'s fallback resolver, `plugin-check` through the
+`vmshared.VmSpec IS spec.ResolvedVm` alias, and `plugin-deploy-vm`, which reads `Source` ×10, `SSH` ×7 and
+`CloudInit` ×3). The previous units' envelopes (`#ResolvedKubeVirt`, `#ResolvedLocal`) are FLAT — strings
+plus `raw` — because their bodies had no typed envelope citations. Moving `#Vm` while leaving the envelope
+would leave the contract citing a def in another module.
+
+**The split this implies (the `#PodSidecar` keeper precedent, scaled):** the contract KEEPS `#ResolvedVm`
+and every def it cites (`#VmSource`, `#VmNetwork`, `#VmSsh`, `#VmCloudInit` + its sub-defs, the
+`#LibvirtDomain` family, `#VmKrun`, `#VmSnapshot`, `#VmBackend*`), because a wire type cites them; the
+plugin TAKES `#Vm` itself and the defs no envelope cites (`#VmInstaller`, `#VmChecksum`, `#VmKeyInjection`,
+`#VmCharlyInstall`), with `#Vm` citing the keepers as `schema.#…`. The vocabulary tables split the same way (the domain family's stay; the body's move); the exact word set is
+the producer leg's own measurement, not a figure this record asserts.
+
+**Not started.** The producer leg needs this decision recorded first — it changes what "the body's home"
+means for a kind whose envelope is typed. The next round starts with the keeper list above, builds
+`schema/vm.cue` from the non-keeper defs, and proves it with the two-arm corpus sweep exactly as units 4–7 did.
+
 ### 2026-11-14 — `P01` unit 7 (`firecracker`) landed: the largest body, and the claims a move constructs
 
 - **Three legs, all merged** (two of them as successors after auto-close): `plugin-substrate`#40 — **thirty-two
