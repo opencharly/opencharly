@@ -62,7 +62,7 @@ compact_ratio = 0.70
 # its own project convention dirs (`.reasonix/skills`, `.agents/skills`,
 # `.agent/skills`, `.claude/skills` — none of which exist here) plus the user's
 # global roots, so it resolves a dozen builtin/global skills and NOT ONE of the
-# charly procedures. See REASONIX.md for how a reference maps to a call.
+# charly procedures. See design/REASONIX.md for how a reference maps to a call.
 #
 # These are the directories that actually CONTAIN skills — every
 # `<family>/skills/` (each holding `<skill>/SKILL.md`) plus the `<family>/agents/`

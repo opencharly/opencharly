@@ -49,6 +49,8 @@
 //      server.                                                       [discriminating]
 //   7. SOUL.md is injected into every harness that has an additive mechanism.
 //                                                                     [discriminating]
+//  7b. reasonix's harness binding (design/REASONIX.md) exists at its declared home
+//      and is injected by that same SessionStart hook.            [discriminating]
 //   8. reasonix.toml's [skills] paths ARE their derivation from the
 //      corpus (scripts/sync-skill-bindings.mjs --only reasonix), and are
 //      well-formed.                                       [discriminating]
@@ -140,6 +142,7 @@ if (argv.includes("--self-test")) {
     ".reasonix/plugin/reasonix-plugin.json",
     ".reasonix/plugin/sidecar.py",
     ".reasonix/watch.items",
+    "design/REASONIX.md",
     ".pi/watch.items",
     ".pi/extensions/watch.ts",
     "reasonix.toml",
@@ -248,6 +251,8 @@ if (argv.includes("--self-test")) {
     [".pi/extensions/charly-gates.ts", (p) => writeFileSync(p, readFileSync(p, "utf8").replace(/readSoul/g, "__soul_removed__")), "injects the SOUL.md identity", "7 (pi arm)"],
     [".reasonix/soul-inject.sh", (p) => writeFileSync(p, readFileSync(p, "utf8").replace(/cat "\$SOUL"/, "true")), "injects SOUL.md for reasonix", "7 (reasonix arm — a wired hook whose script stopped emitting must FAIL)"],
     [".reasonix/settings.json", (p) => { const s = JSON.parse(readFileSync(p, "utf8")); s.hooks.SessionStart = s.hooks.SessionStart.filter((h) => !h.command.includes("soul-inject")); writeFileSync(p, JSON.stringify(s)); }, "injects SOUL.md for reasonix", "7 (reasonix arm — an UNWIRED hook must FAIL)"],
+    [".reasonix/soul-inject.sh", (p) => writeFileSync(p, readFileSync(p, "utf8").replace(/cat "\$RIX"/, "true")), "injects the reasonix harness binding", "7b (a hook that stopped emitting the binding must FAIL)"],
+    ["design/REASONIX.md", (p) => rmSync(p), "design/REASONIX.md exists", "7b (a missing binding file must FAIL)"],
     ["reasonix.toml", (p) => writeFileSync(p, readFileSync(p, "utf8").replace(/^paths = \[\n[\s\S]*?\n\]/m, "paths = []")), "wires", "8 (empty [skills] paths must FAIL)"],
     ["reasonix.toml", (p) => writeFileSync(p, readFileSync(p, "utf8").replace(/^paths = \[/m, 'paths = [\n    "marketplace",')), "bare `marketplace` root", "8 (the bare-family-root regression must FAIL)"],
     ["reasonix.toml", (p) => writeFileSync(p, readFileSync(p, "utf8").replace(/^    "marketplace\/vm\/skills",\n/m, "")), "match their derivation", "8 (a dropped skill path must FAIL on coverage)"],
@@ -599,6 +604,26 @@ ok(existsSync(join(root, ".claude/workflows/audit-deploy-configs.js")), ".claude
   for (const [surface, asserts, who] of SOUL_SURFACES) {
     ok(asserts(jsonOr(surface), surface), `${surface} injects SOUL.md for ${who}`);
   }
+}
+
+// 7b. reasonix's harness BINDING is injected by that same SessionStart hook, and it
+//    EXISTS at its declared home. The binding used to sit at the repo ROOT, where
+//    reasonix loaded it natively; it lives in `design/` beside the design ledger now,
+//    and reasonix loads instruction files ONLY from the workspace root — so the hook
+//    IS the delivery mechanism, and both halves have to hold. The two assertions are
+//    split deliberately: an existence check alone stays green over a hook that stopped
+//    emitting, and a text check alone stays green over a deleted file (the hook's own
+//    warning path then fires at runtime, where no gate reads it).
+//    DISCRIMINATING: `main` carries the binding at the root and no `cat` of
+//    `design/REASONIX.md`, so this check is RED there.
+{
+  const BINDING = "design/REASONIX.md";
+  ok(existsSync(join(root, BINDING)), `${BINDING} exists (the reasonix harness binding)`);
+  const t = read(".reasonix/soul-inject.sh") ?? "";
+  ok(
+    /design\/REASONIX\.md/.test(t) && /cat "\$RIX"/.test(t) && !/exit 2/.test(t),
+    ".reasonix/soul-inject.sh injects the reasonix harness binding (design/REASONIX.md)",
+  );
 }
 
 // 8. reasonix.toml wires the marketplace SKILL roots — as a DERIVATION, and NOT the bare root.
