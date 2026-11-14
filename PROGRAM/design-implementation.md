@@ -440,7 +440,7 @@ rounds is an RCA on the estimating method, never another per-row reassignment.
 and 1 `#ResolvedVm` (the envelope), so `17 + 60 + 1 = 78` — plus, *separately*, **48 private `_*`
 vocabulary tables** (they are not `#`-defs, so they sit outside the 78). The renderer does NOT live in charly (the tracker's premise is
 outdated): `libvirtDomainSpec`/`RenderDomainXML` are in **`plugin-vm`**, with `sdk/vmshared`'s helper, and
-`#LibvirtDomain` is cited in `spec`'s comments only.
+`#LibvirtDomain` is DEFINED in `spec/schema/vm.cue` and cited as a TYPE only inside that file (`#Vm.libvirt` and `#ResolvedVm.libvirt`); OUTSIDE it, the only references are two comments in `node.cue`.
 
 **The blocker the tracker named is real, and it is the ENVELOPE.** `#ResolvedVm` cites the BODY types —
 `#VmSource`, `#VmNetwork`, `#VmSsh`, `#VmCloudInit`, `#LibvirtDomain`, `#VmKrun`, `#VmSnapshot` — and the
