@@ -244,7 +244,7 @@ No wave closes holding an unregistered IOU, and the next wave's plan is built fr
 | IOU-01 | `2.1`'s remaining eight kinds (units 4–11) | each unit's `InputDef: "#<Word>Value"` plus the corpus sweep taught in the same change; tracker `opencharly/spec#304` | P01 | W0 | open |
 | IOU-02 | the D-PAT census's `dup` rows (`#945`: 357 violations, 7 `dup` over 3 names) | the schemas composing by import (P01) and P18's one-home rule; the total may not grow meanwhile | P18 | W2 | open |
 | IOU-03 | the `_venue` word-set divergence (`container/ssh/shell/parent/kubevirt/none` against DESIGN §17.7's `container`/`ssh`/`shell`/`kvm`/`adb`/`kube`) | the venue table itself | P12 | W1 | open |
-| IOU-04 | `D-CLI-2`'s allowed-writer list against `§22`'s group table | an operator ruling on which text is wrong (D-1); blocks `8.4` | P37 | W6 | open |
+| IOU-04 | `D-CLI-2`'s allowed-writer list against `§22`'s group table | an operator ruling on which text is wrong (D-1); blocks `8.4` | P37 | W6 | **resolved 2026-11-14** — the operator ruled §22 is the incomplete text; its table gained the `candy` and `vm` writer rows plus `config setup` and `udev install` (opencharly/opencharly#1007) |
 | IOU-05 | `5.4`'s "about 3.5k lines" and `5.1`'s `exec` figure are unmeasured totals | a per-file boundary-law decomposition of core's domain logic before P33 cuts | P33 | W5 | open |
 | IOU-06 | `D-LOAD-6`'s "the document a reference is written in" clause | the reference-graph rows | P22 | W3 | open |
 | IOU-07 | `12.14`'s digest preflight for charts | the reference grammar carrying the digest | P23 | W3 | open |
@@ -256,7 +256,7 @@ No wave closes holding an unregistered IOU, and the next wave's plan is built fr
 
 | id | question | blocks | recommendation |
 |---|---|---|---|
-| D-1 | `DESIGN.md` contradicts itself: `D-CLI-2` lists `config setup`, `candy set`/`add-<fmt>`/`params`, `vm clone`/`import` and `udev install` as writers, and `§22`'s group table omits them while `8.1` retires three of those renames — filed as opencharly/opencharly#1007 | P37's `8.4` leg | correct `DESIGN.md` (the list becomes the post-8.1 set), because `§22`'s table is the command surface the design intends |
+| D-1 | `DESIGN.md` contradicts itself: `D-CLI-2` lists `config setup`, `candy set`/`add-<fmt>`/`params`, `vm clone`/`import` and `udev install` as writers, and `§22`'s group table omits them while `8.1` retires three of those renames — filed as opencharly/opencharly#1007 | P37's `8.4` leg | **RULED 2026-11-14: §22 is the incomplete text.** Verified against the current `DESIGN.md`, the table omitted THREE whole groups the CLI has (`candy`, `vm`, `udev`) plus `config setup`; the operator extended §22 rather than shrinking `D-CLI-2`, because the writers demonstrably write authored files (the org's own skills document `charly candy set/add-<fmt>/params`, `charly vm`, `charly udev`). `8.4` is unblocked. |
 | D-2 | run the schema-first-parse spike (`0.3`) or waive it | P00 → P20 | run it: it can invalidate P20 before a `spec` PR is spent |
 | D-3 | `9.2` and `10.2` share one `marketplace` window | P39, P40 | `P39` then `P40` — the corpus is regenerated before the map is pointed at it |
 | D-4 | the width grant (slots), and confirming that every bed this programme runs is `disposable: true` | every wave | grant the width once; the disposable rule is not optional |
