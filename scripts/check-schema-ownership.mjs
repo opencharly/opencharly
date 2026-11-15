@@ -190,12 +190,18 @@ function witnesses(def, corpus, own) {
     if (own && repo === own.repo && path === own.path) continue;
     if (stripCueComments(text).includes(`#${bare}`)) {
       const isGo = path.endsWith(".go");
-      const isContractEnvelope = /(^|\/)(deploy|loader|unified|resolve)[A-Za-z_]*\.cue$/.test(path);
-      const isGenerator = isGo && /_gen|generated|gengotypes/i.test(path);
-      if (isContractEnvelope && repo === "spec") hits.add("K1");
+      // K1 — the CONTRACT's own envelope cites it: a deploy/loader/unified/resolve CUE file IN spec.
+      const isContractEnvelope = repo === "spec" && /(^|\/)(deploy|loader|unified|resolve)[A-Za-z_]*\.cue$/.test(path);
+      // K2 — SPEC's generator extracts it by name: a generated Go file IN spec. Any repo's generated
+      // file is not the contract's generator, and counting it was over-broad.
+      const isGenerator = repo === "spec" && isGo && /_gen|generated|gengotypes/i.test(path);
+      // K3 — a SIBLING repo's CUE cites it: a `.cue` file in a DIFFERENT repo. spec's own non-envelope
+      // CUE, and a same-repo sibling file, are not a cross-module citation.
+      const isSiblingCue = !isGo && path.endsWith(".cue") && repo !== own?.repo;
+      if (isContractEnvelope) hits.add("K1");
       else if (isGenerator) hits.add("K2");
-      else if (!isGo) hits.add("K3");
-      else goRepos.add(repo);
+      else if (isSiblingCue) hits.add("K3");
+      else if (isGo) goRepos.add(repo);
     }
   }
   if (goRepos.size >= 2) hits.add("K4");
