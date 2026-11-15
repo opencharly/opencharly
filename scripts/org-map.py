@@ -10,7 +10,7 @@ leaves behind when it sweeps the gitlinks and not the org map. Both directions a
 now, so a cutover that moves both halves and a change that moves only one are judged by the
 same arms.
 
-THE SIX ARMS
+THE ARMS
   A0 anchors          README.md carries both `## The org map` and `## Pinning`
   A1 section claim    each `### <section>` states `N repos` and lists exactly N rows
   A2 section order    a section's rows are sorted (the map is read as an inventory)
@@ -19,7 +19,7 @@ THE SIX ARMS
   A5 header census    `every OpenCharly repo (N today)` == the declared-path count
 
 ONE PARSE, TWO READERS. `parse()` is the single read of the two files; `_arms()` is the single
-implementation of the six arms; `check()` returns the findings and `report()` prints them. A
+implementation of the arms; `check()` returns the findings and `report()` prints them. A
 reader that parsed the tree itself would be a second copy of the grammar, and the two would
 drift the first time either changed (R2).
 
@@ -78,25 +78,34 @@ def parse(root):
     )
 
 
+def _walk(sections):
+    """The ONE per-section walk: (name, rows, claimed, sorted_ok) for every section.
+
+    `claimed` is -1 when the section states no `N repos` claim. Both readers below consume
+    this — the arms for their verdict, the display for its table — so a change to the
+    section format has ONE place to land (R2).
+    """
+    for sec in sections:
+        name = sec.split("\n", 1)[0].strip()
+        rows = ROW_RE.findall(sec)
+        claimed_m = CLAIM_RE.search(sec)
+        yield name, rows, (int(claimed_m.group(1)) if claimed_m else -1), rows == sorted(rows)
+
+
 def _arms(sections, rows, declared, header_match):
-    """The six arms, over what `parse()` returned. An empty list means they all hold."""
+    """The arms, over what `parse()` returned. An empty list means they all hold."""
     findings = []
     declared_set = set(declared)
 
-    # A1 + A2, per section.
-    for sec in sections:
-        name = sec.split("\n", 1)[0].strip()
-        sec_rows = ROW_RE.findall(sec)
-        claimed_m = CLAIM_RE.search(sec)
-        if claimed_m is None:
+    # A1 + A2, per section — over the ONE walk.
+    for name, sec_rows, claimed, sorted_ok in _walk(sections):
+        if claimed < 0:
             findings.append(("A1 section claim", f"{name}: states no `N repos` claim"))
-        else:
-            claimed = int(claimed_m.group(1))
-            if claimed != len(sec_rows):
-                findings.append(
-                    ("A1 section claim", f"{name}: claims {claimed} repos and lists {len(sec_rows)} row(s)")
-                )
-        if sec_rows != sorted(sec_rows):
+        elif claimed != len(sec_rows):
+            findings.append(
+                ("A1 section claim", f"{name}: claims {claimed} repos and lists {len(sec_rows)} row(s)")
+            )
+        if not sorted_ok:
             at = next(i for i in range(len(sec_rows) - 1) if sec_rows[i] > sec_rows[i + 1])
             findings.append(
                 (
@@ -145,13 +154,8 @@ def report(root):
 
     if error is None:
         print(f"{'section':34s} {'claimed':>7s} {'rows':>5s} {'sorted':>7s}")
-        for sec in sections:
-            name = sec.split("\n", 1)[0].strip()
-            sec_rows = ROW_RE.findall(sec)
-            claimed_m = CLAIM_RE.search(sec)
-            claimed = int(claimed_m.group(1)) if claimed_m else -1
-            sorted_ok = "yes" if sec_rows == sorted(sec_rows) else "NO"
-            print(f"{name:34s} {claimed:7d} {len(sec_rows):5d} {sorted_ok:>7s}")
+        for name, sec_rows, claimed, sorted_ok in _walk(sections):
+            print(f"{name:34s} {claimed:7d} {len(sec_rows):5d} {'yes' if sorted_ok else 'NO':>7s}")
         header = header_match.group(1) if header_match else "?"
         print()
         print(f"submodules in .gitmodules : {len(declared)}")

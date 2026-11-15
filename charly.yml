@@ -854,7 +854,7 @@ skills:
 # DECLARES it. A one-directional check ("every submodule has a row") reads green over the other
 # half's defect — a row advertising a repo the umbrella does NOT pin, which is exactly what a
 # retirement leaves behind (opencharly/opencharly#1030). The reconciliation is ONE implementation
-# (`scripts/org-map.py`) so its five arms can be FIRED on fixtures, and `hooks/pre-commit` runs
+# (`scripts/org-map.py`) so its arms can be FIRED on fixtures, and `hooks/pre-commit` runs
 # it: until that caller existed, nothing in the tree ran this control at all.
 org-map:
   task:
