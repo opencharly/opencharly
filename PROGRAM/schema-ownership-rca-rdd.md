@@ -390,6 +390,40 @@ work (ten entity moves plus the mechanism) — it removes none.
 
 ---
 
+## 7b. The three remaining words — why they are not "just moves"
+
+Measured after the mechanism landed and the census was corrected (opencharly/opencharly#1058's tooling, `1057 defs / 178 keepers / 85 MOVEs`). `candy`, `android` and `deploy` are the three words §3.1 still assigns to a plugin while their bodies sit in `spec`. Each is blocked by the same thing, and it is not inertia:
+
+```
+#Candy      spec  KEEPER  witness K3, K5, K1
+#Box        spec  KEEPER  witness K3, K5, K1
+#CandyValue spec  KEEPER  witness K2, K4
+```
+
+K5 is the decisive one. The IR cites the authored shapes **as compiled Go types**:
+
+```cue
+// candymodel.cue — #CandyModel, a spec-owned IR shape
+service?: [...#CandyService] @go(Service)
+hook?:     #CandyHook            @go(Hook,optional=nillable)
+// boxmetadata.cue — #BoxMetadata, also spec-owned
+hook?: #CandyHook @go(Hook,optional=nillable)
+```
+
+`@go(Service)` means the generated Go struct has a `[]CandyService` field. Moving `#CandyService` into `plugin-candy-kind` does not move that field — it removes the type the field is built from.
+
+**So the order inside each of the three words is:**
+
+1. **the IR stops carrying the authored shape.** `#CandyModel.service` becomes an opaque body (`bytes` / a `RawBody` twin), exactly as the WIRE already does (I1, D-SCH-7). This is a `spec` + `charly` Go-type change, and it is the largest piece — the reason unit 8 (`vm`) took a whole wave.
+2. **the body moves** into the plugin the manifest declares (`kind:candy` → `plugin-candy-kind`), citing the spec shapes as `schema.#…`.
+3. **the consumers re-point**, and the R10 beds prove it.
+
+**This is `DESIGN.md` being implemented, not reduced.** §10.2 already says the IR is `spec`-owned; I1 already says the wire carries bytes. What is left is that the IR still carries ONE shape it should carry opaquely — and until it does, the plugin cannot own its body without the IR losing a type it needs.
+
+**A measured warning about the census.** Its 85 MOVEs are a SCREEN, not a verdict. Four candidates were examined and all four were correctly placed: `#CandyServiceOverrides` is a sub-shape whose citer (`#CandyService`) is a keeper; `#KubeVirtDeploySnapshot` and `#FirecrackerDeploySnapshot` are each cited by `snapshot?: [...]` inside their own file; and `#KindCluster` is an EGRESS schema, which belongs to the egress plugin by §3.1's check-command row, not the substrate's. The census says *look here*; the reader decides.
+
+**One surviving census warning, with its disposition.** Every run also prints `unreadable [pod-qwen3-tts]`: that pin is in the index, but its tree cannot be read at its gitlink (the promisor fetch returns `not our ref`), so its defs are unjudged. It cannot affect any verdict about a repo the census CAN read — `#Candy`, `#Box` and `#CandyValue` all live in `spec` — but it does mean the totals above are a FLOOR rather than a ceiling until that pin is readable. Filed as opencharly/opencharly#1063.
+
 ## 8. What the operator is being asked
 
 The diagnosis and the design above are complete and evidence-backed. The open question is the
