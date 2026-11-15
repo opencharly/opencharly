@@ -153,7 +153,7 @@
 // Usage: node scripts/check-pr-body-diff.mjs [--body <path>] [--repo <dir>] [--base <ref>] [--head <rev>] [--self-test]
 // exit 0 clean · 1 finding · 2 usage
 
-import { spawnSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -171,6 +171,26 @@ const baseRef = argOf("--base") ?? "origin/main";
 // The head the body is published with. `HEAD` for every caller that does not name
 // one; the pre-push hook names the commit its push publishes.
 const headRef = argOf("--head") ?? "HEAD";
+
+// --emit-table prints the `## Files changed` table FROM THE DIFF, so a body never carries a
+// hand-typed row that the reconcile then has to refuse. It is the same data this checker
+// compares against, produced by the same command — the author runs it and pastes the result.
+if (argv.includes("--emit-table")) {
+  let out;
+  try {
+    out = execFileSync("git", ["-C", root, "diff", "--name-only", `${baseRef}...${headRef}`], {
+      encoding: "utf8",
+    });
+  } catch {
+    console.error(`emit-table: cannot read the diff ${baseRef}...${headRef}`);
+    process.exit(2);
+  }
+  const files = out.split("\n").filter(Boolean);
+  console.log("| file | what changed |");
+  console.log("|---|---|");
+  for (const f of files) console.log(`| \`${f}\` | _(describe it)_ |`);
+  process.exit(0);
+}
 
 let findings = 0;
 const fail = (m) => {
