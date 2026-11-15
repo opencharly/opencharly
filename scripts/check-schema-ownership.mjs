@@ -147,44 +147,7 @@ const isSpecOwnedShape = (def) => SPEC_OWNED_SHAPES.some((re) => re.test(def));
  * DESIGN.md §3.1's owner map, as data: the word → the plugin repo that owns its kind body. A def
  * whose name carries a word here and shows no witness is a MOVE to that plugin.
  */
-const OWNER_BY_WORD = {
-  // DESIGN.md 3.1 rows "candy body, boxes, sources, the IR and its actions, artifact builds
-  // through the one builder (14.3), the `os`, `init` and `builder` kinds" -> the BUILD plugin.
-  candy: "plugin-builder",
-  os: "plugin-builder",
-  init: "plugin-builder",
-  builder: "plugin-builder",
-  // "`pod` (and its grants, its venue, its captures, the container-engine driver rows
-  // `podman`, `docker`, `containerd`)" -> the CONTAINER plugin.
-  pod: "plugin-pod",
-  podman: "plugin-pod",
-  docker: "plugin-pod",
-  containerd: "plugin-pod",
-  // "`vm`, `local` (... the hypervisor driver rows `libvirt`, `qemu`, `krun`, `firecracker`)"
-  // -> the MACHINE plugin.
-  vm: "plugin-vm",
-  local: "plugin-vm",
-  libvirt: "plugin-vm",
-  qemu: "plugin-vm",
-  krun: "plugin-vm",
-  firecracker: "plugin-vm",
-  kubernetes: "plugin-kube",
-  kind: "plugin-kube",
-  k3s: "plugin-kube",
-  android: "plugin-android",
-  // The remaining rows, by the plugin repo that serves them.
-  check: "plugin-check",
-  instrument: "plugin-check",
-  display: "plugin-desktop-kind",
-  cdp: "plugin-desktop-kind",
-  dbus: "plugin-desktop-kind",
-  harness: "plugin-agent",
-  pipeline: "plugin-agent",
-  skill: "plugin-docs",
-  hook: "plugin-docs",
-  marketplace: "plugin-docs",
-  doc: "plugin-docs",
-};
+
 /**
  * A plugin's OWN input/output/envelope shapes are its own by §4.1 (each plugin's CUE schema is
  * `#XInput`-shaped and served from its own module), so they are never a MOVE candidate: the
@@ -195,12 +158,10 @@ const OWN_SHAPE_SUFFIX = /(Input|Output|Result|Plugin|Config|Options|Params|Spec
 const ownerOf = (def, manifestOwners) => {
   if (OWN_SHAPE_SUFFIX.test(def)) return null;
   const lower = def.replace(/^#/, "").toLowerCase();
-  // The manifest's own word is the authority: `#CdpInput` in plugin-cdp is a keeper by
-  // construction because plugin-cdp DECLARES verb:cdp.
+  // §4.1: a plugin's `provide:` list is "the only declaration of what it serves", so the owner is
+  // the repo whose pinned manifest declares the word — READ, never transcribed. A word no manifest
+  // declares has no owner the census can name, and that is reported rather than guessed.
   for (const [word, owner] of manifestOwners ?? []) {
-    if (lower.startsWith(word)) return { word, owner };
-  }
-  for (const [word, owner] of Object.entries(OWNER_BY_WORD)) {
     if (lower.startsWith(word)) return { word, owner };
   }
   return null;
@@ -218,7 +179,11 @@ const ownerOf = (def, manifestOwners) => {
  */
 function witnesses(def, corpus, own) {
   const bare = def.replace(/^#/, "");
-  const hits = [];
+  const hits = new Set();
+  // K4 is a CROSS-BOUNDARY signal: it needs the def cited by Go in TWO different repos, which is
+  // what "two Go packages across a plugin boundary exchange it as an RPC payload" means. One
+  // string literal in one file is not a witness, and counting it as one inflated the keeper count.
+  const goRepos = new Set();
   for (const { repo, path, text } of corpus) {
     // A def's OWN declaration is not a citation of itself: counting it would make every def a
     // keeper and the census would be vacuous.
@@ -227,13 +192,14 @@ function witnesses(def, corpus, own) {
       const isGo = path.endsWith(".go");
       const isContractEnvelope = /(^|\/)(deploy|loader|unified|resolve)[A-Za-z_]*\.cue$/.test(path);
       const isGenerator = isGo && /_gen|generated|gengotypes/i.test(path);
-      if (isContractEnvelope && repo === "spec") hits.push("K1");
-      else if (isGenerator) hits.push("K2");
-      else if (!isGo) hits.push("K3");
-      else hits.push("K4");
+      if (isContractEnvelope && repo === "spec") hits.add("K1");
+      else if (isGenerator) hits.add("K2");
+      else if (!isGo) hits.add("K3");
+      else goRepos.add(repo);
     }
   }
-  return [...new Set(hits)];
+  if (goRepos.size >= 2) hits.add("K4");
+  return [...hits];
 }
 
 function main() {
@@ -311,40 +277,69 @@ if (argv.includes("--self-test")) {
   g("init", "-q", "-b", "main");
   g("config", "user.email", "gate@gate");
   g("config", "user.name", "gate");
-  // A member repo whose schema declares a §3.1 vm-worded def with NO witness anywhere.
-  const member = join(repo, "plugin-nobody");
-  mkdirSync(join(member, "schema"), { recursive: true });
-  const mg = (...a) => spawnSync("git", a, { cwd: member, encoding: "utf8" });
-  mg("init", "-q", "-b", "main");
-  mg("config", "user.email", "gate@gate");
-  mg("config", "user.name", "gate");
-  writeFileSync(join(member, "schema/vm.cue"), "package schema\n#VmOrphan: {firmware: string}\n");
-  mg("add", "-A");
-  mg("commit", "-q", "-m", "member");
+
+  const member = (name, files) => {
+    const dir = join(repo, name);
+    mkdirSync(join(dir, "schema"), { recursive: true });
+    const mg = (...a) => spawnSync("git", a, { cwd: dir, encoding: "utf8" });
+    mg("init", "-q", "-b", "main");
+    mg("config", "user.email", "gate@gate");
+    mg("config", "user.name", "gate");
+    for (const [path, text] of Object.entries(files)) writeFileSync(join(dir, path), text);
+    mg("add", "-A");
+    mg("commit", "-q", "-m", name);
+    return mg("rev-parse", "HEAD").stdout.trim();
+  };
+
+  // The OWNER: its manifest declares `kind:vm`, which is the ONLY declaration of that word (§4.1).
+  const ownerSha = member("plugin-machine", {
+    "charly.yml":
+      "plugin-machine:\n    candy:\n        plugin:\n            source: github.com/opencharly/plugin-machine/candy/plugin-machine\n            providers:\n                - kind:vm\n",
+  });
+  // The MISPLACED def: a vm-worded body living in a repo whose manifest declares nothing.
+  const straySha = member("plugin-nobody", {
+    "charly.yml":
+      "plugin-nobody:\n    candy:\n        plugin:\n            source: github.com/opencharly/plugin-nobody/candy/plugin-nobody\n            providers:\n                - verb:nothing\n",
+    "schema/vm.cue": "package schema\n#VmOrphan: {firmware: string}\n",
+  });
+  // A def in the OWNER's own repo: correctly placed, so the census must NOT call it a MOVE.
+  const homeSha = member("plugin-home", {
+    "charly.yml":
+      "plugin-home:\n    candy:\n        plugin:\n            source: github.com/opencharly/plugin-home/candy/plugin-home\n            providers:\n                - kind:local\n",
+    "schema/local.cue": "package schema\n#LocalHome: {image: string}\n",
+  });
+
   writeFileSync(join(scratch, "msg"), "umbrella\n");
-  // The umbrella records the member as a gitlink ONLY (a submodule pin, no checkout needed).
-  const sha = mg("rev-parse", "HEAD").stdout.trim();
-  g("update-index", "--add", "--cacheinfo", `160000,${sha},plugin-nobody`);
+  g("update-index", "--add", "--cacheinfo", `160000,${ownerSha},plugin-machine`);
+  g("update-index", "--add", "--cacheinfo", `160000,${straySha},plugin-nobody`);
+  g("update-index", "--add", "--cacheinfo", `160000,${homeSha},plugin-home`);
   g("commit", "-q", "-F", join(scratch, "msg"));
 
-  const run = spawnSync(
-    process.execPath,
-    [fileURLToPath(import.meta.url), "--repo", repo, "--json"],
-    { encoding: "utf8", cwd: repo },
-  );
-  const verdict = (() => {
-    try {
-      return JSON.parse(run.stdout).verdicts.find((v) => v.def === "#VmOrphan");
-    } catch {
-      return undefined;
-    }
-  })();
-  if (run.status === 1 && verdict && verdict.verdict === "MOVE" && verdict.detail.includes("plugin-vm")) {
-    console.log("  PASS  the census names the MOVE and its §3.1 owner");
+  const run = spawnSync(process.execPath, [fileURLToPath(import.meta.url), "--repo", repo, "--json"], {
+    encoding: "utf8",
+    cwd: repo,
+  });
+  let verdicts = [];
+  try {
+    verdicts = JSON.parse(run.stdout).verdicts;
+  } catch {
+    verdicts = [];
+  }
+  const stray = verdicts.find((v) => v.def === "#VmOrphan");
+  const home = verdicts.find((v) => v.def === "#LocalHome");
+  const ok =
+    run.status === 1 &&
+    stray &&
+    stray.verdict === "MOVE" &&
+    stray.detail.includes("plugin-machine") &&
+    home &&
+    home.verdict !== "MOVE";
+  if (ok) {
+    console.log("  PASS  the census names a MOVE to the MANIFEST-derived owner, and leaves a def in its owner's repo alone");
     process.exit(0);
   }
   console.error(
-    `  FAIL  expected a MOVE of #VmOrphan to plugin-vm; got status ${run.status} verdict ${JSON.stringify(verdict)}`,
+    `  FAIL  expected #VmOrphan to MOVE to plugin-machine and #LocalHome to stay; status ${run.status} stray=${JSON.stringify(stray)} home=${JSON.stringify(home)}`,
   );
   process.exit(1);
 }
