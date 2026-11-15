@@ -132,6 +132,7 @@ paths = [
     "marketplace/pod/skills",
     "marketplace/punktfunk/skills",
     "marketplace/qdrant/skills",
+    "marketplace/qwen3-tts/skills",
     "marketplace/review/skills",
     "marketplace/selkies/skills",
     "marketplace/strata/skills",

@@ -103,8 +103,15 @@ const MUST_NOT_AUTO_ALLOW = [
 ];
 
 // The dispatcher-coverage RATCHET (check 12). MEASURED on the tree this gate ships with:
-// 352 corpus skills (`marketplace/*/skills/*/SKILL.md`) against 119 `DISPATCHER.md` rows,
-// i.e. 233 corpus skills carry no routing row.
+// 355 corpus skills (`marketplace/*/skills/*/SKILL.md`) against 129 `DISPATCHER.md` rows,
+// i.e. 226 corpus skills carry no routing row.
+//
+// MEASURED AGAIN 2026-11-15 after the corpus repair (opencharly/marketplace#616): the pin
+// advance dropped the eight archived omarchy carrier skills and added `qwen3-tts` and
+// `openwebui-cli`, so the unrouted count fell 233 → 226 and the ceiling is tightened with
+// it. This is not cosmetic: at 233 the self-test's own "dropping a row must FAIL" arm
+// stopped discriminating (226 + 1 drop = 227, still under the ceiling), which `charly task
+// verify` caught. A ratchet that does not ratchet is the coverage loss it exists to notice.
 //
 // It is a RATCHET, not a hard "every skill has a row", and that is deliberate. A hard
 // assertion is RED on the tree it would land on, and `main` is PR-only with required status
@@ -115,7 +122,7 @@ const MUST_NOT_AUTO_ALLOW = [
 // proves both assertions can fail rather than asserting that they do.
 //
 // Tighten this number as the trigger-authoring cutover lands. It may only ever DECREASE.
-const MAX_UNROUTED = 233;
+const MAX_UNROUTED = 226;
 
 // ── --self-test: prove the discriminating/structural split by executing it ──────────
 // Copies every surface this gate reads into a temp tree, asserts the gate is GREEN there
