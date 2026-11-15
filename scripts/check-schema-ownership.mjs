@@ -247,10 +247,17 @@ function main() {
           continue;
         }
         const owner = ownerOf(def, manifestOwners);
-        if (owner && subPath !== owner.owner) {
+        if (owner && subPath === owner.owner) {
+          // POSITIVE: the def's word is declared by THIS repo's manifest, so it is where §3.1 says
+          // it belongs. Reported as PLACED, never folded into NOT_JUDGED — a correctly placed def
+          // and a def nobody can judge are opposite outcomes and must not share a bucket.
+          verdicts.push({ def, repo: subPath, file: f.path, verdict: "PLACED", detail: `its manifest declares "${owner.word}"` });
+        } else if (owner) {
           verdicts.push({ def, repo: subPath, file: f.path, verdict: "MOVE", detail: `§3.1: ${owner.owner} (word "${owner.word}")` });
         } else {
-          verdicts.push({ def, repo: subPath, file: f.path, verdict: "NOT_JUDGED", detail: "no §3.1 word and no witness" });
+          // No manifest declares a word this def's name carries, and no witness binds it: the
+          // census cannot name an owner, and says so instead of reporting it as judged.
+          verdicts.push({ def, repo: subPath, file: f.path, verdict: "UNOWNED", detail: "no manifest declares its word; no witness binds it" });
         }
       }
     }
