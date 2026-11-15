@@ -110,11 +110,10 @@ const MUST_NOT_AUTO_ALLOW = [
 // line IS the measurement, so these are read from it rather than inferred: `129/355 corpus skills
 // routed, 226 unrouted`, where the tree before the repair read `119/352`, 233 unrouted. TWO numbers
 // moved — corpus skills 352 → 355 and ROUTED rows 119 → 129 — and the unrouted gap is their
-// subtraction both times: 352 − 119 = 233, 355 − 129 = 226. The repair regenerated the corpus
-// (eight archived omarchy projections dropped; `qwen3-tts`, `openwebui-cli` and a re-emitted
-// dispatcher carrying more rows added), and the exact attribution of the +3 net is not claimed
-// here: the endpoints are what the gate printed, and a decomposition nobody measured would be the
-// same defect as a hand-typed number.
+// subtraction both times: 352 − 119 = 233, 355 − 129 = 226. The repair regenerated the corpus —
+// eight archived omarchy projections dropped here, while `qwen3-tts`, `openwebui-cli` and other
+// corpus additions account for the +3 net — and the endpoints are what the gate printed rather
+// than a decomposition nobody measured.
 // The ceiling follows it because it may only ever DECREASE — and because at 233 the gate's own
 // self-test stopped discriminating: its "dropping a DISPATCHER row must FAIL" arm mutates one row,
 // which took the gap to 227, still under the ceiling, so the mutation went unnoticed. `charly task
