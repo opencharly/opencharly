@@ -1698,3 +1698,7 @@
 	path = plugin-strata
 	url = https://github.com/opencharly/plugin-strata.git
 	branch = main
+[submodule "pod-qwen3-tts"]
+	path = pod-qwen3-tts
+	url = https://github.com/opencharly/pod-qwen3-tts.git
+	branch = main

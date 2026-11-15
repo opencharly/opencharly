@@ -47,7 +47,7 @@ its change class, and by an independent fresh `charly/pr-validator` after the pu
 
 ## This repo: one clone of the whole org
 
-`opencharly/opencharly` is the org-level **umbrella**: every OpenCharly repo (392 today) is pinned
+`opencharly/opencharly` is the org-level **umbrella**: every OpenCharly repo (393 today) is pinned
 here as a git submodule — a "gitlink" — flat at the root, so the submodule path equals the repo
 name for all but one alias: `.github` is pinned at the `dotgithub/` path.
 
@@ -823,7 +823,7 @@ a scannable index. Their themes:
 
 ### Pods: AI and ML services
 
-12 repos — inference servers, notebook servers, the photo library with its ML backend, and the agent front-ends that talk to them.
+13 repos — inference servers, notebook servers, the photo library with its ML backend, and the agent front-ends that talk to them.
 
 | path | repo |
 |---|---|
@@ -838,6 +838,7 @@ a scannable index. Their themes:
 | `pod-ollama/` | [opencharly/pod-ollama](https://github.com/opencharly/pod-ollama) |
 | `pod-openwebui/` | [opencharly/pod-openwebui](https://github.com/opencharly/pod-openwebui) |
 | `pod-qdrant/` | [opencharly/pod-qdrant](https://github.com/opencharly/pod-qdrant) |
+| `pod-qwen3-tts/` | [opencharly/pod-qwen3-tts](https://github.com/opencharly/pod-qwen3-tts) |
 | `pod-unsloth-studio/` | [opencharly/pod-unsloth-studio](https://github.com/opencharly/pod-unsloth-studio) |
 
 ### Pods: Data and infrastructure services
