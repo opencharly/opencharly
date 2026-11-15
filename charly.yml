@@ -293,7 +293,6 @@ pins:
             distro-cachyos: box/cachyos
             distro-debian: box/debian
             distro-fedora: box/fedora
-            distro-omarchy: box/omarchy
             distro-ubuntu: box/ubuntu
         context: [runtime]
 
