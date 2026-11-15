@@ -104,10 +104,11 @@ roster in its own `charly.yml`, so the disposable fleet can be run as one gate.
 
 ## The docs in this repo
 
-Every markdown file here lives in one of three homes, and the home decides how it is
-maintained: **guidance** (what to do, and why), a **technical spec** (how the machinery works),
-or **history** (`CHANGELOG/`, which is a log — never guidance). This file is the front door to
-all three.
+Every markdown file here lives in one of four homes, and the home decides how it is
+maintained: **guidance** (identity, the rulebook, programme notes, harness bindings), the
+**skills and agent definitions** this repo authors, a **technical spec** (how the machinery
+works), or **history** (`CHANGELOG/`, which is a log — never guidance). This file is the front
+door to all four.
 
 The split is a rule, not a convention. A mandate goes in the rulebook
 ([AGENTS.md](AGENTS.md)); its how-to goes in the owning skill; anything about the past goes in
@@ -233,7 +234,8 @@ a scannable index. Their themes:
 - **candy layers** — the OS and bootstrapping candies, kubernetes, language runtimes, GPU/ML,
   notebooks and maps, AI agents, dev tooling, productivity CLIs, security and connectivity,
   desktops and streaming, desktop fixings, Wayland capture, android, charly itself, the
-  AgentTeams family, and the check/fixture layers;
+  AgentTeams family, the check/fixture layers, and the documentation site's toolchain with the
+  remote-execution client;
 - **plugins** — boxes and authoring, deploy targets and substrates, check and control verbs,
   host and service primitives, core plumbing, agents and terminals, deployed-service
   management, and the examples;
