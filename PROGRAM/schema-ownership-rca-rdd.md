@@ -392,7 +392,7 @@ work (ten entity moves plus the mechanism) — it removes none.
 
 ## 7b. The three remaining words — why they are not "just moves"
 
-Measured after the mechanism landed and the census was corrected (opencharly/opencharly#1058's tooling, `1057 defs / 175 keepers / 85 MOVEs`). `candy`, `android` and `deploy` are the three words §3.1 still assigns to a plugin while their bodies sit in `spec`. Each is blocked by the same thing, and it is not inertia:
+Measured after the mechanism landed and the census was corrected (opencharly/opencharly#1058's tooling, `1057 defs / 178 keepers / 85 MOVEs`). `candy`, `android` and `deploy` are the three words §3.1 still assigns to a plugin while their bodies sit in `spec`. Each is blocked by the same thing, and it is not inertia:
 
 ```
 #Candy      spec  KEEPER  witness K3, K5, K1
