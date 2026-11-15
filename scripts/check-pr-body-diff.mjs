@@ -345,8 +345,30 @@ const DIFF_ALGORITHMS = ["myers", "patience", "histogram", "minimal"];
  * stating either number is true for one reader and false for the other, and nothing
  * in the tree noticed, because nothing asked the question: this arm is the control
  * that asks it (opencharly/opencharly#721).
+ *
+ * THE ARM IS SCOPED TO A COUNT THE BODY PUBLISHES (opencharly/opencharly#1046). Its
+ * whole subject is a number the body states: with no diffstat in the body there is no
+ * published claim for two readers to disagree about, so the rule does not apply and the
+ * arm says so. It used to run unconditionally, which made it a different and much
+ * stronger rule — "no pull request may carry a diff with a moved block" — and that rule
+ * cannot be obeyed by a restructure whose moved text is PINNED VERBATIM by other gates
+ * (the copy of `## The org map` … `## Pinning`, the clone-shape rows and the pin-scope
+ * surfaces are byte-identical requirements of `charly task org-map`,
+ * `check-readme-measurements` and `check-pin-verb-scope`), so the remedy the old message
+ * named — "reshape the diff" — was unavailable and the only remaining move would have
+ * been a hook bypass, which is forbidden. MEASURED on that restructure
+ * (opencharly/opencharly#1045): myers 1029/716, patience 1076/763, histogram 1068/755,
+ * minimal 994/681 — while an INSERT-ONLY variant of the same rewrite counts 191/12 under
+ * all four, so the divergence is the moved text and not the size of the change.
  */
-function checkDiffCountIsReaderIndependent(baseRef, headRef) {
+function checkDiffCountIsReaderIndependent(baseRef, headRef, claim) {
+  if (!claim) {
+    notice(
+      "the body states no diffstat — the reader-independence rule is inapplicable " +
+        "(there is no published count for two readers to disagree about)",
+    );
+    return;
+  }
   const totals = DIFF_ALGORITHMS.map((a) => diffTotals(a, baseRef, headRef));
   if (totals.some((t) => t === null)) {
     notice(
@@ -358,13 +380,33 @@ function checkDiffCountIsReaderIndependent(baseRef, headRef) {
   const first = totals[0];
   if (totals.some((t) => t.ins !== first.ins || t.del !== first.del)) {
     fail(
-      `the diff's line count DEPENDS on the reader's diff algorithm (${rendered}) — a diffstat stated in ` +
-        `the body would be true for one reader and false for another; reshape the diff so that every ` +
-        `reader computes the same count`,
+      `the body states ${claim.ins} insertion(s) and ${claim.del} deletion(s), and the diff's line count ` +
+        `DEPENDS on the reader's diff algorithm (${rendered}) — the stated number is true for one reader ` +
+        `and false for another; do not state the count, or reshape the diff so that every reader ` +
+        `computes the same one`,
     );
     return;
   }
   ok(`the diff's line count is the SAME under every diff algorithm (${rendered})`);
+}
+
+/**
+ * The diffstat a body STATES, in git's own summary wording — `N insertions(+)` beside
+ * `M deletions(-)`. That is the shape a pasted `git diff --stat` carries, and it is the
+ * only shape read here: a compact `1029/716` is ambiguous with a path, and a count of
+ * FILES is arm N's subject, not this one.
+ *
+ * It returns null when the body states no such pair, which is what makes the
+ * reader-independence arm inapplicable instead of green.
+ */
+function statedDiffstat(body) {
+  const ins = /(\d[\d,]*)\s+insertions?\(\+\)/i.exec(body);
+  const del = /(\d[\d,]*)\s+deletions?\(-\)/i.exec(body);
+  if (!ins || !del) return null;
+  return {
+    ins: Number(ins[1].replace(/,/g, "")),
+    del: Number(del[1].replace(/,/g, "")),
+  };
 }
 
 /**
@@ -1282,11 +1324,13 @@ function check() {
       return [parts[0], parts.slice(1).join("\t")];
     });
 
-  // DI. the diff's line count, under every diff algorithm. It runs before the table
-  // arm and independently of it: the count is a property of the DIFF, so it is judged
-  // whether or not the body carries a table — and a body that states a diffstat
-  // needs that count to be ONE number, not one number per reader.
-  checkDiffCountIsReaderIndependent(baseRef, headRef);
+  // DI. the diff's line count, under every diff algorithm — for a body that STATES one.
+  // It runs before the table arm and independently of it: the count is a property of the
+  // DIFF, not of the table, so a body carrying no table is judged too. A body that states
+  // no diffstat publishes no count, so there is nothing for two readers to disagree about,
+  // and the arm says so instead of turning an unstated number into a rule about the diff's
+  // shape (opencharly/opencharly#1046).
+  checkDiffCountIsReaderIndependent(baseRef, headRef, statedDiffstat(body));
 
   // N. the count the prose states about the diff's new files. It does not need the
   // file table, so it runs whether or not the body carries one.
@@ -2086,7 +2130,16 @@ function readCapBytes() {
           `cannot be proven live is not a gate`,
       );
     } else {
-      writeFileSync(bodyFile, body(FULL_TABLE, divergeHead), "utf8");
+      const [myIns, myDel] = truthMyers.split("/");
+      writeFileSync(
+        bodyFile,
+        body(
+          FULL_TABLE,
+          divergeHead,
+          `The diff reads ${myIns} insertions(+) and ${myDel} deletions(-), by this checkout's reader.`,
+        ),
+        "utf8",
+      );
       const r = spawnSync(
         process.execPath,
         [fileURLToPath(import.meta.url), "--body", bodyFile, "--repo", diverge, "--base", "main"],
@@ -2098,8 +2151,37 @@ function readCapBytes() {
         console.error(`  FAIL  a diff two algorithms count differently did NOT turn the arm RED:\n${out}`);
       } else {
         console.log(
-          `  PASS  a diff two algorithms count differently turns the reader-independence arm RED ` +
+          `  PASS  a body STATING one of the two counts turns the reader-independence arm RED ` +
             `(myers ${truthMyers}, histogram ${truthHistogram})`,
+        );
+      }
+
+      // THE SCOPE ARM (opencharly/opencharly#1046). The SAME divergent diff, with a body
+      // that states NO diffstat: the arm's subject is a number the body publishes, so an
+      // unstated count is INAPPLICABLE — named as skipped, and not a finding. This is the
+      // direction that makes the arm a rule about a published claim instead of a rule
+      // about the diff's shape; without it the arm can be "fixed" by widening it to
+      // everything, and this assertion is what would go red.
+      stLive += 1;
+      writeFileSync(bodyFile, body(FULL_TABLE, divergeHead), "utf8");
+      const silent = spawnSync(
+        process.execPath,
+        [fileURLToPath(import.meta.url), "--body", bodyFile, "--repo", diverge, "--base", "main"],
+        { encoding: "utf8", env: { ...process.env, GITHUB_BODY_MAX: String(capBytes) } },
+      );
+      const silentOut = `${silent.stdout ?? ""}${silent.stderr ?? ""}`;
+      const excused =
+        silentOut.includes("the body states no diffstat") &&
+        !silentOut.includes("DEPENDS on the reader's diff algorithm");
+      if (!excused) {
+        stFails += 1;
+        console.error(
+          `  FAIL  the same divergent diff was NOT excused for a body that states no diffstat:\n${silentOut}`,
+        );
+      } else {
+        console.log(
+          "  PASS  a body that states NO diffstat makes the reader-independence arm INAPPLICABLE " +
+            "on the same divergent diff (the rule follows the published count, not the diff's shape)",
         );
       }
     }
