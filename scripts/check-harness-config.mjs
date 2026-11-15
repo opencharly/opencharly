@@ -106,22 +106,19 @@ const MUST_NOT_AUTO_ALLOW = [
 // 355 corpus skills (`marketplace/*/skills/*/SKILL.md`) against 129 `DISPATCHER.md` rows,
 // i.e. 226 corpus skills carry no routing row.
 //
-// MEASURED AGAIN 2026-11-15 after the corpus repair (opencharly/marketplace#616): the pin
-// advance dropped the eight archived omarchy carrier skills and added `qwen3-tts` and
-// `openwebui-cli`, so the unrouted count fell 233 → 226 and the ceiling is tightened with
-// it. This is not cosmetic: at 233 the self-test's own "dropping a row must FAIL" arm
-// stopped discriminating (226 + 1 drop = 227, still under the ceiling), which `charly task
-// verify` caught. A ratchet that does not ratchet is the coverage loss it exists to notice.
-//
-// It is a RATCHET, not a hard "every skill has a row", and that is deliberate. A hard
-// assertion is RED on the tree it would land on, and `main` is PR-only with required status
-// checks — so a permanently-red gate could never merge and would block every unrelated PR
-// until ~190 owning repos had authored `triggers:`. The ratchet asserts the gap may not
-// GROW: fixing skills passes and lets the ceiling be tightened, while adding an unrouted
-// skill (or dropping a row) turns the gate RED. R7 is satisfied by `--self-test`, which
-// proves both assertions can fail rather than asserting that they do.
-//
-// Tighten this number as the trigger-authoring cutover lands. It may only ever DECREASE.
+// MEASURED AGAIN 2026-11-15 after the corpus repair (opencharly/marketplace#616). The gate's own
+// line IS the measurement, so these are read from it rather than inferred: `129/355 corpus skills
+// routed, 226 unrouted`, where the tree before the repair read `119/352`, 233 unrouted. TWO numbers
+// moved — corpus skills 352 → 355 and ROUTED rows 119 → 129 — and the unrouted gap is their
+// subtraction both times: 352 − 119 = 233, 355 − 129 = 226. The repair regenerated the corpus
+// (eight archived omarchy projections dropped; `qwen3-tts`, `openwebui-cli` and a re-emitted
+// dispatcher carrying more rows added), and the exact attribution of the +3 net is not claimed
+// here: the endpoints are what the gate printed, and a decomposition nobody measured would be the
+// same defect as a hand-typed number.
+// The ceiling follows it because it may only ever DECREASE — and because at 233 the gate's own
+// self-test stopped discriminating: its "dropping a DISPATCHER row must FAIL" arm mutates one row,
+// which took the gap to 227, still under the ceiling, so the mutation went unnoticed. `charly task
+// verify` caught that, which is the only reason it was found rather than assumed.
 const MAX_UNROUTED = 226;
 
 // ── --self-test: prove the discriminating/structural split by executing it ──────────

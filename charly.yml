@@ -458,7 +458,12 @@ sync:
           param: [MODE=bump]
         context: [runtime]
       - run: re-derive the harness skill bindings from the corpus the bump just advanced (the DSH farm and reasonix.toml's [skills] paths — a pin advance that skips this leaves them a family behind)
-        command: node scripts/sync-skill-bindings.mjs
+        # --require-corpus: an unmaterialized corpus must FAIL this step, not silently SKIP it.
+        # The script's default is skip-visible because the GATE runs it on light/partial trees
+        # where a skip is correct; here the corpus IS the input this step exists to read, so a
+        # skip means the wave reports success over stale bindings (measured: 45 entries where 46
+        # were due, caught only later by `charly task verify`).
+        command: node scripts/sync-skill-bindings.mjs --require-corpus
         context: [runtime]
 
 # -----------------------------------------------------------------------------
