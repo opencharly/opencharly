@@ -422,6 +422,8 @@ hook?: #CandyHook @go(Hook,optional=nillable)
 
 **A measured warning about the census.** Its 85 MOVEs are a SCREEN, not a verdict. Four candidates were examined and all four were correctly placed: `#CandyServiceOverrides` is a sub-shape whose citer (`#CandyService`) is a keeper; `#KubeVirtDeploySnapshot` and `#FirecrackerDeploySnapshot` are each cited by `snapshot?: [...]` inside their own file; and `#KindCluster` is an EGRESS schema, which belongs to the egress plugin by §3.1's check-command row, not the substrate's. The census says *look here*; the reader decides.
 
+**One surviving census warning, with its disposition.** Every run also prints `unreadable [pod-qwen3-tts]`: that pin is in the index, but its tree cannot be read at its gitlink (the promisor fetch returns `not our ref`), so its defs are unjudged. It cannot affect any verdict about a repo the census CAN read — `#Candy`, `#Box` and `#CandyValue` all live in `spec` — but it does mean the totals above are a FLOOR rather than a ceiling until that pin is readable. Filed as opencharly/opencharly#1063.
+
 ## 8. What the operator is being asked
 
 The diagnosis and the design above are complete and evidence-backed. The open question is the
