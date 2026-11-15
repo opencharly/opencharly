@@ -125,6 +125,7 @@ function stripCueComments(text) {
     .join("\n");
 }
 
+/** The `#Def` names a CUE file declares at top level. */
 function defsIn(text) {
   const names = new Set();
   for (const m of text.matchAll(/^#([A-Za-z][A-Za-z0-9_]*)\s*[:=]/gm)) names.add(`#${m[1]}`);
@@ -146,10 +147,6 @@ const SPEC_OWNED_SHAPES = [
 ];
 const isSpecOwnedShape = (def) => SPEC_OWNED_SHAPES.some((re) => re.test(def));
 
-/**
- * DESIGN.md §3.1's owner map, as data: the word → the plugin repo that owns its kind body. A def
- * whose name carries a word here and shows no witness is a MOVE to that plugin.
- */
 
 /**
  * A plugin's OWN input/output/envelope shapes are its own by §4.1 (each plugin's CUE schema is
@@ -321,10 +318,34 @@ if (argv.includes("--self-test")) {
     "schema/local.cue": "package schema\n#LocalHome: {image: string}\n",
   });
 
+  // K3/K2/K4 probes. The comment-only member mentions a def in PROSE and nowhere else: if a
+  // comment counted as a witness that def would be a keeper, so this is what makes
+  // stripCueComments() testable at all.
+  const commentSha = member("plugin-commenter", {
+    "charly.yml":
+      "plugin-commenter:\n    candy:\n        plugin:\n            source: github.com/opencharly/plugin-commenter/candy/plugin-commenter\n            providers:\n                - verb:nothing\n",
+    "schema/notes.cue": "package schema\n// #ProseTarget is cited here in a COMMENT and nowhere else\n#Placeholder: string\n",
+  });
+  // ONE repo's Go citation is not K4; TWO repos' are.
+  const goOneSha = member("plugin-goone", {
+    "charly.yml":
+      "plugin-goone:\n    candy:\n        plugin:\n            source: github.com/opencharly/plugin-goone/candy/plugin-goone\n            providers:\n                - verb:nothing\n",
+    "schema/go.cue": "package schema\n#ProseTarget: {image: string}\n#GoSingle: {image: string}\n#GoPairDef: {image: string}\n",
+    "x.go": 'package goone\n\nconst a = "#GoSingle"\n\nconst b = "#GoPairDef"\n',
+  });
+  const goTwoSha = member("plugin-gotwo", {
+    "charly.yml":
+      "plugin-gotwo:\n    candy:\n        plugin:\n            source: github.com/opencharly/plugin-gotwo/candy/plugin-gotwo\n            providers:\n                - verb:nothing\n",
+    "y.go": 'package gotwo\n\nconst c = "#GoPairDef"\n',
+  });
+
   writeFileSync(join(scratch, "msg"), "umbrella\n");
   g("update-index", "--add", "--cacheinfo", `160000,${ownerSha},plugin-machine`);
   g("update-index", "--add", "--cacheinfo", `160000,${straySha},plugin-nobody`);
   g("update-index", "--add", "--cacheinfo", `160000,${homeSha},plugin-home`);
+  g("update-index", "--add", "--cacheinfo", `160000,${commentSha},plugin-commenter`);
+  g("update-index", "--add", "--cacheinfo", `160000,${goOneSha},plugin-goone`);
+  g("update-index", "--add", "--cacheinfo", `160000,${goTwoSha},plugin-gotwo`);
   g("commit", "-q", "-F", join(scratch, "msg"));
 
   const run = spawnSync(process.execPath, [fileURLToPath(import.meta.url), "--repo", repo, "--json"], {
@@ -339,19 +360,31 @@ if (argv.includes("--self-test")) {
   }
   const stray = verdicts.find((v) => v.def === "#VmOrphan");
   const home = verdicts.find((v) => v.def === "#LocalHome");
+  const prose = verdicts.find((v) => v.def === "#ProseTarget");
+  const goSingle = verdicts.find((v) => v.def === "#GoSingle");
+  const goPair = verdicts.find((v) => v.def === "#GoPairDef");
   const ok =
     run.status === 1 &&
     stray &&
     stray.verdict === "MOVE" &&
     stray.detail.includes("plugin-machine") &&
     home &&
-    home.verdict !== "MOVE";
+    home.verdict !== "MOVE" &&
+    // a COMMENT-only citation in another repo is not a witness: the def must NOT be a keeper
+    prose &&
+    prose.verdict !== "KEEPER" &&
+    // ONE repo's Go citation is not K4
+    goSingle &&
+    !goSingle.detail.includes("K4") &&
+    goPair &&
+    goPair.verdict === "KEEPER" &&
+    goPair.detail.includes("K4");
   if (ok) {
     console.log("  PASS  the census names a MOVE to the MANIFEST-derived owner, and leaves a def in its owner's repo alone");
     process.exit(0);
   }
   console.error(
-    `  FAIL  expected #VmOrphan to MOVE to plugin-machine and #LocalHome to stay; status ${run.status} stray=${JSON.stringify(stray)} home=${JSON.stringify(home)}`,
+    `  FAIL  expected: stray MOVE, home not, prose MOVE, goSingle MOVE, goPair KEEPER/K4; status ${run.status} stray=${JSON.stringify(stray)} home=${JSON.stringify(home)} prose=${JSON.stringify(prose)} goSingle=${JSON.stringify(goSingle)} goPair=${JSON.stringify(goPair)}`,
   );
   process.exit(1);
 }
