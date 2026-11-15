@@ -25,10 +25,11 @@
 #      decision can be fired in isolation (`node scripts/check-pre-commit-gate.mjs`)
 #      and so that the charly-backed pair has ONE owner — it used to run TWICE per
 #      commit (opencharly/opencharly#645).
-#   3. the pure-node gates below — each one a claim about a file in this repo, and
-#      each one cheap enough to run on every commit.
+#   3. the file-claim gates below — each one a claim about a file in this repo, and
+#      each one cheap enough to run on every commit. All but the last are node; the
+#      last is pure python over README.md + .gitmodules (`scripts/org-map.py`).
 #
-# The node gates, in order:
+# The per-commit gates, in order:
 #   1. opencode gate     — the TypeScript gate plugin contract
 #   2. pr-watch gate     — the PR-watch plugin's pure logic + SDK delivery primitives
 #   3. pi gate           — the pi gate extension fails CLOSED, uses the rule-2 worktree
@@ -99,6 +100,18 @@
 #                          so the caller is asserted statically AND by FIRING the shipped
 #                          hook on each input class plus a mutation arm
 #                          (`node scripts/check-design-gate.mjs`)
+#  16. org map            — the README's "## The org map" reconciles with `.gitmodules` in BOTH
+#                          directions: every submodule has a row AND every row names a submodule,
+#                          each section states its own row count and is sorted, and the header
+#                          census matches. The row→submodule arm is the one a retirement needs
+#                          (opencharly/opencharly#1030: the org map kept advertising a repo the
+#                          umbrella had unpinned, and nothing ran the control to notice — the
+#                          same "gate with no caller" defect entry 15 closes for the design
+#                          gate). Pure python over two files in THIS repo, so it is cheap enough
+#                          to run on every commit. Its `--self-test` — a step of
+#                          `charly task org-map` — proves each arm turns RED on its own
+#                          mutation AND that this hook still carries the call
+#                          (`scripts/org-map.py`)
 #
 # Deliberately NOT here (see `charly task verify`): the per-submodule
 # `git ls-remote` default-branch audit — it reads remote state no commit can change
@@ -160,6 +173,7 @@ node "$ROOT/scripts/check-design-gate.mjs"
 node "$ROOT/scripts/check-validator-rule-map.mjs" --no-live
 node "$ROOT/scripts/check-readme-measurements.mjs"
 node "$ROOT/scripts/check-cited-plugin-task-version.mjs"
+python3 "$ROOT/scripts/org-map.py" "$ROOT"
 bash "$ROOT/scripts/check-bed-watch.sh" --self-test
 
 echo "pre-commit: OK"
