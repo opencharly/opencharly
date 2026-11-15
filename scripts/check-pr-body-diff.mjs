@@ -153,7 +153,7 @@
 // Usage: node scripts/check-pr-body-diff.mjs [--body <path>] [--repo <dir>] [--base <ref>] [--head <rev>] [--self-test]
 // exit 0 clean · 1 finding · 2 usage
 
-import { spawnSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -171,6 +171,26 @@ const baseRef = argOf("--base") ?? "origin/main";
 // The head the body is published with. `HEAD` for every caller that does not name
 // one; the pre-push hook names the commit its push publishes.
 const headRef = argOf("--head") ?? "HEAD";
+
+// --emit-table prints the `## Files changed` table FROM THE DIFF, so a body never carries a
+// hand-typed row that the reconcile then has to refuse. It is the same data this checker
+// compares against, produced by the same command — the author runs it and pastes the result.
+if (argv.includes("--emit-table")) {
+  let out;
+  try {
+    out = execFileSync("git", ["-C", root, "diff", "--name-only", `${baseRef}...${headRef}`], {
+      encoding: "utf8",
+    });
+  } catch {
+    console.error(`emit-table: cannot read the diff ${baseRef}...${headRef}`);
+    process.exit(2);
+  }
+  const files = out.split("\n").filter(Boolean);
+  console.log("| file | what changed |");
+  console.log("|---|---|");
+  for (const f of files) console.log(`| \`${f}\` | _(describe it)_ |`);
+  process.exit(0);
+}
 
 let findings = 0;
 const fail = (m) => {
@@ -1376,6 +1396,26 @@ if (argv.includes("--self-test")) {
     writeFileSync(join(scratch, "msg.txt"), "feat\n");
     g("commit", "-q", "-F", join(scratch, "msg.txt"));
     const head = g("rev-parse", "HEAD").stdout.trim();
+
+    // --emit-table: the table comes FROM this diff. Proven live against the fixture,
+    // and it must fail if the emitter were removed — the case asserts every changed
+    // path appears, so a silent no-op is a red self-test, not a green one.
+    {
+      const emit = spawnSync(
+        process.execPath,
+        [fileURLToPath(import.meta.url), "--repo", repo, "--base", "main", "--head", "HEAD", "--emit-table"],
+        { encoding: "utf8" },
+      );
+      const want = ["`a.txt`"];
+      const missing = want.filter((w) => !emit.stdout.includes(w));
+      if (emit.status === 0 && missing.length === 0) {
+        stLive += 1;
+        ok("--emit-table FIRED: the emitted table names every path the diff changes");
+      } else {
+        stFails += 1;
+        fail(`--emit-table did not emit the diff's paths (status ${emit.status}, missing ${missing.join(", ")})`);
+      }
+    }
 
     // A SECOND branch, on a DIFFERENT tree, so the head the body is published with
     // is a choice the fixture can make. `git push origin other` publishes `other`'s
