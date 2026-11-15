@@ -2,8 +2,9 @@
 # pre-commit-gate.sh — the umbrella's commit gate: its DECISION and its two legs.
 #
 # WHY A SEPARATE FILE. The hook (hooks/pre-commit) is the umbrella's whole commit
-# gate: this file's two legs plus the pure-node gates. The legs need the charly
-# binary; the node gates do not. Keeping the legs here means the gate's DECISION can
+# gate: this file's two legs plus the per-commit file-claim gates. The legs need the
+# charly binary; the file-claim gates do not (node, and one pure-python over two
+# files of this repo). Keeping the legs here means the gate's DECISION can
 # be FIRED in isolation — scripts/check-pre-commit-gate.mjs runs THIS file in a
 # scratch repository with a recording charly and counts what it invoked — and it
 # means the charly-backed pair has exactly ONE owner, so the duplication the old hook
