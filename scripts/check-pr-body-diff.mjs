@@ -1397,6 +1397,26 @@ if (argv.includes("--self-test")) {
     g("commit", "-q", "-F", join(scratch, "msg.txt"));
     const head = g("rev-parse", "HEAD").stdout.trim();
 
+    // --emit-table: the table comes FROM this diff. Proven live against the fixture,
+    // and it must fail if the emitter were removed — the case asserts every changed
+    // path appears, so a silent no-op is a red self-test, not a green one.
+    {
+      const emit = spawnSync(
+        process.execPath,
+        [fileURLToPath(import.meta.url), "--repo", repo, "--base", "main", "--head", "HEAD", "--emit-table"],
+        { encoding: "utf8" },
+      );
+      const want = ["`a.txt`"];
+      const missing = want.filter((w) => !emit.stdout.includes(w));
+      if (emit.status === 0 && missing.length === 0) {
+        stLive += 1;
+        ok("--emit-table FIRED: the emitted table names every path the diff changes");
+      } else {
+        stFails += 1;
+        fail(`--emit-table did not emit the diff's paths (status ${emit.status}, missing ${missing.join(", ")})`);
+      }
+    }
+
     // A SECOND branch, on a DIFFERENT tree, so the head the body is published with
     // is a choice the fixture can make. `git push origin other` publishes `other`'s
     // commit while the checkout still sits on `feat` — so a gate that reads `HEAD`
