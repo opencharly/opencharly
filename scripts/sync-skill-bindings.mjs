@@ -47,6 +47,14 @@ const argv = process.argv.slice(2);
 const rootIdx = argv.indexOf("--root");
 const root = rootIdx === -1 ? resolve(here, "..") : resolve(argv[rootIdx + 1]);
 const check = argv.includes("--check");
+// --require-corpus: a MISSING corpus is a FAILURE, not a visible SKIP. The gate uses the
+// default (a light tree must stay green); the pin wave's own derive step uses this flag,
+// because that step's contract is "the bump advanced the corpus, so the bindings are
+// re-derived" — and a skip there leaves STALE bindings behind a step that still reports
+// [pass] (measured: a session worktree whose corpus was unmaterialized kept 45 entries where
+// 46 were due, and only the later pin gate caught it). The wave itself is described, with its
+// scope, in this repo's `charly.yml`; this file only consumes its output.
+const requireCorpus = argv.includes("--require-corpus");
 const selfTest = argv.includes("--self-test");
 // Each check in the harness-config gate asserts ONE binding, so each invokes the generator scoped to
 // it: the collision rule is a property of the FLAT farm only (reasonix enumerates family directories,
@@ -77,6 +85,7 @@ function fail(msg) {
  *  still derive, so each half reports its own SKIP and the other continues. */
 function corpusRootOrSkip(r, need, parts) {
   if (!CORPUS_NEEDS[need](r)) {
+    if (requireCorpus) fail(corpusSkipReason(r, need));
     parts.push(`SKIP  ${corpusSkipReason(r, need)}`);
     return null;
   }

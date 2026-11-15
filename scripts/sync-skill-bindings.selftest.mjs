@@ -152,6 +152,33 @@ export function runSelfTest() {
     }
   }
 
+  // ---- --require-corpus: the SAME absent corpus, now a FAILURE ---------------
+  // The wave's derive step passes this flag, because its contract is "the bump advanced the corpus,
+  // so the bindings are re-derived" — a SKIP there leaves stale bindings behind a step that still
+  // reports [pass] (measured on an unmaterialized session worktree: 45 entries where 46 were due,
+  // caught only later by the pin gate). The default keeps the skip-visible verdict this suite pins
+  // above, so the two callers get the two verdicts they each need; this arm is the one that fails
+  // without the flag's branch in `corpusRootOrSkip`.
+  {
+    const d = mkdtempSync(join(base, "require-corpus-"));
+    mkdirSync(join(d, ".git"), { recursive: true });
+    writeFileSync(join(d, "reasonix.toml"), "# no corpus here\n[skills]\npaths = []\n");
+    writeFileSync(join(d, "opencode.json"), JSON.stringify({ skills: { paths: ["marketplace"] } }) + "\n");
+    const strict = run(["--require-corpus", "--root", d]);
+    const lax = run(["--check", "--root", d]);
+    const strictOut = `${strict.stdout}${strict.stderr}`;
+    const laxOut = `${lax.stdout}${lax.stderr}`;
+    const strictFails = strict.status === 1 && /FAIL: marketplace\/ carries no/.test(strictOut) && /git submodule update --init marketplace/.test(strictOut);
+    const laxSkips = lax.status === 0 && /carries no/.test(laxOut);
+    results.push({
+      name: "corpus absent: --require-corpus FAILS with the remedy named, while the default still SKIPS green",
+      ok: strictFails && laxSkips,
+      status: strict.status,
+      first: strictOut.split("\n").find((l) => l.trim()) ?? "(no output)",
+      note: `--require-corpus rc=${strict.status}, default --check rc=${lax.status}`,
+    });
+  }
+
   // ---- the corpus PRESENT but EMPTY: the case this defect shipped through -----
   // `git worktree add` creates the submodule MOUNT POINT, so every session worktree (Part II rule 2)
   // has `marketplace/` present and EMPTY — and before this arm existed that was indistinguishable
