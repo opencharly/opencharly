@@ -67,7 +67,10 @@ function pins() {
 function cueFilesAt(subPath, sha) {
   const tree = git(["ls-tree", "-r", "--name-only", sha], join(root, subPath));
   if (tree === null) return null;
-  const files = tree.split("\n").filter((f) => f.endsWith(".cue"));
+  // BOTH kinds are witnesses' evidence: `.cue` for K1/K3, `.go` for K2 (spec's generator extracts
+  // the def by name) and K4 (a cross-boundary Go pair). Filtering to `.cue` here made K2 and K4
+  // unreachable dead code — the signals existed in `witnesses()` and could never be emitted.
+  const files = tree.split("\n").filter((f) => f.endsWith(".cue") || f.endsWith(".go"));
   const out = [];
   for (const f of files) {
     const blob = git(["cat-file", "blob", `${sha}:${f}`], join(root, subPath));
@@ -211,13 +214,20 @@ function main() {
   // The corpus: every pinned repo's CUE + Go text at its gitlink.
   const corpus = [];
   const unpinned = [];
+  // A repo that IS pinned but whose tree cannot be read at its gitlink is UNJUDGEABLE: named, never
+  // silently green. Its defs are absent from the census, so the run must say so rather than count
+  // a smaller set and report it as complete.
+  const unreadable = [];
   for (const p of pinList) {
     if (!existsSync(join(root, p.path))) {
       unpinned.push(p.path);
       continue;
     }
     const files = cueFilesAt(p.path, p.sha);
-    if (files === null) continue;
+    if (files === null) {
+      unreadable.push(p.path);
+      continue;
+    }
     for (const f of files) corpus.push({ repo: p.path, path: f.path, text: f.text });
   }
 
@@ -226,7 +236,7 @@ function main() {
   for (const { path: subPath, sha } of pinList) {
     if (!existsSync(join(root, subPath))) continue;
     const files = cueFilesAt(subPath, sha);
-    if (files === null) continue;
+    if (files === null) continue; // reported as UNJUDGEABLE above
     for (const f of files) {
       if (!f.path.includes("schema")) continue;
       for (const def of defsIn(f.text)) {
@@ -259,7 +269,9 @@ function main() {
     console.log(
       `check-schema-ownership: ${verdicts.length} def(s) judged — ` +
         Object.entries(byVerdict).map(([k, n]) => `${k}=${n}`).join(" ") +
-        (unpinned.length ? `; UNJUDGEABLE (not pinned): ${unpinned.join(", ")}` : ""),
+        (unpinned.length || unreadable.length
+          ? `; UNJUDGEABLE: not pinned [${unpinned.join(", ")}] unreadable [${unreadable.join(", ")}]`
+          : ""),
     );
   }
   const moves = verdicts.filter((v) => v.verdict === "MOVE").length;
