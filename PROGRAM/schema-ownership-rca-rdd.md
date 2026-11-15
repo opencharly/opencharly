@@ -420,7 +420,7 @@ hook?: #CandyHook @go(Hook,optional=nillable)
 
 **This is `DESIGN.md` being implemented, not reduced.** §10.2 already says the IR is `spec`-owned; I1 already says the wire carries bytes. What is left is that the IR still carries ONE shape it should carry opaquely — and until it does, the plugin cannot own its body without the IR losing a type it needs.
 
-**A measured warning about the census.** Its 85 MOVEs are a SCREEN, not a verdict. Four candidates were examined this round and all four were correctly placed: `#CandyServiceOverrides` and `#KubeVirtDeploySnapshot` are sub-shapes whose citer is a keeper; `#KindCluster` is an EGRESS schema, which belongs to the egress plugin by §3.1's "the `check` command" row, not the substrate's. The census says *look here*; the reader decides.
+**A measured warning about the census.** Its 85 MOVEs are a SCREEN, not a verdict. Four candidates were examined and all four were correctly placed: `#CandyServiceOverrides` is a sub-shape whose citer (`#CandyService`) is a keeper; `#KubeVirtDeploySnapshot` and `#FirecrackerDeploySnapshot` are each cited by `snapshot?: [...]` inside their own file; and `#KindCluster` is an EGRESS schema, which belongs to the egress plugin by §3.1's check-command row, not the substrate's. The census says *look here*; the reader decides.
 
 ## 8. What the operator is being asked
 
