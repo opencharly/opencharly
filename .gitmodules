@@ -1706,3 +1706,4 @@
 [submodule "pod-ai-toolkit"]
 	path = pod-ai-toolkit
 	url = https://github.com/opencharly/pod-ai-toolkit.git
+	branch = main
