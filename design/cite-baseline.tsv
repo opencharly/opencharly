@@ -40,7 +40,7 @@ builder:pixi	spec/spec/externalized_builders.go	17-17	ExternalizedBuilders	254ea
 BuildKit as the one image builder	plugin-build/README.md	1-25	-	5e2f4ea5274555e8
 cache status|clear|refresh|bypass|push|pull|ingest	plugin-cache/candy/plugin-cache/plugin.go	103-111	CacheCmd	95732bc1bc427aa9
 candy set|params	plugin-candy/candy/plugin-candy/params.go	40-47	paramsUsage	bc7bee9cdd4451c5
-check plan	plugin-box/candy/plugin-box/inspect_list.go	80-95	dispatchInspect	508f7ece96e78d8b
+check plan	plugin-box/candy/plugin-box/inspect_list.go	81-96	dispatchInspect	508f7ece96e78d8b
 check plan	plugin-check/candy/plugin-check/plan_cmd.go	23-31	Run	58f1560629fd339e
 command:agent	plugin-agent/candy/plugin-agent/control.go	37-49	AgentCmd	5a2e99e1f326e081
 command:agentteams	plugin-agentteams/candy/plugin-agentteams/control.go	28-34	AgentTeamsCmd	9e14505afeecf7ff
@@ -59,7 +59,7 @@ command:pipeline	plugin-pipeline/candy/plugin-pipeline/cli.go	20-26	-	913e238ae7
 command:preempt	plugin-preempt/candy/plugin-preempt/command.go	24-33	runPreemptCLI	b2a7ae8bc09a277c
 command:registry	charly-registry/candy/plugin-registry/charly.yml	30-32	-	a3a6333b4652f51a
 command:restart	plugin-pod/candy/plugin-pod/pod_cmd.go	119-119	-	c5ac749e4ceea62a
-command:secrets	plugin-secrets/candy/plugin-secrets/command.go	115-126	Run	ef31a3b697310449
+command:secrets	plugin-secrets/candy/plugin-secrets/command.go	116-127	Run	ef31a3b697310449
 command:ssh	plugin-ssh/candy/plugin-ssh/tunnel.go	27-41	SshTunnelCmd	44462a4022d4c1b2
 command:strata	plugin-strata/candy/plugin-strata/charly.yml	33-34	-	6b82fed826233983
 command:task	plugin-task/candy/plugin-task/plugin.go	50-66	NewMeta	9b691de500778450
@@ -109,7 +109,7 @@ rootful vs rootless daemon	spec/schema/deploy.cue	162-166	#Deploy	0e691ca53e6b66
 rootful vs rootless daemon	spec/schema/deploy.cue	58-63	#DeployTraits	698844570957a001
 rootful vs rootless daemon	spec/schema/engine.cue	94-94	-	82f6f9ca1156d5f4
 runtime handler crun/krun (one switch to a microVM)	spec/container/engine.go	198-198	engineCapabilities	cc274245dbc0ce1c
-secrets get|set|list|delete|import|export|gpg|encrypt|decrypt|edit|env|recipients|setup|show|unset|doctor	plugin-secrets/candy/plugin-secrets/command.go	115-125	Run	cbfe0a60f2472af6
+secrets get|set|list|delete|import|export|gpg|encrypt|decrypt|edit|env|recipients|setup|show|unset|doctor	plugin-secrets/candy/plugin-secrets/command.go	116-126	Run	cbfe0a60f2472af6
 secrets get|set|list|delete|import|export|gpg|encrypt|decrypt|edit|env|recipients|setup|show|unset|doctor	plugin-secrets/candy/plugin-secrets/secrets_gpg.go	25-36	SecretsGpgCmd	d929a1631d542e04
 ssh spice|vnc	plugin-ssh/candy/plugin-ssh/tunnel.go	31-41	SshTunnelCmd	a0cd71a5971bcf03
 ssh tunnel	plugin-ssh/candy/plugin-ssh/tunnel.go	31-41	SshTunnelCmd	a0cd71a5971bcf03
