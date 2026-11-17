@@ -272,7 +272,17 @@ census() {
 				printf '%s\t%s\t%s\t%s\n' "$m" "$c" "$s" "${want[$key]}" >>"$known"
 				matched[$key]=1
 			else
-				printf 'FAIL %s@%s: untagged — %s; no census row records and explains it\n' "$m" "$c" "$r" >>"$fail"
+				# The FAIL text must not point at the census as the remedy. A census row records a pin
+				# whose untagged-ness is REAL; raising one for a pin that is healthy turns the census
+				# into a rubber stamp. The tag map is a property of a STORE, and for a path with no
+				# checkout this run read the clone's SHARED store, which may have been fetched before
+				# tag-on-merge created the tag — so state the store, the staleness and the two remedies
+				# that actually answer it (opencharly/opencharly#980).
+				if [ -e "$ROOT/$m/.git" ]; then
+					printf 'FAIL %s@%s: untagged — %s; no census row records and explains it\n' "$m" "$c" "$r" >>"$fail"
+				else
+					printf 'FAIL %s@%s: untagged — %s; this path has NO checkout, so its tag map was read from the clone shared store, and a tag created after that store was last fetched is invisible here. Run `git submodule update --init %s` (or `design-pintag.sh --remote`) to answer it — do NOT add a census row, which records a pin that is really untagged\n' "$m" "$c" "$r" "$m" >>"$fail"
+				fi
 			fi
 		elif [[ "$s" == skip-no-store && -n "${want[$key]:-}" ]]; then
 			matched[$key]=1
@@ -608,7 +618,7 @@ self_test() {
 	fixture_pin "$um" two "$two_c"
 	printf 'stray\t%s\tuntagged\tthe merge wrote no CHANGELOG commit\n' "$stray_c" >>"$work/baseline.tsv"
 	run_case "$um" "$work/baseline.tsv"
-	fail_like "a new untagged pin beside a recorded one" 'two@.*no census row'
+	fail_like "a new untagged pin beside a recorded one" 'two@.*census row'
 
 	new_case
 	fixture_pin "$um" stray "$stray2_c"
