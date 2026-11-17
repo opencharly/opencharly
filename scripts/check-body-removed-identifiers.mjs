@@ -66,7 +66,15 @@ export function runCheck(diffText, bodyText) {
   // The FENCE-PURITY arm is independent of the identifier arm: a body can annotate a console fence
   // whether or not the diff removed anything. So the findings are the union, and `inapplicable`
   // reports ONLY that the identifier half had nothing to check.
-  const findings = [...scanProse(removed, bodyText), ...scanFences(bodyText), ...scanCounts(bodyText)];
+  const declaredOrder = [...readFileSync(new URL(import.meta.url), "utf8").matchAll(/label: "([^"]+)"/g)].map((m) => m[1]);
+  const findings = [
+    ...scanProse(removed, bodyText),
+    ...scanFences(bodyText),
+    ...scanCounts(bodyText),
+    ...(hasOutOfOrderSelfTest(bodyText, declaredOrder)
+      ? ["a pasted self-test block lists its arms out of the order the script prints them."]
+      : []),
+  ];
   return { removed, findings, inapplicable: removed.size === 0 };
 }
 
@@ -170,6 +178,18 @@ if (process.argv.includes("--self-test")) {
   arms.push({
     label: "a path-first line count that contradicts the file",
     ok: scanCounts(inverseBad).length > 0,
+    findings: [],
+  });
+
+  // THE ORDER ARM. A pasted --self-test block must list the arms in the order the script prints them.
+  // Measured on #1085: the body pasted "the script's own output, verbatim" with arms 8 and 9 swapped,
+  // because the body was edited after the script's push order changed. "Verbatim" is checkable.
+  const labels = arms.map((a) => a.label);
+  const inOrder = "```console\n" + labels.map((l) => `  ok    ${l}`).join("\n") + "\n```\n";
+  const reversed = "```console\n" + [...labels].reverse().map((l) => `  ok    ${l}`).join("\n") + "\n```\n";
+  arms.push({
+    label: "a pasted self-test block out of the script's own order",
+    ok: !hasOutOfOrderSelfTest(inOrder, labels) && hasOutOfOrderSelfTest(reversed, labels),
     findings: [],
   });
 
@@ -287,6 +307,24 @@ function scanCounts(bodyText) {
     }
   }
   return out;
+}
+
+
+// hasOutOfOrderSelfTest reports whether a `console` fence that lists `ok    a <label>` lines names them
+// out of `expected` order. A fence listing fewer than two known labels is not a self-test paste.
+function hasOutOfOrderSelfTest(bodyText, expected) {
+  for (const m of bodyText.matchAll(/```console\n([\s\S]*?)```/g)) {
+    const seen = m[1]
+      .split("\n")
+      .map((l) => l.trim())
+      .filter((l) => l.startsWith("ok    a "))
+      .map((l) => l.replace(/^ok\s+/, ""))
+      .filter((l) => expected.includes(l));
+    if (seen.length < 2) continue;
+    const idx = seen.map((l) => expected.indexOf(l));
+    for (let k = 1; k < idx.length; k += 1) if (idx[k] < idx[k - 1]) return true;
+  }
+  return false;
 }
 
 // ---- the identifiers the diff removes -------------------------------------------------------
