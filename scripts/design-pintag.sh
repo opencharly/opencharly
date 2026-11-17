@@ -279,12 +279,7 @@ census() {
 				# there is to materialize the path or ask the remote, never a census row. A path WITH
 				# a checkout reads its OWN store, where a missing tag is the pin's business and the
 				# census is the remedy. One printf so there is no arm a test cannot reach.
-				if design_module_has_checkout "$ROOT" "$m"; then
-					remedy="the tag map came from this pin's own module store, so a missing tag is the pin's own: no census row records and explains it"
-				else
-					remedy="this path has NO checkout, so the tag map came from the clone shared store, and a tag created after that store was last fetched is invisible here: answer it with \`git submodule update --init $m\` or \`design-pintag.sh --remote\`, and add no census row, which records a pin that is REALLY untagged"
-				fi
-				printf 'FAIL %s@%s: untagged — %s; %s\n' "$m" "$c" "$r" "$remedy" >>"$fail"
+				printf 'FAIL %s@%s: untagged — %s; %s\n' "$m" "$c" "$r" "$(untagged_remedy "$ROOT" "$m")" >>"$fail"
 			fi
 		elif [[ "$s" == skip-no-store && -n "${want[$key]:-}" ]]; then
 			matched[$key]=1
@@ -428,6 +423,21 @@ fixture_commit() { # <gitdir> <tree> <parent or -> <subject> -> commit
 	else
 		GIT_AUTHOR_DATE='2026-01-01T00:00:00Z' GIT_COMMITTER_DATE='2026-01-01T00:00:00Z' \
 			git --git-dir "$gd" -c user.name=fixture -c user.email=fixture@example.invalid commit-tree "$tree" -p "$parent" -m "$subject"
+	fi
+}
+
+# untagged_remedy <root> <path> — the remedy that matches the case, for the untagged FAIL line.
+# WITH a checkout the tag map is the pin's OWN store, so a missing tag is the pin's own and the
+# census is the remedy. WITHOUT one it is the clone's SHARED store, whose tag namespace can
+# predate the tag-on-merge tag the pin sits above — a healthy changelog-tip pin then answers
+# "no tag here" (opencharly/opencharly#980), and the remedy is to materialize the path or ask
+# the remote, never a census row, which records a pin that is REALLY untagged. ONE function, so
+# both arms are ordinary code the self-test can execute.
+untagged_remedy() { # <root> <path>
+	if design_module_has_checkout "$1" "$2"; then
+		printf "the tag map came from this pin's own module store, so a missing tag is the pin's own: no census row records and explains it"
+	else
+		printf 'this path has NO checkout, so the tag map came from the clone shared store, and a tag created after that store was last fetched is invisible here: answer it with `git submodule update --init %s` or `design-pintag.sh --remote`, and add no census row, which records a pin that is REALLY untagged' "$2"
 	fi
 }
 
@@ -636,7 +646,12 @@ self_test() {
 	new_case
 	mkdir -p "$um/hc_yes" "$um/hc_no"
 	printf 'gitdir: %s\n' "$um/.git/modules/two" >"$um/hc_yes/.git"
-	if design_module_has_checkout "$um" hc_yes && ! design_module_has_checkout "$um" hc_no; then
+	hc_own=$(untagged_remedy "$um" hc_yes)
+	hc_shared=$(untagged_remedy "$um" hc_no)
+	if design_module_has_checkout "$um" hc_yes \
+		&& ! design_module_has_checkout "$um" hc_no \
+		&& [[ "$hc_own" == *"own module store"* && "$hc_own" == *"no census row"* ]] \
+		&& [[ "$hc_shared" == *"shared store"* && "$hc_shared" == *"git submodule update --init hc_no"* && "$hc_shared" == *"add no census row"* ]]; then
 		printf '  self-test %-56s decides the arm, both ways\n' "design_module_has_checkout"
 	else
 		printf 'FAIL self-test: design_module_has_checkout does not discriminate (.git file yes=%s absent no=%s)\n' \
