@@ -129,6 +129,20 @@ if (process.argv.includes("--self-test")) {
     false,
   );
 
+  // THE FENCE-PURITY ARM. A `console` fence may contain only what a command printed. Twice on
+  // opencharly/opencharly#1084 the body pasted output with an ANNOTATION column appended — RED and
+  // GREEN words the script never prints — inside a fence that claimed to be the program's own
+  // output. `cat -A` was already in the body and showed the annotation was never there, which is
+  // how the review found it. So the check now reads every console fence and refuses one whose
+  // lines carry a word the command could not have printed: a bare RED or GREEN verdict marker.
+  const annotatedFence = "```console\n$ node gate.mjs --self-test\n  ok  arm one            RED\n  ok  arm two            GREEN\n```\n";
+  const cleanFence = "```console\n$ node gate.mjs --self-test\n  ok  arm one\n  ok  arm two\n```\n";
+  arms.push({
+    label: "an annotation column inside a console fence",
+    ok: hasAnnotatedFence(annotatedFence) && !hasAnnotatedFence(cleanFence),
+    findings: [],
+  });
+
   const bad = arms.filter((a) => !a.ok);
   for (const a of arms) console.log(`  ${a.ok ? "ok  " : "FAIL"}  ${a.label}`);
   if (bad.length) {
@@ -152,6 +166,19 @@ if (!bodyPath) {
 
 const git = (...args) =>
   execFileSync("git", ["-C", repo, ...args], { encoding: "utf8", maxBuffer: 1 << 28 });
+
+
+// hasAnnotatedFence reports whether any ```console fence carries a line ending in a bare RED or
+// GREEN verdict marker — a word no gate in this repo prints, and the shape an author's annotation
+// takes when it is pasted into an output block by mistake.
+function hasAnnotatedFence(bodyText) {
+  for (const m of bodyText.matchAll(/```console\n([\s\S]*?)```/g)) {
+    for (const line of m[1].split("\n")) {
+      if (/\s+(RED|GREEN)\s*$/.test(line)) return true;
+    }
+  }
+  return false;
+}
 
 // ---- the identifiers the diff removes -------------------------------------------------------
 
