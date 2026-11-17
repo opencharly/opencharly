@@ -627,6 +627,23 @@ self_test() {
 	# on the old wording too, which is the defect the line exists to prevent.
 	fail_like "an untagged pin with NO checkout names the shared store and the real remedies" \
 		'two@.*shared store.*git submodule update --init two.*add no census row'
+
+	# ── design_module_has_checkout is what CHOOSES the arm above ────────────
+	# The with-checkout wording cannot be reached from a fixture pin: every pin the fixture
+	# builds is backed by a bare store, and a pin whose store is reachable is by construction
+	# a pin WITHOUT a checkout. So the PREDICATE that selects the arm is tested directly, in
+	# both directions, which is the one thing a wrong branch would break.
+	new_case
+	mkdir -p "$um/hc_yes" "$um/hc_no"
+	printf 'gitdir: %s\n' "$um/.git/modules/two" >"$um/hc_yes/.git"
+	if design_module_has_checkout "$um" hc_yes && ! design_module_has_checkout "$um" hc_no; then
+		printf '  self-test %-56s decides the arm, both ways\n' "design_module_has_checkout"
+	else
+		printf 'FAIL self-test: design_module_has_checkout does not discriminate (.git file yes=%s absent no=%s)\n' \
+			"$(design_module_has_checkout "$um" hc_yes && echo yes || echo no)" \
+			"$(design_module_has_checkout "$um" hc_no && echo yes || echo no)" >&2
+		exit 1
+	fi
 	new_case
 	fixture_pin "$um" stray "$stray2_c"
 	printf 'stray\t%s\tuntagged\tthe merge wrote no CHANGELOG commit\n' "$stray_c" >>"$work/baseline.tsv"
