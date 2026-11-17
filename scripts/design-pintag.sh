@@ -272,7 +272,14 @@ census() {
 				printf '%s\t%s\t%s\t%s\n' "$m" "$c" "$s" "${want[$key]}" >>"$known"
 				matched[$key]=1
 			else
-				printf 'FAIL %s@%s: untagged — %s; no census row records and explains it\n' "$m" "$c" "$r" >>"$fail"
+				# Name the store the tag map came from, and give the remedy that matches the case — in
+				# ONE message. A path WITHOUT a checkout is read from the clone's SHARED store, whose tag
+				# namespace can predate the tag-on-merge tag the pin sits above, so a healthy
+				# changelog-tip pin answers "no tag here" (opencharly/opencharly#980); the remedy
+				# there is to materialize the path or ask the remote, never a census row. A path WITH
+				# a checkout reads its OWN store, where a missing tag is the pin's business and the
+				# census is the remedy. One printf so there is no arm a test cannot reach.
+				printf 'FAIL %s@%s: untagged — %s; %s\n' "$m" "$c" "$r" "$(untagged_remedy "$ROOT" "$m")" >>"$fail"
 			fi
 		elif [[ "$s" == skip-no-store && -n "${want[$key]:-}" ]]; then
 			matched[$key]=1
@@ -416,6 +423,21 @@ fixture_commit() { # <gitdir> <tree> <parent or -> <subject> -> commit
 	else
 		GIT_AUTHOR_DATE='2026-01-01T00:00:00Z' GIT_COMMITTER_DATE='2026-01-01T00:00:00Z' \
 			git --git-dir "$gd" -c user.name=fixture -c user.email=fixture@example.invalid commit-tree "$tree" -p "$parent" -m "$subject"
+	fi
+}
+
+# untagged_remedy <root> <path> — the remedy that matches the case, for the untagged FAIL line.
+# WITH a checkout the tag map is the pin's OWN store, so a missing tag is the pin's own and the
+# census is the remedy. WITHOUT one it is the clone's SHARED store, whose tag namespace can
+# predate the tag-on-merge tag the pin sits above — a healthy changelog-tip pin then answers
+# "no tag here" (opencharly/opencharly#980), and the remedy is to materialize the path or ask
+# the remote, never a census row, which records a pin that is REALLY untagged. ONE function, so
+# both arms are ordinary code the self-test can execute.
+untagged_remedy() { # <root> <path>
+	if design_module_has_checkout "$1" "$2"; then
+		printf "the tag map came from this pin's own module store, so a missing tag is the pin's own: no census row records and explains it"
+	else
+		printf 'this path has NO checkout, so the tag map came from the clone shared store, and a tag created after that store was last fetched is invisible here: answer it with `git submodule update --init %s` or `design-pintag.sh --remote`, and add no census row, which records a pin that is REALLY untagged' "$2"
 	fi
 }
 
@@ -608,8 +630,35 @@ self_test() {
 	fixture_pin "$um" two "$two_c"
 	printf 'stray\t%s\tuntagged\tthe merge wrote no CHANGELOG commit\n' "$stray_c" >>"$work/baseline.tsv"
 	run_case "$um" "$work/baseline.tsv"
-	fail_like "a new untagged pin beside a recorded one" 'two@.*no census row'
+	# opencharly/opencharly#980: an untagged pin with NO checkout reads the clone's SHARED
+	# store, so the line must name that store, the staleness and the two remedies that answer
+	# it — and must NOT send the operator at the census, which records a pin that is REALLY
+	# untagged. Asserted in full rather than by a shared substring: a weaker match would pass
+	# on the old wording too, which is the defect the line exists to prevent.
+	fail_like "an untagged pin with NO checkout names the shared store and the real remedies" \
+		'two@.*shared store.*git submodule update --init two.*add no census row'
 
+	# ── design_module_has_checkout is what CHOOSES the arm above ────────────
+	# The with-checkout wording cannot be reached from a fixture pin: every pin the fixture
+	# builds is backed by a bare store, and a pin whose store is reachable is by construction
+	# a pin WITHOUT a checkout. So the PREDICATE that selects the arm is tested directly, in
+	# both directions, which is the one thing a wrong branch would break.
+	new_case
+	mkdir -p "$um/hc_yes" "$um/hc_no"
+	printf 'gitdir: %s\n' "$um/.git/modules/two" >"$um/hc_yes/.git"
+	hc_own=$(untagged_remedy "$um" hc_yes)
+	hc_shared=$(untagged_remedy "$um" hc_no)
+	if design_module_has_checkout "$um" hc_yes \
+		&& ! design_module_has_checkout "$um" hc_no \
+		&& [[ "$hc_own" == *"own module store"* && "$hc_own" == *"no census row"* ]] \
+		&& [[ "$hc_shared" == *"shared store"* && "$hc_shared" == *"git submodule update --init hc_no"* && "$hc_shared" == *"add no census row"* ]]; then
+		printf '  self-test %-56s: BOTH arms of the untagged remedy run\n' "untagged_remedy"
+	else
+		printf 'FAIL self-test: design_module_has_checkout does not discriminate (.git file yes=%s absent no=%s)\n' \
+			"$(design_module_has_checkout "$um" hc_yes && echo yes || echo no)" \
+			"$(design_module_has_checkout "$um" hc_no && echo yes || echo no)" >&2
+		exit 1
+	fi
 	new_case
 	fixture_pin "$um" stray "$stray2_c"
 	printf 'stray\t%s\tuntagged\tthe merge wrote no CHANGELOG commit\n' "$stray_c" >>"$work/baseline.tsv"

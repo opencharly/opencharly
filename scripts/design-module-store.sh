@@ -25,9 +25,17 @@
 # refusal still names it.
 #
 # Sourced, not executed: it defines the resolver and runs nothing.
+# design_module_has_checkout <root> <path> — does this clone hold a CHECKOUT of the submodule
+# at <path>? This is the ONE place that decides it: design_module_store branches on the same
+# question, and a second copy of the test would drift from it. A path with no checkout is read
+# from the clone's shared store, whose tag map can predate a tag (opencharly/opencharly#980).
+design_module_has_checkout() {
+	[ -e "$1/$2/.git" ]
+}
+
 design_module_store() {
 	local root="$1" path="$2" store=""
-	if [ -e "$root/$path/.git" ]; then
+	if design_module_has_checkout "$root" "$path"; then
 		store=$(git -C "$root/$path" rev-parse --path-format=absolute --git-dir 2>/dev/null) || store=""
 		if [ -n "$store" ]; then
 			printf '%s\n' "$store"
