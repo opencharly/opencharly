@@ -713,7 +713,11 @@ advance_path() {
     # tags here lets the offline reading JUDGE instead of failing closed on missing data.
     # Not fatal if the remote is unreachable: the checkout is what init owes, and the remote
     # cross-check (`design-pintag.sh --remote`) is where an unreachable remote is reported.
-    git -C "$ROOT/$path" fetch --tags --quiet --no-recurse-submodules origin >/dev/null 2>&1 || true
+    if ! git -C "$ROOT/$path" fetch --tags --quiet --no-recurse-submodules origin >/dev/null 2>&1; then
+      echo "init: notice — could not fetch tags for $path; design-pintag reads tags from the"
+      echo "               module store and will fail closed on this path's pins (its --remote"
+      echo "               cross-check is where an unreachable remote is reported loudly)" >&2
+    fi
     return 0
   fi
   echo "init: FAIL — $path is at $head, which is NOT an ancestor of its recorded gitlink $recorded; left untouched (its own commits are not the umbrella's to discard)" >&2
