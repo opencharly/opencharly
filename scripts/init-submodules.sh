@@ -400,7 +400,7 @@ if declared and os.path.isdir(scripts_dir):
             continue
         for value in code_strings(text, hash_comments=name.endswith(".sh")):
             head = value.split("/")[0]
-            if "/" in value and head in declared:
+            if head in declared:
                 add(head)
 
 if not derived:
@@ -1066,6 +1066,24 @@ other"
     echo "  PASS  source 4 discriminates — a gate's QUOTED path joins the set, a commented one does not"
   else
     echo "  FAIL  source 4 does not discriminate (quoted=$quoted_present commented=$derived_commented)" >&2
+    fails=$((fails + 1))
+  fi
+
+  # ── claim 1c: source 4 sees a BARE repo name, with no slash ──────────────────
+  # opencharly/opencharly#1076: design-dpat.sh names the contract repo as a bare
+  # literal ("spec") when it compares a pin's path, and a guard requiring a "/" in
+  # the value made that read invisible — so the derived set omitted a repo the
+  # design gate reads, and design-pintag.sh could not run on a fresh tree at all.
+  # `skipped` is declared but derived by nothing else, so it can only arrive here.
+  local bare_root="$BASE/umbrella-bare"
+  cp -a "$fixture" "$bare_root"
+  printf 'const repo = "skipped";\n' > "$bare_root/scripts/check-bare.mjs"
+  local bare_derived
+  bare_derived="$(bash "$SCRIPT" --root "$bare_root" --list | sed -n '1,/^init:/p' | grep -c '^skipped$' || true)"
+  if [ "$bare_derived" -eq 1 ]; then
+    echo "  PASS  source 4 sees a BARE repo name — a slash is not required"
+  else
+    echo "  FAIL  source 4 misses a bare repo name (derived=$bare_derived)" >&2
     fails=$((fails + 1))
   fi
 
