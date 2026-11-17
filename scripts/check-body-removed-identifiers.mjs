@@ -283,7 +283,10 @@ function scanCounts(bodyText) {
   const unquoted = bodyText
     .replace(/"[^"\n]{0,120}"/g, " ")
     .replace(/\u201c[^\u201d\n]{0,120}\u201d/g, " ")
-    .replace(/`[^`\n]{0,120}`/g, " ");
+    .replace(/`[^`\n]{0,120}`/g, " ")
+    // A TABLE row's first cell is a number by design (`| 9 | ... |`). Reading it as a stated count made
+    // the gate fire on its own body's arm table.
+    .replace(/^\s*\|.*\|\s*$/gm, " ");
   const pasted = [...unquoted.matchAll(/(\d+)\/(\d+) arms?/g)].map((m) => Number(m[1]));
   // NO early return here. The arm-count half needs a pasted N/M to judge against, but the LINE-count
   // half does not — it reads the file. Returning early skipped that half entirely, which is how the
