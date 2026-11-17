@@ -61,8 +61,11 @@ const IGNORE = new Set([
 // runCheck(diffText, bodyText) -> findings[], so --self-test can drive the SAME code path.
 export function runCheck(diffText, bodyText) {
   const removed = collectRemoved(diffText, bodyText);
-  if (removed.size === 0) return { removed, findings: [], inapplicable: true };
-  return { removed, findings: scanProse(removed, bodyText), inapplicable: false };
+  // The FENCE-PURITY arm is independent of the identifier arm: a body can annotate a console fence
+  // whether or not the diff removed anything. So the findings are the union, and `inapplicable`
+  // reports ONLY that the identifier half had nothing to check.
+  const findings = [...scanProse(removed, bodyText), ...scanFences(bodyText)];
+  return { removed, findings, inapplicable: removed.size === 0 };
 }
 
 function arg(flag, fallback = null) {
@@ -171,13 +174,26 @@ const git = (...args) =>
 // hasAnnotatedFence reports whether any ```console fence carries a line ending in a bare RED or
 // GREEN verdict marker — a word no gate in this repo prints, and the shape an author's annotation
 // takes when it is pasted into an output block by mistake.
-function hasAnnotatedFence(bodyText) {
+function scanFences(bodyText) {
+  const out = [];
   for (const m of bodyText.matchAll(/```console\n([\s\S]*?)```/g)) {
     for (const line of m[1].split("\n")) {
-      if (/\s+(RED|GREEN)\s*$/.test(line)) return true;
+      const hit = line.match(/\s+(RED|GREEN)\s*$/);
+      if (hit) {
+        out.push(
+          `a \`\`\`console fence carries a \`${hit[1]}\` annotation column — the program did not ` +
+            `print that word. Put the annotation outside the fence, or print it from the code.\n` +
+            `      in: ${line.trim().slice(0, 100)}`,
+        );
+        break;
+      }
     }
   }
-  return false;
+  return out;
+}
+
+function hasAnnotatedFence(bodyText) {
+  return scanFences(bodyText).length > 0;
 }
 
 // ---- the identifiers the diff removes -------------------------------------------------------
@@ -277,8 +293,16 @@ const diff = git("diff", `${base}...${head}`, "--", ".");
 const body = readFileSync(bodyPath, "utf8");
 const { removed, findings, inapplicable } = runCheck(diff, body);
 
+if (findings.length > 0) {
+  for (const f of [...new Set(findings)]) console.log(`FAIL  ${f}`);
+  process.exit(1);
+}
+
 if (inapplicable) {
-  console.log("check-body-removed-identifiers: the diff removes no identifier — inapplicable");
+  console.log(
+    "check-body-removed-identifiers: the diff removes no identifier — the identifier arm is " +
+      "inapplicable; the fence arm ran and found nothing",
+  );
   process.exit(0);
 }
 
