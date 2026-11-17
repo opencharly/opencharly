@@ -652,7 +652,7 @@ self_test() {
 		&& ! design_module_has_checkout "$um" hc_no \
 		&& [[ "$hc_own" == *"own module store"* && "$hc_own" == *"no census row"* ]] \
 		&& [[ "$hc_shared" == *"shared store"* && "$hc_shared" == *"git submodule update --init hc_no"* && "$hc_shared" == *"add no census row"* ]]; then
-		printf '  self-test %-56s decides the arm, both ways\n' "design_module_has_checkout"
+		printf '  self-test %-56s: BOTH arms of the untagged remedy run\n' "untagged_remedy"
 	else
 		printf 'FAIL self-test: design_module_has_checkout does not discriminate (.git file yes=%s absent no=%s)\n' \
 			"$(design_module_has_checkout "$um" hc_yes && echo yes || echo no)" \
