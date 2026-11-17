@@ -272,19 +272,19 @@ census() {
 				printf '%s\t%s\t%s\t%s\n' "$m" "$c" "$s" "${want[$key]}" >>"$known"
 				matched[$key]=1
 			else
-				# The FAIL text must not point at the census as the remedy. A census row records a pin
-				# whose untagged-ness is REAL; raising one for a pin that is healthy turns the census
-				# into a rubber stamp. The tag map is a property of a STORE, and for a path with no
-				# checkout this run read the clone's SHARED store, which may have been fetched before
-				# tag-on-merge created the tag — so state the store, the staleness and the two remedies
-				# that actually answer it (opencharly/opencharly#980).
-				# Name the store the tag map came from, unconditionally. With a checkout it is the
-				# pin's own store; WITHOUT one it is the clone's SHARED store, whose tag namespace can
-				# predate the tag-on-merge tag the pin sits above — so a healthy changelog-tip pin
-				# answers "no tag here" (opencharly/opencharly#980). ONE wording, because a second
-				# arm would be code no test can reach: the fixture builds stores without checkouts,
-				# and a checkout it can build has no untagged pin to judge.
-				printf 'FAIL %s@%s: untagged — %s; its tag map was read from the module store for this path — the clone shared store when the path has no checkout — so a tag created after that store was last fetched is invisible here. Answer it with `git submodule update --init %s` or `design-pintag.sh --remote`. No census row is due: the census records a pin that is REALLY untagged\n' "$m" "$c" "$r" "$m" >>"$fail"
+				# Name the store the tag map came from, and give the remedy that matches the case — in
+				# ONE message. A path WITHOUT a checkout is read from the clone's SHARED store, whose tag
+				# namespace can predate the tag-on-merge tag the pin sits above, so a healthy
+				# changelog-tip pin answers "no tag here" (opencharly/opencharly#980); the remedy
+				# there is to materialize the path or ask the remote, never a census row. A path WITH
+				# a checkout reads its OWN store, where a missing tag is the pin's business and the
+				# census is the remedy. One printf so there is no arm a test cannot reach.
+				if design_module_has_checkout "$ROOT" "$m"; then
+					remedy="the tag map came from this pin's own module store, so a missing tag is the pin's own: no census row records and explains it"
+				else
+					remedy="this path has NO checkout, so the tag map came from the clone shared store, and a tag created after that store was last fetched is invisible here: answer it with \`git submodule update --init $m\` or \`design-pintag.sh --remote\`, and add no census row, which records a pin that is REALLY untagged"
+				fi
+				printf 'FAIL %s@%s: untagged — %s; %s\n' "$m" "$c" "$r" "$remedy" >>"$fail"
 			fi
 		elif [[ "$s" == skip-no-store && -n "${want[$key]:-}" ]]; then
 			matched[$key]=1
@@ -626,7 +626,7 @@ self_test() {
 	# untagged. Asserted in full rather than by a shared substring: a weaker match would pass
 	# on the old wording too, which is the defect the line exists to prevent.
 	fail_like "an untagged pin with NO checkout names the shared store and the real remedies" \
-		'two@.*shared store.*git submodule update --init two.*No census row is due'
+		'two@.*shared store.*git submodule update --init two.*add no census row'
 	new_case
 	fixture_pin "$um" stray "$stray2_c"
 	printf 'stray\t%s\tuntagged\tthe merge wrote no CHANGELOG commit\n' "$stray_c" >>"$work/baseline.tsv"
