@@ -1702,3 +1702,8 @@
 	path = pod-qwen3-tts
 	url = https://github.com/opencharly/pod-qwen3-tts.git
 	branch = main
+
+[submodule "pod-ai-toolkit"]
+	path = pod-ai-toolkit
+	url = https://github.com/opencharly/pod-ai-toolkit.git
+	branch = main
