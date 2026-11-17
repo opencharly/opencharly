@@ -66,7 +66,7 @@ export function runCheck(diffText, bodyText) {
   // The FENCE-PURITY arm is independent of the identifier arm: a body can annotate a console fence
   // whether or not the diff removed anything. So the findings are the union, and `inapplicable`
   // reports ONLY that the identifier half had nothing to check.
-  const declaredOrder = [...readFileSync(new URL(import.meta.url), "utf8").matchAll(/label: "([^"]+)"/g)].map((m) => m[1]);
+  const declaredOrder = declaredArmOrder();
   const findings = [
     ...scanProse(removed, bodyText),
     ...scanFences(bodyText),
@@ -323,14 +323,31 @@ function hasOutOfOrderSelfTest(bodyText, expected) {
     const seen = m[1]
       .split("\n")
       .map((l) => l.trim())
-      .filter((l) => l.startsWith("ok    a "))
-      .map((l) => l.replace(/^ok\s+/, ""))
+      .filter((l) => /^ok\s+\S/.test(l))
+      .map((l) => l.replace(/^ok\s+/, "").trim())
       .filter((l) => expected.includes(l));
     if (seen.length < 2) continue;
     const idx = seen.map((l) => expected.indexOf(l));
     for (let k = 1; k < idx.length; k += 1) if (idx[k] < idx[k - 1]) return true;
   }
   return false;
+}
+
+
+// declaredArmOrder reads this file's own arm labels IN SOURCE ORDER. Both declaration forms count:
+// `expect("label", …)` (shorthand) and `arms.push({ label: "label", … })`. Reading only the second
+// form made the production order check blind to arms 1-5 — the review's finding, and the reason the
+// self-test's own order arm passed while the shipped feature did not.
+function declaredArmOrder() {
+  const src = readFileSync(new URL(import.meta.url), "utf8");
+  const out = [];
+  for (const m of src.matchAll(/(?:expect\(\s*"([^"]+)",)|(?:label: "([^"]+)")/g)) {
+    const label = m[1] ?? m[2];
+    if (label) out.push(label);
+  }
+  // The helper's own doc comment names `expect("label", …)` as a string; exclude any label that is
+  // not one the self-test actually prints by intersecting with the printed labels at call time.
+  return out;
 }
 
 // ---- the identifiers the diff removes -------------------------------------------------------
