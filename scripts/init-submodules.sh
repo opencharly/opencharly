@@ -705,6 +705,15 @@ advance_path() {
     # ancestor) to every nested path, so a nested checkout that carries work is
     # REPORTED and left alone instead of being overwritten.
     git -C "$ROOT" -c protocol.version=2 submodule update --init --filter=blob:none -- "$(pathspec_for literal "$path")"
+    # TAGS (opencharly/opencharly#1071): `submodule update` materializes the checkout but
+    # fetches NO tags, and design-pintag.sh's OFFLINE reading answers "is this pin at a tag"
+    # from the module store's own tag refs. A tagless store makes every pin read as untagged,
+    # so the control reports a correctly-tagged pin as unexplained — and the baseline it would
+    # tempt a session to add is exactly the row the pre-push gate forbids raising. Fetching the
+    # tags here lets the offline reading JUDGE instead of failing closed on missing data.
+    # Not fatal if the remote is unreachable: the checkout is what init owes, and the remote
+    # cross-check (`design-pintag.sh --remote`) is where an unreachable remote is reported.
+    git -C "$ROOT/$path" fetch --tags --quiet --no-recurse-submodules origin >/dev/null 2>&1 || true
     return 0
   fi
   echo "init: FAIL — $path is at $head, which is NOT an ancestor of its recorded gitlink $recorded; left untouched (its own commits are not the umbrella's to discard)" >&2
