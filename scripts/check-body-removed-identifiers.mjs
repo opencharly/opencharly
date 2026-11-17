@@ -90,7 +90,11 @@ function arg(flag, fallback = null) {
 // identifiers is GREEN. The first version of this gate blanked every fenced block and its own
 // plant passed — a gate that cannot catch the finding it was built for is the same defect as a
 // test that cannot fail, so this arm exists to keep that from silently recurring.
-if (process.argv.includes("--self-test")) {
+// buildArms returns the arms in source order. BOTH --self-test and --emit-arms call it, so the table
+// a body carries is emitted from the same array the self-test runs -- never transcribed. The previous
+// two attempts to derive the table from the source text captured only one of the two declaration
+// forms, which is the same narrow-reader bug the review found in declaredOrder.
+function buildArms() {
   const DIFF = [
     "--- a/x.go",
     "+++ b/x.go",
@@ -103,7 +107,7 @@ if (process.argv.includes("--self-test")) {
   const arms = [];
   const expect = (label, bodyText, wantFindings) => {
     const { findings } = runCheck(DIFF, bodyText);
-    arms.push({ label, ok: (findings.length > 0) === wantFindings, findings });
+    arms.push({ label, ok: (findings.length > 0) === wantFindings, verdict: wantFindings ? "FAIL" : "pass", findings });
   };
 
   // RED: the exact finding that cost opencharly/plugin-deploy-pod#79 a round — the old test name in
@@ -152,6 +156,7 @@ if (process.argv.includes("--self-test")) {
   const cleanFence = "```console\n$ node gate.mjs --self-test\n  ok  arm one\n  ok  arm two\n```\n";
   arms.push({
     label: "an annotation column inside a console fence",
+    verdict: "FAIL",
     ok: hasAnnotatedFence(annotatedFence) && !hasAnnotatedFence(cleanFence),
     findings: [],
   });
@@ -164,6 +169,7 @@ if (process.argv.includes("--self-test")) {
   const sixBody = "Six self-test arms:\n\n```console\n  ok  a\n  ok  b\n  ok  c\n  ok  d\n  ok  e\n  ok  f\n6/6 arms discriminate\n```\n";
   arms.push({
     label: "a stated arm count that contradicts the pasted N/M",
+    verdict: "FAIL",
     ok: scanCounts(fiveBody).length > 0 && scanCounts(sixBody).length === 0,
     findings: [],
   });
@@ -177,6 +183,7 @@ if (process.argv.includes("--self-test")) {
   const inverseBad = "A gate of `scripts/check-body-removed-identifiers.mjs`, measured at `wc -l` -> **1** lines.\n";
   arms.push({
     label: "a path-first line count that contradicts the file",
+    verdict: "FAIL",
     ok: scanCounts(inverseBad).length > 0,
     findings: [],
   });
@@ -189,16 +196,23 @@ if (process.argv.includes("--self-test")) {
   const reversed = "```console\n" + [...labels].reverse().map((l) => `  ok    ${l}`).join("\n") + "\n```\n";
   arms.push({
     label: "a pasted self-test block out of the script's own order",
+    verdict: "FAIL",
     ok: !hasOutOfOrderSelfTest(inOrder, labels) && hasOutOfOrderSelfTest(reversed, labels),
     findings: [],
   });
 
   arms.push({
     label: "a stated line count that contradicts the file",
+    verdict: "FAIL",
     ok: scanCounts(lineBody).length > 0 && scanCounts(okBody).length === 0,
     findings: [],
   });
 
+  return arms;
+}
+
+if (process.argv.includes("--self-test")) {
+  const arms = buildArms();
   const bad = arms.filter((a) => !a.ok);
   for (const a of arms) console.log(`  ${a.ok ? "ok  " : "FAIL"}  ${a.label}`);
   if (bad.length) {
@@ -207,6 +221,14 @@ if (process.argv.includes("--self-test")) {
     process.exit(1);
   }
   console.log(`check-body-removed-identifiers --self-test: OK — ${arms.length}/${arms.length} arms discriminate`);
+  process.exit(0);
+}
+
+// --emit-arms prints the table the PR body should carry.
+if (process.argv.includes("--emit-arms")) {
+  const arms = buildArms();
+  const width = Math.max(...arms.map((a) => a.label.length), 4);
+  arms.forEach((a, i) => console.log(` ${String(i + 1).padStart(2)}  ${a.label.padEnd(width)}  ${a.verdict}`));
   process.exit(0);
 }
 
