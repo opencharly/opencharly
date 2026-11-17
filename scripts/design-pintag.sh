@@ -618,7 +618,13 @@ self_test() {
 	fixture_pin "$um" two "$two_c"
 	printf 'stray\t%s\tuntagged\tthe merge wrote no CHANGELOG commit\n' "$stray_c" >>"$work/baseline.tsv"
 	run_case "$um" "$work/baseline.tsv"
-	fail_like "a new untagged pin beside a recorded one" 'two@.*census row'
+	# opencharly/opencharly#980: an untagged pin with NO checkout reads the clone's SHARED
+	# store, so the line must name that store, the staleness and the two remedies that answer
+	# it — and must NOT send the operator at the census, which records a pin that is REALLY
+	# untagged. Asserted in full rather than by a shared substring: a weaker match would pass
+	# on the old wording too, which is the defect the line exists to prevent.
+	fail_like "an untagged pin with NO checkout names the shared store and the real remedies" \
+		'two@.*shared store.*git submodule update --init two.*do NOT add a census row'
 
 	new_case
 	fixture_pin "$um" stray "$stray2_c"
