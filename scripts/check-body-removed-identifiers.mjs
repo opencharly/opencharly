@@ -166,6 +166,13 @@ if (process.argv.includes("--self-test")) {
   const lineBody = "A 999-line `scripts/x.mjs` gate.\n";
   const realLines = String(readFileSync(resolve("scripts/check-body-removed-identifiers.mjs"), "utf8").split("\n").length - 1);
   const okBody = `A ${realLines}-line \`scripts/check-body-removed-identifiers.mjs\` gate.\n`;
+  const inverseBad = "A gate of `scripts/check-body-removed-identifiers.mjs`, measured at `wc -l` -> **1** lines.\n";
+  arms.push({
+    label: "a path-first line count that contradicts the file",
+    ok: scanCounts(inverseBad).length > 0,
+    findings: [],
+  });
+
   arms.push({
     label: "a stated line count that contradicts the file",
     ok: scanCounts(lineBody).length > 0 && scanCounts(okBody).length === 0,
@@ -248,7 +255,21 @@ function scanCounts(bodyText) {
     }
   }
 
-  // The same rule for a FILE's line count: "<n>-line <path>" must match `wc -l`. Measured on
+  // The SAME rule for the inverse form: "`path`, measured at `wc -l` -> **N** lines". #1085 evaded the
+  // arm by writing its claim this way -- the path BEFORE the number -- so the arm now reads both
+  // orders. A check that only reads one is a check an author can step around by rewording.
+  for (const m of bodyText.matchAll(/`([\w./-]+\.(?:mjs|ts|js|go|py|sh|cue))`[^\n]{0,60}?wc -l`?\s*(?:->|:|=>)?\s*\*?\*?(\d+)\*?\*?\s*lines?/g)) {
+    const path = m[1];
+    const stated = Number(m[2]);
+    try {
+      const actual = readFileSync(resolve(path), "utf8").split("\n").length - 1;
+      if (actual !== stated) out.push(`the body says \`${path}\` is ${stated} lines; measured \`wc -l\` -> ${actual}.`);
+    } catch {
+      out.push(`the body says \`${path}\` is ${stated} lines and the file is not readable here.`);
+    }
+  }
+
+  // And the forward form: "<n>-line <path>" must match `wc -l`. Measured on
   // opencharly/opencharly#1085, where the body said "a 267-line Node.js gate" over a file of 358.
   for (const m of bodyText.matchAll(/\b(\d+)-line[^\n]{0,20}`([\w./-]+\.(?:mjs|ts|js|go|py|sh|cue))`/g)) {
     const stated = Number(m[1]);
