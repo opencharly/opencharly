@@ -2753,6 +2753,62 @@ one did.
 it.** The 8-step RCA named the missing dispatch in one command; the issue had assumed it. **Two repos of
 indirection were avoided by one grep.**
 
+## 4c. #72 IS THREE UNITS, NOT A DELETION (2026-11-17, measured)
+
+I framed `#72` as *"the seam covers the four consumers, so `InjectSecretsIntoPlans` is a duplicate"*. **Two
+measurements say otherwise.**
+
+### The two call sites are two DIFFERENT destinations
+
+```console
+$ grep -rn 'InjectSecretsIntoPlans' --include='*.go' . | grep -v '_test.go\|.build\|.worktrees'
+./plugin-deploy-pod/candy/plugin-deploy-pod/overlay.go:425:  deploykit.InjectSecretsIntoPlans(plans, ...)
+./plugin-fleet/candy/plugin-fleet/secrets_artifacts.go:61:  deploykit.InjectSecretsIntoPlans(plans, ...)
+./sdk/deploykit/secret_declare.go:87: func InjectSecretsIntoPlans(plans []*InstallPlan, env map[string]string) {
+```
+
+| site | feeds | destination |
+|---|---|---|
+| `overlay.go:425` (`deliverSecretEnv`) | the overlay image **BUILD** -- `oci.Emit` walks the plans and the
+value lands in a Containerfile step's env | **build time (IR)** |
+| `secrets_artifacts.go:61` | `plugin-fleet`'s artifact assembly | **apply/venue time** |
+
+**Neither is the runtime `Env:` the config-time seam writes.** They are not duplicates of it.
+
+### And nothing in this tree authors a build-time secret
+
+```console
+$ grep -rn 'secret_require:' --include='charly.yml' . | grep -v '.build\|.worktrees'
+./layer-qdrant/charly.yml:33:        secret_require:      (QDRANT__SERVICE__API_KEY, runtime env)
+./pod-openwebui/charly.yml:128:      secret_require:      (WEBUI_ADMIN_PASSWORD / OPENROUTER_API_KEY, runtime env)
+./vm-k3s-agent/charly.yml:19:        secret_require:      (K3S_CLUSTER_TOKEN, runtime env)
+./vm-k3s-server/charly.yml:67:       secret_require:      (K3S_CLUSTER_TOKEN, runtime env)
+```
+
+**Four sites, all runtime env, none in an `add_candy:` overlay candy.** `deliverSecretEnv` delivers nothing
+in this tree today -- and deleting it would remove a build-time CAPABILITY, not a duplicate.
+
+### The three units
+
+| unit | what | state |
+|---|---|---|
+| **A** | `deliverSecretEnv` in `overlay.go` | **unused** (no overlay candy declares a secret); removing it
+is R5 legacy removal, but the CAPABILITY is real and would need `--mount=type=secret` if ever used |
+| **B** | `plugin-fleet`'s artifact path | **blocked**: a different destination (apply/venue, no container),
+and the handle-shaped answer (`#BindOutput.binding`) has no dispatch -- `spec#370` |
+| **C** | the four consumers | **DONE**: covered by the config-time seam, proven by `check-seam-proof`, and
+`#80` removed the copy that was leaking into `state` |
+
+### The correction to my own framing
+
+I wrote *"deleting ahead of a working env seam is exactly the regression #69 recorded."* **That is no
+longer the hazard** -- the seam works and is proven. **The hazard now is deleting a BUILD-time mechanism
+because its RUNTIME neighbour works.** Different mechanism, different destination, and the four
+consumers are not evidence either way.
+
+**Rule 12: `#72` splits into A (unused-mechanism removal), B (blocked on the `bind` wire), C (done).**
+**A measurement that splits an issue is worth more than a deletion that guesses.**
+
 ## 2. Instruments and authority — links, not restatements
 
 | instrument | owner |
