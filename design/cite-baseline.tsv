@@ -98,7 +98,7 @@ krun virtio-gpu; no NVIDIA in krun	spec/schema/vm.cue	45-48	#VmKrun	d9bba839caa9
 krun VM backend (OCI image boot)	plugin-vm/candy/plugin-vm/vm_krun_plan.go	25-30	-	385c608f9b64aa9a
 loader:loader	plugin-loader/candy/plugin-loader/charly.yml	21-21	-	7e69435f2eaf2009
 local registry mirror for build inputs	plugin-build/README.md	18-24	-	7606f88f2d448d92
-nested containerd and krun in a pod	layer-container-nesting/charly.yml	132-141	-	92d782fb7cdace8e
+nested containerd and krun in a pod	layer-container-nesting/charly.yml	144-153	-	92d782fb7cdace8e
 NVIDIA CDI rootful and rootless	plugin-gpu/README.md	9-20	-	68caaa877662a84c
 pipeline run|validate|resume|schedule|agent|probe	plugin-pipeline/candy/plugin-pipeline/cli.go	140-143	runCLI	6d8d6ae5ea22056d
 pipeline run|validate|resume|schedule|agent|probe	plugin-pipeline/candy/plugin-pipeline/cli.go	177-186	runCLI	29a7e319164007fc
