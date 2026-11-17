@@ -160,6 +160,18 @@ if (process.argv.includes("--self-test")) {
     findings: [],
   });
 
+  // THE LINE-COUNT ARM. "<n>-line `path`" must match `wc -l`. Measured on #1085: the body said "a
+  // 267-line Node.js gate" over a file of 358. The path must be backticked, because prose like
+  // "Node.js" is not a file claim — the first version matched it and reported `e.js`.
+  const lineBody = "A 999-line `scripts/x.mjs` gate.\n";
+  const realLines = String(readFileSync(resolve("scripts/check-body-removed-identifiers.mjs"), "utf8").split("\n").length - 1);
+  const okBody = `A ${realLines}-line \`scripts/check-body-removed-identifiers.mjs\` gate.\n`;
+  arms.push({
+    label: "a stated line count that contradicts the file",
+    ok: scanCounts(lineBody).length > 0 && scanCounts(okBody).length === 0,
+    findings: [],
+  });
+
   const bad = arms.filter((a) => !a.ok);
   for (const a of arms) console.log(`  ${a.ok ? "ok  " : "FAIL"}  ${a.label}`);
   if (bad.length) {
@@ -218,7 +230,9 @@ function hasAnnotatedFence(bodyText) {
 function scanCounts(bodyText) {
   const out = [];
   const pasted = [...bodyText.matchAll(/(\d+)\/(\d+) arms?/g)].map((m) => Number(m[1]));
-  if (pasted.length === 0) return out;
+  // NO early return here. The arm-count half needs a pasted N/M to judge against, but the LINE-count
+  // half does not — it reads the file. Returning early skipped that half entirely, which is how the
+  // self-test's own line-count arm first failed.
   const claimed = [];
   for (const m of bodyText.matchAll(/\b(\d+|three|four|five|six|seven|eight|nine|ten)\b[^.\n]{0,40}\barms\b/gi)) {
     const raw = m[1].toLowerCase();
@@ -226,11 +240,29 @@ function scanCounts(bodyText) {
     if (Number.isFinite(n)) claimed.push(n);
   }
   for (const n of claimed) {
-    if (!pasted.includes(n)) {
+    if (pasted.length > 0 && !pasted.includes(n)) {
       out.push(
         `the body states ${n} arms, and the pasted output beside it says ${pasted.join("/")} — ` +
           `a count that contradicts its own evidence.`,
       );
+    }
+  }
+
+  // The same rule for a FILE's line count: "<n>-line <path>" must match `wc -l`. Measured on
+  // opencharly/opencharly#1085, where the body said "a 267-line Node.js gate" over a file of 358.
+  for (const m of bodyText.matchAll(/\b(\d+)-line[^\n]{0,20}`([\w./-]+\.(?:mjs|ts|js|go|py|sh|cue))`/g)) {
+    const stated = Number(m[1]);
+    const path = m[2];
+    try {
+      const actual = readFileSync(resolve(path), "utf8").split("\n").length - 1;
+      if (actual !== stated) {
+        out.push(
+          `the body says \`${path}\` is ${stated} lines; measured \`wc -l\` -> ${actual}.`,
+        );
+      }
+    } catch {
+      // A path this tree cannot read is not a claim about this tree; say so rather than passing.
+      out.push(`the body says \`${path}\` is ${stated} lines and the file is not readable here.`);
     }
   }
   return out;
