@@ -52,6 +52,8 @@ const ACCEPTS = [
   "replaced",
 ];
 
+const NUMBER_WORDS = { three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
+
 // Identifiers too generic to check: a rename of `main` or `err` would fire on every sentence.
 const IGNORE = new Set([
   "main", "init", "new", "run", "get", "set", "len", "cap", "nil", "err", "ok", "id",
@@ -64,7 +66,7 @@ export function runCheck(diffText, bodyText) {
   // The FENCE-PURITY arm is independent of the identifier arm: a body can annotate a console fence
   // whether or not the diff removed anything. So the findings are the union, and `inapplicable`
   // reports ONLY that the identifier half had nothing to check.
-  const findings = [...scanProse(removed, bodyText), ...scanFences(bodyText)];
+  const findings = [...scanProse(removed, bodyText), ...scanFences(bodyText), ...scanCounts(bodyText)];
   return { removed, findings, inapplicable: removed.size === 0 };
 }
 
@@ -146,6 +148,18 @@ if (process.argv.includes("--self-test")) {
     findings: [],
   });
 
+  // THE COUNT ARM. A number the body states about a pasted block must equal what the block holds.
+  // Measured on opencharly/opencharly#1084: the body said "Five self-test arms" above an output whose
+  // last line read "6/6 arms discriminate" and a six-row table. The evidence was in the same body,
+  // beside the claim, and nobody compared them until a review did.
+  const fiveBody = "Five self-test arms:\n\n```console\n  ok  a\n  ok  b\n  ok  c\n  ok  d\n  ok  e\n  ok  f\n6/6 arms discriminate\n```\n";
+  const sixBody = "Six self-test arms:\n\n```console\n  ok  a\n  ok  b\n  ok  c\n  ok  d\n  ok  e\n  ok  f\n6/6 arms discriminate\n```\n";
+  arms.push({
+    label: "a stated arm count that contradicts the pasted N/M",
+    ok: scanCounts(fiveBody).length > 0 && scanCounts(sixBody).length === 0,
+    findings: [],
+  });
+
   const bad = arms.filter((a) => !a.ok);
   for (const a of arms) console.log(`  ${a.ok ? "ok  " : "FAIL"}  ${a.label}`);
   if (bad.length) {
@@ -194,6 +208,32 @@ function scanFences(bodyText) {
 
 function hasAnnotatedFence(bodyText) {
   return scanFences(bodyText).length > 0;
+}
+
+
+// scanCounts reports a body whose prose states "<Number> ... arms" while a console fence in the same
+// body ends "N/N arms discriminate" with a different N. That is the shape every count finding on
+// this line has taken: the number and its evidence, side by side, disagreeing.
+
+function scanCounts(bodyText) {
+  const out = [];
+  const pasted = [...bodyText.matchAll(/(\d+)\/(\d+) arms?/g)].map((m) => Number(m[1]));
+  if (pasted.length === 0) return out;
+  const claimed = [];
+  for (const m of bodyText.matchAll(/\b(\d+|three|four|five|six|seven|eight|nine|ten)\b[^.\n]{0,40}\barms\b/gi)) {
+    const raw = m[1].toLowerCase();
+    const n = NUMBER_WORDS[raw] ?? Number(raw);
+    if (Number.isFinite(n)) claimed.push(n);
+  }
+  for (const n of claimed) {
+    if (!pasted.includes(n)) {
+      out.push(
+        `the body states ${n} arms, and the pasted output beside it says ${pasted.join("/")} — ` +
+          `a count that contradicts its own evidence.`,
+      );
+    }
+  }
+  return out;
 }
 
 // ---- the identifiers the diff removes -------------------------------------------------------
