@@ -256,12 +256,18 @@ function hasAnnotatedFence(bodyText) {
 
 function scanCounts(bodyText) {
   const out = [];
-  const pasted = [...bodyText.matchAll(/(\d+)\/(\d+) arms?/g)].map((m) => Number(m[1]));
+  // Scan only UNQUOTED prose. A body legitimately QUOTES a past finding ("five arms" above 6/6) while
+  // making its own claim elsewhere; the first version counted the quotation and fired on its own body.
+  const unquoted = bodyText
+    .replace(/"[^"\n]{0,120}"/g, " ")
+    .replace(/\u201c[^\u201d\n]{0,120}\u201d/g, " ")
+    .replace(/`[^`\n]{0,120}`/g, " ");
+  const pasted = [...unquoted.matchAll(/(\d+)\/(\d+) arms?/g)].map((m) => Number(m[1]));
   // NO early return here. The arm-count half needs a pasted N/M to judge against, but the LINE-count
   // half does not — it reads the file. Returning early skipped that half entirely, which is how the
   // self-test's own line-count arm first failed.
   const claimed = [];
-  for (const m of bodyText.matchAll(/\b(\d+|three|four|five|six|seven|eight|nine|ten)\b[^.\n]{0,40}\barms\b/gi)) {
+  for (const m of unquoted.matchAll(/\b(\d+|three|four|five|six|seven|eight|nine|ten)\b[^.\n]{0,15}\barms\b/gi)) {
     const raw = m[1].toLowerCase();
     const n = NUMBER_WORDS[raw] ?? Number(raw);
     if (Number.isFinite(n)) claimed.push(n);
