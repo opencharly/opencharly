@@ -126,3 +126,28 @@ This is the generalisation of rules 2 and 5, and it is the one to carry into eve
 
 **Measured three times in one evening**: a `grep schema/` that missed the same PR's other file; a `go build` paste that named one package and was reported as the set; and a `spec` deletion that broke `sdk` three files away in the same module. **None was a careless mistake. Each was a correct measurement of a smaller set than it was read as.**
 
+## Rule 7. An artifact that was generated records which generator built it — read that before judging it stale
+
+Measured 2026-11-18 across sixteen plugin repos, and it invalidated a wave's premise on its first PR.
+
+**`charly task cue-gen` compares a committed artifact against the CURRENT generator's output.** At a bumped pin they differ, and the gate says `STALE`. **Two different histories produce that identical message:**
+
+| history | what the diff is | the honest PR |
+|---|---|---|
+| **class 1 — truly stale** | the artifact drifted from its own pin's generator output | *"stale, fixed"* — `!`-free, wire unchanged |
+| **class 2 — pin-driven** | the artifact was generated CORRECTLY by an OLDER generator; the bump moved the generator | *"generator upgrade at spec bump <tag>"* — plus the decode-path measurement and an explicit rollback |
+
+**The discriminator is one column, because the artifact dates itself.** A file generated before the generator emitted `yaml:` struct tags carries none:
+
+```console
+$ git show origin/main:<repo>/params/cue_types_gen.go | grep -c 'yaml:'   # 0 => pre-yaml generator
+$ git show origin/main:<repo>/params/cue_types_gen.go | grep -c 'json:'   # the field count, for comparison
+```
+
+- **zero `yaml:`** — class 2. `STALE` is true **only after** the bump, and the bump is the cause.
+- **`yaml:` == `json:`** — class 1 **candidate**. The yaml-era generator built it, so any diff at the new pin is genuine drift — **but a regeneration at the OLD pin is still owed**, because the vintage test names the generator, not the drift.
+
+**The wire question must be measured, not argued.** Struct tags are decode keys, so a new tag looks like a wire change until you find the decoders. Measured for plugin params: **four sites, all `json.Unmarshal`** — so `yaml:` tags are inert at the wire and **no `!` is owed**. **A body that says "the wire keys are unchanged" instead of naming those four sites is asserting the conclusion the instrument was supposed to produce.**
+
+**And the fingerprint is per FILE, not per repo.** One repo can hold a candy on the old generator and another on the new, so a single bump makes it look half stale. **A vintage nobody records is invisible until a bump, at which point every artifact built by an older generator looks like a mistake someone made.**
+
