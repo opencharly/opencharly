@@ -1710,3 +1710,4 @@
 [submodule "pod-cdi"]
 	path = pod-cdi
 	url = https://github.com/opencharly/pod-cdi.git
+	branch = main
