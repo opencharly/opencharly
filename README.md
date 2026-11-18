@@ -47,7 +47,7 @@ its change class, and by an independent fresh `charly/pr-validator` after the pu
 
 ## This repo: one clone of the whole org
 
-`opencharly/opencharly` is the org-level **umbrella**: every OpenCharly repo (394 today) is pinned
+`opencharly/opencharly` is the org-level **umbrella**: every OpenCharly repo (395 today) is pinned
 here as a git submodule — a "gitlink" — flat at the root, so the submodule path equals the repo
 name for all but one alias: `.github` is pinned at the `dotgithub/` path.
 
@@ -823,11 +823,12 @@ a scannable index. Their themes:
 
 ### Pods: AI and ML services
 
-14 repos — inference servers, notebook servers, the photo library with its ML backend, the model trainers, and the agent front-ends that talk to them.
+15 repos — the CDI GPU pod base box, inference servers, notebook servers, the photo library with its ML backend, the model trainers, and the agent front-ends that talk to them.
 
 | path | repo |
 |---|---|
 | `pod-ai-toolkit/` | [opencharly/pod-ai-toolkit](https://github.com/opencharly/pod-ai-toolkit) |
+| `pod-cdi/` | [opencharly/pod-cdi](https://github.com/opencharly/pod-cdi) |
 | `pod-comfyui/` | [opencharly/pod-comfyui](https://github.com/opencharly/pod-comfyui) |
 | `pod-hermes/` | [opencharly/pod-hermes](https://github.com/opencharly/pod-hermes) |
 | `pod-hermes-full/` | [opencharly/pod-hermes-full](https://github.com/opencharly/pod-hermes-full) |
