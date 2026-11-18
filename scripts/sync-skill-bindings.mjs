@@ -4,20 +4,26 @@
 // WHY THIS EXISTS. The umbrella is a session root (Part II #2), but the skill corpus it needs is
 // three levels deep inside the pinned `marketplace` submodule
 // (`marketplace/<family>/skills/<name>/SKILL.md`), while each harness looks at the root in its own
-// shape. Three bindings bridge that, and they are of TWO DIFFERENT KINDS — a distinction that decides
+// shape. Four bindings bridge that, and they are of TWO DIFFERENT KINDS — a distinction that decides
 // what is derivable and what is merely verifiable:
 //
 //   * A MIRROR — `.dsh/skills/<name>` is a flat symlink per corpus skill, because DSH's
 //     `dsh-skill-filesystem` discovers `<projectRoot>/.dsh/skills/<name>/SKILL.md` at rank 100 and
 //     `…/.agents/skills/<name>/SKILL.md` at rank 200, both at depth 1. A mirror is an ENUMERATION:
 //     one entry per skill, so it drifts silently every time a family is added (opencharly#487).
+//   * A PLUGIN SET — `.claude/settings.json`'s `enabledPlugins` names one `<plugin>@charly-plugins` key
+//     per entry of the corpus's Claude catalog (`marketplace/.claude-plugin/marketplace.json`), because
+//     Claude Code loads a marketplace's skills per PLUGIN, never per directory. It is an enumeration
+//     too, and it drifted the same way: hand-maintained, it named 26 of the catalog's 44 plugins while
+//     the other three bindings saw every family (opencharly/opencharly#1100). Keys of OTHER
+//     marketplaces are not the corpus's to derive, so they are preserved as written.
 //   * A REFERENCE — `reasonix.toml`'s `[skills] paths` is a sorted list of one entry per
 //     `marketplace/<family>/{skills,agents}` directory, and `opencode.json`'s `skills.paths` is a
 //     single entry naming the corpus root. An enumeration of family directories is the same defect
 //     one level up; a single root entry cannot drift per family at all.
 //
-// So this script DERIVES both enumerations — the farm and `reasonix.toml`'s list — and only VERIFIES
-// the single-root reference. Nothing here is a count carried by hand: the numbers below are measured
+// So this script DERIVES the three enumerations — the farm, `reasonix.toml`'s list and Claude's plugin
+// set — and only VERIFIES the single-root reference. Nothing here is a count carried by hand: the numbers below are measured
 // on every run. This is what makes the bindings derived rather than maintained, and a derived binding
 // has no parity burden — which is precisely what Part II #5's "no mirrors, no parity gate" is aimed at.
 // (The rule is not against bindings; it is against hand-maintained copies that drift.)
@@ -40,7 +46,7 @@
 import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, readlinkSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { CORPUS_ROOT, CORPUS_NEEDS, corpusFamilies, corpusSkipReason } from "./lib/corpus.mjs";
+import { CLAUDE_CATALOG, CORPUS_ROOT, CORPUS_NEEDS, corpusFamilies, corpusSkipReason } from "./lib/corpus.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const argv = process.argv.slice(2);
@@ -61,11 +67,12 @@ const selfTest = argv.includes("--self-test");
 // not skill names), and an unscoped run would report a farm defect under the reasonix check's name.
 const onlyIdx = argv.indexOf("--only");
 const only = onlyIdx === -1 ? "all" : argv[onlyIdx + 1];
-if (!["all", "farm", "reasonix", "opencode"].includes(only)) fail(`--only takes all|farm|reasonix|opencode, got ${only}`);
+if (!["all", "farm", "reasonix", "opencode", "claude"].includes(only)) fail(`--only takes all|farm|reasonix|opencode|claude, got ${only}`);
 
 const FARM = ".dsh/skills";
 const REASONIX = "reasonix.toml";
 const OPENCODE = "opencode.json";
+const CLAUDE = ".claude/settings.json";
 
 function fail(msg) {
   console.error(`FAIL: ${msg}`);
@@ -181,6 +188,72 @@ function renderReasonixPaths(paths) {
   return "\n" + paths.map((p) => `    "${p}",`).join("\n");
 }
 
+/** The Claude plugin set as it must be: the catalog's marketplace name, and one `<plugin>@<market>`
+ *  key per catalog entry, in byte order. A catalog without a name or with an unnamed entry is refused:
+ *  deriving from it would publish a key Claude Code cannot resolve. */
+function desiredClaudePlugins(r) {
+  let catalog;
+  try {
+    catalog = JSON.parse(readFileSync(join(r, CLAUDE_CATALOG), "utf8"));
+  } catch (e) {
+    fail(`${CLAUDE_CATALOG} does not parse: ${e.message}`);
+  }
+  const market = catalog?.name;
+  if (typeof market !== "string" || !market) fail(`${CLAUDE_CATALOG} carries no marketplace \`name\``);
+  const plugins = Array.isArray(catalog.plugins) ? catalog.plugins : [];
+  const unnamed = plugins.filter((p) => typeof p?.name !== "string" || !p.name);
+  if (unnamed.length) fail(`${CLAUDE_CATALOG}: ${unnamed.length} plugin entr${unnamed.length === 1 ? "y has" : "ies have"} no \`name\``);
+  return { market, keys: plugins.map((p) => `${p.name}@${market}`).sort() };
+}
+
+/** `enabledPlugins` as it is, plus the exact byte range of its object BODY so the rewrite touches
+ *  nothing else in `settings.json` (the hooks, the permissions, the file's own formatting). The object
+ *  is flat — `"<plugin>@<market>": <bool>` — so a nested brace or a comment inside it is refused rather
+ *  than mis-parsed. */
+function readClaude(r) {
+  const file = join(r, CLAUDE);
+  if (!existsSync(file)) fail(`${CLAUDE} not found in ${r}`);
+  const src = readFileSync(file, "utf8");
+  let doc;
+  try {
+    doc = JSON.parse(src);
+  } catch (e) {
+    fail(`${CLAUDE} does not parse: ${e.message}`);
+  }
+  const m = src.match(/^([ \t]*)"enabledPlugins"[ \t]*:[ \t]*\{([^{}]*)\n([ \t]*)\}/m);
+  if (!m) fail(`${CLAUDE} carries no multi-line \`"enabledPlugins": { … }\` object`);
+  const bodyStart = m.index + m[0].indexOf("{") + 1;
+  const bodyEnd = bodyStart + m[2].length;
+  const indent = `${m[3]}  `;
+  return { src, doc, enabled: doc.enabledPlugins ?? {}, bodyStart, bodyEnd, indent };
+}
+
+/** The derived keys first, in byte order, then every OTHER marketplace's key in its written order and
+ *  with its written value — those are an operator's choice, not a projection of this corpus. */
+function renderClaudePlugins(keys, others, indent) {
+  const lines = [...keys.map((k) => [k, true]), ...others].map(([k, v]) => `${indent}${JSON.stringify(k)}: ${JSON.stringify(v)}`);
+  return "\n" + lines.join(",\n");
+}
+
+function syncClaude(r, want, { write }) {
+  const { src, enabled, bodyStart, bodyEnd, indent } = readClaude(r);
+  const suffix = `@${want.market}`;
+  const entries = Object.entries(enabled);
+  const have = entries.filter(([k]) => k.endsWith(suffix));
+  const others = entries.filter(([k]) => !k.endsWith(suffix));
+  const wantSet = new Set(want.keys);
+  const missing = want.keys.filter((k) => !(k in enabled));
+  const extra = have.filter(([k]) => !wantSet.has(k)).map(([k]) => k);
+  const disabled = have.filter(([k, v]) => wantSet.has(k) && v !== true).map(([k]) => k);
+  const order = have.map(([k]) => k);
+  const ordered = order.length === want.keys.length && order.every((k, i) => k === want.keys[i]);
+  const same = !missing.length && !extra.length && !disabled.length && ordered;
+  if (!same && write) {
+    writeFileSync(join(r, CLAUDE), src.slice(0, bodyStart) + renderClaudePlugins(want.keys, others, indent) + src.slice(bodyEnd));
+  }
+  return { total: want.keys.length, have: have.length, same, missing, extra, disabled, orderOnly: !same && !missing.length && !extra.length && !disabled.length };
+}
+
 // --------------------------------------------------------------------- apply
 
 function syncFarm(r, want, { write }) {
@@ -233,6 +306,7 @@ function run(r, { write, quiet }) {
   const wantFarm = only === "all" || only === "farm";
   const wantReasonix = only === "all" || only === "reasonix";
   const wantOpencode = only === "all" || only === "opencode";
+  const wantClaude = only === "all" || only === "claude";
 
   // The skill NAMES are only needed to derive the flat farm. Skipped entirely otherwise, so a corpus
   // name collision cannot be reported by a check that is not about the farm.
@@ -261,6 +335,25 @@ function run(r, { write, quiet }) {
     const reasonix = syncReasonix(r, want, { write });
     if (!reasonix.same) stale.push(`${REASONIX} [skills] paths (${reasonix.have} -> ${reasonix.total} entries${reasonix.orderOnly ? ", order only" : ""})`);
     parts.push(`sync-skill-bindings: ${REASONIX} [skills] paths  ${reasonix.same ? `unchanged (${reasonix.total} entries)` : `STALE (${reasonix.have} -> ${reasonix.total} entries${reasonix.orderOnly ? ", order only" : ""})`}`);
+    }
+  }
+  if (wantClaude) {
+    if (corpusRootOrSkip(r, "catalog", parts) === null) { /* SKIPPED — the notice is in parts */ }
+    else {
+    const claude = syncClaude(r, desiredClaudePlugins(r), { write });
+    const why = [
+      claude.missing.length && `${claude.missing.length} to enable`,
+      claude.extra.length && `${claude.extra.length} not in the catalog`,
+      claude.disabled.length && `${claude.disabled.length} not \`true\``,
+      claude.orderOnly && "order only",
+    ].filter(Boolean).join(", ");
+    if (!claude.same) stale.push(`${CLAUDE} enabledPlugins (${claude.have} -> ${claude.total} entries; ${why})`);
+    parts.push(`sync-skill-bindings: ${CLAUDE} enabledPlugins  ${claude.same ? `unchanged (${claude.total} entries)` : `STALE (${claude.have} -> ${claude.total} entries; ${why})`}`);
+    if (!claude.same && !quiet) {
+      for (const k of claude.missing) parts.push(`    + ${k}`);
+      for (const k of claude.extra) parts.push(`    - ${k}`);
+      for (const k of claude.disabled) parts.push(`    ~ ${k}`);
+    }
     }
   }
   if (wantOpencode) {

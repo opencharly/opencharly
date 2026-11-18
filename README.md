@@ -1004,11 +1004,24 @@ branch tip, and never "fixed" by checking out a newer commit inside the submodul
 ```sh
 git clone https://github.com/opencharly/opencharly.git
 cd opencharly
-bash scripts/init-submodules.sh        # materialize the working set (needs only git + python3)
-./charly/scripts/bootstrap-charly.sh   # builds charly/bin/charly — once per clone
+bash scripts/bootstrap.sh              # the working set, the binary, the hooks, the harness installs
 export PATH="$PWD/charly/bin:$PATH"    # from here on this page reads `charly …`
-charly task hooks                      # install this clone's git hooks (pre-commit, pre-push)
 ```
+
+`scripts/bootstrap.sh` composes five steps, and each one stays runnable on its own:
+
+| step | what it does |
+|---|---|
+| `bash scripts/init-submodules.sh` | materialize the working set (needs only `git` + `python3`; the bootstrap passes its arguments through, so `bash scripts/bootstrap.sh --all` materializes every path) |
+| `./charly/scripts/bootstrap-charly.sh` | build `charly/bin/charly` from the checkout |
+| `charly task hooks` | install this clone's git hooks (pre-commit, pre-push) |
+| `node scripts/sync-skill-bindings.mjs --check --require-corpus` | assert that the committed harness skill bindings (the `.dsh/skills` farm, `reasonix.toml`'s `[skills] paths`, `.claude/settings.json`'s `enabledPlugins`) are the derivation of the pinned corpus |
+| harness install records | for each harness CLI on `PATH`: Claude Code registers the marketplaces `extraKnownMarketplaces` names and installs every `enabledPlugins` key at project scope; Codex registers the `charly-plugins` marketplace. opencode, pi, reasonix and DSH read the committed config and the corpus, so they need no install step |
+
+The last step exists because **enabling a plugin does not install it**. Claude Code loads a
+plugin's skills only when its per-user plugin registry also holds an install record for this
+checkout, and nothing in a clone writes that record. Without it a session at this root loads none
+of the `/charly-*` skills (opencharly/opencharly#1100).
 
 Two steps there are not `charly` commands, and neither can be. The build that produces the
 `charly` binary cannot itself be a `charly` task, and neither can the materialization — the

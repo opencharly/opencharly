@@ -35,8 +35,25 @@ function fixture(dir) {
   }
   writeFileSync(join(dir, "reasonix.toml"), `# fixture\n[other]\nx = 1\n\n[skills]\npaths = [\n    "marketplace/alpha/skills",\n    "marketplace/beta/agents",\n    "marketplace/beta/skills",\n]\n\n[after]\ny = 2\n`);
   writeFileSync(join(dir, "opencode.json"), JSON.stringify({ skills: { paths: ["marketplace"] } }, null, 2) + "\n");
+  mkdirSync(join(dir, "marketplace", ".claude-plugin"), { recursive: true });
+  writeFileSync(join(dir, "marketplace", ".claude-plugin", "marketplace.json"), JSON.stringify({ name: "charly-plugins", plugins: [{ name: "charly-beta" }, { name: "charly-alpha" }] }, null, 2) + "\n");
+  mkdirSync(join(dir, ".claude"), { recursive: true });
+  writeFileSync(join(dir, ".claude", "settings.json"), CLAUDE_SETTINGS);
   return dir;
 }
+
+/** The fixture's `.claude/settings.json`: the derived pair in byte order, one OTHER marketplace's key
+ *  that the derivation must preserve, and a sibling block that a rewrite must not touch. */
+const CLAUDE_SETTINGS = `{
+  "permissions": { "allow": ["Bash(git -C *)"] },
+  "enabledPlugins": {
+    "charly-alpha@charly-plugins": true,
+    "charly-beta@charly-plugins": true,
+    "other-tool@claude-plugins-official": false
+  },
+  "extraKnownMarketplaces": {}
+}
+`;
 
 function run(args) {
   return spawnSync(process.execPath, [SCRIPT, ...args], { encoding: "utf8" });
@@ -118,6 +135,68 @@ export function runSelfTest() {
     const f = join(d, "reasonix.toml");
     writeFileSync(f, readFileSync(f, "utf8").replace(`paths = [`, "paths = [  # keep me"));
     red("reasonix: a comment inside the array is refused, not dropped", ["--root", d, "--check"], /refusing to rewrite/);
+  }
+
+  // ---- the Claude plugin set -------------------------------------------------
+  const settings = (d) => join(d, ".claude", "settings.json");
+  const editSettings = (d, from, to) => {
+    const t = readFileSync(settings(d), "utf8");
+    if (!t.includes(from)) throw new Error(`fixture anchor missing: ${from}`);
+    writeFileSync(settings(d), t.replace(from, to));
+  };
+  {
+    const d = newFixture("claude-missing");
+    editSettings(d, `    "charly-beta@charly-plugins": true,\n`, "");
+    red("claude: a catalog plugin missing from enabledPlugins is stale (the 26-of-44 drift)", ["--root", d, "--check", "--only", "claude"], /settings\.json enabledPlugins.*STALE.*1 to enable/);
+  }
+  {
+    const d = newFixture("claude-extra");
+    editSettings(d, `"charly-beta@charly-plugins": true,`, `"charly-beta@charly-plugins": true,\n    "charly-gone@charly-plugins": true,`);
+    red("claude: a key the catalog does not carry is stale", ["--root", d, "--check", "--only", "claude"], /settings\.json enabledPlugins.*STALE.*not in the catalog/);
+  }
+  {
+    const d = newFixture("claude-disabled");
+    editSettings(d, `"charly-alpha@charly-plugins": true`, `"charly-alpha@charly-plugins": false`);
+    red("claude: a catalog plugin set to false is stale", ["--root", d, "--check", "--only", "claude"], /settings\.json enabledPlugins.*STALE.*not `true`/);
+  }
+  {
+    const d = newFixture("claude-order");
+    editSettings(d, `    "charly-alpha@charly-plugins": true,\n    "charly-beta@charly-plugins": true,`, `    "charly-beta@charly-plugins": true,\n    "charly-alpha@charly-plugins": true,`);
+    red("claude: an out-of-byte-order set is stale", ["--root", d, "--check", "--only", "claude"], /settings\.json enabledPlugins.*STALE.*order only/);
+  }
+  {
+    // The WRITE half: a stale set is rewritten to the derivation, the other marketplace's key keeps its
+    // written value, and nothing outside the object moves. This is the arm that fails if the rewrite
+    // drops a foreign key or reformats the file.
+    const d = newFixture("claude-write");
+    editSettings(d, `    "charly-beta@charly-plugins": true,\n`, "");
+    const w = run(["--root", d, "--only", "claude"]);
+    const after = readFileSync(settings(d), "utf8");
+    const ok = w.status === 0 && after === CLAUDE_SETTINGS;
+    results.push({
+      name: "claude: the write restores the derivation, keeps the foreign key's value, and moves nothing else",
+      ok,
+      status: w.status,
+      first: ok ? "byte-identical to the pristine fixture" : after.split("\n").slice(2, 7).join(" | "),
+      note: "the rewrite is a byte-range edit of enabledPlugins only",
+    });
+  }
+  {
+    const d = newFixture("claude-catalog-absent");
+    rmSync(join(d, "marketplace", ".claude-plugin"), { recursive: true, force: true });
+    const before = readFileSync(settings(d), "utf8");
+    const w = run(["--root", d, "--only", "claude"]);
+    const strict = run(["--root", d, "--only", "claude", "--require-corpus"]);
+    const out = `${w.stdout}${w.stderr}`;
+    const ok = w.status === 0 && /carries no catalog/.test(out) && readFileSync(settings(d), "utf8") === before
+      && strict.status === 1 && /FAIL: marketplace\/ carries no catalog/.test(`${strict.stdout}${strict.stderr}`);
+    results.push({
+      name: "claude: no catalog SKIPS visibly and writes nothing, and --require-corpus turns that into a FAILURE",
+      ok,
+      status: w.status,
+      first: out.split("\n").find((l) => l.trim()) ?? "(no output)",
+      note: `--require-corpus rc=${strict.status}`,
+    });
   }
 
   // ---- the single-root reference --------------------------------------------
@@ -259,10 +338,13 @@ export function runSelfTest() {
   {
     const r = run(["--check"]);
     const output = `${r.stdout}${r.stderr}`;
-    if (r.status === 0 && /clean/.test(output)) {
-      results.push({ name: "this checkout: the derivation is already a fixed point", ok: true, status: 0, first: "sync-skill-bindings: clean", note: "the real corpus" });
-    } else if (/carries no (skills|families)/.test(output)) {
+    // The SKIP test goes FIRST: a tree whose corpus is unmaterialised also prints `clean` (every half
+    // skipped, so nothing was stale), and testing `clean` first reported a skipped run as a verified
+    // fixed point — a control that skips must say so.
+    if (/carries no (skills|families|catalog)/.test(output)) {
       results.push({ name: "this checkout: SKIPPED — marketplace/ is not materialised", ok: true, status: r.status, first: "NOTICE skipped", note: "the same precondition the gate guards" });
+    } else if (r.status === 0 && /clean/.test(output)) {
+      results.push({ name: "this checkout: the derivation is already a fixed point", ok: true, status: 0, first: "sync-skill-bindings: clean", note: "the real corpus" });
     } else {
       results.push({ name: "this checkout: the derivation is already a fixed point", ok: false, status: r.status, first: output.split("\n")[0], note: "run without --check to fix" });
     }

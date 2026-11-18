@@ -457,7 +457,7 @@ sync:
           task: pins
           param: [MODE=bump]
         context: [runtime]
-      - run: re-derive the harness skill bindings from the corpus the bump just advanced (the DSH farm and reasonix.toml's [skills] paths — a pin advance that skips this leaves them a family behind)
+      - run: re-derive the harness skill bindings from the corpus the bump just advanced (the DSH farm, reasonix.toml's [skills] paths and .claude/settings.json's enabledPlugins — a pin advance that skips this leaves them a family behind)
         # --require-corpus: an unmaterialized corpus must FAIL this step, not silently SKIP it.
         # The script's default is skip-visible because the GATE runs it on light/partial trees
         # where a skip is correct; here the corpus IS the input this step exists to read, so a
