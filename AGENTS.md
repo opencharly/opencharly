@@ -4,7 +4,19 @@
 > the org. Every harness reads this file directly; there is no second copy to keep in sync.
 
 This file is the WHAT and the MUST: each rule is stated once, as its gist, and names the
-skill that carries the HOW. **The ground-truth rules R0–R10 are the spine.** Every change
+skill that carries the HOW.
+
+**And the MUST's SUBJECT is [`DESIGN.md`](DESIGN.md).** This file says how to work; DESIGN.md
+says what must be true when the work is done — the contract's requirements, its invariants,
+and the data shapes every repo shares. **Read it before designing anything:** before
+adding a field, a shape or a mechanism, grep the contract for it and read the row that
+governs the area. A rule here and a requirement there are two halves of one obligation —
+**conformance to this file with a violation of DESIGN.md is not a pass.** When the two
+disagree, the disagreement is a defect in one of them: fix the one that is wrong, in the
+open, and say so. `spec/schema/*.cue` is the machine-readable projection of DESIGN.md, and
+`DESIGN.cue` is its schema; where the prose and the CUE differ, the CUE is what the tooling
+enforces and the difference is a defect to resolve, never a licence to pick whichever is
+convenient. **The ground-truth rules R0–R10 are the spine.** Every change
 is judged against them, by you before the push and by the fresh `charly/pr-validator`
 after it. Every other section applies one or more of them, and its `Enforces:` line says
 which. Part I is the org-wide charly rulebook. Part II holds the rules that apply only to
