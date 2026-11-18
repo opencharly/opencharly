@@ -532,7 +532,7 @@ verify:
           task: pins
           param: [MODE=currency]
         context: [runtime]
-      - check: every submodule's branch equals its remote default — KEPT INLINE, deliberately, because no verb owns this clause, and it is the expensive half (one git ls-remote per submodule, hence the timeout below)
+      - check: every declared branch is either the remote default, or a branch the remote SERVES — KEPT INLINE, deliberately, because no verb owns this clause, and it is the expensive half (one git ls-remote per submodule, hence the timeout below)
         timeout: 20m
         command: |
           set -eu
