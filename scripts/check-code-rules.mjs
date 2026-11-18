@@ -142,9 +142,17 @@ function scan(root, rev) {
 }
 
 function judge(title, result) {
-  console.log(`\n${title}`);
-  for (const { repo, reason } of result.skipped) console.log(`  SKIP  ${repo}: ${reason}`);
-  for (const [repo, rev] of result.revisions) console.log(`  read  ${repo}@${rev.slice(0, 12)}`);
+  // The text `judge` prints is RETURNED as well as emitted: the self-test asserts on it, so
+  // a guarantee this file makes in its own output (the SKIP line) is regression-tested by a
+  // mutation that deletes it — a guarantee stated only in prose is not a control.
+  const lines = [];
+  const emit = (s) => {
+    console.log(s);
+    lines.push(s);
+  };
+  emit(`\n${title}`);
+  for (const { repo, reason } of result.skipped) emit(`  SKIP  ${repo}: ${reason}`);
+  for (const [repo, rev] of result.revisions) emit(`  read  ${repo}@${rev.slice(0, 12)}`);
 
   const expected = new Map(ALLOW.map((a) => [`${a.repo}:${a.file}`, a]));
   for (const [key, count] of [...result.actual].sort()) {
@@ -166,7 +174,8 @@ function judge(title, result) {
       fail(`${key}: the allowlist's readiness wait is GONE (or unreachable) and the entry is stale — remove it or re-anchor it (D-CODE-1)`);
     }
   }
-  console.log(`  info  ${result.testSites} test-file site(s) out of scope; ${result.comments} commented-out site(s) out of scope`);
+  emit(`  info  ${result.testSites} test-file site(s) out of scope; ${result.comments} commented-out site(s) out of scope`);
+  return lines.join("\n");
 }
 
 // ── the self-test ─────────────────────────────────────────────────────────────────
@@ -252,10 +261,22 @@ function selfTest() {
   for (const [title, root, wantClean] of cases) {
     failed = 0;
     const r = scan(root, "main");
-    judge(`\n== ${title}`, r);
+    const out = judge(`\n== ${title}`, r);
     const clean = failed === 0;
-    if (clean === wantClean) {
-      console.log(`  PASS  self-test: ${clean ? "PASS" : "RED"} as asserted`);
+    let armOk = clean === wantClean;
+    // The missing-checkout arm asserts the SKIP LINE ITSELF, not only the exit code: a gate
+    // whose skip message were deleted (a genuine silent pass) would still exit 0, so the
+    // exit code alone cannot prove the guarantee. Every other arm asserts the line's ABSENCE.
+    const wantSkip = title.startsWith("a missing checkout");
+    if (armOk && wantSkip && !out.includes("SKIP  sdk:")) {
+      armOk = false;
+      console.log("  FAIL  self-test: the SKIP line is MISSING — the arm would be a silent pass");
+    } else if (armOk && !wantSkip && /^\s*SKIP\s/m.test(out)) {
+      armOk = false;
+      console.log("  FAIL  self-test: a SKIP line appeared where nothing was skipped");
+    }
+    if (armOk) {
+      console.log(`  PASS  self-test: ${clean ? "PASS" : "RED"} as asserted${wantSkip ? " (the SKIP line is present)" : " (no SKIP line)"}`);
     } else {
       console.log(`  FAIL  self-test: got ${clean ? "PASS" : "RED"}, asserted ${wantClean ? "PASS" : "RED"}`);
       reds += 1;
