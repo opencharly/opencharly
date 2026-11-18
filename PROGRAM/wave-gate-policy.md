@@ -103,3 +103,24 @@ $ git -C <every consumer repo> grep -n '<the name>' origin/main
 **And the sharper form, which cost a withdrawn PR:** *the thing that would have stopped you was inside the diff.* The comment that was deleted contained the reason the deletion was wrong. **Prose that explains why a thing exists is load-bearing, so a change that deletes it owes an argument, not a movement.**
 
 **And the methodology that produced the session's best find:** *write the control first, then let it tell you what the row is.* A lockstep test written before the row's disposition was decided found two fields the runtime had been persisting and the validation schema had never checked. **The row was not a documentation row, and only the control could have said so.**
+
+## Rule 6. A proof is only as wide as the instrument's reach, and the reach is invisible in the output
+
+This is the generalisation of rules 2 and 5, and it is the one to carry into every gate, sweep and paste. **Each instrument measures a smaller set than it appears to, and nothing in its output says so.**
+
+| instrument | what it appears to cover | what it actually covers |
+|---|---|---|
+| `go build ./...` | the module | **only the packages it reached** — a package that fails hides every package that depends on it, so a paste naming ONE package is a **lower bound**, and the rest are **unmeasured, not clean** |
+| `grep -c <name> <repo>` | the name | **one repo, one pathspec, one scope** — each can be wrong independently, and a zero from any of them is a claim about the query |
+| the compiler | a deletion's consumers | **only readers that compile against the name** — a stale entry in a map whose completeness a *test* gates never appears in a build |
+| a test | the contract | **only the property it asserts** — a lockstep test that compares field NAMES proves set equality "and nothing more" |
+
+**So every proof needs two things it cannot contain**: the **reach** it actually had, stated; and a **control** from outside that reach, which would have found the thing had it been there.
+
+- a build paste states **which packages it reached**, and names the ones it did not;
+- a grep paste carries **the repo, the pathspec and the scope**, plus a control at a ref where the answer is non-zero;
+- a deletion carries a **consumer sweep across instruments** — the compiler for the reads, the owning test for the contract surface;
+- a lockstep or equality assertion states **what it proves and what it does not**.
+
+**Measured three times in one evening**: a `grep schema/` that missed the same PR's other file; a `go build` paste that named one package and was reported as the set; and a `spec` deletion that broke `sdk` three files away in the same module. **None was a careless mistake. Each was a correct measurement of a smaller set than it was read as.**
+
