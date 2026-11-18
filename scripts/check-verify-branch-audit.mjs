@@ -77,30 +77,40 @@ function git(args, cwd) {
  */
 function extractStepCommand(yamlPath) {
   const lines = readFileSync(yamlPath, "utf8").split("\n");
-  const stepRe = /^(\s*)-\s*check:\s*every submodule's branch equals its remote default/;
-  const i = lines.findIndex((l) => stepRe.test(l));
-  if (i === -1) return null;
-  const stepIndent = lines[i].match(stepRe)[1].length;
-  const cmdIndent = stepIndent + 2;
-  const cmdRe = new RegExp(`^\\s{${cmdIndent}}command:\\s*\\|\\s*$`);
-  let j = -1;
-  for (let k = i + 1; k < lines.length; k++) {
-    if (lines[k].trim() === "") continue;
-    if (lines[k].match(/^\s*/)[0].length <= stepIndent) break;
-    if (cmdRe.test(lines[k])) {
-      j = k;
-      break;
+  // The step is identified by its MECHANISM -- a `- check:` whose `command:` block
+  // runs git ls-remote -- never by its prose. Matching the description here would
+  // make this extractor a second copy of the message it reads: reword the step and
+  // the self-test would silently stop finding it, then fail claiming the step is
+  // missing. That is the defect that made this function match the description and
+  // then broke when the description stated the rule the code had stopped enforcing.
+  const stepRe = /^(\s*)-\s*check:/;
+  for (let i = 0; i < lines.length; i++) {
+    const m = lines[i].match(stepRe);
+    if (!m) continue;
+    const stepIndent = m[1].length;
+    const cmdIndent = stepIndent + 2;
+    const cmdRe = new RegExp(`^\\s{${cmdIndent}}command:\\s*\\|\\s*$`);
+    let j = -1;
+    for (let k = i + 1; k < lines.length; k++) {
+      if (lines[k].trim() === "") continue;
+      if (lines[k].match(/^\s*/)[0].length <= stepIndent) break;
+      if (cmdRe.test(lines[k])) {
+        j = k;
+        break;
+      }
     }
+    if (j === -1) continue;
+    const body = [];
+    for (let k = j + 1; k < lines.length; k++) {
+      const ind = lines[k].match(/^\s*/)[0].length;
+      if (lines[k].trim() !== "" && ind <= cmdIndent) break;
+      body.push(lines[k].trim() === "" ? "" : lines[k].slice(cmdIndent + 2));
+    }
+    while (body.length && body[body.length - 1] === "") body.pop();
+    const text = body.join("\n") + "\n";
+    if (/\bls-remote\b/.test(text)) return text;
   }
-  if (j === -1) return null;
-  const body = [];
-  for (let k = j + 1; k < lines.length; k++) {
-    const ind = lines[k].match(/^\s*/)[0].length;
-    if (lines[k].trim() !== "" && ind <= cmdIndent) break;
-    body.push(lines[k].trim() === "" ? "" : lines[k].slice(cmdIndent + 2));
-  }
-  while (body.length && body[body.length - 1] === "") body.pop();
-  return body.join("\n") + "\n";
+  return null;
 }
 
 // The step refuses a suspiciously small submodule set, so the fixture declares
@@ -128,6 +138,11 @@ function buildFixture(script, opts = {}) {
   git(["commit", "-qm", "seed"], seed);
   const bare = join(base, "remote.git");
   git(["clone", "-q", "--bare", seed, bare], base);
+  // `legacy` exists on the remote but is NOT its default: the case arm E needs, and the shape
+  // pod-ai-toolkit has in the live tree.
+  // `seed` is the SOURCE of the clone, not a clone of it -- it has no `origin` -- so the branch is
+  // created in the bare repo itself, which is where the audit reads from.
+  git(["branch", "-q", "legacy", "main"], bare);
 
   const superDir = join(base, "super");
   mkdirSync(superDir);
@@ -136,6 +151,7 @@ function buildFixture(script, opts = {}) {
   for (const p of PATHS) {
     let branch = "main";
     if (opts.wrong && WRONG.includes(p)) branch = "not-the-default";
+    if (opts.served && p === PATHS[0]) branch = "legacy";
     lines.push(`[submodule "${p}"]`, `\tpath = ${p}`, `\turl = file://${bare}`);
     if (!(opts.noBranch && p === PATHS[0])) lines.push(`\tbranch = ${branch}`);
   }
@@ -153,6 +169,7 @@ function runCases(script) {
     B: buildFixture(script, { wrong: true }),
     C: buildFixture(script, { wrong: true }),
     D: buildFixture(script, { noBranch: true }),
+    E: buildFixture(script, { served: true }),
   };
 }
 
@@ -168,9 +185,10 @@ function judge(cases) {
   const tail = (c) => c.stderr.trim().split("\n").pop();
 
   need("A:status", cases.A.status === 0, `every branch= equal to the remote default must be GREEN (exit ${cases.A.status}): ${tail(cases.A)}`);
-  need("A:ok-line", /branch == remote default for every one/.test(cases.A.stdout), "the step must report its OK line");
+  need("A:ok-line", /every declared branch is either the remote default, or a branch the remote SERVES/.test(cases.A.stdout),
+    "the step must report its OK line, and the line must state the rule the step now enforces");
 
-  need("B:status", cases.B.status !== 0, "a branch= that is not the remote default must FAIL");
+  need("B:status", cases.B.status !== 0, "a branch= that is neither the remote default nor a branch the remote SERVES must FAIL");
   need("B:names", /mod-03/.test(cases.B.stderr), `the failing path must be named: ${tail(cases.B)}`);
 
   // The parallel audit cannot stop at the first mismatch without losing the rest,
@@ -187,6 +205,16 @@ function judge(cases) {
   need("D:names", new RegExp(PATHS[0]).test(cases.D.stderr), `the path with no branch= must be named: ${tail(cases.D)}`);
   need("D:missing-branch", /missing branch=/.test(cases.D.stderr), "a path with no branch= must be reported AS a missing branch=, not as a plain mismatch");
 
+  // THE ARM THIS RULE EXISTS FOR. A pinned repo whose default branch moves away from the line the
+  // pin deliberately tracks is not a defect: `branch=` is an INTENT, and an upstream pin is a leaf
+  // judged against the ref it NAMES. pod-ai-toolkit is the live case -- it declares `main` while its
+  // remote defaults to `bootstrap-seed`, and the pinned commit is NOT an ancestor of the default
+  // tip, so re-pointing would drop commits. So: served-but-not-default must be GREEN, and NAMED.
+  // Without this arm the relaxation is UNPROVABLE, and a later simplification back to strict
+  // equality would sail through every other assertion in this file.
+  need("E:status", cases.E.status === 0, `a branch= that is not the default but IS served must be GREEN (exit ${cases.E.status}): ${tail(cases.E)}`);
+  need("E:named", /deliberate, reported, not a failure/.test(cases.E.stderr), `the served non-default branch must be NAMED, not passed silently: ${tail(cases.E)}`);
+
   return found;
 }
 
@@ -194,7 +222,7 @@ const script = extractStepCommand(join(root, yamlRel));
 
 function check() {
   if (script === null) {
-    fail(`${yamlRel}: the 'every submodule's branch equals its remote default' step (and its command: block) is extractable`);
+    fail(`${yamlRel}: no '- check:' step whose command: block runs git ls-remote is extractable -- the branch-audit step is identified by its MECHANISM, not its description`);
     return;
   }
   for (const f of judge(runCases(script))) fail(f);
@@ -240,7 +268,7 @@ if (argv.includes("--self-test")) {
     ],
     [
       "the mismatch message does not name the path",
-      (s) => s.replace(/echo "\$path: branch=\$branch but remote default is \$shown"/, 'echo "branch mismatch"'),
+      (s) => s.replace(/echo "\$path: branch=\$branch is NOT the remote default \(\$shown\) and the remote does NOT serve it[^"]*"/, 'echo "branch mismatch"'),
       "C:names-all",
     ],
     [

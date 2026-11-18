@@ -540,7 +540,7 @@ verify:
           task: pins
           param: [MODE=currency]
         context: [runtime]
-      - check: every submodule's branch equals its remote default — KEPT INLINE, deliberately, because no verb owns this clause, and it is the expensive half (one git ls-remote per submodule, hence the timeout below)
+      - check: every declared branch is either the remote default, or a branch the remote SERVES — KEPT INLINE, deliberately, because no verb owns this clause, and it is the expensive half (one git ls-remote per submodule, hence the timeout below)
         timeout: 20m
         command: |
           set -eu
@@ -590,15 +590,30 @@ verify:
             fi
             default=$(printf "%s\n" "$out" | sed -n "s/^ref: refs\/heads\/\(.*\)\tHEAD/\1/p")
             if [ "$branch" != "$default" ]; then
-              shown="$default"; [ -n "$shown" ] || shown="<none>"
-              echo "$path: branch=$branch but remote default is $shown" >&2
-              exit 1
+              # A DECLARED BRANCH THAT IS NOT THE DEFAULT IS LEGAL WHEN THE REMOTE SERVES IT.
+              # The pin contract makes branch= an INTENT: upstream refs are leaves judged against
+              # the ref they NAME, never against whatever the remote happens to default to. A repo
+              # whose default moved away from the line this pin deliberately tracks is a repo whose
+              # declaration is doing its job. pod-ai-toolkit declares main while the remote default
+              # is bootstrap-seed, and the pinned commit is NOT an ancestor of that branch tip, so
+              # re-pointing would silently drop commits that exist only on main.
+              # What the audit must still catch is a branch the remote does NOT serve: a typo, or a
+              # name that went away. That is the question it now asks, and it is the one it means.
+              # NOTE: this comment lives INSIDE a single-quoted sh -c body, so it carries no
+              # apostrophe anywhere -- one would terminate the string and shift every later line.
+              if git ls-remote --heads "$url" "refs/heads/$branch" 2>/dev/null | grep -q .; then
+                echo "$path: branch=$branch is not the remote default ($default), and the remote SERVES it — deliberate, reported, not a failure" >&2
+              else
+                shown="$default"; [ -n "$shown" ] || shown="<none>"
+                echo "$path: branch=$branch is NOT the remote default ($shown) and the remote does NOT serve it — a typo or a vanished branch" >&2
+                exit 1
+              fi
             fi
           ' _ < "$tmp"
           rc=$?
           set -e
           [ "$rc" -eq 0 ] || fail "the branch audit failed for one or more submodules (each one is named above)"
-          echo "verify: OK — $count submodule(s): branch == remote default for every one"
+          echo "verify: OK — $count submodule(s): every declared branch is either the remote default, or a branch the remote SERVES (deliberate, and named above)"
         context: [runtime]
       - check: charly's own nested submodules are at their gitlinks — a MATERIALIZED charly must carry its nested level (KEPT INLINE, because the verb has no recursive-nested clause)
         command: |
@@ -634,7 +649,7 @@ verify:
       - check: the nested-submodule step above — a MATERIALIZED charly without its nested level FAILS, an uninitialized charly is a NOTICE, a `+`/`U` drift still FAILS, an UNREADABLE nested status FAILS (fixtures)
         command: node scripts/check-verify-submodules.mjs
         context: [runtime]
-      - check: the branch-audit step above — every branch= is compared against the remote default, and EVERY mismatch is named (fixtures)
+      - check: the branch-audit step above — every branch= is either the remote default or a branch the remote SERVES, and EVERY mismatch is named (fixtures)
         command: node scripts/check-verify-branch-audit.mjs
         context: [runtime]
       - check: the branch-audit gate discriminates — each mutation turns it RED (fixtures)
