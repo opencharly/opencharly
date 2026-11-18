@@ -4049,6 +4049,57 @@ citing `schema.#…`) is next, followed by the loader, the resolve arm's local v
   an empty disjunction that named nothing. Compile a literal in `v.Context()` — the kindcluster helper's lesson, now
   recorded where the next helper will look.
 
+### 2026-11-18/19 — the evidence round: thirty-one merges, and not one of them changed what the diff did
+
+**What landed.** Two TODO rows (`3.24`, `10.1` — `#1128`), the batched pin wave (`#1126`), the ledger itself
+(`#1118`), the `D-CODE-2` retired-name census gate (`#1134`), row `3.1`'s legs 1–3 (`spec#381`, `sdk#564`,
+`charly#1209`), the `#RepoBlock` alias restore and the S3 word tables (`spec#387` → `spec#389`), and the
+W2c pin wave across `adb`, `spice`, `tmux`, `tunnel`, `unix-group`, `lobster`, `cua`, `udev` and `containerd`.
+**The umbrella's own `tools/` lockstep pins were red on `main` and are fixed in `charly#1209`** — four of five
+`tools` modules still required `sdk v0.2026322.1227` while core pinned `1853`.
+
+**The finding, and it is one finding wearing thirty instruments.** Across the whole round **every** validator
+BLOCK was a `body-versus-tree` defect; **not one was about the diff.** The registers it wore:
+
+| instrument | how it lied |
+|---|---|
+| a `grep` for one literal | cannot count a second spelling — **a zero needs a control** |
+| a `grep` scoped to `schema/` | missed the same PR's other file |
+| a pathspec `-- 'reserved_registry.go'` | does not match `charly/reserved_registry.go` |
+| `.[-1]` over a paginated list | the last element of the FIRST page, read as the last verdict |
+| a `--depth 1` clone | a commit with no parent, reported as a phantom defect |
+| `\?` in GNU BRE | the optional quantifier, not a literal — a false zero in a brief |
+| `head -7` on a `### Blocks` list | one finding shown, the second hidden for a whole round |
+| `git show --stat HEAD` | on a multi-commit branch, only the last commit |
+| `| tail -1` | reports `tail`'s status, not the command's |
+| a `rev-parse` from an hour ago | a measurement is true of the moment it was taken |
+| `git -C <empty submodule>` | **walks up to the umbrella**, succeeds, answers with the wrong tree |
+| a pasted head SHA | makes `gh pr update-branch` self-defeating |
+| "1 commit" over a two-commit branch | checkable with `wc -l`, and not checked |
+| a count pasted at one ref under another ref's command | `#1136` |
+| a fingerprint (`grep -c 'yaml:'`) | cannot see the *policy* that governs the file |
+| a census counting archived repos | a population claim including a member that cannot act |
+| an RCA posted on a closed predecessor | a record where it is not read |
+| a claim fixed in one place | its copy three lines below survived, and a review quoted the copy |
+
+**The rules this round added to `PROGRAM/wave-gate-policy.md`**, each paid for by a PR that failed first:
+**1** an identifier comes from the command that produced it; **2** a zero needs the control that would have
+found the word; **3** a deletion's proof is the absence of READERS; **4** prose that explains why a thing
+exists is load-bearing, so deleting it owes an argument; **5** write the control first and let it tell you
+what the row is; **6** a proof is only as wide as the instrument's reach; **7** an artifact records which
+generator built it. **Rules 4 and 5 were unnumbered until `#1136`**, so a cross-reference to either resolved
+to nothing — the same defect as a pointer into a document that does not contain the target.
+
+**What this means for the next round.** The remaining TODO rows are not blocked on code or on a bed; they are
+blocked on **evidence discipline**, and the discipline is now written down in seven rules plus `#1109`'s recipe.
+A row should be measured twice at two refs before its sentence is written, and the control that would refute it
+should be written before the claim it is meant to support.
+
+**And two structural facts the round established.** A **successor** carries the same tree with corrected
+evidence and restarts the verdict count (`cua#11`→`#12`, `udev#9`→`#10`, `containerd#17`→`#18`); and an
+**operator-authored PR is not an agent's to touch**, so `#1127` and `#1129` were read and left alone — `#1129`
+went `DIRTY` while `#1127` merged ahead of it, and that is a state only its author could clear.
+
 ## 10. What would make this ledger wrong
 
 - **`TODO.md` is re-derived again** (rows added, retired or restored) → §5's assignment must be re-checked; the
