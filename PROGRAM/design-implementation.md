@@ -15,16 +15,16 @@
 
 | field | value |
 |---|---|
-| programme state | **eight P01 units LANDED, P01 itself audited COMPLETE (2026-11-16)**; P02–P43 measured `NOT-STARTED` against the code on 2026-11-16 (a fresh read-only audit of all 19 + 23 rows, every verdict carrying a file:line). The earlier text here — "goal armed 2026-11-13; no package started" — was FALSE and is corrected: reading it cold led a teammate to conclude nothing had landed, which §7's own falsifier names as the recurring failure |
+| programme state | **This table does not summarise package state, because a summary is a second copy that drifts.** The authoritative record is §4's package rows and §1a–§4q, each carrying its own state, its date, and the command that produced it. Read those. What this row may say without duplicating them: the programme is **in progress**, and P01 is **COMPLETE** (2026-11-16). An earlier version of this cell asserted "P02–P43 NOT-STARTED" while the same document recorded P05, P06, P07, P09 and P26 landings — the exact defect class this ledger exists to prevent, committed by the ledger |
 | agents spawned | lead + 8 durable teammates (`audit-schema`, `audit-parse`, `audit-protocol`, `audit-runtime`, `vm-pr-driver`, `ir-consumer-sweep`, `ir-sweep-4`, and the two audit runs completed 2026-11-16) |
-| round budget | 600 rounds, sized to the work (44 packages, roughly 150 PR legs across the five lanes, about four rounds each); the operator is asked at 80% |
+| round budget | **2048 rounds** (raised from 600 by the operator on 2026-11-18 at round 249); the operator is asked before it runs out |
 | packages | 44 (`P00`–`P43`) in 10 waves |
 | work items | 125 open `TODO.md` rows, each assigned to exactly one package (§5) |
 | tracker | opencharly/opencharly#1005 (the programme); opencharly/opencharly#594 (the `TODO.md` re-derivation); opencharly/spec#304 (`P01`) |
 | open operator decisions | 4 (§6.2) |
 | registered IOUs | 10 rows, 9 open — IOU-08 was collected by umbrella #1004 (§6.1) |
 | blockers | 3 (§6.3) |
-| last measurement | **2026-11-16** — the two read-only package audits (P02–P20, P21–P43), each verdict a file:line; plus `charly box validate` (0 warnings) and `scripts/design-check.sh` (all controls) green |
+| last measurement | **2026-11-18** — `charly task verify` (rc=0), `charly box validate` (0 warnings, 0 errors), `scripts/design-check.sh` (all controls), `scripts/check-harness-config.mjs --self-test` (34/34 arms), and `charly task pins --param MODE=currency` — which on 2026-11-18 reported pins behind and one blocked, in a denominator that grows with every repo added, so the counts live in that command's output and are deliberately not restated here. The earlier date in this cell, 2026-11-16, contradicted the same document's §1p (11-17) and §4d–§4q (11-18) |
 
 Resume in three steps: read this table and §7's reading; read the state of the packages in the wave you are
 entering and the registers that name them; then **re-measure before trusting** — §10's last falsifier, a recorded
@@ -3561,7 +3561,7 @@ prove it, it is decomposed before dispatch, never landed as a clean slice plus a
 | id | package | rows | producer-first order | gate | depends on | state |
 |---|---|---|---|---|---|---|
 | P00 | Schema-first-parse spike (the open RDD decision) | 0.3 | one disposable bed + a design record; no repo lane | the spike's own disposable bed and its written answer | none | `planned` |
-| P01 | Kind bodies into their plugins — **COMPLETE (audited 2026-11-16): the three "remaining" words were already externalized; see the RCA §7f** | 2.1 | spec > sdk > charly > plugin-{substrate,pipeline,task,check,candy,local,kubernetes,kubevirt,vm,android,deploy} > umbrella | kind-value corpus sweep (composed arm) + the affected R10 beds + `charly task verify` | none | `in progress` — units 1–8 landed (`pipeline`, `task`, `pod`, `local`, `kubernetes`+`kindcluster`, `kubevirt`, `firecracker`, `vm`). The OWNERSHIP MECHANISM that makes the remaining units judgement-free is now built and proven: the wire carries bytes (`spec#322`), the gate is declared data (`spec#324` + `sdk#524`), the defaults seam takes the threaded snapshot (`spec#326`), both consumer legs are merged with failable tests (`plugin-loader#16`, `plugin-vm#97`), and a gate whose source IMPORTS the schema module now resolves (`sdk#525`, the module-aware compile). The census (`scripts/check-schema-ownership.mjs`) judges 1036 defs and names every MOVE instead of the reviewer arguing per word. The host wave LANDED (`charly#1147`, merged 2026-11-15T15:48:27Z): the full module suite is green at `rc=0` — the six
+| P01 | Kind bodies into their plugins — **COMPLETE (audited 2026-11-16): the three "remaining" words were already externalized; see the RCA §7f** | 2.1 | spec > sdk > charly > plugin-{substrate,pipeline,task,check,candy,local,kubernetes,kubevirt,vm,android,deploy} > umbrella | kind-value corpus sweep (composed arm) + the affected R10 beds + `charly task verify` | none | **COMPLETE (audited 2026-11-16)** — the three words this row once called "remaining" were already externalized, so units 1–8 (the `pipeline`, `task`, `pod`, `local`, `kubernetes`+`kindcluster`, `kubevirt`, `firecracker` and `candy` bodies) plus that audit close it. This cell was stale against the row's own NAME — the opening table's divergence, in one row. RCA §7f 
        `applyCueDefaults` tests AND the schema-tightening corpus together — with six changed-path tests, the members channel
        reachable (a structural carrier now decides before the host-value-gated route, `#1057`), and the tools modules sharing
        the wave pins. The mechanism is COMPLETE end to end. SUPERSEDED (audited 2026-11-16, RCA §7f): there are no remaining word moves. What was
