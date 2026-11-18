@@ -266,9 +266,19 @@ function selfTest() {
   r = run(scratch);
   check('arm 5: a missing checkout SKIPs visibly', r.findings.length === 0, JSON.stringify(r.findings));
 
+  // arm 6: EVERY repo skipped. This is the state that must never read green, and the guard that says
+  // so must be REACHABLE — a stale-row finding that exits first would hide the reason. Both properties
+  // are asserted here: the run must report every repo in `skipped`, and it must carry NO bogus STALE
+  // finding against the real census, which is what the previous version produced.
+  for (const repo of REPOS) execFileSync('rm', ['-rf', join(scratch, repo)]);
+  r = run(scratch);
+  check('arm 6: every repo skipped reports all three and invents no STALE finding',
+    r.skipped.length === REPOS.length && r.findings.length === 0,
+    `skipped=${JSON.stringify(r.skipped)} findings=${JSON.stringify(r.findings)}`);
+
   execFileSync('rm', ['-rf', scratch]);
   if (failures) { console.error(`\nself-test: ${failures} arm(s) FAILED`); process.exit(1); }
-  console.log('\nself-test: OK (6 arms — control first, every one fails when it should)');
+  console.log('\nself-test: OK (7 arms — control first, every one fails when it should)');
 }
 
 const args = process.argv.slice(2);
