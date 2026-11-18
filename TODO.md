@@ -734,10 +734,22 @@ tree's line is the set it leaves.
 **How to keep this current.** The status is derived by greps at the submodule pins. Whoever lands an item updates its row and the total in the same PR. TODO.md is deleted only when the last item lands (§11.2).
 
 **Re-scoped 2026-11-18 at the tips** — the first census since 2026-11-13, and the first that measured
-every row's PREMISE rather than its prose. Four agents measured all 125 rows; **8 were already `done`** (2.4,
-3.17, 3.31's mixing, 7.1, 7.5, 9.1, 9.2, 10.3), **20 were `stale`** and are corrected in place with the
-command that decided each, and **4 in that `stale` set were measured wrong and left untouched** (2.2, 2.5,
-2.8, 3.24 — their stated facts reproduce at the tips, so editing them would have introduced a false change).
+every row's PREMISE rather than its prose. Four agents measured all 125 rows in four section groups, and the groups sum exactly:
+
+| group | `done` | `stale` | `open` | total |
+|---|---|---|---|---|
+| 2.x, 4.x | 1 | 10 | 21 | 32 |
+| 3.x | 2 | 5 | 36 | 43 |
+| 5.x, 6.x | 0 | 3 | 19 | 22 |
+| 7.x-11.x, 13.x, 14.x | 5 | 5 | 18 | 28 |
+| **total** | **8** | **23** | **94** | **125** |
+
+Of the 23 `stale`, **20 are corrected in place** with the command that decided each and **3 reproduce at the
+tips** (2.2, 2.5, 2.8) so editing them would have introduced a false change. **7.5** — one of the 94 `open` —
+was measured `done` by the census and is marked `SATISFIED` here, which is the one status change this pass
+makes. **21 rows are edited: 20 of the 23 stale, plus 7.5 from the open set.** And **3.24** was reported
+mis-measured by the census and reproduces on `main`; the text the census quoted lives only on an unmerged
+branch, so it is left alone too.
 Every correction is tagged with its kind — `count-drift`, `path-moved`, `premise-gone`, `already-satisfied`,
 or `evidence-corrected` — because those five lead to different work and collapsing them into one word is how
 a live row gets closed by accident. **94 rows are genuinely open.**
