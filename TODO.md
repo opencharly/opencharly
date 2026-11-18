@@ -752,7 +752,7 @@ mis-measured by the census and reproduces on `main`; the text the census quoted 
 branch, so it is left alone too.
 Every correction is tagged with its kind — `count-drift`, `path-moved`, `premise-gone`, `already-satisfied`,
 or `evidence-corrected` — because those five lead to different work and collapsing them into one word is how
-a live row gets closed by accident. **94 rows are genuinely open.**
+a live row gets closed by accident. **93 rows are genuinely open after this pass** — the census measured 94, and 7.5 leaving that bucket for `done` is the one change to the totals, so the `done` count becomes 9 and the open count 93 (`8 + 23 + 94 = 125` before; `9 + 20 + 93 + 3 = 125` after, where the 3 are the stale rows that reproduce).
 
 Four of the `stale` rows were invalidated by this session's own merges (`spec#359`, `spec#369`, `sdk#550`),
 which is the structural point: **a work list decays at the rate its subjects move, and the act of
