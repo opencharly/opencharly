@@ -733,6 +733,20 @@ tree's line is the set it leaves.
 
 **How to keep this current.** The status is derived by greps at the submodule pins. Whoever lands an item updates its row and the total in the same PR. TODO.md is deleted only when the last item lands (§11.2).
 
+**Re-scoped 2026-11-18 at the tips** — the first census since 2026-11-13, and the first that measured
+every row's PREMISE rather than its prose. Four agents measured all 125 rows; **8 were already `done`** (2.4,
+3.17, 3.31's mixing, 7.1, 7.5, 9.1, 9.2, 10.3), **20 were `stale`** and are corrected in place with the
+command that decided each, and **4 in that `stale` set were measured wrong and left untouched** (2.2, 2.5,
+2.8, 3.24 — their stated facts reproduce at the tips, so editing them would have introduced a false change).
+Every correction is tagged with its kind — `count-drift`, `path-moved`, `premise-gone`, `already-satisfied`,
+or `evidence-corrected` — because those five lead to different work and collapsing them into one word is how
+a live row gets closed by accident. **94 rows are genuinely open.**
+
+Four of the `stale` rows were invalidated by this session's own merges (`spec#359`, `spec#369`, `sdk#550`),
+which is the structural point: **a work list decays at the rate its subjects move, and the act of
+implementing is what moves them.** So the census is not a prelude to the work; it is a step that must be
+re-run at every merge boundary.
+
 ## 0. Preconditions
 
 | # | Item |
