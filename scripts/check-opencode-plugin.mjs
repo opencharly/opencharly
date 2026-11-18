@@ -128,8 +128,18 @@ for (const pluginPath of plugins) {
 // --- Layer B: the REAL gate scripts, with the plugin's own stdin payload -----
 const hooksDir = join(root, ".claude", "hooks");
 const payload = (command) => JSON.stringify({ tool_input: { command } });
+// The commit gate's Go-lint leg runs only when `golangci-lint` is on PATH, so a host
+// without it never reaches that branch. A no-op `golangci-lint` first on PATH makes the
+// branch run on EVERY host: a commit without `-C` once crashed there with
+// `abspath(None)` (opencharly/opencharly#834), and only hosts with the linter saw it.
+const lintStubDir = mkdtempSync(join(tmpdir(), "check-opencode-plugin-lint-"));
+writeFileSync(join(lintStubDir, "golangci-lint"), "#!/bin/sh\nexit 0\n", { mode: 0o755 });
+process.on("exit", () => rmSync(lintStubDir, { recursive: true, force: true }));
 const commitGate = (command) =>
-  run("bash", [join(hooksDir, "pre-commit-gate.sh")], { input: payload(command) });
+  run("bash", [join(hooksDir, "pre-commit-gate.sh")], {
+    input: payload(command),
+    env: { PATH: `${lintStubDir}:${process.env.PATH ?? ""}` },
+  });
 
 if (!existsSync(join(hooksDir, "pre-commit-gate.sh"))) {
   fail("gate script .claude/hooks/pre-commit-gate.sh is missing");

@@ -199,6 +199,24 @@ interruption safety") and points here for the detail. Where this guidance
 itself belongs is owned by the sibling `/charly-internals:skills` ("Where
 guidance belongs"): mandate in `AGENTS.md`, detail in the skill.
 
+## Command hygiene & context discipline
+
+Commands run with SIGPIPE ignored, so `grep <pat> <huge-file> | head -N` floods the
+output with `grep: write error: Broken pipe`. The umbrella rulebook states the mandate
+("Command hygiene & context discipline"); the how:
+
+- **`grep -m N` for "first N matches"** — never `grep | head`.
+- **Redirect a large output to a file** (`cmd > <scratch>/x.log 2>&1`), then read it
+  bounded (`grep -m N`, `sed -n 'a,bp'`, `tail -c`).
+- **Delegate output-heavy investigation** to a subagent that returns a verdict plus
+  evidence paths.
+- **Never re-issue the same diagnostic command in a loop** — change the approach.
+- **A piped exit code is not the command's exit code.** In `cmd | head` the shell
+  reports `head`'s status, so "it printed X and returned 0" can be false in both halves
+  at once. Capture the command's own status (`cmd > <scratch>/x.log 2>&1; rc=$?`) or
+  read `${PIPESTATUS[0]}`. Measured: a `rc=0` reported as proof that a verb dispatched
+  was the pager's exit code.
+
 ## A control that SKIPS is not a control
 
 Three occurrences of ONE defect, all measured in a single night, on three levels: **a

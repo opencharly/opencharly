@@ -15,7 +15,8 @@ set -euo pipefail
 #
 # The sync is now run BY HAND (`charly task sync` + a PR); nothing schedules
 # it. BOTH identity lines are therefore caller-supplied — SYNC_AGENT carries rule 7's
-# `Agent:` line (work slug + session) and SYNC_ASSISTED_BY the `Assisted-by:` footer — so the
+# `Agent:` line (`` `<slug>` · <Harness> session `<session-id>` ``, the text after `Agent: `
+# in the first line `coord.sh --footer` prints) and SYNC_ASSISTED_BY the `Assisted-by:` footer — so the
 # run that opens the PR records its own identity, never a canned one. Rule 7 fixes their
 # order: `Agent:` FIRST, `Assisted-by:` LAST, ADJACENT — which is exactly what the body
 # linter asserts (`pr_body_lint.py`'s footer check requires the `Agent:` line to be the line
@@ -149,7 +150,7 @@ build_body() {
   # calling run had to add it by hand (measured: opencharly/opencharly#392, and the defect
   # filed as #395). ONE guard, here, before anything is written.
   if [ -z "${SYNC_AGENT:-}" ]; then
-    echo "::error::SYNC_AGENT is unset — AGENTS.md rule 7 requires the 'Agent:' line (work slug + session) on every agent-authored PR body, directly above the Assisted-by trailer; refusing to emit a body without it" >&2
+    echo "::error::SYNC_AGENT is unset — AGENTS.md rule 7 requires the 'Agent:' session line (work slug, harness and session id) on every agent-authored PR body, directly above the Assisted-by trailer; refusing to emit a body without it" >&2
     return 1
   fi
 
@@ -379,7 +380,7 @@ if [ "${1:-}" = "--self-test" ]; then
   export SYNC_ASSISTED_BY="Self-test Harness Fixture (fully tested and validated)"
   # Rule 7's `Agent:` line, caller-supplied the same way, so the ordering + tracking arms
   # below can name a value the fixture actually set rather than one that merely looks right.
-  export SYNC_AGENT='`self-test-slug` · session `00000000-0000-0000-0000-000000000000`'
+  export SYNC_AGENT='`self-test-slug` · Self-test session `00000000-0000-0000-0000-000000000000`'
   # The cap the fixtures build under is the ONE cap, pinned: an ambient
   # GITHUB_BODY_MAX in the caller's shell must not decide whether the fleet-scale
   # fixture fits, so the self-test states the platform's cap itself. The arm that
@@ -662,7 +663,7 @@ if [ "${1:-}" = "--self-test" ]; then
   # trailer. Both halves are asserted — presence alone would pass a body that put the line
   # anywhere, and the adjacency is the part the body linter actually enforces
   # (`pr_body_lint.py`: "the `Agent:` line must directly precede the Assisted-by trailer").
-  tail -n 2 "$tmp/body" | head -n 1 | grep -qxF '*Agent: `self-test-slug` · session `00000000-0000-0000-0000-000000000000`*' \
+  tail -n 2 "$tmp/body" | head -n 1 | grep -qxF '*Agent: `self-test-slug` · Self-test session `00000000-0000-0000-0000-000000000000`*' \
     || fail "the rule-7 Agent: line must directly precede the Assisted-by trailer"
 
   # Every ground-truth rule R0–R10 has its own `## Rulebook compliance` row. The org body
@@ -695,9 +696,9 @@ if [ "${1:-}" = "--self-test" ]; then
 
   # ...and the Agent: line TRACKS its variable — not a literal that happens to match the
   # fixture (without this arm a hard-coded slug line passes every assertion above).
-  ( SYNC_AGENT='`other-slug` · session `11111111-1111-1111-1111-111111111111`' \
+  ( SYNC_AGENT='`other-slug` · Self-test session `11111111-1111-1111-1111-111111111111`' \
       build_body "$tmp" "$moved" "$producer" "$pinlog" "$tmp/body9" "$tmp/ev9" )
-  tail -n 2 "$tmp/body9" | head -n 1 | grep -qxF '*Agent: `other-slug` · session `11111111-1111-1111-1111-111111111111`*' \
+  tail -n 2 "$tmp/body9" | head -n 1 | grep -qxF '*Agent: `other-slug` · Self-test session `11111111-1111-1111-1111-111111111111`*' \
     || fail "the Agent: line must track SYNC_AGENT, not a fixed literal"
 
   # The tier guard fails LOUD, before writing anything: a body whose tier line silently read

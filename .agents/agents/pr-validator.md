@@ -915,8 +915,10 @@ against the rule it now is.
     blocked by one, a `WAITING`/`HOLDING` comment must exist on both threads. A
     coordination comment opens with one of the nine closed-set labels and nothing
     else; a comment opening with any other word is not a coordination comment and
-    does not satisfy this check. On a contended scope, the `Agent:` FIRST /
-    `Assisted-by:` LAST footer order holds.
+    does not satisfy this check. EVERY agent-authored PR body and comment ends
+    with the session footer — the `Agent:` line naming the work slug, the harness
+    and that harness's session id FIRST, the `Assisted-by:` line LAST — contended
+    or not; a body without a well-formed `Agent:` line BLOCKS.
 
 None of these is a formality: a rule you cannot POSITIVELY confirm from the diff +
 your own re-run is not "probably fine" — it is unverified, and unverified is FAIL
