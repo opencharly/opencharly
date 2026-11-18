@@ -89,14 +89,17 @@ packages); the pin tracks **1.18.33**, the newest release on the `latest` tag.
 
 ### Coordination tools (`.opencode/plugins/coord.ts`)
 
-`coord.ts` registers two V2 custom tools implemented NATIVELY in TypeScript, so a
-session posts the canonical coordination comment and waits on GitHub without
-hand-writing the footer:
+`coord.ts` registers three V2 custom tools implemented NATIVELY in TypeScript, so a
+session posts the canonical coordination comment, ends a PR body with its session
+footer, and waits on GitHub without hand-writing the footer:
 
 - **`coord_comment`** — builds the verb-labelled coordination comment (the closed verb
   set and the canonical two-line identity footer are the `AGENTS.md` contract, not this
   file's) and POSTs it directly through the GitHub REST API; it can `assign` the posting
   account (a CLAIM).
+- **`coord_footer`** — returns the two-line session footer for THIS session (the
+  `Agent:` line with the live session id, then the `Assisted-by:` trailer) to end a PR
+  body, an issue or a comment with; it posts nothing.
 - **`coord_watch`** — a bounded, session-invoked one-shot wait
   (`events`/`timeout`/`stallmin`) that polls the GitHub API NATIVELY and returns the
   **ARM report** (the baseline it armed on) plus the wake line. The BACKGROUND

@@ -194,7 +194,7 @@ if (mod) {
   });
   eq(
     built,
-    "STATUS\n\nhello\n\n*Agent: `slug-x` · session `ses_x`*\n*Assisted-by: OpenCode DeepSeek V4.1 Flash (documentation reviewed)*",
+    "STATUS\n\nhello\n\n*Agent: `slug-x` · OpenCode session `ses_x`*\n*Assisted-by: OpenCode DeepSeek V4.1 Flash (documentation reviewed)*",
     "buildComment matches coord.sh byte-for-byte (verb, body, Agent: FIRST, Assisted-by: LAST)",
   );
   ok(
@@ -390,7 +390,22 @@ if (mod) {
         session: { hook: async () => ({}) },
       };
       await plugin.setup(ctx);
-      ok(!!tools.coord_comment && !!tools.coord_watch, "setup registers coord_comment + coord_watch");
+      ok(!!tools.coord_comment && !!tools.coord_watch && !!tools.coord_footer, "setup registers coord_comment + coord_footer + coord_watch");
+
+      // coord_footer: the live session id fills the session line, the harness defaults to
+      // OpenCode, a parent slug names a subagent, and a missing field is refused by name.
+      const ftr = await tools.coord_footer.execute(
+        { agent: "slug-x", model: "M", confidence: "documentation reviewed" },
+        { sessionID: "ses_live1" },
+      );
+      eq(ftr.content, "*Agent: `slug-x` · OpenCode session `ses_live1`*\n*Assisted-by: OpenCode M (documentation reviewed)*", "coord_footer returns the session footer for the live session");
+      const ftrSub = await tools.coord_footer.execute(
+        { agent: "w", parent: "lead", model: "M", confidence: "documentation reviewed" },
+        { sessionID: "ses_live1" },
+      );
+      ok(/^\*Agent: `w` \(subagent of `lead`\) · OpenCode session `ses_live1`\*\n/.test(ftrSub.content), "coord_footer names the parent of a subagent");
+      const ftrMissing = await tools.coord_footer.execute({ agent: "slug-x", model: "M", confidence: "documentation reviewed" }, {});
+      ok(/coord_footer: missing --session/.test(ftrMissing.content), "coord_footer refuses a footer with no session id");
 
       const dry = await tools.coord_comment.execute({
         verb: "handing_over", item: "acme/widget#1", dryRun: true,
@@ -506,8 +521,13 @@ if (mod) {
     ].filter(Boolean);
     const shellCoord = shellCandidates.find((p) => existsSync(p));
     const { buildComment: buildC, canonicalVerb: canonV } = mod;
+    // A coord.sh that predates the session footer (opencharly/opencharly#1119) writes the
+    // older `Agent:` line, so comparing it would fail on the PIN, not on this plugin.
+    const predatesFooter = shellCoord && !/--footer/.test(run("bash", [shellCoord, "--help"]).stdout ?? "");
     if (!shellCoord) {
       console.log("  SKIP  shell-family comparison: no marketplace/scripts/coord.sh present (never depends on the pin)");
+    } else if (predatesFooter) {
+      console.log(`  SKIP  shell-family comparison: ${shellCoord} predates the session footer (no --footer; never depends on the pin)`);
     } else {
       const idc = { agent: "slug-x", session: "ses_x", harness: "OpenCode", model: "M", confidence: "documentation reviewed" };
       const shellComment = (verb, body) => {
@@ -518,6 +538,14 @@ if (mod) {
       for (const [verb, body] of [["STATUS", "hi"], ["handing_over", undefined], ["taking over", "x"], ["WAITING", "x"], ["HOLDING", "x"], ["CLEARED", "x"]]) {
         const canon = canonV(verb);
         eq(shellComment(verb, body), `${buildC(canon, body, idc)}\n`, `shell coord.sh vs TS buildComment: '${verb}' is byte-identical`);
+      }
+      // The footer alone: `coord.sh --footer` vs the TS buildFooter, both with and without a parent.
+      const { buildFooter: buildF } = mod;
+      for (const parent of [undefined, "lead"]) {
+        const args = [shellCoord, "--footer", "--agent", idc.agent, "--session", idc.session, "--harness", idc.harness, "--model", idc.model, "--confidence", idc.confidence];
+        if (parent) args.push("--parent", parent);
+        const sh = run("bash", args);
+        eq(sh.stdout ?? "", `${buildF(idc, parent)}\n`, `shell coord.sh --footer vs TS buildFooter (parent=${parent ?? "none"}) is byte-identical`);
       }
     }
   }
@@ -645,7 +673,7 @@ if (process.env.LIVE_OPENCODE === "1") {
         ok(true, "real opencode: coord_comment POSTed through the REAL TypeScript path (local capture)");
         const parsed = JSON.parse(post.body);
         ok(/^STATUS/.test(parsed.body), "real opencode: the comment body starts with the verb label");
-        ok(/\*Agent: `coord-live` · session `ses_[A-Za-z0-9]+`\*/.test(parsed.body), "real opencode: the Agent: line carries the slug + live session");
+        ok(/\*Agent: `coord-live` · OpenCode session `ses_[A-Za-z0-9]+`\*/.test(parsed.body), "real opencode: the Agent: line carries the slug, the harness + live session");
         ok(/\*Assisted-by: OpenCode DeepSeek V4\.1 Flash \(documentation reviewed\)\*/.test(parsed.body), "real opencode: the Assisted-by: trailer is canonical");
         ok(parsed.body.indexOf("*Agent:") < parsed.body.indexOf("*Assisted-by:"), "real opencode: canonical footer order (Agent: BEFORE Assisted-by:)");
       } else {
