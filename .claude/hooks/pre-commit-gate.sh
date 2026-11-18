@@ -298,7 +298,7 @@ def lint_staged_go(repo):
     # go.work) must lint with GOWORK=off or golangci-lint fails typechecking
     # ("does not contain modules listed in go.work").
     workspace_members = workspace_member_roots(repo)
-    workspace_directives = go_directives(os.path.join(os.path.abspath(repo), "go.work"))
+    workspace_directives = go_directives(os.path.join(os.path.abspath(repo or os.getcwd()), "go.work"))
     roots = sorted(touched_go_modules(repo))
     if not roots:
         return
