@@ -408,7 +408,7 @@ fi
 # table, its head, its counts against the diff). Neither reads one CLAIM against
 # another: a body can pass both and still say a thing the diff contradicts.
 #
-# This leg is `scripts/check-body-removed-identifiers.mjs`, whose ten arms are already
+# This leg is `scripts/check-body-removed-identifiers.mjs`, whose eleven arms are already
 # asserted by the self-test step in the `verify` task — but which had NO CALLER that
 # ran it on a real body. Measured over five successors of opencharly/opencharly#1088
 # ("TODO.md's re-scope"), FIFTEEN review rounds were blocked, and not one was a defect

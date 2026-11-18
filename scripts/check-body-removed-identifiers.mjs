@@ -52,7 +52,15 @@ const ACCEPTS = [
   "replaced",
 ];
 
-const NUMBER_WORDS = { three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
+// Every count below TWELVE is spelled out somewhere in this repo's prose, and the map must
+// cover what it can read: 'eleven' was missing and the gate could not see the very count this
+// file grew to. A word absent from this map is a stated number the gate silently ignores -- the
+// same class as the zero that cannot be distinguished from a search that did not run.
+const NUMBER_WORDS = {
+  one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
+  eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16,
+  seventeen: 17, eighteen: 18, nineteen: 19, twenty: 20,
+};
 
 // Identifiers too generic to check: a rename of `main` or `err` would fire on every sentence.
 const IGNORE = new Set([
@@ -215,6 +223,20 @@ function buildArms() {
   const declared = declaredArmOrder();
   const priorLabels = arms.map((a) => a.label);
   const missing = priorLabels.filter((l) => !declared.includes(l));
+  // THE SPELLED-NUMBER ARM. NUMBER_WORDS is the vocabulary a stated count can be written in, and
+  // the regex that reads it must be DERIVED from it. Measured: the map gained `eleven` while the
+  // regex still said `three|...|ten`, so the gate could not read the count this file grew to.
+  // This arm states ELEVEN and pastes FIVE; a gate that cannot spell eleven passes it.
+  const spelledBody = "Eleven arms, both directions.\n\n```console\n$ x\n  ok    a\n  ok    b\n" +
+    "check-body-removed-identifiers --self-test: OK — 5/5 arms discriminate\n```\n";
+  const spelledFindings = scanCounts(spelledBody);
+  arms.push({
+    label: "a SPELLED count above ten that contradicts the pasted N/M",
+    verdict: "FAIL",
+    ok: spelledFindings.some((f) => /states 11 arms/.test(f)),
+    findings: [],
+  });
+
   arms.push({
     label: "the production order reader returns every arm label, in source order",
     verdict: "pass",
@@ -318,7 +340,12 @@ function scanCounts(bodyText) {
   // half does not — it reads the file. Returning early skipped that half entirely, which is how the
   // self-test's own line-count arm first failed.
   const claimed = [];
-  for (const m of unquoted.matchAll(/\b(\d+|three|four|five|six|seven|eight|nine|ten)\b[^.\n]{0,15}\barms\b/gi)) {
+  // The alternation is DERIVED from NUMBER_WORDS, not retyped beside it. Measured: the map gained
+// `eleven` while this regex still said `three|...|ten`, so the gate could not read the very count
+// this file grew to -- the map and the pattern were two copies of one vocabulary, and the copy
+// that mattered was the one nobody looked at.
+  const numberAlt = Object.keys(NUMBER_WORDS).join("|");
+  for (const m of unquoted.matchAll(new RegExp(`\\b(\\d+|${numberAlt})\\b[^.\\n]{0,15}\\barms\\b`, "gi"))) {
     const raw = m[1].toLowerCase();
     const n = NUMBER_WORDS[raw] ?? Number(raw);
     if (Number.isFinite(n)) claimed.push(n);
