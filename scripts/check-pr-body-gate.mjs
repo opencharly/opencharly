@@ -221,6 +221,7 @@ $ true
 ## Change classification
 Test fixture, not a real change.
 
+*Agent: \`lead\` · DeepSeek Harness session \`fixture000000000000\`*
 *Assisted-by: DeepSeek Harness ollama-cloud/deepseek-v4.1-flash (documentation reviewed)*
 `;
 
