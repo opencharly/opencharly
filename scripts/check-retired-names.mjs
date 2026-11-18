@@ -6,10 +6,10 @@
 // the change that replaces it — "no compatibility file remains", enforced by a gate and not
 // by prose. TODO 14.2's remedy names the shape: a retired-name scan with a COMMITTED key set.
 //
-// WHY A CENSUS, NOT A 142-ROW ALLOWLIST. The rule is violated today — `(compat|legacy)` in
-// non-test Go is 11 sites in charly, 69 in sdk and 62 in spec at the pin this baseline was
-// generated from — so a hard gate would land red on day one and be waived wholesale. The
-// census freezes exactly those sites, per FILE and with an EXACT count, and fails THREE ways:
+// WHY A CENSUS, NOT A 142-ROW ALLOWLIST. The rule is violated today: the committed
+// `design/retired-names.tsv` records 12 real code sites in 5 files (charly 2, sdk 10, spec 0)
+// at the pins named below — so a hard gate would land red on day one and be waived wholesale.
+// The census freezes exactly those sites, per FILE and with an EXACT count, and fails THREE ways:
 //   1. a file carrying a retired name with no baseline row (a NEW shim, including a new file);
 //   2. a file carrying MORE sites than its row (the shim grew);
 //   3. a baseline row whose site is GONE (the row must be lowered — the census reaches zero).
