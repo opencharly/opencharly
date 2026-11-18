@@ -201,6 +201,32 @@ function buildArms() {
     findings: [],
   });
 
+  // THE PRODUCTION-PATH ARM. The order arm above proves `hasOutOfOrderSelfTest` discriminates; it
+  // does NOT prove that `runCheck` feeds it the right array. Measured: `declaredArmOrder()` once
+  // read only the `arms.push({label:})` form and silently captured five of ten labels, so the
+  // SHIPPED order check compared arms 6-10 and passed a body with arms 1-6 swapped -- while every
+  // self-test arm stayed green, because the arm built its labels locally. This arm tests the
+  // FUNCTION rather than the fixture: the production reader must return every arm's label, in
+  // source order, from BOTH declaration forms.
+  // The comparison is against the labels that exist BEFORE this arm is pushed: the arm cannot
+  // assert its own label, because `declaredArmOrder()` reads them from SOURCE and this arm is in
+  // the source it is reading. (Measured: the first version compared against `arms` AFTER the push
+  // and failed -- the arm was off by itself.)
+  const declared = declaredArmOrder();
+  const priorLabels = arms.map((a) => a.label);
+  const missing = priorLabels.filter((l) => !declared.includes(l));
+  arms.push({
+    label: "the production order reader returns every arm label, in source order",
+    verdict: "pass",
+    ok:
+      missing.length === 0 &&
+      // ...and in SOURCE ORDER, not merely present: the shipped check compares positions.
+      declared
+        .filter((l) => priorLabels.includes(l))
+        .every((l, i) => priorLabels.indexOf(l) === i),
+    findings: [],
+  });
+
   arms.push({
     label: "a stated line count that contradicts the file",
     verdict: "FAIL",
