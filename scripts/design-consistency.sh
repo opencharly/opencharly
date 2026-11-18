@@ -406,13 +406,26 @@ shape() {
 			}
 			return n - 1
 		}
+		# code_pipe(line) — is there an UNESCAPED `|` between BACKTICKS on this row? That is the
+		# remedy case: a `|` is a cell separator in a markdown table whether or not it sits inside
+		# a code span, so a CUE bottom literal written `_|_` splits the row; the escape is `_\|_`.
+		# The check keeps its judgement and names the fix, so a finding is actionable.
+		function code_pipe(line,   i,c,inspan) {
+			inspan = 0
+			for (i = 1; i <= length(line); i++) {
+				c = substr(line, i, 1)
+				if (c == "`") { inspan = !inspan; continue }
+				if (inspan && c == "|" && substr(line, i - 1 > 0 ? i - 1 : 1, 1) != "\\") return 1
+			}
+			return 0
+		}
 		/^\|/ {
 			if (!inrow) { hdr = cells($0); inrow = 1 }
 			else {
 				if (cells($0) != hdr)
-					printf "FAIL %s:%d: a table row has %d cells where its table has %d\n", FILE, FNR, cells($0), hdr
+					printf "FAIL %s:%d: a table row has %d cells where its table has %d%s\n", FILENAME, FNR, cells($0), hdr, (code_pipe($0) ? " — a `|` inside a code span is STILL a cell separator; escape it as `\\|` (the CUE bottom literal `_\\|_` is the common case)" : "")
 				if (substr($0, length($0), 1) != "|")
-					printf "FAIL %s:%d: a table row does not end with a `|`\n", FILE, FNR
+					printf "FAIL %s:%d: a table row does not end with a `|`\n", FILENAME, FNR
 			}
 			next
 		}
