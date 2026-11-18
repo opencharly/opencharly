@@ -54,8 +54,16 @@ This is why the wave plan is ordered as it is:
 | **DOCS** | 18 | umbrella prose | documentation-only | non-runtime standards | **0** |
 | **CHARLY** | ~29 (sections 5, 6, 13) | `charly` + plugins | `charly` Go code / config | pre-flight + **ONE bed by kind** | **1 per PR** |
 
-**98 of the 93 open rows ride five waves at ZERO bed runs** — not as a shortcut, but because the
-contract says a library module has no bed venue at all.
+**98 of the 120 rows the wave plan covers need NO bed at all** — not as a shortcut, but because the contract says a library module has no bed venue. **Three populations are in play here and they must not be compared with each other:**
+
+| population | count | how it was produced |
+|---|---|---|
+| rows in `TODO.md` | **147** | `git show origin/main:TODO.md | grep -cE '^\| [0-9]+\.[0-9]+ \|'` |
+| rows the census measured | **125** | 9 `done` + 20 `corrected` + 3 `reproducing` + 93 `open` — the four groups sum to the measured set |
+| rows the wave plan covers | **120** | sections 2 (27) + 3 (43) + 7 (6) + 10 (3) + 12 (15) + 14 (4) = 98 at **zero beds**, plus 5 (13) + 6 (9) = 22 needing **one bed per substrate** |
+| rows no wave covers | **27** | sections 0 (4) + 1 (2) + 4 (6) + 8 (4) + 9 (2) + 11 (2) + 13 (7) — 120 + 27 = 147 |
+
+**The census's 93 `open` rows are a SUBSET of the 120 the waves cover, not equal to it**: coverage is by *section*, and a section holds done, corrected and open rows alike. An earlier version of this file compared the zero-bed wave total against the census open-row count and produced a figure LARGER than the population it claimed to be a part of. That is the same self-contradictory-count defect this document exists to prevent, committed in the document itself; **the numbers above are each produced by their own command, and none is derived from another.**
 
 ## The premise you must PROVE, not assume
 
@@ -74,3 +82,24 @@ makes the premise a false negative.
 **A change whose behaviour is observable only at a CONSUMER's live boundary names the consumer PR
 running that bed — the bed rides the consumer change, never the library PR.** Producer → consumer
 order. A library PR never waits on a bed it cannot host.
+
+## Three rules earned the hard way, which bind every wave
+
+**1. An identifier comes from the command that produced it.** A full 40-character SHA comes from `git rev-parse`, never from an eight-character prefix completed by expectation; an issue number comes from the API's response, never from the shape `#1NNN`. Measured twice in one session: a hand-completed SHA answered `422 No commit found`, and a guessed issue number was five off the one the API returned. **Both were caught by the machine and neither was argued with — which is the argument for the habit, not for the principle.**
+
+**2. A zero needs the control that would have found the word — in the repos you did not think to look at.** A `grep` scoped to `schema/` returning 0 is a true statement about `schema/`, not about the tree. The form that means something:
+
+```console
+$ git grep -n '<name>' HEAD -- . ':!CHANGELOG' | wc -l      # gone from this repo — necessary
+$ git grep -n '<name>' HEAD~1 -- . ':!CHANGELOG' | wc -l    # the control: what it WOULD have found
+```
+
+**3. A deletion's proof is the absence of READERS, not the absence of the name.** `spec` is not the world. A cutover that breaks at a distance — in a repo the PR never touched, on the consumer's next pin bump — has still broken. Before deleting, sweep the CONSUMERS by name:
+
+```console
+$ git -C <every consumer repo> grep -n '<the name>' origin/main
+```
+
+**And the sharper form, which cost a withdrawn PR:** *the thing that would have stopped you was inside the diff.* The comment that was deleted contained the reason the deletion was wrong. **Prose that explains why a thing exists is load-bearing, so a change that deletes it owes an argument, not a movement.**
+
+**And the methodology that produced the session's best find:** *write the control first, then let it tell you what the row is.* A lockstep test written before the row's disposition was decided found two fields the runtime had been persisting and the validation schema had never checked. **The row was not a documentation row, and only the control could have said so.**
