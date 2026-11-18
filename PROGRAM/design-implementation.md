@@ -64,12 +64,15 @@ written under `2026.320.10xx` (UTC calver). Building, not yet completing.
 ```console
 $ ./charly/bin/charly box validate
 charly box validate: OK -- checked 610 candies, 198 boxes, 7 distros, 7 builders; 0 warnings, 0 errors
+```
 
 **That count is a MATERIALIZED-tree count, and the next measurement in this ledger reads lower.** On 2026-11-18 the
 same command on a SESSION WORKTREE printed `553 candies, 188 boxes, 6 distros`. The delta is not a regression:
 `charly box validate` walks the submodules that are CHECKED OUT, and Part II #2's light tree materializes only the
 derived working set — so a worktree sees fewer candies than the full clone and both numbers are honest about the
 tree they ran on. **Any `box validate` figure in this ledger names the tree it ran on, or it is not a measurement.**
+
+```console
 $ bash scripts/design-check.sh
 design-check: all controls pass
 ```
@@ -3571,9 +3574,11 @@ prove it, it is decomposed before dispatch, never landed as a clean slice plus a
 | of which DISTINCT ids | **44** | `len(set(ids))` |
 | packages carrying a SECOND row | **4** (`P01`, `P05`, `P07`, `P26`) | the ids that repeat |
 
-**So 48 rows describe 44 packages**, because the four whose state moved off `planned` carry a second row
-recording the landing beside the package row. Of the 44 package rows, **42 still read `planned`** and 2
-have moved off it — which is 44, and was compared against 48 in an earlier draft. A `planned` cell means exactly that — the package has not been dispatched, so the row
+**So 48 rows describe 44 packages**, because four packages carry a second row recording a landing beside the
+package row. **Two of those four moved off `planned`** (`P01`, `P26`); **`P05` and `P07` carry dated-section
+landing records, which are not package-row state changes at all.** Of the 44 package rows, **42 still read
+`planned`** and 2 have moved off it — which is 44, and was compared against 48 in an earlier draft that also
+said "the four whose state moved off `planned`", contradicting its own 42. A `planned` cell means exactly that — the package has not been dispatched, so the row
 carries no verdict and no command. **The evidence for what HAS landed lives in the dated sections** (§1a–§4q):
 §1i records P05 merged, §1q P06's first two legs, §2h P09, §2m P07's four of six, and the P26 row records unit 1.
 Only P01 and P26 carry a state that has moved off `planned`. **Consolidating those section verdicts back into the
