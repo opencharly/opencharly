@@ -139,6 +139,7 @@ committed rulebook (`action-review/charly.yml`) and the live `AI_REVIEW_PROMPT` 
 | R8 | Live services run live or skip visibly, never mocked. | R8 | `/charly-internals:strict-policy` |
 | R9 | The binary was rebuilt, `charly version` matches the source, and new runtime OS dependencies are in `packaging:`. | R9 | `charly/AGENTS.md` |
 | R10 | `disposable: true` targets only, a fresh rebuild, zero warnings, and a coherent bed summary. | R10 | `/charly-check:check` |
+| R11 | The change conforms to the DESIGN requirements it touches and names their D-ids; a DESIGN amendment carries the design-check output and a maintainer sign-off. | R11 | `/charly-internals:design` |
 | HC | One cutover per PR: one squash on `main`, one appended commit per round, no deferred work left inside its scope. | [Hard Cutover](#hard-cutover-by-default) | `/charly-internals:cutover-policy` |
 | PIL | RDD, ADE and SDD: high-risk proof, the candy `plan:`, CUE-first. | RDD, ADE, SDD | `/charly-internals:strict-policy`, `/charly-check:check`, `/charly-internals:go` |
 | CONC | Concurrency is proven under load. The forbidden-framing catalog is refused. | R1, R7 | `/charly-internals:strict-policy` |

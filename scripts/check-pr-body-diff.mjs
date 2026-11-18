@@ -1562,6 +1562,7 @@ ${fence}
 - **R8 — live or skip:** fixture.
 - **R9 — binary equals source:** fixture.
 - **R10 — fresh disposable proof:** fixture.
+- **R11 — conform to DESIGN:** fixture.
 
 ## Change classification
 ${claim || "Test fixture, not a real change."}

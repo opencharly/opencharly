@@ -206,16 +206,11 @@ spec/schema/00_common.cue	union	{#Op, "agent-run": string & !="", run?: _|_, che
 spec/schema/00_common.cue	absence	{#Op, "agent-check": string & !="", run?: _|_, check?: _|_, "agent-run"?: _|_, include?: _|_, venue?: _|_, intent_do?: _|_} |	1
 spec/schema/00_common.cue	union	{#Op, "agent-check": string & !="", run?: _|_, check?: _|_, "agent-run"?: _|_, include?: _|_, venue?: _|_, intent_do?: _|_} |	1
 spec/schema/00_common.cue	absence	{#Op, include: string & !="", run?: _|_, check?: _|_, "agent-run"?: _|_, "agent-check"?: _|_, venue?: _|_, intent_do?: _|_} @go(-)	1
-spec/schema/00_common.cue	open	plugin_input?: {...} @go(PluginInput,type=map[string]any)	1
-spec/schema/00_common.cue	union	extract?: "tar.gz" | "tar.xz" | "tar.zst" | "zip" | "none" | "sh" | ""	1
 spec/schema/00_common.cue	union	#MatchOpMap: {equals: _} | {not_equals: _} | {contains: _} | {not_contains: _} | {matches: _} | {not_matches: _} | {lt: _} | {le: _} | {gt: _} | {ge: _}	1
 spec/schema/00_common.cue	union	#Matcher: (string | bool | number | #MatchOpMap) @go(-)	1
 spec/schema/00_common.cue	union	#MatcherList: (#Matcher | [...#Matcher]) @go(-)	1
 spec/schema/00_common.cue	union	#StrVal: string | number | bool	1
-spec/schema/00_common.cue	union	cgroupns?: "host" | "private" | "" @go(CgroupNS)	1
-spec/schema/00_common.cue	union	ipc_mode?: "host" | "private" | "shareable" | "" @go(IpcMode)	1
 spec/schema/00_common.cue	union	#PackageItem: ((string & !="") | {	1
-spec/schema/00_common.cue	open	#RepoBlock: {	1
 spec/schema/agent_control.cue	open	params?: {...} @go(Params,type=map[string]any)	1
 spec/schema/agent_control.cue	open	payload?: {...} @go(Payload,type=map[string]any)	1
 spec/schema/agent_control.cue	open	readiness?: {...} @go(Readiness,type=map[string]any)	1
@@ -262,7 +257,6 @@ spec/schema/docs.cue	close	#DocsLanding: close({	1
 spec/schema/docs.cue	close	#DocsGates: close({	1
 spec/schema/hook.cue	close	#Hook: close({	1
 spec/schema/init.cue	union	unit_options?: {[string]: {[string]: string | [...string]}} @go(UnitOptions)	1
-spec/schema/instrument.cue	open	plugin_input?: {...} @go(PluginInput,type=map[string]any)	2
 spec/schema/instrument.cue	union	phase?: *["live"] | [...#Phase] @go(Phase,type=[]string)	1
 spec/schema/instrument.cue	open	#EvidenceSegment: {	1
 spec/schema/instrument.cue	open	validators?: {...}	1
