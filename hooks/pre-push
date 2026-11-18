@@ -58,7 +58,7 @@
 # below IS that reconciliation: the body the push publishes MUST be the body GitHub
 # holds, or the body is not the changelog the reviewer reads.
 #
-# SKIP COUNTS: hook=11 live-body=6   (machine-checked by scripts/check-pr-body-gate.mjs)
+# SKIP COUNTS: hook=13 live-body=6   (machine-checked by scripts/check-pr-body-gate.mjs)
 #
 # EVERY SKIP IS VISIBLE AND NEVER FAIL-CLOSED, the shape pre-commit-gate.sh already uses
 # for a missing golangci-lint, and every one of them carries a marker the gate COUNTS —
@@ -399,6 +399,40 @@ else
     echo "pre-push: BLOCKED — the PR body does not describe the diff it is published with." >&2
     echo "pre-push: the body IS the changelog and the validator reads it live; fix EVERY finding" >&2
     echo "pre-push: and push again. Nothing about the diff's quality is judged here." >&2
+    exit 1
+  fi
+fi
+
+# ── the body's CLAIMS against each other ────────────────────────────────────────────
+# The two legs above read the body's FORM (its sections) and its STRUCTURE (its file
+# table, its head, its counts against the diff). Neither reads one CLAIM against
+# another: a body can pass both and still say a thing the diff contradicts.
+#
+# This leg is `scripts/check-body-removed-identifiers.mjs`, whose arms are already
+# asserted by the self-test step in the `verify` task — but which had NO CALLER that
+# ran it on a real body. Measured over five successors of opencharly/opencharly#1088
+# ("TODO.md's re-scope"), FIFTEEN review rounds were blocked, and not one was a defect
+# in the rows: every one was a claim in the BODY that the diff or the file refused.
+#
+# It reads the same $BODY the two legs above judge, and it skips visibly when node or
+# the script is absent, exactly as they do.
+CLAIMS="$ROOT/scripts/check-body-removed-identifiers.mjs"
+if [ ! -f "$CLAIMS" ]; then
+  echo "pre-push: [pre-push-skip] $CLAIMS is absent — body claim check SKIPPED." >&2
+elif ! command -v node >/dev/null 2>&1; then
+  echo "pre-push: [pre-push-skip] node not found — body claim check SKIPPED." >&2
+else
+  echo "pre-push: checking the PR body's claims at $CLAIMS ..."
+  # --base is the BASE the diff is taken against, NOT the head. The reconciler's
+  # RECONCILE_HEAD is the published HEAD and is right for --head; passing it here made the
+  # gate diff the head against itself, see an empty diff, and pass every body -- which
+  # the fired assertion caught before the push.
+  if node "$CLAIMS" --repo "$ROOT" --body "$BODY" --base "${CLAIMS_BASE:-origin/main}"; then
+    echo "pre-push: OK (no claim in the body contradicts the tree or another claim)"
+  else
+    echo "pre-push: BLOCKED — the PR body makes a claim the tree does not support." >&2
+    echo "pre-push: a claim with no command beside it is a claim to delete; fix the body," >&2
+    echo "pre-push: not the gate, and push again." >&2
     exit 1
   fi
 fi
