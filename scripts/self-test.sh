@@ -42,6 +42,7 @@ done
 GATES=(
   scripts/check-code-rules.mjs
   scripts/check-retired-names.mjs
+  scripts/check-live-boundaries.mjs
 )
 
 for gate in "${GATES[@]}"; do
