@@ -223,6 +223,18 @@ function buildArms() {
   const declared = declaredArmOrder();
   const priorLabels = arms.map((a) => a.label);
   const missing = priorLabels.filter((l) => !declared.includes(l));
+  // THE SOURCE-COUNT ARM. A body that states an arm count and pastes NO N/M of its own is judged
+  // against the arms the SCRIPT declares. Measured: this body said ten, then eleven, then twelve for
+  // a script that grew 10 -> 11 -> 12, and every drift was caught by a reviewer -- because the only
+  // check compared the stated count against the PASTE, and a body can paste a number it also states.
+  const noPasteBody = "The script has 4 arms.\n\nNo pasted output here at all.\n";
+  arms.push({
+    label: "a stated arm count that contradicts the script's own source",
+    verdict: "FAIL",
+    ok: scanCounts(noPasteBody).some((f) => /contradicts its own source/.test(f)),
+    findings: [],
+  });
+
   // THE SPELLED-NUMBER ARM. NUMBER_WORDS is the vocabulary a stated count can be written in, and
   // the regex that reads it must be DERIVED from it. Measured: the map gained `eleven` while the
   // regex still said `three|...|ten`, so the gate could not read the count this file grew to.
@@ -350,6 +362,26 @@ function scanCounts(bodyText) {
     const n = NUMBER_WORDS[raw] ?? Number(raw);
     if (Number.isFinite(n)) claimed.push(n);
   }
+  // THE SOURCE COUNT. A body's stated arm count must match the arms the SCRIPT has, not only the N/M
+  // it pastes beside it. Measured: this session's prose said ten, then eleven, then twelve for a
+  // script that grew 10 -> 11 -> 12, and every drift was caught by a reviewer rather than by a check
+  // -- because arms 7/10 compared the stated count against the PASTE, and a body can paste a number
+  // it also states. `declaredArmOrder()` is the source truth; a stated count that contradicts it is
+  // wrong however consistently the body repeats itself.
+  // It fires ONLY when the body pastes no N/M of its own. A body that pastes one is judged against
+  // the paste -- that is the authority, and the two checks would otherwise double-report, or worse,
+  // contradict: a fixture that states 6 and pastes 6/6 is self-consistent and correct even though
+  // this script has twelve arms, because it is a FIXTURE, not a description of this script.
+  const sourceArms = pasted.length === 0 ? declaredArmOrder().length : 0;
+  for (const n of claimed) {
+    if (sourceArms > 0 && n !== sourceArms) {
+      out.push(
+        `the body states ${n} arms, and the script declares ${sourceArms} — ` +
+          `a count that contradicts its own source.`,
+      );
+    }
+  }
+
   for (const n of claimed) {
     if (pasted.length > 0 && !pasted.includes(n)) {
       out.push(
@@ -421,7 +453,14 @@ function declaredArmOrder() {
   const out = [];
   for (const m of src.matchAll(/(?:expect\(\s*"([^"]+)",)|(?:label: "([^"]+)")/g)) {
     const label = m[1] ?? m[2];
-    if (label) out.push(label);
+    // A label is PROSE: it carries a space and no regex metacharacters. The pattern above also
+    // matches its own source text -- `label: "..."` inside this very regex, and the `"([^` of an
+    // adjacent declaration -- and those are five-character fragments, not arms. Measured: without
+    // this filter the reader returned 15 where buildArms() pushes 12, and the source-count check
+    // compared a body against a phantom.
+    if (label && label.length > 12 && /\s/.test(label) && !/[()\[\]{}|\\^$*+?]/.test(label)) {
+      out.push(label);
+    }
   }
   // No filtering happens here, deliberately. The caller (`hasOutOfOrderSelfTest`) intersects this
   // against the labels it actually sees in a fence, and arm 11 asserts that this function returns
