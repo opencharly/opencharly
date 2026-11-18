@@ -641,7 +641,7 @@ verify:
       - check: the nested-submodule step above — a MATERIALIZED charly without its nested level FAILS, an uninitialized charly is a NOTICE, a `+`/`U` drift still FAILS, an UNREADABLE nested status FAILS (fixtures)
         command: node scripts/check-verify-submodules.mjs
         context: [runtime]
-      - check: the branch-audit step above — every branch= is compared against the remote default, and EVERY mismatch is named (fixtures)
+      - check: the branch-audit step above — every branch= is either the remote default or a branch the remote SERVES, and EVERY mismatch is named (fixtures)
         command: node scripts/check-verify-branch-audit.mjs
         context: [runtime]
       - check: the branch-audit gate discriminates — each mutation turns it RED (fixtures)
