@@ -423,8 +423,11 @@ function declaredArmOrder() {
     const label = m[1] ?? m[2];
     if (label) out.push(label);
   }
-  // The helper's own doc comment names `expect("label", …)` as a string; exclude any label that is
-  // not one the self-test actually prints by intersecting with the printed labels at call time.
+  // No filtering happens here, deliberately. The caller (`hasOutOfOrderSelfTest`) intersects this
+  // against the labels it actually sees in a fence, and arm 11 asserts that this function returns
+  // EVERY prior arm's label in source order -- so a filter here would have to be mirrored there,
+  // and the two would drift. The earlier version of this comment described a filter that was
+  // never written, which is why a review-round note could point at it and be right.
   return out;
 }
 
@@ -534,14 +537,6 @@ if (inapplicable) {
   console.log(
     "check-body-removed-identifiers: the diff removes no identifier — the identifier arm is " +
       "inapplicable; the fence arm ran and found nothing",
-  );
-  process.exit(0);
-}
-
-if (findings.length === 0) {
-  console.log(
-    `check-body-removed-identifiers: OK — ${removed.size} removed identifier(s), none named as if ` +
-      `they still exist`,
   );
   process.exit(0);
 }
