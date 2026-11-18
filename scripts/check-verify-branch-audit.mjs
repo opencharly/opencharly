@@ -77,30 +77,40 @@ function git(args, cwd) {
  */
 function extractStepCommand(yamlPath) {
   const lines = readFileSync(yamlPath, "utf8").split("\n");
-  const stepRe = /^(\s*)-\s*check:\s*every submodule's branch equals its remote default/;
-  const i = lines.findIndex((l) => stepRe.test(l));
-  if (i === -1) return null;
-  const stepIndent = lines[i].match(stepRe)[1].length;
-  const cmdIndent = stepIndent + 2;
-  const cmdRe = new RegExp(`^\\s{${cmdIndent}}command:\\s*\\|\\s*$`);
-  let j = -1;
-  for (let k = i + 1; k < lines.length; k++) {
-    if (lines[k].trim() === "") continue;
-    if (lines[k].match(/^\s*/)[0].length <= stepIndent) break;
-    if (cmdRe.test(lines[k])) {
-      j = k;
-      break;
+  // The step is identified by its MECHANISM -- a `- check:` whose `command:` block
+  // runs git ls-remote -- never by its prose. Matching the description here would
+  // make this extractor a second copy of the message it reads: reword the step and
+  // the self-test would silently stop finding it, then fail claiming the step is
+  // missing. That is the defect that made this function match the description and
+  // then broke when the description stated the rule the code had stopped enforcing.
+  const stepRe = /^(\s*)-\s*check:/;
+  for (let i = 0; i < lines.length; i++) {
+    const m = lines[i].match(stepRe);
+    if (!m) continue;
+    const stepIndent = m[1].length;
+    const cmdIndent = stepIndent + 2;
+    const cmdRe = new RegExp(`^\\s{${cmdIndent}}command:\\s*\\|\\s*$`);
+    let j = -1;
+    for (let k = i + 1; k < lines.length; k++) {
+      if (lines[k].trim() === "") continue;
+      if (lines[k].match(/^\s*/)[0].length <= stepIndent) break;
+      if (cmdRe.test(lines[k])) {
+        j = k;
+        break;
+      }
     }
+    if (j === -1) continue;
+    const body = [];
+    for (let k = j + 1; k < lines.length; k++) {
+      const ind = lines[k].match(/^\s*/)[0].length;
+      if (lines[k].trim() !== "" && ind <= cmdIndent) break;
+      body.push(lines[k].trim() === "" ? "" : lines[k].slice(cmdIndent + 2));
+    }
+    while (body.length && body[body.length - 1] === "") body.pop();
+    const text = body.join("\n") + "\n";
+    if (/\bls-remote\b/.test(text)) return text;
   }
-  if (j === -1) return null;
-  const body = [];
-  for (let k = j + 1; k < lines.length; k++) {
-    const ind = lines[k].match(/^\s*/)[0].length;
-    if (lines[k].trim() !== "" && ind <= cmdIndent) break;
-    body.push(lines[k].trim() === "" ? "" : lines[k].slice(cmdIndent + 2));
-  }
-  while (body.length && body[body.length - 1] === "") body.pop();
-  return body.join("\n") + "\n";
+  return null;
 }
 
 // The step refuses a suspiciously small submodule set, so the fixture declares
@@ -212,7 +222,7 @@ const script = extractStepCommand(join(root, yamlRel));
 
 function check() {
   if (script === null) {
-    fail(`${yamlRel}: the 'every submodule's branch equals its remote default' step (and its command: block) is extractable`);
+    fail(`${yamlRel}: no '- check:' step whose command: block runs git ls-remote is extractable -- the branch-audit step is identified by its MECHANISM, not its description`);
     return;
   }
   for (const f of judge(runCases(script))) fail(f);
