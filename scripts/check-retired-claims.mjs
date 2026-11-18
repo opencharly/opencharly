@@ -298,6 +298,18 @@ const PATTERNS = [
     why: "the retired figure this change introduced for the nested level",
   },
   {
+    pattern: "Agent teams[^\\n]{0,60}?enabled in (?:the\\s+)?committed",
+    instances: [
+      "Agent teams (experimental — enabled in committed settings)",
+      "Agent teams (`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`) are enabled in the\ncommitted `.claude/settings.json` (`env` block).",
+    ],
+    counterInstances: [
+      "## Agent teams (experimental — opt-in per session)",
+      "Agent teams (`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`) are NOT enabled by\nthe umbrella's committed `.claude/settings.json`: it carries no `env` block,",
+    ],
+    why: "the umbrella's committed .claude/settings.json never carried an `env` block enabling agent teams (`git log -S CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS -- .claude/settings.json` is empty); a session opts in itself (opencharly/opencharly#1110)",
+  },
+  {
     pattern: "9[.]0 MB of the 9[.]5 GB",
     instances: ["9.0 MB of the 9.5 GB"],
     counterInstances: [],
