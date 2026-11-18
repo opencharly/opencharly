@@ -128,6 +128,11 @@ function buildFixture(script, opts = {}) {
   git(["commit", "-qm", "seed"], seed);
   const bare = join(base, "remote.git");
   git(["clone", "-q", "--bare", seed, bare], base);
+  // `legacy` exists on the remote but is NOT its default: the case arm E needs, and the shape
+  // pod-ai-toolkit has in the live tree.
+  // `seed` is the SOURCE of the clone, not a clone of it -- it has no `origin` -- so the branch is
+  // created in the bare repo itself, which is where the audit reads from.
+  git(["branch", "-q", "legacy", "main"], bare);
 
   const superDir = join(base, "super");
   mkdirSync(superDir);
@@ -136,6 +141,7 @@ function buildFixture(script, opts = {}) {
   for (const p of PATHS) {
     let branch = "main";
     if (opts.wrong && WRONG.includes(p)) branch = "not-the-default";
+    if (opts.served && p === PATHS[0]) branch = "legacy";
     lines.push(`[submodule "${p}"]`, `\tpath = ${p}`, `\turl = file://${bare}`);
     if (!(opts.noBranch && p === PATHS[0])) lines.push(`\tbranch = ${branch}`);
   }
@@ -153,6 +159,7 @@ function runCases(script) {
     B: buildFixture(script, { wrong: true }),
     C: buildFixture(script, { wrong: true }),
     D: buildFixture(script, { noBranch: true }),
+    E: buildFixture(script, { served: true }),
   };
 }
 
@@ -168,7 +175,8 @@ function judge(cases) {
   const tail = (c) => c.stderr.trim().split("\n").pop();
 
   need("A:status", cases.A.status === 0, `every branch= equal to the remote default must be GREEN (exit ${cases.A.status}): ${tail(cases.A)}`);
-  need("A:ok-line", /branch == remote default for every one/.test(cases.A.stdout), "the step must report its OK line");
+  need("A:ok-line", /every declared branch is either the remote default, or a branch the remote SERVES/.test(cases.A.stdout),
+    "the step must report its OK line, and the line must state the rule the step now enforces");
 
   need("B:status", cases.B.status !== 0, "a branch= that is not the remote default must FAIL");
   need("B:names", /mod-03/.test(cases.B.stderr), `the failing path must be named: ${tail(cases.B)}`);
@@ -186,6 +194,16 @@ function judge(cases) {
   need("D:status", cases.D.status !== 0, "a path with no branch= must FAIL");
   need("D:names", new RegExp(PATHS[0]).test(cases.D.stderr), `the path with no branch= must be named: ${tail(cases.D)}`);
   need("D:missing-branch", /missing branch=/.test(cases.D.stderr), "a path with no branch= must be reported AS a missing branch=, not as a plain mismatch");
+
+  // THE ARM THIS RULE EXISTS FOR. A pinned repo whose default branch moves away from the line the
+  // pin deliberately tracks is not a defect: `branch=` is an INTENT, and an upstream pin is a leaf
+  // judged against the ref it NAMES. pod-ai-toolkit is the live case -- it declares `main` while its
+  // remote defaults to `bootstrap-seed`, and the pinned commit is NOT an ancestor of the default
+  // tip, so re-pointing would drop commits. So: served-but-not-default must be GREEN, and NAMED.
+  // Without this arm the relaxation is UNPROVABLE, and a later simplification back to strict
+  // equality would sail through every other assertion in this file.
+  need("E:status", cases.E.status === 0, `a branch= that is not the default but IS served must be GREEN (exit ${cases.E.status}): ${tail(cases.E)}`);
+  need("E:named", /deliberate, reported, not a failure/.test(cases.E.stderr), `the served non-default branch must be NAMED, not passed silently: ${tail(cases.E)}`);
 
   return found;
 }
@@ -240,7 +258,7 @@ if (argv.includes("--self-test")) {
     ],
     [
       "the mismatch message does not name the path",
-      (s) => s.replace(/echo "\$path: branch=\$branch but remote default is \$shown"/, 'echo "branch mismatch"'),
+      (s) => s.replace(/echo "\$path: branch=\$branch is NOT the remote default \(\$shown\) and the remote does NOT serve it[^"]*"/, 'echo "branch mismatch"'),
       "C:names-all",
     ],
     [
