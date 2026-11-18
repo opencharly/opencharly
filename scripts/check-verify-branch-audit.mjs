@@ -188,7 +188,7 @@ function judge(cases) {
   need("A:ok-line", /every declared branch is either the remote default, or a branch the remote SERVES/.test(cases.A.stdout),
     "the step must report its OK line, and the line must state the rule the step now enforces");
 
-  need("B:status", cases.B.status !== 0, "a branch= that is not the remote default must FAIL");
+  need("B:status", cases.B.status !== 0, "a branch= that is neither the remote default nor a branch the remote SERVES must FAIL");
   need("B:names", /mod-03/.test(cases.B.stderr), `the failing path must be named: ${tail(cases.B)}`);
 
   // The parallel audit cannot stop at the first mismatch without losing the rest,
