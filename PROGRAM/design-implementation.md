@@ -3562,8 +3562,18 @@ what proves the package (usually one R10 bed roster plus the design check); `dep
 package does not start while a dependency is not `landed`. A package is one cutover: if one R10 gate cannot
 prove it, it is decomposed before dispatch, never landed as a clean slice plus a deferral.
 
-**READ THE `state` CELLS AS A WORK LIST, NOT AS VERDICTS.** Measured 2026-11-18: of the 48 package rows, 42
-still read `planned`, and a `planned` cell means exactly that — the package has not been dispatched, so the row
+**READ THE `state` CELLS AS A WORK LIST, NOT AS VERDICTS.** Measured 2026-11-18:
+
+| quantity | count | how it was produced |
+|---|---|---|
+| packages (`P00`–`P43`) | **44** | the ids are contiguous |
+| rows matching `^| P<n> |` in this file | **48** | `re.match` over the file, counted |
+| of which DISTINCT ids | **44** | `len(set(ids))` |
+| packages carrying a SECOND row | **4** (`P01`, `P05`, `P07`, `P26`) | the ids that repeat |
+
+**So 48 rows describe 44 packages**, because the four whose state moved off `planned` carry a second row
+recording the landing beside the package row. Of the 44 package rows, **42 still read `planned`** and 2
+have moved off it — which is 44, and was compared against 48 in an earlier draft. A `planned` cell means exactly that — the package has not been dispatched, so the row
 carries no verdict and no command. **The evidence for what HAS landed lives in the dated sections** (§1a–§4q):
 §1i records P05 merged, §1q P06's first two legs, §2h P09, §2m P07's four of six, and the P26 row records unit 1.
 Only P01 and P26 carry a state that has moved off `planned`. **Consolidating those section verdicts back into the
