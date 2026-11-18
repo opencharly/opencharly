@@ -168,11 +168,15 @@ function run(root, { emitCensus = false } = {}) {
   }
 
   for (const line of info) console.log(`info  ${line}`);
+  // A SKIPPED repo has no opinion about its own census rows. Flagging them STALE would turn a light
+  // tree RED with "delete the row" findings — the exact opposite of skipping visibly — so the sweep
+  // only judges rows belonging to a repo that was actually read.
+  const skippedRepos = new Set(skipped.map((why) => why.split(':')[0]));
   for (const [key] of baseline) {
-    if (!seen.has(key)) {
-      const [repo, path] = key.split('\t');
-      findings.push(`STALE  ${repo}/${path} — census row has no pair any more (delete the row)`);
-    }
+    if (seen.has(key)) continue;
+    const [repo, path] = key.split('\t');
+    if (skippedRepos.has(repo)) continue;
+    findings.push(`STALE  ${repo}/${path} — census row has no pair any more (delete the row)`);
   }
   return { findings, info, skipped };
 }
@@ -273,16 +277,16 @@ if (args.includes('--self-test')) { selfTest(); }
 else {
   const { findings, skipped } = run(root, { emitCensus: args.includes('--emit-census') });
   if (args.includes('--emit-census')) process.exit(0);
-  for (const f of findings) console.error(f);
-  if (findings.length) { console.error(`\ncheck-live-boundaries: ${findings.length} finding(s) — D-CODE-5`); process.exit(1); }
   // A gate that skipped EVERY repo has judged nothing, and a green there is the worst outcome this
   // script can produce: it looks like a pass over a population of zero. R7 says a test that cannot
-  // fail is invalid; a run that examined no file cannot fail. So an all-SKIP run exits non-zero and
-  // says why, rather than printing OK.
+  // fail is invalid; a run that examined no file cannot fail. This runs BEFORE the findings exit,
+  // so the message a reader needs is printed whether or not a stale row also fired.
   if (skipped.length === REPOS.length) {
     for (const why of skipped) console.error(`SKIP ${why}`);
     console.error(`check-live-boundaries: FAIL — every repo SKIPPED (${skipped.length}/${REPOS.length}), so nothing was judged. Run this from the umbrella root with charly, sdk and spec materialized, or with --light if a skip is genuinely intended.`);
     process.exit(1);
   }
+  for (const f of findings) console.error(f);
+  if (findings.length) { console.error(`\ncheck-live-boundaries: ${findings.length} finding(s) — D-CODE-5`); process.exit(1); }
   console.log('check-live-boundaries: OK — no new skip+mock pair, every census row still has its site');
 }
