@@ -183,6 +183,14 @@ strict-policy-skill:
             - "Agent Driven Evaluation (ADE) / `charly box feature run` / `charly check feature run` / `charly feature list/pending/validate` / authoring a candy's `plan:` + `description:` string / the agent grader for `agent-check:` steps"
             - "Engineering-discipline triggers (failure surfaced / dup pattern / ad-hoc fix tempting / \"out of scope\" framing)"
             - "Go code-quality / AGENTS.md-compliance audit / `golangci-lint` / `dupl` / duplication or dead-code check / `.golangci.yml`"
+design-skill:
+    skill:
+        name: design
+        family: internals
+        owner: opencharly-guidance
+        triggers:
+            - "Adding or reshaping a field / shape / kind / verb / capability / mechanism — read the governing DESIGN.md row and DESIGN.cue first (R11)"
+            - "Editing `DESIGN.md` / `DESIGN.cue` / `design/` / citing a `D-<AREA>-<n>` requirement / `charly task design-check` / `scripts/design-check.sh`"
 
 # -----------------------------------------------------------------------------
 # The agent roster — the six `type: agent` definitions that were the
@@ -800,6 +808,12 @@ verify:
       - check: the pi `question` tool is dependency-free, headless-safe, serialized, and wired into .pi/settings.json
         command: node scripts/check-pi-question.mjs
         context: [runtime]
+      - check: the pi `coord_footer` tool, fired, writes this session's footer byte-identical to coord.sh --footer, refuses a blank session, and is wired (opencharly/opencharly#1119)
+        command: node scripts/check-pi-footer.mjs
+        context: [runtime]
+      - check: the pi footer gate discriminates — each mutation turns it RED
+        command: node scripts/check-pi-footer.mjs --self-test
+        context: [runtime]
       - check: the harness-neutral R10 bed watcher classifies exit codes and parses summary.yml (self-test)
         command: bash scripts/check-bed-watch.sh --self-test
         context: [runtime]
@@ -871,6 +885,18 @@ code-rules:
         context: [runtime]
       - check: the gate's self-test arms fire (unlisted, extra, vanished, commented-out, missing-checkout)
         command: node scripts/check-code-rules.mjs --self-test
+        context: [runtime]
+
+retired-names:
+  task:
+    description: Judge every (compat|legacy) site in charly/sdk/spec against the committed census (D-CODE-2), and self-test the gate
+    dir: .
+    plan:
+      - check: every retired-name site is a census row, the counts are exact, and no row is stale, read at each pinned repo's HEAD
+        command: node scripts/check-retired-names.mjs
+        context: [runtime]
+      - check: the gate's self-test arms fire (census, new shim, extra site, vanished site, test file, comment-only, missing-checkout)
+        command: node scripts/check-retired-names.mjs --self-test
         context: [runtime]
 
 # -----------------------------------------------------------------------------

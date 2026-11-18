@@ -171,6 +171,7 @@ node "$ROOT/scripts/check-pr-body-cap.mjs"
 node "$ROOT/scripts/check-pre-commit-gate.mjs"
 node "$ROOT/scripts/check-design-gate.mjs"
 node "$ROOT/scripts/check-code-rules.mjs"
+node "$ROOT/scripts/check-retired-names.mjs"
 node "$ROOT/scripts/check-validator-rule-map.mjs" --no-live
 node "$ROOT/scripts/check-readme-measurements.mjs"
 node "$ROOT/scripts/check-cited-plugin-task-version.mjs"

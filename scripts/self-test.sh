@@ -41,6 +41,7 @@ done
 # gate whose rule silently stopped firing fails HERE, with every commit.
 GATES=(
   scripts/check-code-rules.mjs
+  scripts/check-retired-names.mjs
 )
 
 for gate in "${GATES[@]}"; do

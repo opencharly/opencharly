@@ -8,7 +8,7 @@
 >
 > `DESIGN.md` is normative, `DESIGN.cue` is the single schema copy, `TODO.md` is the work list (146 items,
 > 125 open at 2026-11-13; its `## Status` is the item record). This ledger adds no requirement and restates
-> none: it assigns, orders and records. It is not a rulebook (`AGENTS.md` R0–R10 and the owning skills own the
+> none: it assigns, orders and records. It is not a rulebook (`AGENTS.md` R0–R11 and the owning skills own the
 > rules) and not a calendar (the waves are dependency order, not dates).
 
 ## 0. State, and how a later session resumes cold
@@ -3505,11 +3505,11 @@ leaves none of the three.
 | the north-star protocol (destination, ordered heuristics, anti-patterns, measured state), the IOU register, per-merge measurement, migration-ledger discipline, crossed-ruling reconciliation, brief verification, stop-and-respawn | `/charly-internals:agents` (`references/program-discipline.md`) |
 | topology (×1 orchestrator, ×N teammates, fresh validator per PR), the responsibility matrix, the slot budget, concurrent landing, bidirectional verification | `/charly-internals:agents` (`references/orchestration-model.md`) |
 | the landing lifecycle: `feat/` branch, one push after full validation, fresh `pr-validator`, protected merge, merge-time tag | `/charly-internals:git-workflow` |
-| R0–R10, the acceptance checklist, the Cutover Sizing Law, "producer first" | `AGENTS.md` (Part I and Part II) |
+| R0–R11, the acceptance checklist, the Cutover Sizing Law, "producer first" | `AGENTS.md` (Part I and Part II) |
 | `disposable: true` is the only authorization for an autonomous bed this ledger names | `/charly-internals:disposable`, `/charly-check:check` |
 | the session ledger (the harness todo primitive) and its interruption rule | `/charly-internals:agents` (`references/hooks-and-lifecycle.md`) |
 
-**Authority order when two of them disagree:** `AGENTS.md` R0–R10, then `DESIGN.md` (normative design), then
+**Authority order when two of them disagree:** `AGENTS.md` R0–R11, then `DESIGN.md` (normative design), then
 `DESIGN.cue` (its schema), then `TODO.md` (the work list), then this ledger (the plan). A contradiction *inside*
 `DESIGN.md` is never resolved locally — it is a STOP (§6.2, `D-1`).
 
@@ -3525,7 +3525,7 @@ below name the programme's slots, not new rules.
 | `auditor` | transient | one read-only measurement lane — the four-lane instrument (schema/generation, parsing/validation, protocol/plugins, runtime and CLI) that re-derived `TODO.md` on 2026-11-13; reuse it whenever a row's state is in doubt | writes anything in the repo |
 | `bed-runner` | transient | one `charly check run` roster the Lead scheduled | chooses the roster, or reads a skip as a pass |
 | `rca` | fresh, per anomaly | the R1 root-cause analysis: mechanism, missed control, blast radius, root fix | fixes under analysis |
-| `pr-validator` | fresh, per PR | independent R0–R10 verdict, the squash-merge, the merge-time tag | validates its own work |
+| `pr-validator` | fresh, per PR | independent R0–R11 verdict, the squash-merge, the merge-time tag | validates its own work |
 
 The roles are harness-neutral; only the spawn, message and task-board verbs differ between harnesses, and the
 brief's content does not. A session's own todo ledger — not this file — carries its in-flight items between

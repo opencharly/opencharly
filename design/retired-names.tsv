@@ -1,0 +1,10 @@
+# retired-name census (D-CODE-2) — non-test Go, comment-only lines excluded.
+# Generated at charly@473e0ecf295b sdk@f4085f38f628 spec@545c73a83255 on 2026-11-18 by
+#   node scripts/check-retired-names.mjs --emit-baseline
+# The census only ratchets DOWN: removing a site lowers its row; adding one fails.
+repo	file	count
+charly	charly/layers.go	2
+sdk	deploykit/deploy_file.go	3
+sdk	deploykit/vm_deploy_state.go	2
+sdk	kit/system_info.go	1
+sdk	vmshared/vm_helpers.go	4
