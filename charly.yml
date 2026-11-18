@@ -887,6 +887,18 @@ code-rules:
         command: node scripts/check-code-rules.mjs --self-test
         context: [runtime]
 
+retired-names:
+  task:
+    description: Judge every (compat|legacy) site in charly/sdk/spec against the committed census (D-CODE-2), and self-test the gate
+    dir: .
+    plan:
+      - check: every retired-name site is a census row, the counts are exact, and no row is stale, read at each pinned repo's HEAD
+        command: node scripts/check-retired-names.mjs
+        context: [runtime]
+      - check: the gate's self-test arms fire (census, new shim, extra site, vanished site, test file, comment-only, missing-checkout)
+        command: node scripts/check-retired-names.mjs --self-test
+        context: [runtime]
+
 # -----------------------------------------------------------------------------
 # skills — splice the generated R0 dispatcher from the pinned marketplace.
 # -----------------------------------------------------------------------------
