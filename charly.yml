@@ -856,6 +856,24 @@ design-check:
         context: [runtime]
 
 # -----------------------------------------------------------------------------
+# code-rules — D-CODE-1 (D-LAW-5 in code): every non-test `time.Sleep` in charly,
+# sdk and spec must be an allowlisted, BOUNDED readiness wait — the row's own
+# "readiness-wait allowlist" — read at each pinned repo's HEAD, plus the gate's
+# own arms. The commit gate (hooks/pre-commit) runs the same gate on every commit.
+# -----------------------------------------------------------------------------
+code-rules:
+  task:
+    description: Judge every non-test time.Sleep in charly/sdk/spec against the committed readiness-wait allowlist (D-CODE-1), and self-test the gate
+    dir: .
+    plan:
+      - check: every non-test time.Sleep is an allowlisted bounded readiness wait, read at each pinned repo's HEAD
+        command: node scripts/check-code-rules.mjs
+        context: [runtime]
+      - check: the gate's self-test arms fire (unlisted, extra, vanished, commented-out, missing-checkout)
+        command: node scripts/check-code-rules.mjs --self-test
+        context: [runtime]
+
+# -----------------------------------------------------------------------------
 # skills — splice the generated R0 dispatcher from the pinned marketplace.
 # -----------------------------------------------------------------------------
 skills:
