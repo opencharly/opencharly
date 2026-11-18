@@ -3,7 +3,8 @@
     "./extensions/charly-gates.ts",
     "./extensions/github-pr-status.ts",
     "./extensions/watch.ts",
-    "./extensions/question.ts"
+    "./extensions/question.ts",
+    "./extensions/footer.ts"
   ],
   "packages": [
     "git:github.com/opencharly/marketplace@v2026.278.1917"

@@ -77,11 +77,11 @@ and stop, never retry it there.
 
 ## Coordination (AGENTS.md rules 6–7)
 
-On a contended or blocking scope, every comment and PR body carries `Agent:` FIRST and
-`Assisted-by:` LAST, and a coordination comment opens with one label: `CLAIM` · `OWNING` ·
-`HANDING OVER` · `TAKING OVER` · `WAITING` · `HOLDING` · `CLEARED` · `STATUS` · `RESOLVED`. pi has no
-`coord` tool: post with `gh` (`gh pr comment`, `gh issue comment`); the watcher family
-supplies the wake.
+Every PR body, issue and comment you author ends with the two-line session footer the
+`coord_footer` tool returns (`Agent:` FIRST, naming this pi session's id; `Assisted-by:`
+LAST), and a coordination comment opens with one label: `CLAIM` · `OWNING` ·
+`HANDING OVER` · `TAKING OVER` · `WAITING` · `HOLDING` · `CLEARED` · `STATUS` · `RESOLVED`. Post with `gh`
+(`gh pr comment`, `gh issue comment`); the watcher family supplies the wake.
 
 ## Plan discipline
 
