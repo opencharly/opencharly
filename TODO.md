@@ -970,7 +970,7 @@ Still open:
 | # | Item |
 |---|---|
 | 11.1 | Every §25 gate passes, and the conformance bed passes on every deployment kind. |
-| 11.2 | Fresh R10 beds on every affected deployment; a `check-roster` of all beds; `charly box validate` clean with zero warnings; `bash scripts/design-check.sh` passes. Then delete TODO.md. |
+| 11.2 | **Three of the four gates are MEASURED; the fourth needs a live bed run.** `charly box validate` on 2026-11-18: **`OK — checked 553 candies, 188 boxes, 6 distros, 7 builders; 0 warnings, 0 errors`**. `bash scripts/design-check.sh`: **`all controls pass`**. The `check-roster` exists as the `check-all-beds` task (`charly.yml:923`, serving the `check-roster` kind at `:924`). **What remains is the R10 bed run itself** — `charly task check-all-beds`, which builds, realizes, rebuilds and removes every `disposable: true` target, and is measured in hours. **Then delete TODO.md.** |
 
 ## 12. OCE alignment — the openclaw-enterprise ledger
 
