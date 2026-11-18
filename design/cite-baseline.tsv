@@ -37,7 +37,7 @@ builder:cargo	spec/spec/externalized_builders.go	15-21	ExternalizedBuilders	a07e
 builder:mise	spec/spec/externalized_builders.go	19-19	ExternalizedBuilders	affa7c9cd6959264
 builder:npm	spec/spec/externalized_builders.go	15-21	ExternalizedBuilders	a07ebab16417ba9b
 builder:pixi	spec/spec/externalized_builders.go	17-17	ExternalizedBuilders	254ea4decdd28269
-BuildKit as the one image builder	plugin-build/README.md	1-25	-	5e2f4ea5274555e8
+BuildKit as the one image builder	plugin-build/README.md	1-25	-	046cf252c0f99383
 cache status|clear|refresh|bypass|push|pull|ingest	plugin-cache/candy/plugin-cache/plugin.go	103-111	CacheCmd	95732bc1bc427aa9
 candy set|params	plugin-candy/candy/plugin-candy/params.go	40-47	paramsUsage	bc7bee9cdd4451c5
 check plan	plugin-box/candy/plugin-box/inspect_list.go	81-96	dispatchInspect	508f7ece96e78d8b
@@ -47,7 +47,7 @@ command:agentteams	plugin-agentteams/candy/plugin-agentteams/control.go	28-34	Ag
 command:alias	plugin-alias/candy/plugin-alias/alias.go	213-218	AliasCmd	a7b88dcda014c540
 command:cache	plugin-cache/candy/plugin-cache/plugin.go	101-108	CacheCmd	cb7759b02fea03d2
 command:candy	plugin-candy/candy/plugin-candy/params.go	40-47	paramsUsage	bc7bee9cdd4451c5
-command:clean	plugin-clean/candy/plugin-clean/charly.yml	115-117	-	ac8b34cd362d73ab
+command:clean	plugin-clean/candy/plugin-clean/charly.yml	115-117	-	ee97f7e03eaea37c
 command:config	plugin-pod/candy/plugin-pod/pod_cmd.go	420-450	ConfigSetupCmd	a7752f4f12b9b522
 command:containerd	plugin-nerdctl/candy/plugin-containerd/charly.yml	43-47	-	a91feb5e0950136f
 command:cp	plugin-pod/candy/plugin-pod/pod_cmd.go	410-415	CpCmd	c7144d6f4f27c137
@@ -68,17 +68,17 @@ command:udev	plugin-udev/candy/plugin-udev/command.go	72-77	UdevCmd	9f8fe33495a7
 command:update	charly/charly/commands.go	29-41	podUpdateCmd	9e99857a4e6f92aa
 command:vm	plugin-vm/candy/plugin-vm/vm.go	22-44	VmCmd	851a76d1baa49e5d
 containerd namespace per deployment	plugin-deploy-pod/candy/plugin-deploy-pod/engine_ops.go	139-146	engineDefaultRuntime	932fc1ea7283e693
-containerd namespace per deployment	spec/schema/deploy.cue	159-161	#Deploy	73ff65a95870bc92
+containerd namespace per deployment	spec/schema/deploy.cue	160-162	#Deploy	289b8b9f9cf57785
 deploy from-box|export|import	plugin-fleet/candy/plugin-fleet/deploy_cmd.go	33-34	DeployCmd	dcf9ee0c6c91b388
 deploy path|show|status	plugin-fleet/candy/plugin-fleet/deploy_cmd.go	35-38	DeployCmd	4554767870bf05c1
 deploy reset	plugin-fleet/candy/plugin-fleet/deploy_cmd.go	36-36	DeployCmd	c1ac8ef293f68d89
 engine:containerd	plugin-nerdctl/candy/plugin-containerd/charly.yml	44-44	-	f37c0cce47fc3e2d
-fast reset with --rm and read-only rootfs	spec/schema/deploy.cue	321-321	#Deploy	9477bf7179a09e8f
+fast reset with --rm and read-only rootfs	spec/schema/deploy.cue	322-322	#Deploy	5a9b0014660d2ff7
 Firecracker rootfs + kernel	plugin-substrate/candy/plugin-substrate/schema/firecracker.cue	38-57	#Firecracker	35a43a3e9de14ec4
 Firecracker rootfs + kernel	spec/schema/vm.cue	19-19	-	0bd2f1d19826fa37
 GPU shared through CDI vs held alone through VFIO	plugin-gpu/README.md	23-29	-	bd4c32a2246cbb41
 GPU shared through CDI vs held alone through VFIO	spec/schema/arbiter.cue	40-56	#PreemptLease	815228e090db8a3a
-GPU shared through CDI vs held alone through VFIO	spec/schema/deploy.cue	323-323	#Deploy	5a9b0014660d2ff7
+GPU shared through CDI vs held alone through VFIO	spec/schema/deploy.cue	324-324	#Deploy	c5b928edd97d201b
 kind:android	spec/schema/android.cue	14-24	#Android	f615fdb22527d614
 kind:builder	spec/schema/builder.cue	8-30	#Builder	40cf6239fe0e930d
 kind:cua	plugin-cua/candy/plugin-cua/schema/cua.cue	173-191	#CuaDeviceInput	7b7bdd4ccee16f37
@@ -97,7 +97,7 @@ krun annotations ram_mib/cpus	plugin-vm/candy/plugin-vm/vm_krun_plan.go	272-273	
 krun virtio-gpu; no NVIDIA in krun	spec/schema/vm.cue	45-48	#VmKrun	d9bba839caa92d3a
 krun VM backend (OCI image boot)	plugin-vm/candy/plugin-vm/vm_krun_plan.go	25-30	-	385c608f9b64aa9a
 loader:loader	plugin-loader/candy/plugin-loader/charly.yml	21-21	-	7e69435f2eaf2009
-local registry mirror for build inputs	plugin-build/README.md	18-24	-	7606f88f2d448d92
+local registry mirror for build inputs	plugin-build/README.md	18-24	-	4e33d8071c62661f
 nested containerd and krun in a pod	layer-container-nesting/charly.yml	144-153	-	92d782fb7cdace8e
 NVIDIA CDI rootful and rootless	plugin-gpu/README.md	9-20	-	68caaa877662a84c
 pipeline run|validate|resume|schedule|agent|probe	plugin-pipeline/candy/plugin-pipeline/cli.go	140-143	runCLI	6d8d6ae5ea22056d
@@ -105,7 +105,7 @@ pipeline run|validate|resume|schedule|agent|probe	plugin-pipeline/candy/plugin-p
 pooled fan-out (lanes)	plugin-pipeline/candy/plugin-pipeline/workflowkit/graph_test.go	63-78	TestGraphEdgesKnowLanes	b7e72e987e95d087
 preempt status|restore	plugin-preempt/candy/plugin-preempt/command.go	26-58	runPreemptCLI	87ee3a388ee674a6
 refs:refs	plugin-refs/candy/plugin-refs/charly.yml	21-21	-	7e30172f1cc60303
-rootful vs rootless daemon	spec/schema/deploy.cue	162-166	#Deploy	0e691ca53e6b666e
+rootful vs rootless daemon	spec/schema/deploy.cue	163-167	#Deploy	76dfe733b294d4ec
 rootful vs rootless daemon	spec/schema/deploy.cue	58-63	#DeployTraits	698844570957a001
 rootful vs rootless daemon	spec/schema/engine.cue	94-94	-	82f6f9ca1156d5f4
 runtime handler crun/krun (one switch to a microVM)	spec/container/engine.go	198-198	engineCapabilities	cc274245dbc0ce1c
