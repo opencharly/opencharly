@@ -327,7 +327,14 @@ scan() {
 				i += 3
 				continue
 			}
+			# A `|` is a disjunction only when it stands ALONE. `_|_` is bottom (the arm below),
+			# and `||` is the CUE logical OR: neither neighbour of a lone `|` is a `|`, so
+			# `substr(code, i ± 1, 1) == "|"` names the operator exactly, without a second
+			# exclusion that could drift from the first. Measured: the guard from spec 545c73a8
+			# `provide != _|_ && (env_provide != _|_ || mcp_provide != _|_ || …)` carries TWO
+			# `||` and ZERO disjunctions, and the old arm counted them as one.
 			if (c == "|" && orcount == 0 &&
+				substr(code, i - 1, 1) != "|" && substr(code, i + 1, 1) != "|" &&
 				!(i > 1 && substr(code, i - 1, 1) == "_" && substr(code, i + 1, 1) == "_")) {
 				nbar += 1
 				barpos[nbar] = i
@@ -573,6 +580,13 @@ package schema
 #Scoped: #Endpoint | *"any"
 #Derived: or([for _, a in #Table {a}])
 #DerivedWord: or(#WordList)
+#Guarded: {
+	x?: string
+	y?: string
+	if x != _|_ && (y != _|_ || x != _|_) {
+		z: string
+	}
+}
 EOF
 	printf 'package schema\n\n#Other: {a: int}\n' >"$work/tree/other/schema/other.cue"
 	# A blob with no trailing newline, and a module AFTER it: the marker that opens the next file
@@ -687,6 +701,21 @@ EOF
 	printf '#D1: *true | bool\n' >>"$work/tree/fixture/schema/ok.cue"
 	cases_up
 	pass_like "a literal default with a type (*true | bool)"
+	head -n -1 "$work/tree/fixture/schema/ok.cue" >"$work/trim" && mv "$work/trim" "$work/tree/fixture/schema/ok.cue"
+
+	# `||` is the logical OR, not a disjunction. The shape below is spec 545c73a8's own guard
+	# (schema/candy.cue:56) — TWO `||` and ZERO unions — and the old reader counted the first
+	# `|` of each pair as a union, a phantom finding that blocked a pin wave. It must be silent.
+	printf '#BothAuthored: if provide != _|_ && (env_provide != _|_ || mcp_provide != _|_ || agent_provide != _|_) {\n\tbad: string\n}\n' >>"$work/tree/fixture/schema/ok.cue"
+	cases_up
+	pass_like "a guard using || and _|_ (spec 545c73a8's shape)"
+	head -n -3 "$work/tree/fixture/schema/ok.cue" >"$work/trim" && mv "$work/trim" "$work/tree/fixture/schema/ok.cue"
+
+	# …and the fix must not swallow a REAL union that shares the line with a `||`: the plant puts
+	# `a | b` beside the operator, and the union must still be reported.
+	printf '#Mixed: {a: "x" | "y", if a != _|_ || b != _|_ {c: int}}\n' >>"$work/tree/fixture/schema/ok.cue"
+	cases_up
+	fail_like "a real union beside a || on one line" 'ok.cue:[0-9]+: union:'
 	head -n -1 "$work/tree/fixture/schema/ok.cue" >"$work/trim" && mv "$work/trim" "$work/tree/fixture/schema/ok.cue"
 
 	printf '#D2: *2 | (int & >0 & <=1000)\n' >>"$work/tree/fixture/schema/ok.cue"
@@ -877,6 +906,14 @@ stream_pins "$ROOT" >"$work/stream" || {
 scope || { printf 'design-dpat: FAILED — this run judged no schema\n'; exit 1; }
 run_check "$work/stream" "$BASELINE" "$work/fail" "$work/known"
 if [[ -s "$work/fail" ]]; then
+	# A finding is acted on only if the reader knows WHICH COMMIT was judged. The schema is read
+	# from the index gitlinks, never from a checkout, so each failing module pin is named beside
+	# its finding — a teammate once chased a design-dpat failure already fixed at the spec tip
+	# (a phantom), because nothing said what had been read.
+	while IFS= read -r mod; do
+		sha=$(pins "$ROOT" | awk -F'\t' -v m="$mod" '$1 == m { print $2 }')
+		printf 'design-dpat: the finding(s) in %s are at %s@%s\n' "$mod" "$mod" "${sha:-<not a pinned module>}"
+	done < <(cut -d: -f1 "$work/fail" | cut -d/ -f1 | sort -u)
 	sed 's/^/  /' "$work/fail"
 	printf 'design-dpat: FAILED (%s finding(s))\n' "$(wc -l <"$work/fail" | tr -d ' ')"
 	exit 1
@@ -887,5 +924,9 @@ if ((VERBOSE)); then
 		printf 'known %s:%s: %s "%s" — tracked by %s\n' "$file" "$line" "$rule" "$symbol" "$issue"
 	done <"$work/known"
 fi
+# The pins the run READ, named: the schema is judged at the index's gitlinks, so this line is
+# what tells a reader whether a finding belongs to the shipped pin or was already fixed upstream.
+spec_pin=$(pins "$ROOT" | awk -F'\t' '$1 == "spec" { print $2 }')
+printf 'design-dpat: judged the index pins — spec@%s, and each plugin pin at the gitlink the index records\n' "${spec_pin:-<none>}"
 summary "$work/known" "$(tracked_by)"
 printf 'design-dpat: no new violation, and the census matches the tree\n'
