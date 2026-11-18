@@ -64,6 +64,12 @@ written under `2026.320.10xx` (UTC calver). Building, not yet completing.
 ```console
 $ ./charly/bin/charly box validate
 charly box validate: OK -- checked 610 candies, 198 boxes, 7 distros, 7 builders; 0 warnings, 0 errors
+
+**That count is a MATERIALIZED-tree count, and the next measurement in this ledger reads lower.** On 2026-11-18 the
+same command on a SESSION WORKTREE printed `553 candies, 188 boxes, 6 distros`. The delta is not a regression:
+`charly box validate` walks the submodules that are CHECKED OUT, and Part II #2's light tree materializes only the
+derived working set — so a worktree sees fewer candies than the full clone and both numbers are honest about the
+tree they ran on. **Any `box validate` figure in this ledger names the tree it ran on, or it is not a measurement.**
 $ bash scripts/design-check.sh
 design-check: all controls pass
 ```
@@ -112,7 +118,7 @@ copies and running build + vet:
 |---|---|---|
 | **PIN-ONLY** | **93** | build AND vet green, only go.mod/go.sum move — a script |
 | **CODE — bump-induced** | **18** | 2 block the BINARY (`plugin-loader`, `plugin-vm`: one call site each of `loaderkit.ApplyCueDefaults`, which gained `gates map[string]spec.KindGate`); 16 are vet-only in test files (`spec.CheckContext` gained `InvokeProvider`, ×15; `spec.CandyView.Aliases` → `RawBody`, ×1) and **do not block the dev build** |
-| **CODE — PRE-EXISTING** | **1** | `plugin-dbus` (`spec.ShellQuote`, never in package spec; lives in `spec/shellquote`) — red before the wave |
+| **CODE — PRE-EXISTING** (tracked by opencharly/opencharly#1106) | **1** | `plugin-dbus` (`spec.ShellQuote`, never in package spec; lives in `spec/shellquote`) — red before the wave |
 | **BLOCKED** | **0** | every `go get` applied; every post-bump go.mod reads the new pair |
 | **NOT MEASURED** | **2** | no checkout in this tree |
 
@@ -230,7 +236,7 @@ plugins need CODE, not just pins), and it means P03's tail is per-plugin work, n
 
 **So P03's honest split:** the gate is MERGED and proven (`plugin-adb#21`); 13 plugins are confirmed
 STALE by that gate's own message; and each of those needs its own code fix + regeneration rather than
-a batch. The 12 unexplained failures need triage for the same reason.
+a batch. The 12 unexplained failures need triage for the same reason — **tracked by opencharly/opencharly#1106**.
 
 **Disk, caught in time.** The sweep drove `/` to 99% (4.6G free) and was stopped; `go clean -cache`
 freed 32G (396G -> 364G used). The p03 worktrees were only 9.9M — the build cache was the consumer. The
@@ -362,7 +368,7 @@ exists to catch — on the first plugin where the gate's verdict held up.
 **Why the classification is suspect at the root:** the gate imports `spec/schemaparams`, which does
 not exist before `v0.2026320.x`. So the staleness signal and the pin bump were CONFLATED: the sweep
 ran the gate only after bumping, and a plugin whose artifact was fine could still fail for a
-pin-related reason. **The 13 must be re-verified one at a time at the lockstep pair** before any of
+pin-related reason. **The 13 must be re-verified one at a time at the lockstep pair** (tracked by opencharly/opencharly#1106) before any of
 them is called stale again.
 
 ## 1l. CORRECTION: a bed CAN grade a plugin change (2026-11-16)
@@ -3363,7 +3369,7 @@ carried none of them into the diff, so the file kept eight rows saying the oppos
 | rows measured | **125** |
 | already `done` | **8** (9 after 7.5) |
 | `stale`, corrected | **20** |
-| `stale`, reproducing unchanged | **3** (2.2, 2.5, 2.8) + 3.24 |
+| `stale`, reproducing unchanged | **3** (2.2, 2.5, 2.8). **3.24 is a fourth row whose CLAIM reproduces and whose EVIDENCE was wrong**; it moves to `corrected` when `audit-protocol`'s row lands, and is listed separately for that reason |
 | genuinely `open` | **93** |
 | **rows edited** | **21** |
 
@@ -3555,6 +3561,14 @@ Ten waves in dependency order. `rows` are `TODO.md` ids and are the package's ac
 what proves the package (usually one R10 bed roster plus the design check); `depends on` is a hard order — a
 package does not start while a dependency is not `landed`. A package is one cutover: if one R10 gate cannot
 prove it, it is decomposed before dispatch, never landed as a clean slice plus a deferral.
+
+**READ THE `state` CELLS AS A WORK LIST, NOT AS VERDICTS.** Measured 2026-11-18: of the 48 package rows, 42
+still read `planned`, and a `planned` cell means exactly that — the package has not been dispatched, so the row
+carries no verdict and no command. **The evidence for what HAS landed lives in the dated sections** (§1a–§4q):
+§1i records P05 merged, §1q P06's first two legs, §2h P09, §2m P07's four of six, and the P26 row records unit 1.
+Only P01 and P26 carry a state that has moved off `planned`. **Consolidating those section verdicts back into the
+42 `planned` cells is real work that has not been done**, and this note exists so that a later reader does not
+mistake an un-dispatched package for an unmeasured one — or, worse, the reverse.
 
 ### W0 — unblockers
 
