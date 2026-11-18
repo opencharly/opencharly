@@ -166,6 +166,15 @@ function check() {
   const stated = /SKIP COUNTS: hook=(\d+) live-body=(\d+)/.exec(raw);
   const hookSkips = (code.match(/\[pre-push-skip\]/g) ?? []).length;
   const liveSkips = (code.match(/\[live-body-skip\]/g) ?? []).length;
+  // 8. THE FOURTH BODY LEG EXISTS. A leg that is written but never invoked is the "gate
+  //    with no caller" defect this repo has paid for twice; a leg that is invoked but
+  //    whose invocation nothing asserts can be deleted in silence. This is the STATIC
+  //    half of that assertion -- the hook must name the claims script and call it -- and
+  //    the mutation below is the half that proves deleting it turns this RED.
+  if (!/check-body-removed-identifiers\.mjs/.test(code))
+    fail(`invokes the claims gate (scripts/check-body-removed-identifiers.mjs)`);
+  if (!/if node "\$CLAIMS"/.test(code))
+    fail(`the claims gate is INVOKED, not merely named`);
   if (!stated) fail(`states its skip counts (SKIP COUNTS: hook=N live-body=N)`);
   else {
     if (Number(stated[1]) !== hookSkips)
@@ -722,6 +731,8 @@ async function fire() {
     );
     writePrMap([mapMain, mapOther, mapFork]);
     writeFileSync(liveBodyFile, GOOD_BODY);
+
+    writeFileSync(defaultBody, GOOD_BODY);
   } catch (err) {
     fail(`firing ${rel} (${err instanceof Error ? err.message : String(err)})`);
   } finally {
@@ -742,6 +753,13 @@ if (argv.includes("--self-test")) {
   // reconciler — a stub would prove nothing about the thing the hook runs.
   mkdirSync(join(tmp, "scripts"), { recursive: true });
   cpSync(join(root, "scripts/check-pr-body-diff.mjs"), join(tmp, "scripts/check-pr-body-diff.mjs"));
+  // The CLAIMS gate travels too, for the same reason: F22 asserts the hook INVOKES it, and a
+  // tmp tree without the script can only take the skip branch -- which made the deletion
+  // mutation unobservable. A harness that omits the thing under test proves nothing about it.
+  const claimsSrc = join(root, "scripts/check-body-removed-identifiers.mjs");
+  if (existsSync(claimsSrc)) {
+    cpSync(claimsSrc, join(tmp, "scripts/check-body-removed-identifiers.mjs"));
+  }
   // The reconciler reads the ONE cap from `scripts/lib/pr-body-cap`, beside itself —
   // so the copy of the reconciler travels with the copy of the cap.
   mkdirSync(join(tmp, "scripts/lib"), { recursive: true });
@@ -762,6 +780,21 @@ if (argv.includes("--self-test")) {
     return r.status;
   };
   const mutations = [
+    // The fourth body leg: the CLAIMS check. Without it, the hook reads the body's FORM
+    // and its STRUCTURE and never its CLAIMS -- and a body can pass both while saying a
+    // thing the tree refuses. The mutation deletes the leg's call and asserts that the
+    // gate notices; a deletion that leaves every test green is the R10 gap this arm
+    // exists to close.
+    [
+      "the claims leg is deleted",
+      (s) =>
+        s.replace(
+          /if node "\$CLAIMS" --repo "\$ROOT" --body "\$BODY" --base "\$\{CLAIMS_BASE:-origin\/main\}"; then/,
+          'if true; then  # the claims leg is gone',
+        ),
+      "the claims gate is INVOKED, not merely named",
+      false,
+    ],
     // The arms that need the ORG LINTER are marked so; every other arm runs in a
     // checkout without the marketplace submodule, because the LIVE-body check and the
     // reconciler both run BEFORE the linter. The flag used to mark the three live-body

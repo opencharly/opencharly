@@ -423,7 +423,11 @@ elif ! command -v node >/dev/null 2>&1; then
   echo "pre-push: [pre-push-skip] node not found — body claim check SKIPPED." >&2
 else
   echo "pre-push: checking the PR body's claims at $CLAIMS ..."
-  if node "$CLAIMS" --repo "$ROOT" --body "$BODY" --base "$RECONCILE_HEAD"; then
+  # --base is the BASE the diff is taken against, NOT the head. The reconciler's
+  # RECONCILE_HEAD is the published HEAD and is right for --head; passing it here made the
+  # gate diff the head against itself, see an empty diff, and pass every body -- which
+  # the fired assertion caught before the push.
+  if node "$CLAIMS" --repo "$ROOT" --body "$BODY" --base "${CLAIMS_BASE:-origin/main}"; then
     echo "pre-push: OK (no claim in the body contradicts the tree or another claim)"
   else
     echo "pre-push: BLOCKED — the PR body makes a claim the tree does not support." >&2
