@@ -621,7 +621,10 @@ Before declaring completion, answer every applicable item YES. There is one line
    because a shallow clone answers "not an ancestor" for a healthy pin. On a fresh clone
    the order is `bash scripts/init-submodules.sh` → `./charly/scripts/bootstrap-charly.sh`:
    the bootstrap builds the binary from the `charly` checkout, and the project cannot load
-   before its `import:` paths exist. `charly task init` is the SAME operation through the
+   before its `import:` paths exist. `bash scripts/bootstrap.sh` runs that order and then
+   the clone's hooks, the skill-binding check and each harness's install records — ONE
+   entrypoint for a fresh clone, because an enabled harness plugin that was never
+   installed loads nothing (README, "Bootstrap, once per clone"). `charly task init` is the SAME operation through the
    binary — the working set, the named paths (`CHARLY_INIT_PATHS=<a,b>`) or every one
    (`CHARLY_INIT_MODE=all`) — and needs `git` and `python3`, which the script
    DECLARES and CHECKS: the derivation reads `charly.yml`, `reasonix.toml` and the
