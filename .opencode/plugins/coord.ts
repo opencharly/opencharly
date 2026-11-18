@@ -37,6 +37,9 @@
  *                  canonical footer and POST it directly through the GitHub REST API
  *                  in-process. The session id is filled from the tool context; the
  *                  identity defaults from `.opencode/coord.conf` + `COORD_*` env.
+ *   coord_footer   return the two-line session footer (the `Agent:` line with the live
+ *                  session id, then the `Assisted-by:` trailer) for a PR body, an issue
+ *                  or a comment — the OpenCode twin of `coord.sh --footer`.
  *   coord_watch    poll the GitHub API NATIVELY (async, `context.signal`-aware) for one
  *                  event on one or more PRs/issues and return the wake line. The
  *                  BACKGROUND continuous watch is `pr-watch.ts`'s job — this is the
@@ -189,10 +192,26 @@ export function buildComment(
   body: string | undefined,
   id: { agent: string; session: string; harness: string; model: string; confidence: string },
 ): string {
-  const footerAgent = `*Agent: \`${id.agent}\` · session \`${id.session}\`*`;
+  const footer = buildFooter(id);
+  if (body) return `${verb}\n\n${body}\n\n${footer}`;
+  return `${verb}\n\n${footer}`;
+}
+
+/**
+ * The two-line SESSION FOOTER every agent-authored PR body, issue and comment ends with
+ * (opencharly/opencharly#1119): the session line naming the work slug, the optional parent
+ * slug, the harness and the harness's own session id, then the `Assisted-by:` trailer LAST.
+ * Byte-compatible with `coord.sh --footer`, and the shape `pr_body_lint.py`'s SESSION_LINE
+ * accepts.
+ */
+export function buildFooter(
+  id: { agent: string; session: string; harness: string; model: string; confidence: string },
+  parent?: string,
+): string {
+  const sub = parent ? ` (subagent of \`${parent}\`)` : "";
+  const footerAgent = `*Agent: \`${id.agent}\`${sub} · ${id.harness} session \`${id.session}\`*`;
   const footerAssisted = `*Assisted-by: ${id.harness} ${id.model} (${id.confidence})*`;
-  if (body) return `${verb}\n\n${body}\n\n${footerAgent}\n${footerAssisted}`;
-  return `${verb}\n\n${footerAgent}\n${footerAssisted}`;
+  return `${footerAgent}\n${footerAssisted}`;
 }
 
 /**
@@ -461,6 +480,42 @@ export default {
           } catch (err: any) {
             return { content: `coord_comment: GitHub API error — ${err?.message ?? String(err)}` };
           }
+        },
+      });
+
+      draft.add({
+        name: "coord_footer",
+        description:
+          "Return the two-line session footer for THIS OpenCode session — the `Agent:` " +
+          "line (work slug, harness, live session id) then the `Assisted-by:` trailer — " +
+          "to end a PR body, an issue or a comment with, per AGENTS.md. Posts nothing.",
+        input: {
+          type: "object",
+          properties: {
+            agent: { type: "string", description: "work slug for the `Agent:` line" },
+            parent: { type: "string", description: "the parent slug, for a subagent (optional)" },
+            harness: { type: "string", description: "the harness name (default OpenCode)" },
+            model: { type: "string", description: "provider model name" },
+            confidence: { type: "string", description: `one of: ${TIERS.join(" | ")}` },
+          },
+          required: [],
+        },
+        execute: async (input: Record<string, any>, toolCtx: any) => {
+          const id = resolveIdentity(input, conf, process.env, toolCtx?.sessionID);
+          if (!id.harness) id.harness = "OpenCode";
+          const missing = (["agent", "session", "model", "confidence"] as const).filter((k) => !id[k]);
+          if (missing.length) {
+            return {
+              content:
+                `coord_footer: missing ${missing.map((m) => "--" + m).join(", ")} — ` +
+                `pass them as tool args, set COORD_* env, or fill .opencode/coord.conf`,
+            };
+          }
+          if (!isTier(id.confidence)) {
+            return { content: `coord_footer: invalid confidence '${id.confidence}' — one of: ${TIERS.join(" | ")}` };
+          }
+          const parent = input.parent ? String(input.parent) : process.env.COORD_PARENT || undefined;
+          return { content: buildFooter(id, parent) };
         },
       });
 
