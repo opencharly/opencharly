@@ -169,7 +169,7 @@ as an agent-team teammate.
   proves. It runs nothing and never mutates; the gate is fast and local, so
   the persistent session owns the runs.
 
-## Agent teams (experimental — enabled in committed settings)
+## Agent teams (experimental — opt-in per session)
 
 Agent teams (`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`) are NOT enabled by
 the umbrella's committed `.claude/settings.json`: it carries no `env` block,
