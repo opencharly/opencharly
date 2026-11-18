@@ -85,7 +85,7 @@ makes the premise a false negative.
 running that bed — the bed rides the consumer change, never the library PR.** Producer → consumer
 order. A library PR never waits on a bed it cannot host.
 
-## Three rules earned the hard way, which bind every wave
+## Five rules earned the hard way, which bind every wave
 
 **1. An identifier comes from the command that produced it.** A full 40-character SHA comes from `git rev-parse`, never from an eight-character prefix completed by expectation; an issue number comes from the API's response, never from the shape `#1NNN`. Measured twice in one session: a hand-completed SHA answered `422 No commit found`, and a guessed issue number was five off the one the API returned. **Both were caught by the machine and neither was argued with — which is the argument for the habit, not for the principle.**
 
@@ -102,9 +102,9 @@ $ git grep -n '<name>' HEAD~1 -- . ':!CHANGELOG' | wc -l    # the control: what 
 $ git -C <every consumer repo> grep -n '<the name>' origin/main
 ```
 
-**And the sharper form, which cost a withdrawn PR:** *the thing that would have stopped you was inside the diff.* The comment that was deleted contained the reason the deletion was wrong. **Prose that explains why a thing exists is load-bearing, so a change that deletes it owes an argument, not a movement.**
+**4. Prose that explains why a thing exists is load-bearing, so a change that deletes it owes an argument, not a movement.** The sharper form of rule 3, and it cost a withdrawn PR: *the thing that would have stopped you was inside the diff* — the comment that was deleted contained the reason the deletion was wrong.
 
-**And the methodology that produced the session's best find:** *write the control first, then let it tell you what the row is.* A lockstep test written before the row's disposition was decided found two fields the runtime had been persisting and the validation schema had never checked. **The row was not a documentation row, and only the control could have said so.**
+**5. Write the control first, then let it tell you what the row is.** The methodology that produced the session's best find. A lockstep test written before the row's disposition was decided found two fields the runtime had been persisting and the validation schema had never checked. **The row was not a documentation row, and only the control could have said so.**
 
 ## Rule 6. A proof is only as wide as the instrument's reach, and the reach is invisible in the output
 
