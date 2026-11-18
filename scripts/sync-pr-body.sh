@@ -316,6 +316,8 @@ build_body() {
     echo "- **R10 disposable + coverage:** the coverage is the per-pin \`git ls-remote\`"
     echo "  default-branch evidence above (it fails if a pin is a PR branch or a non-HEAD"
     echo "  commit); the pin contract additionally gates any moved \`distro-*\` pin."
+    echo "- **R11 conform to DESIGN:** \`N/A — a pin wave moves gitlinks and touches no DESIGN"
+    echo "  requirement (no field, shape, kind, verb, capability or mechanism).\`"
     echo "- **RDD / ADE / SDD:** RDD — the producer resolves refs from the real repos, not from"
     echo "  a doc. ADE — no candy. SDD — \`N/A\`, no schema/generated-code change."
     echo "- **Hard cutover:** one atomic commit; no deferred work in scope."
@@ -666,11 +668,11 @@ if [ "${1:-}" = "--self-test" ]; then
   tail -n 2 "$tmp/body" | head -n 1 | grep -qxF '*Agent: `self-test-slug` · Self-test session `00000000-0000-0000-0000-000000000000`*' \
     || fail "the rule-7 Agent: line must directly precede the Assisted-by trailer"
 
-  # Every ground-truth rule R0–R10 has its own `## Rulebook compliance` row. The org body
+  # Every ground-truth rule R0–R11 has its own `## Rulebook compliance` row. The org body
   # linter (`pr_body_lint.py`, default `--rules R0..R10`) and the validator's A1 both demand a
   # line per rule, and a renumbering that leaves a number with no row (the old R4 → R3 left R4
   # empty, opencharly/opencharly#448) must fail here rather than in a nightly sync PR.
-  for r in R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10; do
+  for r in R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11; do
     grep -qE "^- \*\*${r} " "$tmp/body" || fail "the Rulebook compliance section has no ${r} row"
   done
 

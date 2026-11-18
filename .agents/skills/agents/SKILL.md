@@ -18,7 +18,7 @@ The one rule that binds every reference below: **a bed run is R10-class —
 the commit is gated on a full final-code bed test (pasted), but beds run
 freely throughout to verify** (see `references/parallel-bed-testing.md`
 "The binding rule"). The project rulebook is `AGENTS.md`, the single
-harness-neutral rulebook carrying R0–R10; this skill never restates it,
+harness-neutral rulebook carrying R0–R11; this skill never restates it,
 only points to it.
 
 ## Index

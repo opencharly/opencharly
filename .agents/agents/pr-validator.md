@@ -478,7 +478,7 @@ you skipped without deciding it inapplicable is an incomplete review (re-open it
      CHANGED code path executed live (which caps the tier), the concurrent-roster
      evidence for a shared-state change, AND pasted output (not a promise);
    - an *Attribution tier* justified by that evidence (never inflated);
-   - the *project-rulebook rule-compliance* section with EVERY applicable rule (R0–R10 +
+   - the *project-rulebook rule-compliance* section with EVERY applicable rule (R0–R11 +
      the pillars) answered with a one-line HOW (or `N/A — <reason>` where the
      change class genuinely excludes it) — a bare tick with no HOW is NOT an
      answer.
@@ -550,7 +550,7 @@ you skipped without deciding it inapplicable is an incomplete review (re-open it
    legal ONLY when the whole diff is documentation (`*.md`/comment-only/all-doc
    submodule bump). `syntax check only` / `theoretical suggestion` must NOT ship.
 
-**B. Ground-truth rules R0–R10 (each explicit).**
+**B. Ground-truth rules R0–R11 (each explicit).**
 
 The R-numbers were re-cut on 2026-10-09, so a reference written before that date
 names a DIFFERENT rule than the same number does today. The umbrella rulebook's

@@ -97,7 +97,7 @@ change is judged against both. The crosswalk is in `references/crosswalk.md`.
 
 ## Cross-References
 
-- `AGENTS.md` R11 and "What the validator checks" — the mandate and its validator row.
+- `AGENTS.md` R11 — the mandate this skill operationalizes.
 - `/charly-internals:go` — the SDD pipeline (CUE first, generated Go) that implements D-LAW-4.
 - `/charly-internals:plugin` — placement: core, sdk or plugin (D-LAW-3, DESIGN §3.1).
 - `/charly-internals:strict-policy` — R1–R5, whose D-law twins are in the crosswalk.
