@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 # self-test.sh — the umbrella's OWN committed builders' self-tests, in ONE place.
 #
-# WHY THIS FILE EXISTS. The five builders below are plain shell, and their --self-test
+# WHY THIS FILE EXISTS. The builders below are plain shell, and their --self-test
 # runs need no charly binary, no project and no submodule: measured on a light session
-# worktree, all five pass standalone in 3.4 s (2026-10-24). The set used to exist only
+# worktree, they all pass standalone in seconds (measured 2026-10-24). The GATES list at
+# the end runs the node gates' self-tests under the same rule — a gate whose self-test
+# cannot fail is invalid, so its arms are exercised with every commit. The set used to exist only
 # as the TEXT of the `self-test` task in charly.yml, so the commit gate could reach it
 # only through `charly task self-test` — which needs the binary and a loadable
 # project, and therefore could not run at all in a fresh session worktree (AGENTS.md
@@ -33,4 +35,15 @@ BUILDERS=(
 for builder in "${BUILDERS[@]}"; do
   echo "self-test: $builder --self-test"
   bash "$builder" --self-test
+done
+
+# The node gates' self-tests. Each one asserts its own arms (a fixture tree per arm), so a
+# gate whose rule silently stopped firing fails HERE, with every commit.
+GATES=(
+  scripts/check-code-rules.mjs
+)
+
+for gate in "${GATES[@]}"; do
+  echo "self-test: node $gate --self-test"
+  node "$ROOT/$gate" --self-test
 done
