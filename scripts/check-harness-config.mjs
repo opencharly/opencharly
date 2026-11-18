@@ -34,8 +34,10 @@
 // Checks:
 //   1. Every harness JSON parses (and is an object).                        [structural]
 //   2. The two committed gate scripts exist and are executable.            [structural]
-//   3. .claude/settings.json retains its hooks block and the enabled
-//      plugin set.                                    [hooks: struct | plugins: disc]
+//   3. .claude/settings.json retains its hooks block, auto-allows no
+//      `gh pr merge`, and its enabledPlugins ARE their derivation from the
+//      corpus catalog (sync-skill-bindings.mjs --only claude).
+//                                     [hooks: struct | merge: disc | plugins: disc]
 //   4. .claude/workflows/audit-deploy-configs.js EXISTS. A Claude workflow is invoked by
 //      name, so nothing "lists" it — existence is the whole check, and this comment says
 //      exactly that.                                                    [discriminating]
@@ -76,7 +78,7 @@ import { existsSync, lstatSync, readFileSync, readdirSync, statSync } from "node
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { dirname, join, resolve } from "node:path";
-import { CORPUS_NEEDS, corpusSkipReason } from "./lib/corpus.mjs";
+import { CLAUDE_CATALOG, CORPUS_NEEDS, corpusSkipReason } from "./lib/corpus.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const argv = process.argv.slice(2);
@@ -214,6 +216,13 @@ if (argv.includes("--self-test")) {
         }
       }
     }
+    // Check 3 derives from the corpus's Claude catalog, so the staged tree carries the real one — a
+    // single generated JSON file, copied as-is — or the plugin-set arm would have no input to fail on.
+    const catalog = join(root, CLAUDE_CATALOG);
+    if (existsSync(catalog)) {
+      mkdirSync(dirname(join(tree, CLAUDE_CATALOG)), { recursive: true });
+      cpSync(catalog, join(tree, CLAUDE_CATALOG));
+    }
     const pristine = readFileSync(join(root, "reasonix.toml"), "utf8");
     for (const m of pristine.matchAll(/"marketplace\/[^"]+"/g)) mkdirSync(join(tree, JSON.parse(m[0])), { recursive: true });
   };
@@ -244,7 +253,8 @@ if (argv.includes("--self-test")) {
     ["opencode.json", (p) => { const o = JSON.parse(readFileSync(p, "utf8")); o.permission.bash["charly check run *"] = "allow"; writeFileSync(p, JSON.stringify(o)); }, 'does not auto-allow "charly check run *"', "5 (negative arm, run — the destructive R10 gate)"],
     ["opencode.json", (p) => { const o = JSON.parse(readFileSync(p, "utf8")); o.permission.bash["charly check box *"] = "allow"; writeFileSync(p, JSON.stringify(o)); }, 'does not auto-allow "charly check box *"', "5 (negative arm, box — the arm an earlier revision claimed but did not assert)"],
     [".claude/hooks/pre-push-gate.sh", (p) => chmodSync(p, 0o644), "pre-push-gate.sh is executable", "2 (a lost exec bit must FAIL, not pass)"],
-    [".claude/settings.json", (p) => { const s = JSON.parse(readFileSync(p, "utf8")); s.enabledPlugins = {}; writeFileSync(p, JSON.stringify(s)); }, "enables the plugin set", "3 (plugin-set arm)"],
+    [".claude/settings.json", (p) => { const s = JSON.parse(readFileSync(p, "utf8")); s.permissions.allow.push("Bash(gh pr merge:*)"); writeFileSync(p, JSON.stringify(s, null, 2)); }, "does not auto-allow `gh pr merge`", "3 (the forbidden-merge arm)"],
+    [".claude/settings.json", (p) => { const t = readFileSync(p, "utf8"); const k = t.match(/^\s*"charly-[^"]+@charly-plugins": true,\n/m); if (!k) throw new Error("no charly plugin key to drop"); writeFileSync(p, t.replace(k[0], "")); }, "enabledPlugins match their derivation", "3 (plugin-set arm — one dropped plugin must FAIL, which the old `>= 20` floor never could)", true],
     ["opencode.json", (p) => { const o = JSON.parse(readFileSync(p, "utf8")); delete o.permission.bash["charly status *"]; writeFileSync(p, JSON.stringify(o)); }, 'grants "charly status *"', "5 (positive arm)"],
     [".mcp.json", (p) => { const m = JSON.parse(readFileSync(p, "utf8")); delete m.mcpServers.deepwiki; writeFileSync(p, JSON.stringify(m)); }, ".mcp.json declares the DeepWiki server", "6"],
     [".pi/mcp.json", (p) => { const m = JSON.parse(readFileSync(p, "utf8")); delete m.mcpServers.deepwiki; writeFileSync(p, JSON.stringify(m)); }, ".pi/mcp.json declares the DeepWiki server", "6"],
@@ -309,7 +319,7 @@ if (argv.includes("--self-test")) {
   stage();
   // One message per half, from the shared module: the reasonix arm needs family DIRECTORIES, the farm
   // arm needs skill FILES, and this fixture holds neither.
-  const skips = ["carries no families", "carries no skills", "[skills] paths derivation check skipped", "the .dsh/skills derivation check skipped"];
+  const skips = ["carries no families", "carries no skills", "carries no catalog", "[skills] paths derivation check skipped", "the .dsh/skills derivation check skipped", "enabledPlugins derivation check skipped"];
   for (const state of ["absent", "present-but-empty"]) {
     // BOTH non-materialised shapes, because they are not the same tree and the difference is the defect:
     // `git worktree add` creates the submodule MOUNT POINT, so a session worktree (Part II rule 2) has
@@ -325,7 +335,7 @@ if (argv.includes("--self-test")) {
     } else if (missing.length) {
       bad(`a tree whose corpus is ${state} is green, but did not report the visible skip(s): ${missing.join(" | ")}`);
     } else {
-      console.log(`  PASS  check 8/13: a tree whose corpus is ${state} SKIPS both derivation arms visibly and stays green`);
+      console.log(`  PASS  check 3/8/13: a tree whose corpus is ${state} SKIPS every derivation arm visibly and stays green`);
     }
   }
 
@@ -502,12 +512,27 @@ for (const h of [".claude/hooks/pre-commit-gate.sh", ".claude/hooks/pre-push-gat
   if (exists) ok((statSync(p).mode & 0o111) !== 0, `${h} is executable`);
 }
 
-// 3. .claude/settings.json keeps its hooks block and the enabled plugin set.
+// 3. .claude/settings.json keeps its hooks block, and its plugin set IS the corpus derivation.
+//    The set used to be asserted as `>= 20` — a floor that passed at 26 of the catalog's 44 plugins
+//    while every corpus family added since the last hand edit stayed invisible to Claude Code, and
+//    the other three bindings saw it (opencharly/opencharly#1100). A count cannot see drift; only
+//    the derivation can, so the generator owns it and this check asks "was the generator run" —
+//    the same shape as check 8. The one auto-allow a rulebook FORBIDS is asserted absent: no agent
+//    merges (AGENTS.md, "Commit, push, land", step 6), so an allow rule that approves a merge with
+//    no prompt is a weakened guardrail.
 {
   const s = jsonOr(".claude/settings.json");
   ok(Array.isArray(s.hooks?.PreToolUse) && s.hooks.PreToolUse.length > 0, ".claude/settings.json retains the PreToolUse hooks block");
-  const plugins = Object.keys(s.enabledPlugins ?? {});
-  ok(plugins.length >= 20, `.claude/settings.json enables the plugin set (${plugins.length} plugins)`);
+  const allow = s.permissions?.allow ?? [];
+  const merges = allow.filter((a) => /^Bash\(gh pr merge\b/.test(a));
+  ok(merges.length === 0, `.claude/settings.json does not auto-allow \`gh pr merge\` (offenders: ${merges.join(", ") || "none"})`);
+  if (!CORPUS_NEEDS.catalog(root)) {
+    pass(`${corpusSkipReason(root, "catalog")} — enabledPlugins derivation check skipped (the hooks assertion above still holds)`);
+  } else {
+    const gen3 = derivedBindings("claude");
+    ok(gen3.rc === 0, ".claude/settings.json enabledPlugins match their derivation (node scripts/sync-skill-bindings.mjs --check --only claude)");
+    if (gen3.rc !== 0) for (const l of gen3.out.trim().split("\n")) console.error(`        ${l}`);
+  }
 }
 
 // 4. The Claude workflow exists (invoked by name — nothing lists it).

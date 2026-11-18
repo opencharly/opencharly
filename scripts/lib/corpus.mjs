@@ -54,11 +54,24 @@ export function corpusHasSkills(root) {
   return false;
 }
 
+/** The corpus's Claude Code plugin CATALOG — the file Claude Code reads when it resolves a plugin
+ *  named in `.claude/settings.json`'s `enabledPlugins` against the `charly-plugins` marketplace. It is
+ *  generated beside the family directories (`charly marketplace generate`), and it is the input the
+ *  Claude binding derives from: one `enabledPlugins` key per catalog entry. */
+export const CLAUDE_CATALOG = `${CORPUS_ROOT}/.claude-plugin/marketplace.json`;
+
+/** Does the corpus hold the Claude catalog? A family directory is NOT this input: the catalog is a
+ *  separate generated file, and a tree can carry one without the other. */
+export function corpusHasCatalog(root) {
+  return existsSync(join(root, CLAUDE_CATALOG));
+}
+
 /** What a derivation needs from the corpus, and the ONE message each skip carries — so the writer's
  *  notice, both gate skip tests and the selftest key on the same strings instead of four paraphrases. */
 export const CORPUS_NEEDS = {
   skills: (root) => corpusHasSkills(root),
   families: (root) => corpusHasFamilies(root),
+  catalog: (root) => corpusHasCatalog(root),
 };
 
 export function corpusRemedy() {
