@@ -1723,3 +1723,7 @@
 	path = pod-strata
 	url = https://github.com/opencharly/pod-strata.git
 	branch = main
+[submodule "pod-kde-vnc"]
+	path = pod-kde-vnc
+	url = https://github.com/opencharly/pod-kde-vnc.git
+	branch = main
