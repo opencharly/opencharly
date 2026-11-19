@@ -18,9 +18,9 @@
 #              the §12.4 rules marked `rules.cue`, each with a negative; every §12.4 owner is an
 #              owner in the §3.1 ownership table
 #   4 ids      requirement IDs are unique and numbered 1..n per area in order of appearance;
-#              every ID (ranges D-X-a..b included) in DESIGN.md, TODO.md, DESIGN.cue, the design/
+#              every ID (ranges D-X-a..b included) in DESIGN.md, DESIGN.cue, the design/
 #              files and the parity and capability ledgers resolves, and every § reference in
-#              DESIGN.md, TODO.md, DESIGN.cue and each ledger's requirement column; the parity
+#              DESIGN.md, DESIGN.cue and each ledger's requirement column; the parity
 #              ledger's mechanism column is a §1.1 mechanism id, workflow or authoring
 #   5 words    no "Not" term of the §2 registry (or its plural) appears outside §2; every key in DESIGN.cue is
 #              singular (keys ending in `s` must be listed in D-NAME-1); every S<n> pattern
@@ -31,7 +31,7 @@
 #   6 patterns DESIGN.cue uses only §10.1's constructs (D-PAT-1): no close(), no matchN, no
 #              forbidden field ?: _|_, exactly one open struct {...} (#Opaque), and every other use of
 #              #Opaque marks itself `// S10` — no first-party word is left untyped (D-KIND-5)
-#   7 shape    every table row of DESIGN.md and TODO.md has its header's cell count and ends with |
+#   7 shape    every table row of DESIGN.md has its header's cell count and ends with |
 #   8 grammar  DESIGN.cue vets as a package; every list comprehension is one of the derivation forms
 #              of D-GEN-8; no word beside a word union, and a default word is a row of its table;
 #              no inline enum of 3+ words, no @go(, no retired suffix; every table has an @vocab owner;
@@ -197,7 +197,6 @@ while read -r l; do bad "$l"; done < "$work/order"
 cut -d: -f2 "$work/defs" | sort -u > "$work/ids"
 
 refs_in=("$md" "$schema" "$root"/design/example/*.cue "$root"/design/negative/*.yaml)
-[[ -f "$root/TODO.md" ]] && refs_in+=("$root/TODO.md")
 [[ -f "$root/design/parity.tsv" ]] && refs_in+=("$root/design/parity.tsv")
 [[ -f "$root/design/dulling.tsv" ]] && refs_in+=("$root/design/dulling.tsv")
 [[ -f "$root/design/dulling-admission.tsv" ]] && refs_in+=("$root/design/dulling-admission.tsv")
@@ -216,7 +215,7 @@ done > "$work/refs"
 if [[ -s "$work/refs" ]]; then cat "$work/refs"; fail=1; fi
 
 g -o '^#\{2,3\} [0-9][0-9]*\(\.[0-9][0-9]*\)\?' "$md" | sed 's/^#* //' | sort -u > "$work/sections"
-for f in "$md" "$root/TODO.md" "$schema" "$root/design/parity.tsv" "$root/design/dulling.tsv" "$root/design/dulling-admission.tsv"; do
+for f in "$md" "$schema" "$root/design/parity.tsv" "$root/design/dulling.tsv" "$root/design/dulling-admission.tsv"; do
 	[[ -f "$f" ]] || continue
 	# a ledger's EVIDENCE column cites sections of other documents; its requirement column —
 	# `home` in the parity ledger (A.7), `guideline` in the capability ledgers (A.8) — cites DESIGN.md
@@ -340,7 +339,7 @@ if [[ -s "$work/spelling" ]]; then cat "$work/spelling"; fail=1; fi
 
 # schema-pattern references: every S<n> is a pattern §10.1 defines
 awk '/^### [0-9.]+ The schema patterns$/{s=1; next} s && /^#{2,3} /{s=0} s && /^\| S[0-9]+ \|/ { sub(/^\| S/, ""); sub(/ \|.*/, ""); print }' "$md" | sort -n > "$work/patterns"
-for f in "$md" "$schema" "$root/TODO.md"; do
+for f in "$md" "$schema"; do
 	[[ -f "$f" ]] || continue
 	g -no 'S[0-9][0-9]*' "$f" | while IFS=: read -r ln ref; do
 		grep -qx "${ref#S}" "$work/patterns" || echo "FAIL ${f#"$root"/}:$ln: $ref is not a schema pattern of §10.1"
@@ -352,9 +351,9 @@ if [[ -s "$work/patref" ]]; then cat "$work/patref"; fail=1; fi
 # before a set noun ("eight mechanisms") and no id range from the first row ("M1–M8")
 sizes='two|three|four|five|six|seven|eight|nine|ten|eleven|twelve'
 sets='mechanisms|kinds|roles|intents|phases|channels|patterns|forms|checks|stages|roots|actions|principles|laws|rules|verbs|tables|services|types|keys|parts|ways|things|instances|modules|variables|parties|methods|sections|layers|placements|families|words'
-for f in "$md" "$schema" "$root/TODO.md"; do
+for f in "$md" "$schema"; do
 	[[ -f "$f" ]] || continue
-	[[ "$f" == "$root/TODO.md" ]] || g -noiE "\b($sizes)\s+([a-z-]+\s+)?($sets)\b" "$f" | while IFS=: read -r ln what; do
+	g -noiE "\b($sizes)\s+([a-z-]+\s+)?($sets)\b" "$f" | while IFS=: read -r ln what; do
 		echo "FAIL ${f#"$root"/}:$ln: '$what' states the size of a set; name the set and its table (A.6)"
 	done
 	g -noE '\b[A-Z]+1`?[–-]`?[A-Z]+[0-9]+\b' "$f" | while IFS=: read -r ln what; do
@@ -432,7 +431,7 @@ shape() {
 		{ inrow = 0 }
 	' "$@"
 }
-shape "$md" "$root/TODO.md" > "$work/shape"
+shape "$md" > "$work/shape"
 if [[ -s "$work/shape" ]]; then cat "$work/shape"; fail=1; fi
 
 # ── 8 grammar (§10.1, §13) ─────────────────────────────────────────────────────────

@@ -113,7 +113,6 @@ const SURFACES = [
   { id: "pin-intent-and-currency.md — the contract's opening", rel: ".agents/skills/git-workflow/references/pin-intent-and-currency.md", kind: "block", anchor: /^The umbrella records one commit per submodule/ },
   { id: "agents/SKILL.md — the remedy for a pin lag", rel: ".agents/skills/agents/SKILL.md", kind: "block", anchor: /^\*\*Remedy\.\*\* Identify the submodule/ },
   { id: "repo-setup/SKILL.md — the checklist's pin-advance step", rel: ".agents/skills/repo-setup/SKILL.md", kind: "block", anchor: /^6\. \*\*In the umbrella\*\*, the gitlink and the pin's INTENT/ },
-  { id: "PROGRAM/design-implementation.md — the IOU-08 pin-wave row", rel: "PROGRAM/design-implementation.md", kind: "line", anchor: /^\| IOU-08 \|/ },
 ];
 
 /**
@@ -122,10 +121,6 @@ const SURFACES = [
  * judgement with no stated reason is a judgement nobody can check.
  */
 const NON_CLAIM_MENTIONS = new Map([
-  [
-    "TODO.md",
-    "its mentions are the pin verb's CURRENCY mode (`charly task pins --param MODE=currency`) inside a Done proof and the compliance record — a question about whether pins are current, not a presentation of the advance operation",
-  ],
   [
     ".dsh/README.md",
     "a table of the DSH skill farm's paths: the cell names the verb's SIDE EFFECT (it re-derives the bindings), and the reader is not being told to run the verb",

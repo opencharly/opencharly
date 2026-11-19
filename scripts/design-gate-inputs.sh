@@ -47,13 +47,7 @@
 
 # The NORMATIVE pair, at the root: DESIGN.md is the document, DESIGN.cue the single
 # copy of the schema, and the consistency control exists to keep the two agreeing.
-# TODO.md is read by the SAME control: every § reference must name a DESIGN.md section,
-# every D- reference a DESIGN.md requirement, and every table row must carry its
-# header's shape. So a TODO.md-only change is in the class too — without it, a
-# TODO.md-only commit could break the consistency control unseen, which is exactly how
-# the TODO-local §12.x references and a four-cell row reached `main` (the #992/#993
-# rounds ran the pre-push gate's zero-design-inputs skip).
-DESIGN_GATE_ROOT_FILES=(DESIGN.md DESIGN.cue TODO.md)
+DESIGN_GATE_ROOT_FILES=(DESIGN.md DESIGN.cue)
 
 # The design tree: the ledgers, the fixtures, the censuses. A prefix, not a list —
 # a new ledger or a new negative case is in the class the moment it is committed,
