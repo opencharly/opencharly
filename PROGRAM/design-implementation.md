@@ -4058,7 +4058,7 @@ W2c pin wave across `adb`, `spice`, `tmux`, `tunnel`, `unix-group`, `lobster`, `
 **The umbrella's own `tools/` lockstep pins were red on `main` and are fixed in `charly#1209`** — four of five
 `tools` modules still required `sdk v0.2026322.1227` while core pinned `1853`.
 
-**The finding, and it is one finding wearing many instruments.** Across the whole round **every** validator BLOCK was a `body-versus-tree` defect; **not one was about the diff.** The registers it wore — **seventeen, tabulated below, and the table is the count**:
+**The finding, and it is one finding wearing many instruments.** Across the whole round **every** validator BLOCK was a `body-versus-tree` defect; **not one was about the diff.** The registers it wore — **eighteen, tabulated below, and the table is the count**:
 
 | instrument | how it lied |
 |---|---|
