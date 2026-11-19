@@ -9,23 +9,27 @@ first time). Both are folded in below.
 
 ## 1. Where the 122 are
 
-| § | governs | items | done | **open** | moved | what the audits now say |
-|---|---|---|---|---|---|---|
-| 0 | Preconditions | 4 | 2 | **1** | 1 | a decision, not code |
-| 2 | Schema | 26 | 2 | **22** | 2 | **1 DONE (2.5), 24 OPEN; **`2.11`/`2.22`/`4.2` stay open**; 2.11 and 2.22 are one step from done** |
-| 3 | Parsing and validation | 43 | 2 | **40** | 1 | text stable to the digit; 5 premises stale; needs code |
-| 4 | Generation | 6 | 1 | **5** | 0 | `sdk` emitters |
-| 5 | Modules and the plugin protocol | 13 | 0 | **13** | 0 | **all 13 measured OPEN — and all 13 are code, not text** |
-| 6 | Plugins and the install IR | 9 | 0 | **8** | 1 | `sdk` IR + plugins |
-| 7 | Store, state, secrets, concurrency | 6 | 2 | **4** | 0 | `sdk` |
-| 8 | Command line | 4 | 0 | **3** | 1 | `charly` |
-| 9 | Repositories | 2 | 1 | **1** | 0 | org |
-| 10 | Documentation | 3 | 0 | **3** | 0 | `PROGRAM/` |
-| 11 | Final proof | 2 | 0 | **2** | 0 | last, by definition |
-| 12 | OCE alignment | 15 | 2 | **8** | 5 | not yet measured |
-| 13 | Deployments, drivers, venues | 7 | 0 | **7** | 0 | `sdk` + plugins |
+| § | governs | items | done | **open** | moved |
+|---|---|---|---|---|---|
+| 0. Preconditions | 4 | 2 | **1** | 1 |
+| 1. Decisions | 2 | 1 | **0** | 1 |
+| 2. Schema | 26 | 2 | **22** | 2 |
+| 3. Parsing and validation | 43 | 2 | **40** | 1 |
+| 4. Generation | 6 | 0 | **6** | 0 |
+| 5. Modules and the plugin protocol | 13 | 0 | **13** | 0 |
+| 6. Plugins and the install IR | 9 | 0 | **8** | 1 |
+| 7. Store, state, secrets and concurrency | 6 | 2 | **4** | 0 |
+| 8. Command line | 4 | 0 | **3** | 1 |
+| 9. Repositories | 2 | 1 | **1** | 0 |
+| 10. Documentation | 3 | 0 | **3** | 0 |
+| 11. Final proof | 2 | 0 | **2** | 0 |
+| 12. OCE alignment | 15 | 2 | **8** | 5 |
+| 13. Deployments, drivers, venues and captures | 7 | 0 | **7** | 0 |
+| 14. Code rules and enforcement | 4 | 0 | **4** | 0 |
 
 **`§2 + §3 + §5 = 75 of the 122`.**
+
+**The census above is `TODO.md`'s own. The audit verdicts elsewhere in this plan are per-row findings on the subset each agent measured, so the two can differ by one row without either being wrong.** The one place they do differ today is `§2`: the census says 2 done / 22 open, but the audit found `2.5` done — so **`§2` is really 3 / 21**, and recording that is one of the text-only corrections named below.
 
 ---
 
@@ -57,7 +61,7 @@ before any new shape work starts.
 
 Order is forced by the pin graph: `spec` → `sdk` → `charly` → candies.
 
-### Wave 1 — `§2` schema (21 open) · `spec`
+### Wave 1 — `§2` schema (22 open) · `spec`
 **Blocks everything.** The audits reduced this from "22 unknown rows" to a measured list:
 - **4 shape unifications** with exact sites (`from_snapshot?:` 9, `need?`/`use?`/`provide?` 3/4/15, `lease:` 10, `grant:` 10)
 - **2 schema-line changes backed by real cutovers** (`2.11`: 49 consumers; `2.22`: 79 sites) — **not** one-liners, and starting either as one would leave the cutover half-done, which the Cutover Sizing Law forbids
@@ -91,6 +95,9 @@ The largest block and the plan's weak point. Depends on Wave 1's shapes.
 ### Wave 5 — `§8 §9 §10 §11 §13` (16) · mixed
 `§11` is by definition last: it is the proof the other eleven sections hold.
 **Estimate: 2–4 days**, ~5 PRs.
+
+### `§14` Code rules and enforcement (4 open) — crosses every wave
+**The plan omitted this section entirely in its first draft**, which is why its table summed to 140 items while `TODO.md` says 146. It is not a wave: these four rows are the rules the other fourteen sections must satisfy, so each lands *with* the wave it governs rather than after it.
 
 ### `§12` OCE alignment (8 open, 5 moved) — parallel, **not yet measured**
 **Estimate: 2–3 days, overlapped.**
