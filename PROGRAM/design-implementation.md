@@ -4049,6 +4049,56 @@ citing `schema.#…`) is next, followed by the loader, the resolve arm's local v
   an empty disjunction that named nothing. Compile a literal in `v.Context()` — the kindcluster helper's lesson, now
   recorded where the next helper will look.
 
+### 2026-11-18/19 — the evidence round: thirty-one merges, and not one of them changed what the diff did
+
+**What landed.** Two TODO rows (`3.24`, `10.1` — `#1128`), the batched pin wave (`#1126`), the ledger itself
+(`#1118`), the `D-CODE-2` retired-name census gate (`#1134`), row `3.1`'s legs 1–3 (`spec#381`, `sdk#564`,
+`charly#1209`), the `#RepoBlock` alias restore and the S3 word tables (`spec#387` → `spec#389`), and the
+W2c pin wave across `adb`, `spice`, `tmux`, `tunnel`, `unix-group`, `lobster`, `cua`, `udev` and `containerd`.
+**The umbrella's own `tools/` lockstep pins were red on `main` and are fixed in `charly#1209`** — four of five
+`tools` modules still required `sdk v0.2026322.1227` while core pinned `1853`.
+
+**The finding, and it is one finding wearing many instruments.** Across the whole round **every** validator BLOCK was a `body-versus-tree` defect; **not one was about the diff.** The registers it wore — **eighteen, tabulated below, and the table is the count**:
+
+| instrument | how it lied |
+|---|---|
+| a `grep` for one literal | cannot count a second spelling — **a zero needs a control** |
+| a `grep` scoped to `schema/` | missed the same PR's other file |
+| a pathspec `-- 'reserved_registry.go'` | does not match `charly/reserved_registry.go` |
+| `.[-1]` over a paginated list | the last element of the FIRST page, read as the last verdict |
+| a `--depth 1` clone | a commit with no parent, reported as a phantom defect |
+| `\?` in GNU BRE | the optional quantifier, not a literal — a false zero in a brief |
+| `head -7` on a `### Blocks` list | one finding shown, the second hidden for a whole round |
+| `git show --stat HEAD` | on a multi-commit branch, only the last commit |
+| a piped `tail -1` | reports `tail`'s status, not the command's |
+| a `rev-parse` from an hour ago | a measurement is true of the moment it was taken |
+| `git -C <empty submodule>` | **walks up to the umbrella**, succeeds, answers with the wrong tree |
+| a pasted head SHA | makes `gh pr update-branch` self-defeating |
+| "1 commit" over a two-commit branch | checkable with `wc -l`, and not checked |
+| a count pasted at one ref under another ref's command | `#1136` |
+| a fingerprint (`grep -c 'yaml:'`) | cannot see the *policy* that governs the file |
+| a census counting archived repos | a population claim including a member that cannot act |
+| an RCA posted on a closed predecessor | a record where it is not read |
+| a claim fixed in one place | its copy three lines below survived, and a review quoted the copy |
+
+**The rules this round added to `PROGRAM/wave-gate-policy.md`**, each paid for by a PR that failed first:
+**1** an identifier comes from the command that produced it; **2** a zero needs the control that would have
+found the word; **3** a deletion's proof is the absence of READERS; **4** prose that explains why a thing
+exists is load-bearing, so deleting it owes an argument; **5** write the control first and let it tell you
+what the row is; **6** a proof is only as wide as the instrument's reach; **7** an artifact records which
+generator built it. **Rules 4 and 5 were unnumbered until `#1136`**, so a cross-reference to either resolved
+to nothing — the same defect as a pointer into a document that does not contain the target.
+
+**What this means for the next round.** The remaining TODO rows are not blocked on code or on a bed; they are
+blocked on **evidence discipline**, and the discipline is now written down in seven rules plus `#1109`'s recipe.
+A row should be measured twice at two refs before its sentence is written, and the control that would refute it
+should be written before the claim it is meant to support.
+
+**And two structural facts the round established.** A **successor** carries the same tree with corrected
+evidence and restarts the verdict count (`cua#11`→`#12`, `udev#9`→`#10`, `containerd#17`→`#18`); and an
+**operator-authored PR is not an agent's to touch**, so `#1127` and `#1129` were read and left alone — `#1129`
+went `DIRTY` while `#1127` merged ahead of it, and that is a state only its author could clear.
+
 ## 10. What would make this ledger wrong
 
 - **`TODO.md` is re-derived again** (rows added, retired or restored) → §5's assignment must be re-checked; the
@@ -4061,3 +4111,249 @@ citing `schema.#…`) is next, followed by the loader, the resolve arm's local v
   dispatch.
 - **A recorded verdict is accepted without measurement** → that is A-1 firing, and this ledger's own history
   says it costs a round.
+
+### 2026-11-19/20 — what the merges after the ledger entry actually were
+
+**This section exists because the ledger's own rule is that it is updated at every merge, and five merges
+landed after the previous entry without one -- `#1136`, `plugin-containerd#19`, `#1146`, `spec#392` and
+`charly#1212`. The sixth row below is `#1148`, which is the entry being continued rather than one of the
+five; it is listed because its line count is programme state a reader will want beside the others.** Their state is recorded here from `origin/main`, not from
+the PR bodies.
+
+| PR | what landed | measured on `main` |
+|---|---|---|
+| **`#1136`** | the wave-gate policy renumbered to seven rules, with rules 4 and 5 added | `grep -cE '^\*\*(4\|5)\.' PROGRAM/wave-gate-policy.md` -> **2** |
+| **`plugin-containerd#19`** | the W2c pin bump and the artifact it regenerates | `go.mod` at `sdk v0.2026320.1345` / `spec v0.2026320.1252`; `cue_types_gen.go` carries **9** `yaml:` tags; `ci.yml` **55** lines |
+| **`#1146`** | **14.4** -- the `D-CODE-5` skip-and-mock census gate | `scripts/check-live-boundaries.mjs` -> **317 lines**; `design/live-boundary-census.tsv` -> **17 lines**, 11 pair files |
+| **`#1148`** | the evidence-round entry above | the ledger grew to **4113 lines** |
+| **`spec#392`** | **14.3's `spec` leg** | `git -C spec grep -cF 'DELETED' origin/main -- '*.go' ':!spec/cue_types_gen.go'` -> **0**; 19 generated projections filed at `#1147` |
+| **`charly#1212`** | **14.3's `charly` leg** | tag `v2026.323.0152`; `git -C charly grep -cF 'DELETED' origin/main -- '*.go'` -> **0**; 192 prose occurrences filed at `charly#1211` |
+
+**Section 14 now has three of four rows landed** (14.1, 14.2, 14.4) **with 14.3 two-thirds done** -- `spec` and
+`charly` swept, `sdk` at 7 of 39 with `deploykit` (24) and `loaderkit` (7) named in `#1147`.
+
+### What this stretch taught, in one place, because it cost more rounds than any code
+
+**Six PRs spent their entire lives on the body, and the diff was correct in every one from its first push.**
+`spec#390 -> #394` is the clearest: five verdicts, one unchanged tree, seven findings, none about the code.
+The seven were: a grep claimed but not pasted; a count pasted where a location was needed; R9 denying a
+runtime change the classification described; `## Filed issues` naming an issue in the wrong repository; a
+commit count contradicted by `git log`; a restatement the fix did not reach; and a count invalidated by my
+own later sweep.
+
+**The missed control, named.** Every gate I ran -- the body linter, the live-body comparison, the
+removed-identifier check -- validates the *form* of the document. **A claim and its paste are both well-formed
+markdown, so no gate could tell a true sentence from a false one.** There were gates for shape and none for
+truth.
+
+**Three process rules, each bought with a round, now part of every body I write:**
+
+1. **Walk every bullet and every table row before the first push and ask, per line: is a pasted command and
+   its output adjacent?** A bullet with no paste either gets one or becomes a filed-issue pointer.
+2. **Act, then measure, then paste -- never paste a measurement taken before your last commit.** A fence
+   expires when the head moves, and six findings this stretch were a paste that outlived the commit it
+   described.
+3. **Compression is only safe if it removes a claim together with its evidence.** Cutting from 200 lines to
+   92 kept the conclusions and dropped the pastes, and the next verdict named exactly that.
+
+**And the counter-example, which is the useful one:** the four PRs that PASSed on their first verdict all
+did the opposite of composing a claim and measuring later. `#19` at 66 lines; `charly#1212` with its tier
+chosen from `git diff -U0 | grep -v '^[+-][[:space:]]*//'` being empty; `spec#392` with its scope chosen by
+measuring the population by directory first; `#1146` with an arm proven by removing the guard it tests.
+
+**A claim that arrives after its measurement never needs a second round.**
+
+### 2026-11-19/20 (cont.) — three rows closed, and the instrument that re-sized the last one
+
+**Three PRs landed after the entry above -- `spec#396`, `sdk#572` and `sdk#573`.** (`#1149` was the entry
+itself, not a subsequent merge; it is named in that entry's own table.) State, from `origin/main`, not from
+the PR bodies:
+
+| PR | what landed | measured |
+|---|---|---|
+| **`spec#396`** | 7.3 phase 2 -- `RepoCacheDir` reads the ONE resolver | `git -C spec show origin/main:refs/cache.go \| grep -c 'os.Getenv("CHARLY_REPO_CACHE")'` -> **0** |
+| **`sdk#572`** | 14.3's `sdk` leg, `loaderkit` lane | `git -C sdk grep -cF 'DELETED' origin/main -- 'loaderkit/*.go'` -> **0** |
+| **`sdk#573`** | the same leg, `kit` + `root` + `vmshared` lanes | those three lanes absent from the per-directory census below |
+
+**The `sdk` lane census at `main` after all three:**
+
+```console
+$ git -C sdk grep -cF 'DELETED' origin/main -- '*.go' | sed 's|origin/main:||' \
+    | awk -F: '{split($1,a,"/"); d=(length(a)>1?a[1]:"root"); s[d]+=$NF} END{for(k in s) printf "%-14s %d\n", k, s[k]}'
+deploykit      24
+storekit       1
+```
+
+**25 total, down from 39. `storekit`'s single site is already present-tense.** **So 14.3's `sdk` leg stands at
+`spec` + `charly` + four `sdk` lanes complete, with `deploykit` alone remaining.**
+
+### The measurement that re-sized the last lane, and why it matters more than the count
+
+**`deploykit` is 24 by the token and 171 by the class:**
+
+```console
+$ git -C sdk grep -cF 'DELETED' origin/main -- 'deploykit/*.go' | awk -F: '{s+=$NF} END{print s+0}'
+24
+$ git -C sdk grep -nE 'DELETED|[Ff]ormer|used to|was (deleted|removed|relocated)|is gone|no longer' \
+    origin/main -- 'deploykit/*.go' | wc -l
+171
+```
+
+**`D-CODE-4` forbids *"history instead of present code"*, not a word.** **The same claim is made as
+*"relocated from `charly/engine.go`"*, *"the former `writeLabels`"*, *"used to carry its own copy"*,
+*"no longer sourced from"*.** **The three lanes that landed used the token as their population and were
+small enough that the proxy and the class nearly coincided; `deploykit` is where they diverge.**
+
+**So `#1147`'s close condition is the WIDE grep, not the token -- and the scope of the grep has to be
+stated, because the two scopes give different numbers and both are true:**
+
+```console
+$ git -C sdk grep -nE 'DELETED|[Ff]ormer|used to|was (deleted|removed|relocated)|is gone|no longer' \
+    origin/main -- 'deploykit/*.go' | wc -l
+171
+$ git -C sdk grep -nE 'DELETED|[Ff]ormer|used to|was (deleted|removed|relocated)|is gone|no longer' \
+    origin/main -- '*.go' | wc -l
+404
+```
+
+**171 is the `deploykit` lane; 404 is the whole module, which still carries the class in `loaderkit`,
+`kit` and the rest even though their `DELETED` token is gone.** **So the close condition for `#1147` is the
+lane-scoped one, and the row that closes 14.3 entirely is the module-scoped 404 -> 0.**
+
+**And both are TARGETS, not readings. The command is `| wc -l`, not `grep -c`, because `grep -c` over a
+pathspec prints `path:count` per matching file and nothing when clean -- never a bare `0`:**
+
+```console
+# run when the lane is done; must print 0. Run today, the lane prints 171 and the module 404.
+$ git -C sdk grep -nE 'DELETED|[Ff]ormer|used to|was (deleted|removed|relocated)|is gone|no longer' \
+    origin/main -- 'deploykit/*.go' | wc -l
+0          # the value that CLOSES the lane; today 171
+$ git -C sdk grep -nE 'DELETED|[Ff]ormer|used to|was (deleted|removed|relocated)|is gone|no longer' \
+    origin/main -- '*.go' | wc -l
+0          # the value that CLOSES 14.3; today 404
+```
+
+**A target and a reading are the same digits and different claims, and a scope and a count are the same
+number about different trees -- and the instrument has to be one that CAN print zero.**
+
+**A body that swept 24 and said "the `DELETED` token is gone" would be true of the token and false of the
+class — the exact false-completeness shape rule 6 names.**
+
+### And the count itself, which cost four rounds on one PR
+
+`kit`/`root`/`vmshared` took three PRs across six verdicts, and **every finding was a number or a ref**:
+"eight sites" over seven rewrites; `eight`/`seven` disagreeing in two sections because a `re.sub` matched
+one capitalisation; a "what this does not sweep" block whose command said `origin/main` while its output was
+the `HEAD` count.
+
+**The diff never changed.** **The fourth PR to carry it passed on its first verdict, and it differed in one
+respect: every remaining claim in its body was a paste, including that block regenerated at the head it
+described.**
+
+### 2026-11-20 -- 14.3's sdk leg: four lanes at zero, and the instrument that re-sized the fifth
+
+**Two merges since the entry above, both from `origin/main`:**
+
+| PR | what landed | measured |
+|---|---|---|
+| **`sdk#574`** | `deploykit`'s OCI-label emission pair | `git -C sdk grep -cE '<wide>' origin/main -- 'deploykit/read_labels.go' 'deploykit/write_labels.go'` -> **0** |
+| **`sdk#576`** | `deploykit`'s intermediates subsystem | `git -C sdk grep -nE '<wide>' origin/main -- 'deploykit/intermediates*.go' | wc -l` -> **1**, and that one is *"is used to decide"*, present tense |
+
+**The `deploykit` census at `origin/main`, by the wide expression:**
+
+```console
+$ git -C sdk grep -nE 'DELETED|[Ff]ormer|used to|was (deleted|removed|relocated)|is gone|no longer' \
+    origin/main -- 'deploykit/*.go' | wc -l
+150
+```
+
+**Down from 171 when the lane was measured.** The module-wide figure, for the same expression over all of
+`sdk`'s `*.go`, is in the entry above -- measured there, and not restated here without its command. **A third unit (`spec_box_resolve.go` + `compile_service_steps.go`, twelve sites) is open at `sdk#577`.**
+
+### What the lane cost, and the two instruments that had to be widened
+
+**`sdk#574` passed on its first verdict. `sdk#576` took five.** The difference was not the diff -- both are comment-only and both trees were correct from the first push. **The five verdicts named, in order:** the block's unchanged tail (*"the tests used before the move"*); a sentence my own fix left without a subject (*"the fields a `*Config` read off"*); the phase tags `(P8b)`, `(W3)`, `(W3, task #36)`, which name a past campaign rather than the code; a commit count of three over four; and a base count stated as `161`, `171` and `150` in one body.
+
+**Three process findings, each worth its round:**
+
+1. **A comment block is one claim in several sentences.** The token finds the site; **the block decides whether the claim is still true.** Sweeping the line the reviewer quotes leaves the sentences around it asserting the same thing in other words -- and leaves a sentence with no subject when the removed phrase was its noun.
+2. **A phase tag is history too, and easier to miss because it is short.** `(P8b)` says *when the code moved*, not what it does.
+3. **`git diff` with no revision range diffs worktree-vs-index.** On a clean tree it prints nothing *whatever was committed*, so an empty result there says nothing about the branch. **Five sections of one body leaned on that fence as the proof of "zero non-comment lines", and the claim was true by luck.** The range is what makes the emptiness a claim.
+
+**And the count, once more:** `161` at base, `150` at head, both stated with their refs -- **because a number without its ref is a number without its meaning, and the oldest ref in a body is the one most likely to be wrong.**
+
+### 2026-11-20 (cont.) -- deploykit's third unit landed, and the unit pattern that holds
+
+**One merge since the entry above:** **`sdk#577`** -- `deploykit`'s box-resolve and render-service bridge,
+twelve comment sites. **Recorded from `origin/main`:**
+
+```console
+$ git -C sdk grep -nE 'DELETED|[Ff]ormer|used to|was (deleted|removed|relocated)|is gone|no longer' \
+    origin/main -- 'deploykit/*.go' | wc -l
+138
+```
+
+**Down from 150 before it.** **A fourth unit is open at `sdk#580`** (deploy_file.go + render_generator_from_project.go,
+fourteen sites) and a fifth is swept and gated in a held worktree (`bake_plugins.go`, `preempt_resolve.go`,
+`enc_passphrase.go`, sixteen sites) -- **held so it does not compete for `sdk`'s seven-check queue.**
+
+### The unit pattern, stated once so it can be copied
+
+**Three `deploykit` units have now landed and every one that did so first-try carried the same five measurements
+in its body:**
+
+1. **per-file `git diff --numstat`**, and its sum computed by `awk` -- not by hand;
+2. **`git diff -U0 origin/main...HEAD`** with the **revision range**, then the comment-only filter -- and a sentence
+   saying why the range matters, **because `git diff` with no range diffs worktree-vs-index and prints nothing on a
+   clean tree whatever was committed**;
+3. **the site count from the KEYWORD-FILTERED removed-line count**, never the bare removed-comment count -- on one
+   unit those differ 74 vs 14, and citing the wrong one is a command for a different question;
+4. **the remainder at BOTH refs**, base and head, with the net stated and its operands shown -- one unit's diff
+   removes fourteen matching lines and ADDS one, so the census moves by thirteen and the identity has to close;
+5. **`git log --oneline origin/main..HEAD` pasted**, never a count of it -- six PRs in this session were blocked on
+   their own commit count.
+
+**Every unit that skipped one of these five took extra verdicts, and every finding that resulted named one of them.**
+**The pattern is written into `spec#392`, `charly#1212`, `sdk#572`, `sdk#574` and `sdk#577`, and any of those bodies
+can be copied.**
+
+### 2026-11-20 (cont.) -- deploykit's fourth unit, and the body generator that replaced transcription
+
+**One merge since the entry above:** **`sdk#581`** -- `deploykit`'s deploy-file and render-generator construction,
+fourteen comment sites **plus two repairs its predecessors' verdicts named** (a regex fragment left as
+`// : once K1 lands`, and five surviving `Relocated from charly/deploy.go` sentences). **Recorded from
+`origin/main`:**
+
+```console
+$ git -C sdk grep -nE 'DELETED|[Ff]ormer|used to|was (deleted|removed|relocated)|is gone|no longer' \
+    origin/main -- 'deploykit/*.go' | wc -l
+124
+```
+
+**Down from 138 before it.** A fifth unit is open at `sdk#582` and a sixth and seventh are committed and gated.
+
+### The generator: why `#581` passed on its first verdict
+
+**Three consecutive `deploykit` bodies went stale between writing and pushing** -- a commit log, a
+`numstat`, and a sum, each because a repair commit landed after the body was typed. **The fix was not more
+care; it was a script.** `/tmp/goal/genunit.py` takes a worktree and a site count and emits the whole body by
+EXECUTING the five measurements, and it refuses to emit at all unless the ranged comment-only filter is empty:
+
+```python
+assert filter_empty == '', f'NOT comment-only: {filter_empty}'
+```
+
+**The difference is not diligence but provenance:** a typed number is a claim about a command, and a
+generated number IS the command's output. **The first body produced this way passed on its first verdict.**
+
+### And the header, which four of six units were blocked on
+
+**`deploy_file.go`'s header, `render_generator_from_project.go`'s campaign paragraph, `bake_plugins.go`'s
+`(K3 build-tail move, coneB-buildtail)`, `preempt_resolve.go`'s `K1-UNBLOCK wave 1`** -- **four of six PRs were
+blocked on a file header.** The header is where relocation history accumulates, because that is where a file
+explains its own provenance. **The seventh unit was swept with that lesson applied first: every history site
+in `bed_session.go` was inside its doc block, and all seven are gone.**
+
+**Two deliberate exceptions are left and named in the bodies:** `used to decide` and `anything was removed`
+match the widened grep but describe the operation, not history. **A widened instrument that cannot tell
+`is used to` from `used to` must be overridden by reading the sentence -- and the body says so where it does.**

@@ -899,6 +899,18 @@ retired-names:
         command: node scripts/check-retired-names.mjs --self-test
         context: [runtime]
 
+live-boundaries:
+  task:
+    description: Judge every skip+mock pair in charly/sdk/spec test files against the committed census (D-CODE-5), and self-test the gate
+    dir: .
+    plan:
+      - check: no test file both skips and mocks a live boundary beyond its census row, and no row is stale, read at each pinned repo's HEAD
+        command: node scripts/check-live-boundaries.mjs
+        context: [runtime]
+      - check: the gate's self-test arms fire (visible-skip control, new pair, widened pair, vanished row, comment-only, missing checkout)
+        command: node scripts/check-live-boundaries.mjs --self-test
+        context: [runtime]
+
 # -----------------------------------------------------------------------------
 # skills — splice the generated R0 dispatcher from the pinned marketplace.
 # -----------------------------------------------------------------------------
