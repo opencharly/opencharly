@@ -4408,13 +4408,25 @@ $ git -C sdk grep -nE 'DELETED|[Ff]ormer|used to|was (deleted|removed|relocated)
 67
 ```
 
-**171 -> 67 across nine units.**
+**171 -> 67 across nine units.** Measured at each recent commit, so the sequence has no gaps:
+
+```console
+$ for c in b665f8c fdcccf7 829fa7c; do
+    printf "%s %s\n" "$c" "$(git -C sdk grep -nE 'DELETED|[Ff]ormer|used to|was (deleted|removed|relocated)|is gone|no longer' $c -- 'deploykit/*.go' | wc -l)"
+  done
+b665f8c 92
+fdcccf7 88
+829fa7c 67
+```
+
+**`#585` left 92, `#586` took it to 88 (five matching lines removed, one added), and `#587` took it to 67 (twenty-one
+removed).**
 
 ### The shape change, and what it says about the instrument
 
-**After `#586` the census was 88 sites across 57 files -- an average of 1.5 per file.** **That is a different job from
+**At 88, the census was 88 sites across 57 files -- an average of 1.5 per file.** **That is a different job from
 the first eight units, which were five to seven sites in one or two files each.** **`sdk#587` took seven files at once
-and passed on its FIRST verdict; a fourth unit is open at `sdk#588` on four more.**
+and removed twenty-one sites in one verdict; a fourth unit is open at `sdk#588` on four more.**
 
 **The per-unit overhead (a PR, a generated body, a validator round) now dominates the work, so breadth is the right
 shape -- and the bodies stay the same size because they are generated from the commands rather than written.**
