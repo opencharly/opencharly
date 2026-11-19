@@ -47,5 +47,17 @@ for m in re.finditer(r'(\d+)\s+[\w\- ]{0,24}?\(([^)]*\d+[^)]*)\)', text):
             print(f"FAIL {path}: '{m.group(0)[:70]}' says {stated}, parts sum to {sum(parts)}")
             fail += 1
 
+
+# --- check 3: every section the census lists with open rows must appear somewhere
+#     in the prose below it. A census that lists a section the waves never place is
+#     the omission that made this plan's first two drafts wrong.
+census = re.findall(r'^\| (\d+)\. [^|]+\| (\d+) \| (\d+) \| \*\*(\d+)\*\* \| (\d+) \|', text, re.M)
+if census:
+    placed = set(re.findall(r'§(\d+)', text))
+    unplaced = [c[0] for c in census if int(c[3]) > 0 and c[0] not in placed]
+    if unplaced:
+        print(f"FAIL {path}: sections with open rows that no wave places: {', '.join('§'+x for x in unplaced)}")
+        fail += 1
+
 print(f"check-totals: {fail} finding(s)")
 sys.exit(1 if fail else 0)

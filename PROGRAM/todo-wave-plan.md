@@ -61,6 +61,9 @@ before any new shape work starts.
 
 Order is forced by the pin graph: `spec` → `sdk` → `charly` → candies.
 
+### `§0` Preconditions (1 open) — needs the operator, not a wave
+The census records **one open row in `§0`**, and it is a *precondition*: it gates work rather than being work. It has no PR and no gate — it needs a decision from the operator, and it is named first because a precondition that is not met makes every wave below it provisional. **This section was placed in no wave in the plan's first two drafts**, which is exactly the kind of omission a generated census does not catch on its own: the table listed it, and the waves silently skipped it.
+
 ### Wave 1 — `§2` schema (22 open) · `spec`
 **Blocks everything.** The audits reduced this from "22 unknown rows" to a measured list:
 - **4 shape unifications** with exact sites (`from_snapshot?:` 9, `need?`/`use?`/`provide?` 3/4/15, `lease:` 10, `grant:` 10)
