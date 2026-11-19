@@ -266,10 +266,12 @@ function selfTest() {
   r = run(scratch);
   check('arm 5: a missing checkout SKIPs visibly', r.findings.length === 0, JSON.stringify(r.findings));
 
-  // arm 6: EVERY repo skipped. This is the state that must never read green, and the guard that says
-  // so must be REACHABLE — a stale-row finding that exits first would hide the reason. Both properties
-  // are asserted here: the run must report every repo in `skipped`, and it must carry NO bogus STALE
-  // finding against the real census, which is what the previous version produced.
+  // arm 6: EVERY repo skipped, WITH A POPULATED CENSUS. Both halves matter and the first draft missed
+  // the second: arm 4 leaves the census empty, and with `baseline.size === 0` the STALE sweep cannot
+  // fire at all — so the arm asserted a property the fixture could not violate, and passed vacuously.
+  // The fixture now seeds a row for a repo that is about to be skipped, which is the only state in
+  // which "a skipped repo must not have its rows judged" is testable.
+  writeFileSync(emptyCensus, '# baseline\ncharly\tcharly/whatever_test.go\t1\n');
   for (const repo of REPOS) execFileSync('rm', ['-rf', join(scratch, repo)]);
   r = run(scratch);
   check('arm 6: every repo skipped reports all three and invents no STALE finding',
