@@ -155,9 +155,13 @@ async function cmdWatch(argv: string[], out: (s: string) => void, err: (s: strin
       timeoutSec,
       signal: abort.signal,
       onNotice: err,
+      // The baseline goes to stderr the moment the watch arms, so a session can see it is
+      // armed and on what — not only when the watch ends.
+      onArm: (reports) => {
+        for (const r of reports) err(r.line);
+      },
       armWake: flags["no-arm-wake"] !== "1",
     });
-    for (const r of res.reports) err(r.line);
     if (abort.signal.aborted) return 143;
     if (res.rateLimited) {
       err(`FATAL gh watch: ${rateLimitMessage(res.rateLimited)}`);
