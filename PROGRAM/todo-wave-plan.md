@@ -48,7 +48,7 @@ return per round available anywhere in the file, and each one is a one-line diff
 | **3.31** | marked LANDED on a target that has not arrived | `need?` at `candy.cue:41` **and** `requires_capability?` at `:69` both exist: **open** |
 | **3.28 / 3.36 / 3.41 / 3.42** | stale premises | already corrected in `#1179` |
 
-**`2.11` and `2.22` are singular deletions.** If either lands in Wave 1, §2's done count goes to 5
+**`2.11` and `2.22` are NOT singular deletions** — the schema side of each is one line, but the cutover behind it is real: `2.22` carries **79 `sdk` retry sites** and `2.11` carries **49 `.Image` consumers across `sdk` and `charly`**. If either lands in Wave 1, §2's done count goes to 5
 before any new shape work starts.
 
 ---
@@ -60,7 +60,7 @@ Order is forced by the pin graph: `spec` → `sdk` → `charly` → candies.
 ### Wave 1 — `§2` schema (21 open) · `spec`
 **Blocks everything.** The audits reduced this from "22 unknown rows" to a measured list:
 - **4 shape unifications** with exact sites (`from_snapshot?:` 9, `need?`/`use?`/`provide?` 3/4/15, `lease:` 10, `grant:` 10)
-- **2 singular deletions** (`2.11`, `2.22`) — cheap wins, take them first
+- **2 schema-line changes backed by real cutovers** (`2.11`: 49 consumers; `2.22`: 79 sites) — **not** one-liners, and starting either as one would leave the cutover half-done, which the Cutover Sizing Law forbids
 - **`2.16` is a ratchet, not a row**: `design-dpat.sh` reports **350 known violations** (close 54, absence 86, open 64, dup 7, union 139) against `design/dpat-baseline.tsv`. **The number to drive down is 350**, and it moves in every wave, not just this one.
 - **`2.19`/`2.20`** add `guard:`/`reverse:` and a golden per action — these are new IR surface, and they unblock §6.
 
@@ -125,9 +125,11 @@ code in the org. If anything slips, it slips there, and by weeks.
 
 ## 5. Next, concretely
 
-1. **Land `#1179`** — 4 closures, 6 re-premised, 2 retractions, one file, generated body.
-2. **Wave 1, in this order:** `2.11` and `2.22` (singular deletions, one site each) → the `2.12`
-   Status correction → the four shape unifications → `2.19`/`2.20`.
-3. **Brief the third audit** on `§6` and `§12`, the only sections nobody has measured.
+1. **Landed:** `#1184` merged — 3 closures, 6 re-premised, 2 retractions; `TODO.md` at `12 / 122 / 12`.
+2. **Wave 1, in this order:** the `2.12` Status correction (a false claim in the durable record,
+   so it goes first) → the four shape unifications → `2.19`/`2.20`.
+3. **`charly task init` the four missing plugin repos** — `plugin-builder-*`, `plugin-check`,
+   `plugin-kube`, `plugin-vm`. **Until they are materialized, sixteen `§6`/`§12` rows cannot be
+   measured at all**, and no amount of grepping substitutes.
 4. **Drive the `dpat` census** from 350 down as each wave lands; it is the one number that
    measures the whole objective rather than one section.
