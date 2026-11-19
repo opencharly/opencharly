@@ -37,6 +37,8 @@ first time). Both are folded in below.
 
 ## 2. The cheapest work, named — do this first
 
+**The counts in the table below are the four audits' findings.** The subset this file's PR re-ran and pasted is `2.5`, `2.8`, `2.11`, `2.12`, `2.13`, `2.22`, `3.24`, `3.41` and `3.42`; **the rest are as the audits reported them and have not been re-run here.**
+
 **Twelve rows are closable or sharpenable by correcting text alone, listed as nine entries.** This is the highest
 return per round available anywhere in the file, and each one is a one-line diff with a grep behind it:
 
