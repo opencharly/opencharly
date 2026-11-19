@@ -58,13 +58,13 @@
 # below IS that reconciliation: the body the push publishes MUST be the body GitHub
 # holds, or the body is not the changelog the reviewer reads.
 #
-# SKIP COUNTS: hook=13 live-body=6   (machine-checked by scripts/check-pr-body-gate.mjs)
+# SKIP COUNTS: hook=14 live-body=6   (machine-checked by scripts/check-pr-body-gate.mjs)
 #
 # EVERY SKIP IS VISIBLE AND NEVER FAIL-CLOSED, the shape pre-commit-gate.sh already uses
 # for a missing golangci-lint, and every one of them carries a marker the gate COUNTS —
 # so the counts above cannot drift away from the code they describe.
 #
-# THE HOOK'S OWN 11:
+# THE HOOK'S OWN 14 (the count above is the machine-checked total):
 #   * NO DESIGN CLASS FILE — `scripts/design-gate-inputs.sh` DEFINES which diffs the
 #     design gate judges, so without it this hook cannot decide, and a partial checkout
 #     is not a diff to block. It names the file and the push continues; the durable
@@ -84,12 +84,19 @@
 #     this checkout being incomplete rather than the diff being wrong; it is named and
 #     the push continues.
 #   * NO node — the same, for the interpreter the reconciliation runs under.
+#   * NO CLAIMS GATE — `scripts/check-body-removed-identifiers.mjs` is absent, so the
+#     body's claims cannot be read against the tree; named, and the push continues.
+#   * NO node FOR THE CLAIMS CHECK — the same, for the interpreter that leg runs under.
 #   * NO LINTER — `marketplace/` is a submodule a session worktree may not have
 #     materialized, and blocking a push for an unmaterialized submodule would make
 #     every fresh worktree unlandable. It names the one command that fixes it.
 #   * NO python3 — the same, for the interpreter the linter runs under.
 #   * A LINTER THAT CANNOT RUN — the linter is here but its sibling module from the
 #     marketplace submodule is not, so it dies with a traceback that also exits 1.
+#   * A PINNED MARKETPLACE, NOT A CHECKOUT — the index records a gitlink for `marketplace`
+#     but the directory is not a git repository, so the linter's VERSION cannot be asserted.
+#     Named, with the one command that materializes it; the push continues, because an
+#     unmaterialized submodule is a tree condition, not a defect in the body.
 #
 # NONE OF THE THREE DESIGN SKIPS CAN HIDE A VIOLATION: the first two are a tree that
 # carries no design controls at all, and the third is the committed change class. They
@@ -534,6 +541,43 @@ if [ ! -f "$LINT" ]; then
   echo "pre-push: [pre-push-skip] $LINT is absent (the marketplace submodule is not materialized here) — body lint SKIPPED."
   echo "pre-push: materialize it with: bash scripts/init-submodules.sh  (the working set includes the marketplace)"
   exit 0
+fi
+
+# ── the CONTROL'S OWN VERSION: the linter must be the commit the INDEX pins ─────────
+# THE DEFECT THIS CLOSES. The gate above is `marketplace/scripts/pr_body_lint.py` — the
+# CHECKOUT's copy. A checkout that predates the pin therefore enforces an OLDER linter,
+# silently and with a green result: opencharly/opencharly#1159 reported that the linter
+# checks only that the `Agent:` footer exists, which was true of the checkout at 6f7ec7c
+# and false at the pin (69e0842): the same malformed body returned `0 finding(s)` from
+# the stale copy and `1 finding(s)` from the pinned one. That is how a defect got re-filed
+# 35 minutes after its fix landed (opencharly/opencharly#1176).
+#
+# A PIN IS THE INDEX ENTRY; THE CHECKOUT FOLLOWS IT (DESIGN §A.12, D-PLUG-3). So the
+# comparison is `git ls-files -s -- marketplace` (the gitlink) against
+# `git -C marketplace rev-parse HEAD` (the checkout) — never two checkouts, never a
+# network read. A disagreement is a VISIBLE BLOCK, not a skip: a pass earned by a gate
+# other than the pinned one proves nothing, which is the same rule the DESIGN leg above
+# applies to the tree it judges. Only a tree that does NOT record a marketplace gitlink
+# (a fixture, a fork) has no control version to assert, and only a pinned-but-not-a-repo
+# directory cannot be asked — both are named, and the second is the one visible skip
+# this leg adds.
+MARKETPLACE_PIN="$(git ls-files -s -- marketplace 2>/dev/null | awk '$1 == "160000" {print $2; exit}')"
+if [ -n "$MARKETPLACE_PIN" ]; then
+  MARKETPLACE_HEAD="$(git -C "$ROOT/marketplace" rev-parse HEAD 2>/dev/null || true)"
+  if [ -z "$MARKETPLACE_HEAD" ]; then
+    echo "pre-push: [pre-push-skip] marketplace is pinned ($MARKETPLACE_PIN) but its checkout is not a git repository — the linter's VERSION cannot be asserted, so body lint SKIPPED." >&2
+    echo "pre-push: materialize it with: bash scripts/init-submodules.sh  (the working set includes the marketplace)" >&2
+    exit 0
+  fi
+  if [ "$MARKETPLACE_HEAD" != "$MARKETPLACE_PIN" ]; then
+    echo "pre-push: BLOCKED — the body linter this gate would run is at ANOTHER COMMIT than the pin:" >&2
+    echo "pre-push:   pin      (git ls-files -s -- marketplace):     $MARKETPLACE_PIN" >&2
+    echo "pre-push:   checkout (git -C marketplace rev-parse HEAD): $MARKETPLACE_HEAD" >&2
+    echo "pre-push: a checkout behind the pin enforces an OLDER linter and can report a malformed" >&2
+    echo "pre-push: body clean (opencharly/opencharly#1176). Move the checkout to the pin:" >&2
+    echo "pre-push:   git -C marketplace checkout $MARKETPLACE_PIN" >&2
+    exit 1
+  fi
 fi
 
 if ! command -v python3 >/dev/null 2>&1; then

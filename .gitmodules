@@ -1719,3 +1719,7 @@
 	path = layer-cdi
 	url = https://github.com/opencharly/layer-cdi.git
 	branch = main
+[submodule "pod-strata"]
+	path = pod-strata
+	url = https://github.com/opencharly/pod-strata.git
+	branch = main
