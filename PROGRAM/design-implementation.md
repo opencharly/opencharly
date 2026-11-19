@@ -4357,3 +4357,41 @@ in `bed_session.go` was inside its doc block, and all seven are gone.**
 **Two deliberate exceptions are left and named in the bodies:** `used to decide` and `anything was removed`
 match the widened grep but describe the operation, not history. **A widened instrument that cannot tell
 `is used to` from `used to` must be overridden by reading the sentence -- and the body says so where it does.**
+
+### 2026-11-20 (cont.) -- deploykit below 100, and the failure mode the generator cannot fix
+
+**Two merges since the entry above:** **`sdk#582`** (bake/preempt/enc, sixteen sites) and **`sdk#584`** (the bed-session
+header, five site-carrying lines across seven rewritten blocks). **Recorded from `origin/main`:**
+
+```console
+$ git -C sdk grep -nE 'DELETED|[Ff]ormer|used to|was (deleted|removed|relocated)|is gone|no longer' \
+    origin/main -- 'deploykit/*.go' | wc -l
+103
+```
+
+**The census crossed 100 for the first time: 171 -> 103 across six landed units.** An eighth unit is open at
+`sdk#585` (secret-declare, render-prep, enc-probe, eleven sites) and takes it to 92.
+
+### The lane's failure taxonomy, six entries
+
+**Every blocking finding on this lane has been a claim defect, never a code defect. The six mechanisms, in the
+order they were learned:**
+
+1. **A comment block is one claim in several sentences.** The token finds the site; the block decides whether the
+   claim is still true.
+2. **A phase tag is history too** -- `(P8b)`, `K1-UNBLOCK wave 1`, `(K3 build-tail move, coneB-buildtail)` -- and
+   easier to miss because it is short.
+3. **A file HEADER is where a file explains its own provenance**, so it is the densest concentration of the
+   violation. **Five of eight PRs were blocked on one.**
+4. **Removing a tag can leave a sentence with no subject** -- `// : once K1 lands`, `the fields a *Config read off`.
+   The sentence, not the tag, is the unit of rewrite.
+5. **A paste is a claim about a ref.** A commit log, a `numstat` and a sum each went stale because a repair commit
+   landed after the body was written. **The fix is a generator that runs the commands, not more care.**
+6. **The instrument can be right and be dismissed on sight.** `bed_session.go` line 10 was reported by the
+   per-file grep, read as a description of the file rather than a site, and passed over. **No generator fixes this;
+   only reading the header before deciding which lines are sites does.**
+
+**And the two deliberate exceptions, named in the bodies that leave them:** `is used to decide` and `whether
+anything was removed` match the widened expression and describe the operation, not history. **A widened instrument
+that cannot tell `is used to` from `used to` must be overridden by reading the sentence -- and the body says so
+where it does.**
