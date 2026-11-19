@@ -235,7 +235,7 @@ function selfTest() {
   write('charly/pair_test.go', 'package main\nfunc TestB(t *testing.T) { t.Skip("down") }\nvar _ = fakeThing{}\n');
   commitAll('charly', 'b');
   r = run(scratch);
-  check('arm 1: a NEW pair with no census row is RED',
+  check('arm 1: a NEW pair with no census row is flagged',
     r.findings.some((f) => f.startsWith('NEW PAIR') && f.includes('pair_test.go')), JSON.stringify(r.findings));
 
   // arm 2: a second pair in a census file — RED (widened).
@@ -259,7 +259,7 @@ function selfTest() {
   write('charly/pair_test.go', 'package main\nfunc TestE(t *testing.T) { _ = 2 }\n');
   commitAll('charly', 'e');
   r = run(scratch);
-  check('arm 4: a comment-only file is GREEN', r.findings.length === 0, JSON.stringify(r.findings));
+  check('arm 4: a comment-only file stays green', r.findings.length === 0, JSON.stringify(r.findings));
 
   // arm 5: a missing checkout — SKIP, asserted as a visible skip, never a silent pass.
   execFileSync('rm', ['-rf', join(scratch, 'spec')]);
@@ -293,7 +293,7 @@ function selfTest() {
 
   execFileSync('rm', ['-rf', scratch]);
   if (failures) { console.error(`\nself-test: ${failures} arm(s) FAILED`); process.exit(1); }
-  console.log('\nself-test: OK (8 arms — control first, every one fails when it should)');
+  console.log('\nself-test: OK (8 checks — control first, every one fails when it should)');
 }
 
 const args = process.argv.slice(2);
