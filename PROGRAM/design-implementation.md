@@ -4220,18 +4220,21 @@ $ git -C sdk grep -nE 'DELETED|[Ff]ormer|used to|was (deleted|removed|relocated)
 `kit` and the rest even though their `DELETED` token is gone.** **So the close condition for `#1147` is the
 lane-scoped one, and the row that closes 14.3 entirely is the module-scoped 404 -> 0.**
 
-**And both are TARGETS, not readings:**
+**And both are TARGETS, not readings. The command is `| wc -l`, not `grep -c`, because `grep -c` over a
+pathspec prints `path:count` per matching file and nothing when clean -- never a bare `0`:**
 
 ```console
 # run when the lane is done; must print 0. Run today, the lane prints 171 and the module 404.
-$ git -C sdk grep -cE '...' origin/main -- 'deploykit/*.go'
+$ git -C sdk grep -nE 'DELETED|[Ff]ormer|used to|was (deleted|removed|relocated)|is gone|no longer' \
+    origin/main -- 'deploykit/*.go' | wc -l
 0          # the value that CLOSES the lane; today 171
-$ git -C sdk grep -cE '...' origin/main -- '*.go'
+$ git -C sdk grep -nE 'DELETED|[Ff]ormer|used to|was (deleted|removed|relocated)|is gone|no longer' \
+    origin/main -- '*.go' | wc -l
 0          # the value that CLOSES 14.3; today 404
 ```
 
-**A target and a reading are the same digits and different claims, and a SCOPE and a COUNT are the same
-number about different trees.**
+**A target and a reading are the same digits and different claims, and a scope and a count are the same
+number about different trees -- and the instrument has to be one that CAN print zero.**
 
 **A body that swept 24 and said "the `DELETED` token is gone" would be true of the token and false of the
 class — the exact false-completeness shape rule 6 names.**
