@@ -4162,3 +4162,90 @@ chosen from `git diff -U0 | grep -v '^[+-][[:space:]]*//'` being empty; `spec#39
 measuring the population by directory first; `#1146` with an arm proven by removing the guard it tests.
 
 **A claim that arrives after its measurement never needs a second round.**
+
+### 2026-11-19/20 (cont.) — three rows closed, and the instrument that re-sized the last one
+
+**Three PRs landed after the entry above -- `spec#396`, `sdk#572` and `sdk#573`.** (`#1149` was the entry
+itself, not a subsequent merge; it is named in that entry's own table.) State, from `origin/main`, not from
+the PR bodies:
+
+| PR | what landed | measured |
+|---|---|---|
+| **`spec#396`** | 7.3 phase 2 -- `RepoCacheDir` reads the ONE resolver | `git -C spec show origin/main:refs/cache.go \| grep -c 'os.Getenv("CHARLY_REPO_CACHE")'` -> **0** |
+| **`sdk#572`** | 14.3's `sdk` leg, `loaderkit` lane | `git -C sdk grep -cF 'DELETED' origin/main -- 'loaderkit/*.go'` -> **0** |
+| **`sdk#573`** | the same leg, `kit` + `root` + `vmshared` lanes | those three lanes absent from the per-directory census below |
+
+**The `sdk` lane census at `main` after all three:**
+
+```console
+$ git -C sdk grep -cF 'DELETED' origin/main -- '*.go' | sed 's|origin/main:||' \
+    | awk -F: '{split($1,a,"/"); d=(length(a)>1?a[1]:"root"); s[d]+=$NF} END{for(k in s) printf "%-14s %d\n", k, s[k]}'
+deploykit      24
+storekit       1
+```
+
+**25 total, down from 39. `storekit`'s single site is already present-tense.** **So 14.3's `sdk` leg stands at
+`spec` + `charly` + four `sdk` lanes complete, with `deploykit` alone remaining.**
+
+### The measurement that re-sized the last lane, and why it matters more than the count
+
+**`deploykit` is 24 by the token and 171 by the class:**
+
+```console
+$ git -C sdk grep -cF 'DELETED' origin/main -- 'deploykit/*.go' | awk -F: '{s+=$NF} END{print s+0}'
+24
+$ git -C sdk grep -nE 'DELETED|[Ff]ormer|used to|was (deleted|removed|relocated)|is gone|no longer' \
+    origin/main -- 'deploykit/*.go' | wc -l
+171
+```
+
+**`D-CODE-4` forbids *"history instead of present code"*, not a word.** **The same claim is made as
+*"relocated from `charly/engine.go`"*, *"the former `writeLabels`"*, *"used to carry its own copy"*,
+*"no longer sourced from"*.** **The three lanes that landed used the token as their population and were
+small enough that the proxy and the class nearly coincided; `deploykit` is where they diverge.**
+
+**So `#1147`'s close condition is the WIDE grep, not the token -- and the scope of the grep has to be
+stated, because the two scopes give different numbers and both are true:**
+
+```console
+$ git -C sdk grep -nE 'DELETED|[Ff]ormer|used to|was (deleted|removed|relocated)|is gone|no longer' \
+    origin/main -- 'deploykit/*.go' | wc -l
+171
+$ git -C sdk grep -nE 'DELETED|[Ff]ormer|used to|was (deleted|removed|relocated)|is gone|no longer' \
+    origin/main -- '*.go' | wc -l
+404
+```
+
+**171 is the `deploykit` lane; 404 is the whole module, which still carries the class in `loaderkit`,
+`kit` and the rest even though their `DELETED` token is gone.** **So the close condition for `#1147` is the
+lane-scoped one, and the row that closes 14.3 entirely is the module-scoped 404 -> 0.**
+
+**And both are TARGETS, not readings. The command is `| wc -l`, not `grep -c`, because `grep -c` over a
+pathspec prints `path:count` per matching file and nothing when clean -- never a bare `0`:**
+
+```console
+# run when the lane is done; must print 0. Run today, the lane prints 171 and the module 404.
+$ git -C sdk grep -nE 'DELETED|[Ff]ormer|used to|was (deleted|removed|relocated)|is gone|no longer' \
+    origin/main -- 'deploykit/*.go' | wc -l
+0          # the value that CLOSES the lane; today 171
+$ git -C sdk grep -nE 'DELETED|[Ff]ormer|used to|was (deleted|removed|relocated)|is gone|no longer' \
+    origin/main -- '*.go' | wc -l
+0          # the value that CLOSES 14.3; today 404
+```
+
+**A target and a reading are the same digits and different claims, and a scope and a count are the same
+number about different trees -- and the instrument has to be one that CAN print zero.**
+
+**A body that swept 24 and said "the `DELETED` token is gone" would be true of the token and false of the
+class — the exact false-completeness shape rule 6 names.**
+
+### And the count itself, which cost four rounds on one PR
+
+`kit`/`root`/`vmshared` took three PRs across six verdicts, and **every finding was a number or a ref**:
+"eight sites" over seven rewrites; `eight`/`seven` disagreeing in two sections because a `re.sub` matched
+one capitalisation; a "what this does not sweep" block whose command said `origin/main` while its output was
+the `HEAD` count.
+
+**The diff never changed.** **The fourth PR to carry it passed on its first verdict, and it differed in one
+respect: every remaining claim in its body was a paste, including that block regenerated at the head it
+described.**
