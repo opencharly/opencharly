@@ -56,12 +56,12 @@ the `sdk` pin since #1004).
 | 7. Store, state, secrets and concurrency | 6 | 3 | 3 | 0 |
 | 8. Command line | 4 | 0 | 3 | 1 |
 | 9. Repositories | 2 | 1 | 1 | 0 |
-| 10. Documentation | 3 | 1 | 2 | 0 |
+| 10. Documentation | 3 | 0 | 3 | 0 |
 | 11. Final proof | 2 | 0 | 2 | 0 |
 | 12. OCE alignment | 15 | 2 | 8 | 5 |
 | 13. Deployments, drivers, venues and captures | 7 | 0 | 7 | 0 |
 | 14. Code rules and enforcement | 4 | 0 | 4 | 0 |
-| **Total** | **146** | **16** | **118** | **12** |
+| **Total** | **146** | **15** | **119** | **12** |
 
 The Decisions row counts the unnumbered decided block plus item 1.1.
 
@@ -963,7 +963,7 @@ Still open:
 |---|---|
 | 10.1 | **LANDED — all four legs, and the only thing that made it read undone was a stale pin.** `charly/AGENTS.md`, `spec/AGENTS.md` and `sdk/AGENTS.md` now carry the pointers to DESIGN.md, and the umbrella rule that DESIGN.md is normative is in `AGENTS.md`. The four legs: opencharly/opencharly#1087 (the umbrella rule), opencharly/spec#371, opencharly/sdk#555, opencharly/charly#1196. **Measured at the pins:** the umbrella recorded `spec` at the commit BEFORE `spec#371`, so a pin-reading measurement saw zero matches and the row looked open. **opencharly/opencharly#1126 advanced the pin on 2026-11-18**: the umbrella now records `spec` at `545c73a8`, so this row reads true from the index as well as from the tips |
 | 10.2 | Rewrite the skills to the DESIGN vocabulary. Delete the measured contradictions: 5 vs 7 substrates, `target:` present or absent, `fleet` vs `deploy`, the dot rule, `source: builtin`, `EmitTarget`, the operation counts. |
-| 10.3 | **LANDED — retired.** `ls PROGRAM/nested-deploy-members.md` -> `No such file or directory`; the file is gone.  Rewrite `PROGRAM/nested-deploy-members.md` as completed by §17.2, or retire it once 3.10 lands. |
+| 10.3 | **OPEN — my earlier "LANDED — retired" was measured in the wrong tree.** The document is gone from THIS umbrella but exists in `charly`: `git -C charly show origin/main:PROGRAM/nested-deploy-members.md | wc -l` -> `292`. The row's instruction (rewrite it as completed by §17.2, or retire it once `3.10` lands) is therefore still live. |
 
 ## 11. Final proof
 
