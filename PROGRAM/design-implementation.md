@@ -4070,7 +4070,7 @@ W2c pin wave across `adb`, `spice`, `tmux`, `tunnel`, `unix-group`, `lobster`, `
 | `\?` in GNU BRE | the optional quantifier, not a literal — a false zero in a brief |
 | `head -7` on a `### Blocks` list | one finding shown, the second hidden for a whole round |
 | `git show --stat HEAD` | on a multi-commit branch, only the last commit |
-| `| tail -1` | reports `tail`'s status, not the command's |
+| a piped `tail -1` | reports `tail`'s status, not the command's |
 | a `rev-parse` from an hour ago | a measurement is true of the moment it was taken |
 | `git -C <empty submodule>` | **walks up to the umbrella**, succeeds, answers with the wrong tree |
 | a pasted head SHA | makes `gh pr update-branch` self-defeating |
