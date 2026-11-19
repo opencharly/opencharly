@@ -734,6 +734,56 @@ async function fire() {
     writePrMap([mapMain, mapOther, mapFork]);
     writeFileSync(liveBodyFile, GOOD_BODY);
 
+    // F22 — THE CONTROL'S VERSION. The gate runs `marketplace/scripts/pr_body_lint.py`,
+    //      the CHECKOUT's copy. A checkout that predates the pin therefore enforces an
+    //      OLDER linter: opencharly/opencharly#1159's reporter saw `0 finding(s)` for a
+    //      malformed body from the checkout on disk (6f7ec7c) and `1 finding(s)` from the
+    //      pinned commit (69e0842) — the defect was re-filed 35 minutes after its fix
+    //      landed (opencharly/opencharly#1176). The fixture makes the two facts DISAGREE:
+    //      the index pins the newer commit, the checkout sits on the older one.
+    if (lintPresent) {
+      const mp = join(repo, "marketplace");
+      rmSync(mp, { recursive: true, force: true });
+      mkdirSync(mp, { recursive: true });
+      cpSync(lintSrc, join(mp, "scripts"), { recursive: true });
+      const mkgit = (...a) => spawnSync("git", a, { cwd: mp, encoding: "utf8" });
+      mkgit("init", "-q", "-b", "main");
+      mkgit("config", "user.email", "gate@gate");
+      mkgit("config", "user.name", "gate");
+      mkgit("add", "-A");
+      writeFileSync(join(scratch, "mp-old.txt"), "marketplace: the older linter (the checkout)\n");
+      mkgit("commit", "-q", "-F", join(scratch, "mp-old.txt"));
+      writeFileSync(join(mp, "README.md"), "the pinned linter\n");
+      mkgit("add", "-A");
+      writeFileSync(join(scratch, "mp-pin.txt"), "marketplace: the pinned linter (the index gitlink)\n");
+      mkgit("commit", "-q", "-F", join(scratch, "mp-pin.txt"));
+      const pinSha = mkgit("rev-parse", "HEAD").stdout.trim();
+      // The checkout moves BACK one commit while the index keeps the pin — the shipped
+      // defect's shape exactly (a checkout behind the pin, a green result from old rules).
+      mkgit("checkout", "-q", "HEAD~1");
+      git("update-index", "--add", "--cacheinfo", `160000,${pinSha},marketplace`);
+      writeFileSync(defaultBody, GOOD_BODY);
+      const behindPin = run();
+      expect(
+        behindPin.code === 1 &&
+          /the body linter this gate would run is at ANOTHER COMMIT than the pin/.test(behindPin.out) &&
+          behindPin.out.includes(pinSha),
+        `hooks/pre-push FIRED: a marketplace checkout BEHIND the pin is BLOCKED at the push, naming the pin and the checkout (the stale-control class)`,
+      );
+      // The other arm: the checkout is the pinned commit, so the gate proceeds and lints
+      // exactly as before — the assertion is a comparison, not a refusal to run.
+      mkgit("checkout", "-q", "main");
+      const atPin = run();
+      expect(
+        atPin.code === 0 && /pre-push: OK/.test(atPin.out),
+        `hooks/pre-push FIRED: a marketplace checkout AT the pin proceeds and lints the body as before (exit 0)`,
+      );
+    } else {
+      skip(
+        `hooks/pre-push FIRED: the marketplace control-version arms — the org linter is not materialized in this checkout`,
+      );
+    }
+
     writeFileSync(defaultBody, GOOD_BODY);
   } catch (err) {
     fail(`firing ${rel} (${err instanceof Error ? err.message : String(err)})`);
@@ -835,6 +885,14 @@ if (argv.includes("--self-test")) {
       "a linter that cannot run blocks the push",
       (s) => s.replace(/if ! python3 "\$LINT" --help >\/dev\/null 2>&1; then/, "if false; then"),
       "linter that cannot run SKIPS visibly",
+    ],
+    // The stale-control class: with the version comparison gone, a checkout behind the pin
+    // runs its OLDER linter and the push proceeds — the defect opencharly/opencharly#1176
+    // closed. The mutation must make the "behind the pin" arm red.
+    [
+      "the linter's version is not asserted against the pin",
+      (s) => s.replace(/if \[ "\$MARKETPLACE_HEAD" != "\$MARKETPLACE_PIN" \]; then/, "if false; then"),
+      "a marketplace checkout BEHIND the pin is BLOCKED",
     ],
     [
       "the body path defaults into the tracked tree",
