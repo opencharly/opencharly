@@ -3,8 +3,8 @@
 //
 // Why it exists (opencharly/opencharly#567). The coordination grammar's closed set is
 // duplicated across the org by design: each repo owns its own copy of the rulebook, and
-// the tools that IMPLEMENT the grammar each carry the list too (the shell `coord.sh` and
-// the TypeScript `coord.ts`). A rename that lands in some copies and not others leaves a
+// the ONE tool that IMPLEMENTS the grammar carries the list too (`scripts/gh/lib/coord.ts`,
+// opencharly/opencharly#1140). A rename that lands in some copies and not others leaves a
 // grammar with two answers — which is exactly the defect the cutover closed: `BLOCKS` meant
 // "this blocks the merge" in the validator's verdict vocabulary AND "I am blocked" in a
 // coordination comment, in the same file.
@@ -277,25 +277,11 @@ export const SURFACES = [
     extract: (t) => capture(t, /one label: ([^.]*)\./),
   },
   {
-    name: "umbrella .opencode/plugins/coord.ts (the VERBS array)",
-    file: ".opencode/plugins/coord.ts",
+    // The ONE implementation's list. Every tool description (OpenCode's coord_comment,
+    // the CLI's errors) is built from this array, so it is the only code copy.
+    name: "umbrella scripts/gh/lib/coord.ts (the VERBS array)",
+    file: "scripts/gh/lib/coord.ts",
     extract: (t) => capture(t, /export const VERBS = \[([\s\S]*?)\]/),
-  },
-  {
-    // The tool's DESCRIPTION is a hand-written second copy of the set, in the same
-    // file, assembled from concatenated string literals. A copy nothing compares is a
-    // copy free to drift — and this one is what an agent reads to learn the grammar.
-    name: "umbrella .opencode/plugins/coord.ts (the tool description)",
-    file: ".opencode/plugins/coord.ts",
-    extract: (t) => capture(t, /Use it for ([\s\S]*?) per AGENTS\.md\./),
-  },
-  {
-    // The plugin's own gate states the canonical nine a second time, to assert the
-    // VERBS array against it. THAT statement is a copy too: the org-wide gate is the
-    // single owner of the canonical list, and this surface is how the two are compared.
-    name: "umbrella scripts/check-opencode-coord.mjs (the gate's own closed set)",
-    file: "scripts/check-opencode-coord.mjs",
-    extract: (t) => capture(t, /eq\(\s*\[\.\.\.VERBS\],\s*(\[[^\]]*\])/),
   },
   {
     // This gate's own canonical list. It is the DEFINITION, not a copy — but it is
@@ -304,16 +290,6 @@ export const SURFACES = [
     name: "umbrella scripts/check-coord-verb-set.mjs (this gate's canonical list)",
     file: "scripts/check-coord-verb-set.mjs",
     extract: (t) => capture(t, /export const CANONICAL = \[([\s\S]*?)\]/),
-  },
-  {
-    name: "marketplace scripts/coord.sh (the VERBS array)",
-    file: "marketplace/scripts/coord.sh",
-    extract: (t) => capture(t, /^VERBS=\((.*)\)$/m),
-  },
-  {
-    name: "marketplace scripts/coord.sh (the --help prose)",
-    file: "marketplace/scripts/coord.sh",
-    extract: (t) => capture(t, /one of ([^.]*)\./),
   },
   {
     name: "action-review charly.yml (the validator's own closed set)",
@@ -479,22 +455,9 @@ function selfTest() {
   try {
     const agents = (set) =>
       `# t\n\n- A coordination comment opens with one label from ${set}.\n`;
-    // The TypeScript shape, with the set in BOTH places it lives in that file: the
-    // VERBS array, and the tool description — the description assembled from TWO
-    // concatenated string literals, exactly as the real file writes it, so the
-    // comparison is exercised against the shape it will meet.
-    const coordTs = (set) => {
-      const labels = set.split(" · ");
-      const half = Math.ceil(labels.length / 2);
-      const head = labels.slice(0, half).join(" / ");
-      const tail = labels.slice(half).join(" / ");
-      return [
-        `export const VERBS = [\n${labels.map((l) => `  "${l}",`).join("\n")}\n];\n`,
-        `export default {\n  tools: {\n    coord_comment: {\n      description:\n        "Use it for ${head} / " +\n        "${tail} per AGENTS.md. " +\n    },\n  },\n};\n`,
-      ].join("\n");
-    };
-    const pluginGate = (set) =>
-      `eq(\n  [...VERBS],\n  ${JSON.stringify(set.split(" · "))},\n  "VERBS is the nine-label closed set, in order",\n);\n`;
+    // The ONE implementation's shape: the VERBS array.
+    const coordTs = (set) =>
+      `export const VERBS = [\n${set.split(" · ").map((l) => `  "${l}",`).join("\n")}\n];\n`;
     // A file that states the set and that NO surface reads — the copy nobody compares.
     const unlisted = (set) => `# notes\n\nThe labels are ${set}.\n`;
     /**
@@ -503,10 +466,8 @@ function selfTest() {
      */
     const writeFixture = (d, set) => {
       writeFileSync(join(d, "AGENTS.md"), agents(set));
-      mkdirSync(join(d, ".opencode/plugins"), { recursive: true });
-      writeFileSync(join(d, ".opencode/plugins/coord.ts"), coordTs(set));
-      mkdirSync(join(d, "scripts"), { recursive: true });
-      writeFileSync(join(d, "scripts/check-opencode-coord.mjs"), pluginGate(set));
+      mkdirSync(join(d, "scripts/gh/lib"), { recursive: true });
+      writeFileSync(join(d, "scripts/gh/lib/coord.ts"), coordTs(set));
     };
     // A fixture is a TRACKED git tree, because the sweep reads the tracked set through
     // git: a plain directory would prove the matcher and not the walk, and the walk is

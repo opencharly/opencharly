@@ -1,23 +1,18 @@
 #!/usr/bin/env node
 // check-pi-pr-status.mjs — regression gate for the pi PR-status tool
-// (`.pi/extensions/github-pr-status.ts`), mirroring check-pi-gates.mjs and
-// check-pi-watch.mjs: static assertions over the SHIPPED code (comments stripped), plus a
-// real TypeScript parse, each proven to FAIL by a mutation.
+// (`.pi/extensions/github-pr-status.ts`), mirroring the other `check-pi-*.mjs` gates: static
+// assertions over the SHIPPED code (comments stripped), plus a real TypeScript parse, each
+// proven to FAIL by a mutation.
 //
-// Why it exists (R1). The tool is the ONLY way a pi session learns a PR's verdict — GitHub
-// Actions has no path into a session. Five measured defects shipped in it and every gate
-// stayed green, because nothing asserted its behaviour:
+// Why it exists (R2). The tool once carried its own `gh` shell-outs, its own classifier and
+// its own 60 s poll loop — a fourth watcher, with five measured defects of its own. It is now
+// a BINDING of the ONE engine (`scripts/gh/lib/watch.ts`, opencharly/opencharly#1140), whose
+// behaviour `scripts/check-gh-tools.mjs` tests. This gate holds the binding to that shape:
 //
-//   1. STATE CASING — `gh pr view --json state` returns UPPERCASE, the poll compared
-//      lowercase, so `watch` returned after a single poll instead of waiting.
-//   2. RUN LOOKUP — `gh run list --workflow pr-validator.yml` does not resolve the
-//      org-required workflow, so `check` reported "none found" with a live run on the head.
-//   3. FAILING STEP — `gh run view <id> --json jobs` 404s on the org-required workflow.
-//   4. INCONCLUSIVE — a verdict-less run produced no `Verdict:` line, so the comment scan
-//      skipped it and misreported.
-//   5. WATCH SHORT-CIRCUIT — `watch` returned on ANY concluded run (including a PASS) while
-//      its own loop kept polling after a PASS that arrived later; the two paths disagreed
-//      about the same state.
+//   1. PARSES as TypeScript.
+//   2. DELEGATES — it imports the shared engine and classifies with its `classify`.
+//   3. ADDS NO SECOND WATCHER — no `gh` shell-out (`execFile`), no poll loop, no `watch` mode.
+//   4. REGISTERED — the `gh_pr_status` tool exists.
 //
 // Usage: node scripts/check-pi-pr-status.mjs [--root <dir>] [--self-test]
 // exit 0 clean · 1 finding
@@ -64,34 +59,21 @@ function check() {
   const parseErr = parseTypeScript(raw);
   if (parseErr) fail(`${REL} parses as TypeScript (${parseErr})`);
 
-  // 1. defect 1 — the state is normalised once, and compared lowercase.
-  if (!/String\(p\.state[^\n]*\)\.toLowerCase\(\)/.test(code))
-    fail(`normalises the PR state to lowercase in getPR (defect 1: "OPEN" broke the compare)`);
-  if (!/state !== "open"/.test(code)) fail(`compares the state to the lowercase "open"`);
-  if (/state !== "OPEN"/.test(code)) fail(`does not compare the state to uppercase "OPEN"`);
+  // 2. it delegates to the ONE engine.
+  if (!/from "\.\.\/\.\.\/scripts\/gh\/lib\/watch\.ts"/.test(code))
+    fail(`imports the shared engine scripts/gh/lib/watch.ts (one classifier for every harness)`);
+  if (!/\bclassify\(/.test(code)) fail(`classifies with the engine's classify()`);
 
-  // 2. defect 2 — the run is found by head SHA, never by --workflow.
-  if (/--workflow/.test(code))
-    fail(`must not filter validator runs with --workflow (defect 2: the org required workflow does not resolve that way)`);
-  if (!/actions\/runs\?head_sha=/.test(code)) fail(`finds the validator run by head SHA (defect 2)`);
+  // 3. it adds no second watcher.
+  if (/\bexecFile\b|child_process/.test(code)) fail(`does not shell out to gh (the engine owns the GitHub client)`);
+  if (/setTimeout|setInterval|while\s*\(|for\s*\(\s*;\s*;/.test(code))
+    fail(`has no poll loop of its own (waiting is the watcher's job)`);
+  if (/["'`]watch["'`]/.test(code)) fail(`has no watch mode`);
 
-  // 3. defect 3 — the failing step comes from the REST jobs API, not `gh run view`.
-  if (!/actions\/runs\/\$\{runId\}\/jobs/.test(code))
-    fail(`reads the failing step through the REST jobs API (defect 3: \`gh run view\` 404s on the org required workflow)`);
-
-  // 4. defect 4 — a verdict-less run is classified, not skipped.
-  if (!/INCONCLUSIVE/.test(code))
-    fail(`classifies a verdict-less INCONCLUSIVE comment distinctly (defect 4)`);
-
-  // 5. the watch loop is real, and the tool is registered.
-  if (/checkConcluded/.test(code))
-    fail(`the watch short-circuit uses watchDone, not a checkConcluded flag (defect 5: it returned on a PASS too)`);
-  if (!/mode === "check" \|\| first\.watchDone/.test(code))
-    fail(`the one-shot short-circuit is \`mode === "check" || first.watchDone\``);
-  if (!/watch timed out/.test(code)) fail(`the watch loop reports a timeout instead of returning early`);
+  // 4. the tool is registered.
   if (!/name:\s*["'`]gh_pr_status["'`]/.test(code)) fail(`registers the gh_pr_status tool`);
 
-  if (failures === 0) ok(`${REL}: parses, normalises state, finds the run by head SHA, reads jobs via REST, classifies INCONCLUSIVE`);
+  if (failures === 0) ok(`${REL}: parses, delegates to scripts/gh/lib/watch.ts, adds no second watcher, registered`);
 }
 
 // ── --self-test: prove each assertion goes RED on a mutation ──────────────────
@@ -120,14 +102,11 @@ if (argv.includes("--self-test")) {
 
   const mutations = [
     ["unparseable", () => original + "\nconst broken = ;\n", "parses as TypeScript"],
-    ["state not normalised", () => original.replace('String(p.state ?? "").toLowerCase()', 'String(p.state ?? "")'), "normalises the PR state to lowercase"],
-    ["uppercase compare", () => original.replace('state !== "open"', 'state !== "OPEN"'), "lowercase"],
-    ["--workflow lookup", () => original + '\nconst wf = "--workflow pr-validator.yml";\n', "must not filter validator runs with --workflow"],
-    ["no head_sha query", () => original.replace("actions/runs?head_sha=", "actions/runs?x="), "finds the validator run by head SHA"],
-    ["gh run view jobs", () => original.replace("actions/runs/${runId}/jobs?per_page=100", "run/view/${runId}"), "REST jobs API"],
-    ["no INCONCLUSIVE", () => original.replace(/INCONCLUSIVE/g, "INCONCL"), "INCONCLUSIVE"],
-    ["no timeout", () => original.replace("watch timed out", "watch ended"), "watch loop reports a timeout"],
-    ["checkConcluded short-circuit", () => original + "\nconst checkConcluded = true;\n", "checkConcluded"],
+    ["own engine", () => original.replace('from "../../scripts/gh/lib/watch.ts"', 'from "./my-watch.ts"'), "imports the shared engine"],
+    ["own classifier", () => original.replace("classify(s)", "myClassify(s)").replace("  classify,\n", ""), "classifies with the engine"],
+    ["gh shell-out", () => original + '\nimport { execFile } from "node:child_process";\n', "does not shell out to gh"],
+    ["poll loop", () => original + "\nsetTimeout(() => {}, 60000);\n", "no poll loop"],
+    ["watch mode", () => original + '\nconst mode = "watch";\n', "no watch mode"],
     ["no tool", () => original.replace('name: "gh_pr_status"', 'name: "gh_pr_status_X"'), "registers the gh_pr_status tool"],
   ];
 

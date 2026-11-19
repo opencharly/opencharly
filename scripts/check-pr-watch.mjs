@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 // check-pr-watch.mjs — unit tests for the pure logic in .opencode/plugins/pr-watch.ts.
 //
-// pr-watch.ts is PURE TypeScript (operator directive, 2026-09-29): its native poll
-// loop uses the shared engine `../lib/watch.ts` and NEVER spawns a `.sh`. So it is
-// proven by (a) the real module importing cleanly as a V2 definition, (b) the pure
-// helpers (`parseItems`/`pickSessionID`/`lastWakeLine`) behaving, and (c) the delivery
+// pr-watch.ts is the OpenCode delivery binding of the ONE watcher engine
+// (`scripts/gh/lib/watch.ts`, opencharly/opencharly#1140), whose behaviour
+// `scripts/check-gh-tools.mjs` tests. So it is proven by (a) the real module importing
+// cleanly as a V2 definition, (b) the pure helpers (`parseItems`/`pickSessionID`)
+// behaving, and (c) the delivery
 // AND native-poll primitives being present as CODE (not commented out) on BOTH
 // generations:
 //   - V2 (opencode >= 2.0, MEASURED 2026-09-28 against v2.0.18): the context has NO
@@ -12,7 +13,7 @@
 //     session id captured from `ctx.tool.hook("execute.before", …)`.
 //   - V1 (opencode 1.x): the SDK client, `client.tui.showToast` + the noReply
 //     context injection.
-//   - the native watcher: `pollOnce` + `sleepAbortable` from `lib/watch.ts` (no shell).
+//   - the watcher: the shared engine's `watchStream` (no shell, no second loop).
 //
 // Usage: node scripts/check-pr-watch.mjs
 
@@ -53,7 +54,7 @@ const eq = (a, b, m) =>
   ok(JSON.stringify(a) === JSON.stringify(b), `${m} (got ${JSON.stringify(a)})`);
 
 const mod = await import(pathToFileURL(pluginPath).href);
-const { parseItems, pickSessionID, lastWakeLine, WATCH_EVENTS } = mod;
+const { parseItems, pickSessionID, WATCH_EVENTS } = mod;
 
 ok(
   mod.default !== null && typeof mod.default === "object" && typeof mod.default.setup === "function",
@@ -61,9 +62,8 @@ ok(
 );
 ok(
   typeof parseItems === "function" &&
-    typeof pickSessionID === "function" &&
-    typeof lastWakeLine === "function",
-  "pure helpers parseItems/pickSessionID/lastWakeLine are exported",
+    typeof pickSessionID === "function",
+  "pure helpers parseItems/pickSessionID are exported",
 );
 
 // THE FIX: the delivered event set MUST include `comment` (the BLOCK/PASS review) AND
@@ -102,13 +102,6 @@ eq(
   "pickSessionID ignores sessions without a string id",
 );
 
-eq(
-  lastWakeLine("noise\nCOMMENT acme/widget#12 url\n\n"),
-  "COMMENT acme/widget#12 url",
-  "lastWakeLine returns the last non-empty line",
-);
-eq(lastWakeLine(""), undefined, "lastWakeLine returns undefined for empty output");
-
 // Negative control: the stripper MUST remove a docstring and a `//` comment, so needles
 // that live only there cannot satisfy the positive assertions below.
 const synthetic =
@@ -129,12 +122,9 @@ for (const needle of [
   "client.session.list",
   "client.session",
   "noReply: true",
-  // the NATIVE poll engine (lib/watch.ts) — no shell spawn.
-  "pollOnce",
-  "sleepAbortable",
-  // the ARM report at arm time (the missed-verdict case) — emitted as the FIRST wake.
-  "seedAll",
-  "reports",
+  // the ONE engine (scripts/gh/lib/watch.ts) — its continuous loop, no second loop here.
+  "scripts/gh/lib/watch.ts",
+  "watchStream",
 ]) {
   ok(
     !syntheticCode.includes(needle),
