@@ -1,47 +1,32 @@
 /**
- * watcher-loop.ts — the ONE detached native watcher loop shared by the OpenCode
- * plugins (`pr-watch.ts`, `tracker.ts`).
+ * watcher-loop.ts — the OpenCode delivery binding of the ONE watcher engine
+ * (`scripts/gh/lib/watch.ts`, opencharly/opencharly#1140), shared by `pr-watch.ts` and
+ * `tracker.ts`.
  *
- * R2 — this module is the extraction target: the V2 session capture
- * (`ctx.tool.hook("execute.before")` + `ctx.session.hook("prompt")`), the delivery
- * binding (`ctx.session.synthetic`), the detached `void (async()=>for(;;))` poll loop,
- * and the rate-limit backoff previously lived INLINE in `pr-watch.ts`. `tracker.ts`
- * needs the same behaviour, so the loop is defined ONCE here and both plugins import
- * it — no second copy.
- *
- * It is a plain import target, NOT a plugin: it lives in `.opencode/lib/` (not
- * `plugins/`), so opencode's plugin discovery never loads it as a plugin.
- *
- * The loop implements the SAME contract as `marketplace/scripts/gh_watch.sh` (event
- * vocabulary, wake-line format, item grammar) over the shared engine `./watch.ts`. It
- * is PURE TypeScript and NEVER spawns a `.sh` — no dependency on any script file,
- * hence NO `marketplace` submodule pin (the operator directive recorded in `coord.ts`
- * / `instructions.md`).
+ * The engine, its event contract and its loop live in `scripts/gh/lib/watch.ts`; this
+ * module adds only what is OpenCode's: capturing the live session id and delivering a
+ * wake line into it.
  *
  * DELIVERY — the V2 "inject context without starting a turn" primitive is
- * `ctx.session.synthetic({ sessionID, text })` (default `delivery: steer`, so the
- * alert is ADDED to the running session). The session id is unknown at setup and
+ * `ctx.session.synthetic({ sessionID, text })`. The session id is unknown at setup and
  * `session.list` does not exist on V2, so it is CAPTURED from the first tool call
  * (`ctx.tool.hook("execute.before", …)`) or the first prompt
- * (`ctx.session.hook("prompt", …)`). If no id is captured before a wake, the wake is a
- * logged warning, never a silent drop.
+ * (`ctx.session.hook("prompt", …)`). A wake before an id is captured is a logged warning,
+ * never a silent drop.
+ *
+ * It is a plain import target, NOT a plugin: it lives in `.opencode/lib/`, so opencode's
+ * plugin discovery never loads it as a plugin.
  */
 import {
-  BACKOFF_FACTOR,
+  DEFAULT_CHECK,
   DEFAULT_INTERVAL_S,
   DEFAULT_STALL_MIN,
-  MAX_BACKOFF_S,
-  RATE_FLOOR,
-  RateLimitedError,
+  DEFAULT_WORKFLOW,
+  checkInterval,
   parseEvents,
-  pollOnce,
-  rateLimitMessage,
-  seedAll,
-  sleepAbortable,
-  type ArmReport,
+  watchStream,
   type Item,
-  type Snap,
-} from "./watch.ts";
+} from "../../scripts/gh/lib/watch.ts";
 
 /** A logger prefixed with the owning plugin's label. */
 export function makeWarn(label: string): (message: string) => void {
@@ -128,110 +113,61 @@ export async function v2SessionSink(
 }
 
 export interface WatchLoopOptions {
-  /** Comma list of events (the `gh_watch.sh` vocabulary). */
+  /** Comma list of events (the engine's vocabulary). */
   events: string;
-  /** The validator workflow name whose COMPLETED runs are the progress signal. */
-  wf: string;
-  /** Poll cadence, ms (defaults to the floor). */
-  intervalMs?: number;
+  /** The validator workflow (default `charly/pr-validator`). */
+  wf?: string;
+  /** Poll cadence, seconds (default and floor 300). */
+  intervalSec?: number;
   /** Stall window, minutes. */
   stallMin?: number;
   /** Cancellation (the plugin executor's `context.signal`). */
   signal?: AbortSignal;
-  /** Deliver one fired wake line. */
+  /** Deliver one wake line (or ARM report). */
   deliver: (line: string) => Promise<void>;
   /** Logger. */
   warn: (message: string) => void;
-  /**
-   * Run the poll loop DETACHED (default, `setup()` returns immediately) or await it
-   * (`false`, for a bounded session-invoked wait that returns its first wake).
-   */
+  /** Run the loop DETACHED (default; `setup()` returns at once) or await it (`false`). */
   detached?: boolean;
-  /** When awaiting (detached:false), resolve after the FIRST delivered wake. */
+  /** When awaited, return after the FIRST delivered wake. */
   firstOnly?: boolean;
 }
 
 /**
- * The native watch loop: seed (emitting the ARM reports as the first wake — the
- * missed-verdict case), then poll once per interval, delivering each fired event. A
- * rate limit FAILS HARD (warn + return — never spin); a near-exhausted quota (read
- * FREE from the batched response) backs off VISIBLY. A transient (non-rate-limit)
- * failure skips one poll, never kills the watch.
- *
- * `detached: true` (the default) starts the loop and returns immediately; the caller
- * keeps watching until `signal` aborts. `detached: false` awaits the loop (used by a
- * bounded, session-invoked wait).
+ * The OpenCode watch: the engine's continuous `watchStream`, delivering the ARM reports
+ * first and then each wake. `detached: false` with `firstOnly` is a bounded wait that
+ * returns after its first wake.
  */
 export async function watchLoop(items: Item[], opts: WatchLoopOptions): Promise<void> {
   if (items.length === 0) return;
-  const events = parseEvents(opts.events, opts.events);
-  const wf = opts.wf;
-  const stallMin = opts.stallMin ?? DEFAULT_STALL_MIN;
-  const intervalMs = opts.intervalMs ?? DEFAULT_INTERVAL_S * 1000;
-  const armEpoch = Math.floor(Date.now() / 1000);
-  const detached = opts.detached !== false;
-
-  let seeds: Map<string, Snap>;
-  let reports: ArmReport[] = [];
-  try {
-    const seeded = await seedAll(items, { wf, events, signal: opts.signal });
-    seeds = seeded.seeds;
-    reports = seeded.reports;
-  } catch (err) {
-    if (err instanceof RateLimitedError) {
-      opts.warn(rateLimitMessage(err));
-      return; // fail hard: never spin on a rate limit
+  const abort = new AbortController();
+  opts.signal?.addEventListener("abort", () => abort.abort(), { once: true });
+  let reports = items.length;
+  const deliver = async (line: string) => {
+    await opts.deliver(line);
+    if (reports > 0 && line.startsWith("ARM")) {
+      reports -= 1;
+      return;
     }
-    seeds = new Map();
-  }
-
-  // The ARM report is the FIRST emission: the baseline the watch armed on — a
-  // pre-existing BLOCK/verdict or an in-flight run is delivered IMMEDIATELY (the
-  // missed-verdict case), so arming on an already-BLOCKed PR wakes the session at once.
-  for (const r of reports) await opts.deliver(r.line);
-
-  const body = async () => {
-    for (;;) {
-      if (opts.signal?.aborted) return;
-      try {
-        const outcome = await pollOnce(items, seeds, {
-          events,
-          wf,
-          armEpoch,
-          stallMin,
-          signal: opts.signal,
-        });
-        // `pollOnce` updates `seeds` in place AND skips fingerprint-unchanged items,
-        // so the SAME comment/verdict is never delivered twice.
-        if (outcome.fire) {
-          await opts.deliver(outcome.fire.line);
-          if (!detached && opts.firstOnly) return;
-        }
-        // A near-exhausted quota (FREE header read) → back off VISIBLY.
-        if (outcome.rateRemaining !== null && outcome.rateRemaining < RATE_FLOOR) {
-          opts.warn(`core quota remaining=${outcome.rateRemaining} < ${RATE_FLOOR} — backing off`);
-          await sleepAbortable(
-            Math.min((intervalMs / 1000) * BACKOFF_FACTOR, MAX_BACKOFF_S) * 1000,
-            opts.signal,
-          );
-          continue;
-        }
-      } catch (err) {
-        if (err instanceof RateLimitedError) {
-          // FAIL HARD: surface the rate limit and STOP this watch — never spin.
-          opts.warn(rateLimitMessage(err));
-          return;
-        }
-        if (opts.signal?.aborted) return;
-        /* transient (network) — skip this poll, keep watching */
-      }
-      await sleepAbortable(intervalMs, opts.signal);
-    }
+    if (opts.detached === false && opts.firstOnly) abort.abort();
   };
-
-  if (detached) {
-    void body();
+  const run = watchStream(
+    items,
+    {
+      events: parseEvents(opts.events),
+      intervalSec: checkInterval(opts.intervalSec ?? DEFAULT_INTERVAL_S),
+      stallMin: opts.stallMin ?? DEFAULT_STALL_MIN,
+      workflow: opts.wf ?? DEFAULT_WORKFLOW,
+      check: DEFAULT_CHECK,
+      signal: abort.signal,
+      onNotice: opts.warn,
+    },
+    deliver,
+    opts.warn,
+  );
+  if (opts.detached !== false) {
+    void run;
     return;
   }
-  await body();
+  await run;
 }

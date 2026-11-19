@@ -44,21 +44,22 @@ Never materialize the whole graph "just in case", and never share a working tree
 
 ## GitHub PR + watcher discipline
 
-- **PR / validator status.** `gh_pr_status check <repo> <pr>` returns state, head SHA,
-  mergeable, the latest `charly/pr-validator` run ON THAT HEAD, and the verdict comment.
-  It is a ONE-SHOT read — to WAIT, arm a watcher (below). (`gh_pr_status watch` blocks the
-  turn; the watcher family is the pi wake, because pi has no background notification.)
-- **Automatic arming.** `extensions/watch.ts` arms the harness-INDEPENDENT watcher family at
+- **PR / validator status.** `gh_pr_status` with `items: ["<owner>/<repo>#<pr>", …]` returns
+  each PR's state, head SHA and its verdict class on that head (PASS / BLOCK / INCONCLUSIVE /
+  PENDING), read by the shared engine. It is a ONE-SHOT read — to WAIT, arm the watcher
+  (below), the pi wake, because pi has no background notification.
+- **Automatic arming.** `extensions/watch.ts` arms the ONE watcher at
   `session_start` from `.pi/watch.items` and delivers each event as a user turn. The
   `watch_arm` tool reports what is armed (`action: "status"`), re-reads the items file
   (`"restart"`), and runs + watches an R10 bed (`"bed"`). A wait therefore needs no
   hand-polling — but a watcher is only re-armed at the next `session_start` or `restart`,
   so add a scope to `.pi/watch.items` (or `restart`) when the wait list changes.
-- **The ONE watcher.** `marketplace/scripts/pr_state_watch.sh` (a PR's terminal state),
-  `pr_watch_many.sh` (a cross-repo PR batch), `gh_watch.sh` (per-item comments, verdicts,
-  issues and PRs) — spawned by the extension, never hand-rolled. Arm ONE per scope; poll
-  floor 60s; prefer terminal events (`merged`,`closed`) plus the default `stall` alarm over
-  per-comment events.
+- **The ONE watcher.** `node scripts/gh/cli.ts watch` — the implementation every harness
+  uses, spawned by the extension, never hand-rolled. ONE watch per session; poll floor 300s.
+  Its `--events` follow what you wait for: your own PR, a REST re-run included, is
+  `verdict,merged,closed,conflict`; another session's item is `merged,closed,stall`. `gh_pr_status`
+  reads the same verdict once (the decision table: git-workflow,
+  `references/watch-and-wake.md`, "Which watcher to arm").
 - **R10 beds.** `watch_arm` with `action: "bed"` drives `scripts/check-bed-watch.sh` (the
   harness-neutral bed runner/reporter) — never run a long bed inline when a wake is wanted.
   A bed's authoritative signal is its process EXIT CODE (3 = prereq SKIP), never
@@ -81,7 +82,7 @@ Every PR body, issue and comment you author ends with the two-line session foote
 `coord_footer` tool returns (`Agent:` FIRST, naming this pi session's id; `Assisted-by:`
 LAST), and a coordination comment opens with one label: `CLAIM` · `OWNING` ·
 `HANDING OVER` · `TAKING OVER` · `WAITING` · `HOLDING` · `CLEARED` · `STATUS` · `RESOLVED`. Post with `gh`
-(`gh pr comment`, `gh issue comment`); the watcher family supplies the wake.
+(`gh pr comment`, `gh issue comment`); the watcher supplies the wake.
 
 ## Plan discipline
 

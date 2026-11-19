@@ -345,7 +345,7 @@ self-test:
 # -----------------------------------------------------------------------------
 hooks:
   task:
-    description: Install the clone-level git hooks — pre-commit (the pin check, the self-tests, the opencode, pi and pr-watch gates) and pre-push (the PR-body gate)
+    description: Install the clone-level git hooks — pre-commit (the default-branch guard, the pin check, the self-tests, the gh-tools, opencode, pi and pr-watch gates) and pre-push (the DESIGN gate and the PR-body gates)
     dir: .
     plan:
       - run: set core.hooksPath and report it
@@ -718,6 +718,12 @@ verify:
       - check: the opencode gate plugin contract (the check-opencode-plugin gate the former verify-pins.sh ran)
         command: node scripts/check-opencode-plugin.mjs
         context: [runtime]
+      - check: the ONE GitHub watcher and coordination toolset (scripts/gh/) — the verdict contract, a REST re-run firing VERDICT (opencharly/marketplace#628), the CLI's exit codes and lock against a local GitHub, and the OpenCode binding (opencharly/opencharly#1140)
+        command: node scripts/check-gh-tools.mjs
+        context: [runtime]
+      - check: the gh-tools gate discriminates — each mutation of the toolset turns it RED
+        command: node scripts/check-gh-tools.mjs --self-test
+        context: [runtime]
       - check: the PR-watch plugin's pure logic + its shipped (uncommented) SDK delivery primitives
         command: node scripts/check-pr-watch.mjs
         context: [runtime]
@@ -802,13 +808,13 @@ verify:
       - check: the pi wake binding delegates to the neutral watchers, wakes, re-arms, cleans up, and ships inert + wired
         command: node scripts/check-pi-watch.mjs
         context: [runtime]
-      - check: the pi PR-status tool parses, normalises the state, finds the run by head SHA, reads jobs via REST, and classifies INCONCLUSIVE
+      - check: the pi PR-status tool parses, delegates to the shared engine scripts/gh/lib/watch.ts, and adds no second watcher
         command: node scripts/check-pi-pr-status.mjs
         context: [runtime]
       - check: the pi `question` tool is dependency-free, headless-safe, serialized, and wired into .pi/settings.json
         command: node scripts/check-pi-question.mjs
         context: [runtime]
-      - check: the pi `coord_footer` tool, fired, writes this session's footer byte-identical to coord.sh --footer, refuses a blank session, and is wired (opencharly/opencharly#1119)
+      - check: the pi `coord_footer` tool, fired, writes this session's footer with the shared builder, byte-identical to scripts/gh/cli.ts footer, refuses a blank session, and is wired (opencharly/opencharly#1119)
         command: node scripts/check-pi-footer.mjs
         context: [runtime]
       - check: the pi footer gate discriminates — each mutation turns it RED

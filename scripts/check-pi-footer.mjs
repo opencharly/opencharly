@@ -10,9 +10,10 @@
 //
 //   1. FIRED, NOT READ — the shipped module is loaded and the tool executed with a session
 //      manager that returns a known id; the output is asserted exactly.
-//   2. ONE SHAPE — the output is byte-identical to `marketplace/scripts/coord.sh --footer`
-//      for the same inputs (run-if-present, never dependent on the pin), so the pi binding
-//      and the shell writer cannot drift.
+//   2. ONE SHAPE — the extension builds the footer with the shared
+//      `scripts/gh/lib/coord.ts` `buildFooter`, and its output is byte-identical to
+//      `node scripts/gh/cli.ts footer` for the same inputs, so the pi binding and the CLI
+//      every other harness uses cannot drift (opencharly/opencharly#1140).
 //   3. FAIL LOUD — no session id, or an unknown tier, is refused by name; a footer is never
 //      written with a blank or invented session.
 //   4. WIRED — `.pi/settings.json` loads the extension (an unwired extension never loads).
@@ -69,6 +70,8 @@ async function check() {
     const dst = join(scratch, REL);
     mkdirSync(dirname(dst), { recursive: true });
     cpSync(file, dst);
+    // The extension imports the shared toolset from `scripts/gh/lib/`.
+    if (existsSync(join(root, "scripts/gh"))) cpSync(join(root, "scripts/gh"), join(scratch, "scripts/gh"), { recursive: true });
     mkdirSync(join(scratch, "node_modules/typebox"), { recursive: true });
     writeFileSync(
       join(scratch, "node_modules/typebox/package.json"),
@@ -112,23 +115,18 @@ export default { Type };
     if (!/invalid confidence/.test(badTier)) fail(`FIRED: an unknown tier is refused (got ${JSON.stringify(badTier)})`);
     else ok("FIRED: an unknown confidence tier is refused");
 
-    // ONE SHAPE: byte-identical to coord.sh --footer, where the shell writer is present.
-    const shell = [process.env.SHELL_COORD_SCRIPT, join(root, "marketplace/scripts/coord.sh"), join(root, "../marketplace/scripts/coord.sh")]
-      .filter(Boolean)
-      .find((p) => existsSync(p));
-    if (!shell) {
-      console.log("  SKIP  coord.sh --footer comparison: no marketplace/scripts/coord.sh present (never depends on the pin)");
+    // ONE SHAPE: the shared builder, and byte-identical to the CLI every other harness runs.
+    if (!/from "\.\.\/\.\.\/scripts\/gh\/lib\/coord\.ts"/.test(raw) || /function buildFooter/.test(raw)) {
+      fail(`${REL} builds the footer with the shared scripts/gh/lib/coord.ts buildFooter, not a copy of its own`);
     } else {
-      for (const parent of [undefined, "lead"]) {
-        const args = [shell, "--footer", "--agent", "slug-x", "--session", "pi-ses-1", "--harness", "pi", "--model", "M", "--confidence", "documentation reviewed"];
-        if (parent) args.push("--parent", parent);
-        const sh = spawnSync("bash", args, { encoding: "utf8" });
-        if (sh.status !== 0 && /unknown option: --footer/.test(sh.stderr ?? "")) {
-          console.log("  SKIP  coord.sh --footer comparison: this coord.sh predates --footer (never depends on the pin)");
-          break;
-        }
-        eq(sh.stdout, `${await out({ ...base, ...(parent ? { parent } : {}) }, "pi-ses-1")}\n`, `coord.sh --footer vs the pi tool (parent=${parent ?? "none"}) is byte-identical`);
-      }
+      ok(`${REL} builds the footer with the shared scripts/gh/lib/coord.ts`);
+    }
+    const cli = join(root, "scripts/gh/cli.ts");
+    for (const parent of [undefined, "lead"]) {
+      const args = [cli, "footer", "--agent", "slug-x", "--session", "pi-ses-1", "--harness", "pi", "--model", "M", "--confidence", "documentation reviewed"];
+      if (parent) args.push("--parent", parent);
+      const sh = spawnSync(process.execPath, args, { encoding: "utf8" });
+      eq(sh.stdout, `${await out({ ...base, ...(parent ? { parent } : {}) }, "pi-ses-1")}\n`, `scripts/gh/cli.ts footer vs the pi tool (parent=${parent ?? "none"}) is byte-identical`);
     }
   } finally {
     rmSync(scratch, { recursive: true, force: true });
@@ -137,7 +135,7 @@ export default { Type };
 
 // ── --self-test: prove each assertion goes RED on a mutation ──────────────────
 if (argv.includes("--self-test")) {
-  const srcFiles = [REL, REL_SETTINGS];
+  const srcFiles = [REL, REL_SETTINGS, "scripts/gh/cli.ts", "scripts/gh/package.json", "scripts/gh/lib/coord.ts", "scripts/gh/lib/watch.ts", "scripts/gh/lib/github.ts", "scripts/gh/lib/lock.ts"];
   const missing = srcFiles.filter((p) => !existsSync(join(root, p)));
   if (missing.length > 0) {
     console.error(`check-pi-footer --self-test: missing ${missing.join(", ")}`);
@@ -155,7 +153,6 @@ if (argv.includes("--self-test")) {
   const runGate = () =>
     spawnSync(process.execPath, [fileURLToPath(import.meta.url), "--root", tmp], {
       encoding: "utf8",
-      env: { ...process.env, SHELL_COORD_SCRIPT: "" },
     }).status;
 
   stage();
@@ -170,10 +167,10 @@ if (argv.includes("--self-test")) {
   const mutations = [
     ["unparseable", REL, () => ext + "\nconst broken = ;\n", "parses as TypeScript"],
     ["no tool", REL, () => ext.replace('name: "coord_footer"', 'name: "coord_footer_X"'), "registers the coord_footer tool"],
-    ["session dropped", REL, () => ext.replace("session \\`${id.session}\\`", "session"), "names this pi session's own id"],
-    ["harness dropped", REL, () => ext.replace("· ${id.harness} session", "· session"), "names this pi session's own id"],
+    ["own builder", REL, () => ext + "\nfunction buildFooter() {}\n", "builds the footer with the shared"],
+    ["session not passed", REL, () => ext.replace("harness, session, model, confidence })", "harness, session: \"\", model, confidence })"), "names this pi session's own id"],
     ["blank session accepted", REL, () => ext.replace("agent, model, confidence, session })", "agent, model, confidence })"), "no session id is refused"],
-    ["any tier accepted", REL, () => ext.replace("if (!TIERS.includes(confidence))", "if (false)"), "unknown tier is refused"],
+    ["any tier accepted", REL, () => ext.replace("if (!isTier(confidence))", "if (false)"), "unknown tier is refused"],
     ["unwired", REL_SETTINGS, () => JSON.stringify({ extensions: ["./extensions/charly-gates.ts"] }), "lists ./extensions/footer.ts"],
   ];
 

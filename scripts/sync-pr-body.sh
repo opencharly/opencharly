@@ -16,7 +16,7 @@ set -euo pipefail
 # The sync is now run BY HAND (`charly task sync` + a PR); nothing schedules
 # it. BOTH identity lines are therefore caller-supplied — SYNC_AGENT carries rule 7's
 # `Agent:` line (`` `<slug>` · <Harness> session `<session-id>` ``, the text after `Agent: `
-# in the first line `coord.sh --footer` prints) and SYNC_ASSISTED_BY the `Assisted-by:` footer — so the
+# in the first line `node scripts/gh/cli.ts footer` prints) and SYNC_ASSISTED_BY the `Assisted-by:` footer — so the
 # run that opens the PR records its own identity, never a canned one. Rule 7 fixes their
 # order: `Agent:` FIRST, `Assisted-by:` LAST, ADJACENT — which is exactly what the body
 # linter asserts (`pr_body_lint.py`'s footer check requires the `Agent:` line to be the line
@@ -669,7 +669,7 @@ if [ "${1:-}" = "--self-test" ]; then
     || fail "the rule-7 Agent: line must directly precede the Assisted-by trailer"
 
   # Every ground-truth rule R0–R11 has its own `## Rulebook compliance` row. The org body
-  # linter (`pr_body_lint.py`, default `--rules R0..R10`) and the validator's A1 both demand a
+  # linter (`pr_body_lint.py`, default `--rules R0..R11`) and the validator's A1 both demand a
   # line per rule, and a renumbering that leaves a number with no row (the old R4 → R3 left R4
   # empty, opencharly/opencharly#448) must fail here rather than in a nightly sync PR.
   for r in R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11; do

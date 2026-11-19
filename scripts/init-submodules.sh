@@ -35,7 +35,7 @@
 # WHY SOURCE 4 EXISTS — the light tree's gate must cover what the full tree's
 # covers. Gate scripts compare surfaces that live in a submodule:
 # action-review/charly.yml (the committed rulebook) and
-# marketplace/scripts/coord.sh (the coordination shell). When those checkouts are
+# marketplace/scripts/pr_body_lint.py (the org body linter). When those checkouts are
 # absent, both gates SKIP the comparison and still exit 0 — a GREEN GATE THAT
 # PROVES LESS, which is the defect class the light-tree cutover existed to end.
 # Measured on a light clone, 2026-10-22: the light tree's `charly task verify`

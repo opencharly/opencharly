@@ -15,8 +15,8 @@ startup warnings (`pi --approve`).
 | `settings.json` | The marketplace skill corpus as a pi package, plus the two project extensions. |
 | `mcp.json` | Native pi MCP: the remote `deepwiki` server. |
 | `extensions/charly-gates.ts` | The git gates (`pre-commit`/`pre-push`), SOUL + condensed-rule injection, and the `charly_load_skills` / worktree tools. |
-| `extensions/github-pr-status.ts` | `gh_pr_status check\|watch` — the pi binding for PR + validator status. |
-| `extensions/watch.ts` | The wake binding: arms the harness-neutral watcher family (`marketplace/scripts/gh_watch.sh` from `.pi/watch.items`, `scripts/check-bed-watch.sh` for R10 beds) and delivers every event as a user turn. |
+| `extensions/github-pr-status.ts` | `gh_pr_status` — a one-shot read of each PR's state and verdict, through the shared engine. |
+| `extensions/watch.ts` | The wake binding: arms the ONE watcher (`node scripts/gh/cli.ts watch` from `.pi/watch.items`, `scripts/check-bed-watch.sh` for R10 beds) and delivers every event as a user turn. |
 | `watch.items` | The pi GitHub watch list — comment-only, so the watcher is INERT until armed. |
 | `extensions/question.ts` | The `question` tool — asks the operator and BLOCKS for the answer (builtin `ctx.ui.select`/`input`; a headless session gets a clear no-UI result). |
 | `APPEND_SYSTEM.md` | The pi↔rulebook binding (skill addressing, gates, watcher discipline, coordination, plan discipline). |
@@ -81,9 +81,9 @@ Two measured NEGATIVES, recorded so they are not re-proposed:
 
 ## Watching GitHub (and R10 beds)
 
-The harness-independent watcher tooling is the ONE watcher: the GitHub family in the pinned
-`marketplace/` submodule (`scripts/pr_state_watch.sh`, `pr_watch_many.sh`, `gh_watch.sh`) plus
-the bed runner `scripts/check-bed-watch.sh` in this repo. `extensions/watch.ts` is pi's thin
+The harness-independent watcher tooling is the ONE watcher every harness uses,
+`node scripts/gh/cli.ts watch` (opencharly/opencharly#1140), plus the bed runner
+`scripts/check-bed-watch.sh`. `extensions/watch.ts` is pi's thin
 wake binding: it spawns those scripts and turns each event line into a user turn
 (`pi.sendUserMessage`), because pi has no background-completion notification. GitHub scopes
 are armed from `.pi/watch.items`; an R10 bed is armed with the `watch_arm` tool. See

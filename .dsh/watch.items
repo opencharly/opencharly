@@ -1,5 +1,5 @@
 # watch.items — the PR/issue items a DSH session watches through the
-# harness-INDEPENDENT watcher, `marketplace/scripts/gh_watch.sh`.
+# ONE watcher every harness uses, `node scripts/gh/cli.ts watch`.
 #
 # One item per line: `owner/repo#num`, `owner/repo/pull/num`,
 # `owner/repo/issues/num`, or a full https://github.com/owner/repo/(pull|issues)/num
@@ -13,19 +13,16 @@
 # WHY A BACKGROUND JOB AND NOT A BESPOKE PLUGIN. DSH notifies the session when a
 # BACKGROUND COMMAND COMPLETES, so the neutral watcher's exit IS the wake — the
 # same constraint the `.pi` and `.reasonix` bindings are built around, with no
-# bespoke plugin to write. Arm the narrowest watcher whose wake you act on:
+# bespoke plugin to write. Arm ONE watch over the items you act on:
 #
-#   marketplace/scripts/gh_watch.sh --events merged,closed,stall <item> …   # per-item
-#   marketplace/scripts/pr_state_watch.sh <owner>/<repo> <pr>               # one PR's terminal state
-#   scripts/check-bed-watch.sh <bed>                                        # one R10 bed
+#   node scripts/gh/cli.ts watch <owner>/<repo>#<pr> …                   # your PRs: verdict, merge, close
+#   node scripts/gh/cli.ts watch --events merged,closed,stall <item> …   # another session's blocker
+#   scripts/check-bed-watch.sh <bed>                                     # one R10 bed
 #
-# `--auto-rearm` keeps a standing watch alive, and `gh_watch.sh` arms the successor
-# BEFORE it prints a DELTA fire (comment/verdict). A STATE fire (merged/closed/stall)
-# sets WATCH_DONE and deliberately does NOT re-arm: a successor would re-fire it
-# immediately and livelock (a merged PR stays merged, a stalled item stays stalled).
-# So re-arm after a DELTA wake; after a STATE wake, ACT and stop — a STALL is a
-# takeover candidate, never a re-arm. NEVER hand-roll a poll loop, and never leave an
-# acted-on DELTA wake without re-arming.
+# Each wake is one finite run: act, then re-arm with `--no-arm-wake`. A STATE wake
+# (merged/closed/stall) is done — a re-arm would re-fire it at once (a merged PR stays
+# merged, a stalled item stays stalled); a STALL is a takeover candidate, never a
+# re-arm. NEVER hand-roll a poll loop.
 #
 # Keep the list SHORT and CURRENT: re-derive it from the scopes actually in
 # flight (a stale list produces false stall alarms).
