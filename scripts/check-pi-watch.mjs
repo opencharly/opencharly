@@ -23,8 +23,9 @@
 //   6. LIVE (`LIVE_PI=1`) — the REAL `pi` runtime loads the extension with its shared-lib
 //      import, and a CONFLICT wake retires its item: against a local GitHub that always
 //      serves a conflicted PR, one arm makes ONE GraphQL request and delivers ONE wake in
-//      the window (measured unfixed: 12 and 12 in 25 s — the hot-loop). Skipped visibly
-//      when unset or when `pi` is not on PATH.
+//      the 20 s window (measured on the unfixed binding: 10 and 10 — the hot-loop). With
+//      `LIVE_PI` unset the layer SKIPS visibly; with `LIVE_PI=1` and no `pi` on PATH it
+//      FAILS, because a live run the operator asked for did not happen (R8).
 //
 // Usage: node scripts/check-pi-watch.mjs [--root <dir>] [--self-test]
 // exit 0 clean · 1 finding
