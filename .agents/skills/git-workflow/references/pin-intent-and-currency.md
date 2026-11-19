@@ -88,7 +88,6 @@ while the `distro-*` pins were behind their own `main`.
 | `not-on-the-served-line` | **no** | neither commit is an ancestor of the other. This is NOT a divergence and must not be read as one: charly's history is **squash-merged**, so a pin taken before a merge is unreachable from the served ref while the tree is perfectly healthy — and a hand-pin to an unrelated commit yields the SAME two SHAs. The objects cannot tell the two apart, so the honest report is the class plus the ONE remedy right for both: advance the pin (`charly task sync`). |
 | `differs (no checkout to judge ancestry)` | **no** | the SHAs differ and the ancestry read could not be made, because the checkout (or, for a twin, the nested checkout) is not there. Reported, never folded into a verdict — and a fresh session worktree is full of them, so this state is normal, not alarming. |
 | `unpinned` | YES | no intent and no `branch=` — the pin cannot be judged at all. Obliges declaring one. |
-
 | `no-source-pin` | YES | an EDGE whose declared source names no path, or records no gitlink in this repo's index — there is nothing to inherit. |
 | `pin-mismatch` | YES | an EDGE whose recorded gitlink disagrees with its source's. The two sides are made to agree by the sanctioned verb (or by the producing repo's PR), never by a hand-pin. |
 | `unmerged` | YES | the recorded commit is AHEAD of the served ref — the pin names a commit the repo does not serve. A PR branch was pinned; re-point it at a MERGED ref. |
