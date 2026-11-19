@@ -112,7 +112,7 @@ const SURFACES = [
   { id: "branch-and-pr-loop.md — the pin-advance step", rel: ".agents/skills/git-workflow/references/branch-and-pr-loop.md", kind: "block", anchor: /^7\. Advance pins ONLY with/ },
   { id: "pin-intent-and-currency.md — the contract's opening", rel: ".agents/skills/git-workflow/references/pin-intent-and-currency.md", kind: "block", anchor: /^The umbrella records one commit per submodule/ },
   { id: "agents/SKILL.md — the remedy for a pin lag", rel: ".agents/skills/agents/SKILL.md", kind: "block", anchor: /^\*\*Remedy\.\*\* Identify the submodule/ },
-  { id: "repo-setup/SKILL.md — the checklist's pin-advance step", rel: ".agents/skills/repo-setup/SKILL.md", kind: "block", anchor: /^5\. Add it to the umbrella as a submodule/ },
+  { id: "repo-setup/SKILL.md — the checklist's pin-advance step", rel: ".agents/skills/repo-setup/SKILL.md", kind: "block", anchor: /^6\. \*\*In the umbrella\*\*, the gitlink and the pin's INTENT/ },
   { id: "PROGRAM/design-implementation.md — the IOU-08 pin-wave row", rel: "PROGRAM/design-implementation.md", kind: "line", anchor: /^\| IOU-08 \|/ },
 ];
 
@@ -157,6 +157,12 @@ const LIST_ITEM_RE = /^\s*(?:[-*+]|\d+[.)])\s+/;
  * its continuation lines. A list item CONTINUES on the lines indented to its
  * content column, and a claim that wraps inside a list item is one claim — so the
  * next item at the anchor's own indent ENDS the surface.
+ *
+ * A list item also continues PAST a blank line when the next non-blank line is
+ * indented into the item (Markdown: a second paragraph or a fenced block inside the
+ * item). Measured: a checklist step that gained a code fence and a second paragraph
+ * read as three lines, and its scope sentence — in that second paragraph — was not
+ * seen (opencharly/opencharly#1189's repo-setup step 6).
  */
 function extract(lines, idx, kind) {
   if (kind === "line") return lines[idx];
@@ -173,7 +179,14 @@ function extract(lines, idx, kind) {
   const nextItem = new RegExp(`^\\s{0,${ind}}(?:[-*+]|\\d+[.)])\\s`);
   for (let k = idx + 1; k < lines.length; k++) {
     const l = lines[k];
-    if (l.trim() === "") break;
+    if (l.trim() === "") {
+      if (!isItem) break;
+      let next = k + 1;
+      while (next < lines.length && lines[next].trim() === "") next++;
+      if (next >= lines.length || indentOf(lines[next]) <= ind) break;
+      out.push(l);
+      continue;
+    }
     if (isItem && nextItem.test(l)) break;
     out.push(l);
   }
@@ -406,6 +419,19 @@ if (argv.includes("--self-test")) {
   }
 
   let stFails = 0;
+
+  // The extractor: a list item continues past a blank line into an INDENTED paragraph or
+  // fence (Markdown), and ends at an unindented line. Both directions, on synthetic lines.
+  {
+    const item = ["6. **Step**, first paragraph.", "", "   ```sh", "   x", "   ```", "", "   the scope sentence.", "", "Not in the item."];
+    const got = extract(item, 0, "block");
+    if (got.includes("the scope sentence.") && !got.includes("Not in the item.")) {
+      ok("a list item continues past a blank line into its indented paragraphs, and ends at an unindented line");
+    } else {
+      stFails += 1;
+      console.error(`  FAIL  the list-item extraction is wrong: ${JSON.stringify(got)}`);
+    }
+  }
 
   /** The file's text with a suffix appended INSIDE the surface's own range. */
   function withSurfaceSuffix(rel, anchor, kind, suffix) {
