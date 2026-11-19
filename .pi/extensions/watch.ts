@@ -40,6 +40,7 @@ import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { Type } from "typebox";
+import { STATE_EVENTS } from "../../scripts/gh/lib/watch.ts";
 
 // ── the neutral tooling this binding drives (relative to the project root) ─────
 /** The ONE GitHub watcher CLI (harness-neutral; this repo's `scripts/gh/`). */
@@ -86,13 +87,14 @@ interface GhState {
   /** Items that fired a terminal STATE (MERGED/CLOSED) — never re-armed. */
   done: Set<string>;
   /**
-   * Items that fired a STATE fire (STALL) — a one-shot arm must NOT re-arm for them. A STATE
-   * fire (MERGED/CLOSED/STALL) ends the watch for its item: a re-arm would IMMEDIATELY re-fire
-   * it (a merged PR stays merged; a stalled item stays stalled), which would livelock and burn
-   * the API budget. MERGED/CLOSED
-   * land in `done`; STALL must land here, or the extension's own re-arm bypasses that guard and
-   * hot-loops at ~2s on a stale item. Cleared on restart. */
-  stalled: Set<string>;
+   * Items that fired any OTHER state event (STALL, CONFLICT) — a one-shot arm must NOT re-arm
+   * for them. A state event fires from the arm baseline (`runWatch` checks it before anything
+   * else), so a re-arm over an item still in that state would IMMEDIATELY re-fire it (a stalled
+   * item stays stalled; a conflicted PR stays conflicted until its base is merged in), which
+   * hot-loops at ~2s and burns the API budget. WHICH events are state events is the engine's
+   * own `STATE_EVENTS`, never a list kept here: a hand-kept list missed `conflict` when the
+   * engine gained it. Cleared on restart (`watch_arm` with `action: "restart"`). */
+  held: Set<string>;
   fastFailures: number;
   startedAt: number;
   lastErr: string;
@@ -103,7 +105,7 @@ const gh: GhState = {
   gen: 0,
   items: [],
   done: new Set(),
-  stalled: new Set(),
+  held: new Set(),
   fastFailures: 0,
   startedAt: 0,
   lastErr: "",
@@ -216,11 +218,11 @@ function clearRearm(): void {
 function handleGhLine(pi: ExtensionAPI, line: string): void {
   const ev = watcherEvent(line);
   const item = watcherItem(line);
-  if (ev === "MERGED" || ev === "CLOSED") gh.done.add(item);
-  if (ev === "STALL") {
-    // STATE fire: mirror the watcher's own rule — a stalled item is NOT re-armed, so it can
-    // never emit a second STALL. The former delivery-dedup map is gone with that guarantee (R5).
-    gh.stalled.add(item);
+  // A STATE event ends the watch for its item, exactly as the engine's own continuous loop
+  // drops it (`watchStream`); the set of state events is the engine's, imported, never restated.
+  if (STATE_EVENTS.has(ev.toLowerCase())) {
+    if (ev === "MERGED" || ev === "CLOSED") gh.done.add(item);
+    else gh.held.add(item);
   }
   deliver(pi, `WATCHER ${line.trim()}`);
 }
@@ -228,7 +230,7 @@ function handleGhLine(pi: ExtensionAPI, line: string): void {
 /** Arm (or re-arm) the one-shot watcher over the items not yet terminal. */
 function armGh(pi: ExtensionAPI): void {
   if (stopping) return;
-  const active = gh.items.filter((i) => !gh.done.has(i) && !gh.stalled.has(i));
+  const active = gh.items.filter((i) => !gh.done.has(i) && !gh.held.has(i));
   if (active.length === 0) return;
 
   const script = join(projectRoot, GH_WATCH_REL);
@@ -324,7 +326,7 @@ async function restartGh(pi: ExtensionAPI): Promise<string> {
   }
   gh.items = await readItems();
   gh.done.clear();
-  gh.stalled.clear();
+  gh.held.clear();
   gh.fastFailures = 0;
   armGh(pi);
   return gh.items.length === 0
@@ -461,7 +463,7 @@ export default function (pi: ExtensionAPI) {
         `GitHub:   ${gh.items.length === 0 ? "inert (.pi/watch.items empty/comment-only)" : `${gh.items.length} item(s)`}`,
         `  items:  ${gh.items.join(", ") || "-"}`,
         `  done:   ${[...gh.done].join(", ") || "-"}`,
-        `  stalled: ${[...gh.stalled].join(", ") || "-"} (STATE fire — not re-armed; restart to re-watch)`,
+        `  held:   ${[...gh.held].join(", ") || "-"} (STALL or CONFLICT — not re-armed; restart to re-watch)`,
         `  armed:  ${gh.proc ? "yes (this session's arm is tracked)" : gh.rearmTimer ? "re-arm pending" : "no — this session tracks no arm"}`,
         `beds:     ${beds.size === 0 ? "none" : [...beds.keys()].join(", ")}`,
       ];

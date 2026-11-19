@@ -100,6 +100,16 @@ function check() {
   if (!/gh\.gen\+\+;/.test(code))
     fail(`supersedes the running arm BEFORE a restart kills it (armGh may return without arming)`);
   if (!/code === 6/.test(code)) fail(`treats a lock loss (exit 6) as a peer holder, not as a failure`);
+
+  // 3c. STATE EVENTS RETIRE THEIR ITEM (the CONFLICT hot-loop). A state event fires from the arm
+  //     baseline, so re-arming an item still in that state re-fires it at once — every ~2s, a
+  //     user turn and an API request each time. The set of state events is the ENGINE's own
+  //     `STATE_EVENTS`: a list kept here missed `conflict` the day the engine gained it.
+  if (!/import\s*\{[^}]*\bSTATE_EVENTS\b[^}]*\}\s*from\s*["'`]\.\.\/\.\.\/scripts\/gh\/lib\/watch\.ts["'`]/.test(code))
+    fail(`imports STATE_EVENTS from the shared engine (scripts/gh/lib/watch.ts)`);
+  if (!/STATE_EVENTS\.has\(/.test(code)) fail(`retires an item on ANY engine state event (STATE_EVENTS.has)`);
+  if (/ev\s*===\s*["'`](STALL|CONFLICT)["'`]/.test(code))
+    fail(`names no state event by hand (a hand-kept list is how CONFLICT hot-looped)`);
   if (!/code\s*===\s*7/.test(code) || !/code\s*===\s*5/.test(code))
     fail(`treats a rate limit (7) / usage error (5) as terminal — never blind-retried`);
 
@@ -179,6 +189,8 @@ if (argv.includes("--self-test")) {
     ["no arm-generation guard", REL_EXT, () => ext.replace(/if \(gen !== gh\.gen\) return;/g, "if (false) return;"), "SUPERSEDED arm"],
     ["stale arm clears the live slot", REL_EXT, () => ext.replace(/if \(gh\.proc === proc\) gh\.proc = null;/, "gh.proc = null;"), "only for its OWN child"],
     ["no restart supersede", REL_EXT, () => ext.replace(/gh\.gen\+\+;/, ""), "supersedes the running arm"],
+    ["state events kept by hand", REL_EXT, () => ext.replace(/STATE_EVENTS\.has\(ev\.toLowerCase\(\)\)/, 'ev === "STALL"'), "STATE_EVENTS.has"],
+    ["no engine import", REL_EXT, () => ext.replace(/import \{ STATE_EVENTS \} from "\.\.\/\.\.\/scripts\/gh\/lib\/watch\.ts";\n/, ""), "imports STATE_EVENTS"],
     ["lock loss is a failure", REL_EXT, () => ext.replace(/if \(code === 6\) \{/, "if (false) {"), "lock loss (exit 6)"],
     ["armed items", REL_ITEMS, () => "\nacme/widget#12\n", "ships INERT"],
     ["unwired", REL_SETTINGS, () => JSON.stringify({ extensions: ["./extensions/charly-gates.ts"] }), "lists ./extensions/watch.ts"],
