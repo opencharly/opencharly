@@ -29,7 +29,10 @@ The loop is:
 4. **Re-arm** in the same turn if the wait continues. Arming the same watch again TAKES OVER the
    old one (the lock), so a re-arm replaces and never adds. A binding that re-arms automatically
    passes `--no-arm-wake` after its first arm, so a verdict it already reported is not reported
-   again.
+   again — and drops every item whose STATE event fired, deciding which events those are by
+   importing the engine's `STATE_EVENTS` (`scripts/gh/lib/watch.ts`), never by listing them
+   (the current set is in "Delta vs STATE events" below). `--no-arm-wake` does not suppress a
+   state event: re-arming an item still in that state re-fires it at once, in a loop.
 
 ### Which watcher to arm
 

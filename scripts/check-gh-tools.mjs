@@ -307,6 +307,8 @@ try {
   scenario = () => ({ mergeable: "CONFLICTING" });
   r = await cli(watch("acme/widget#1"));
   expect(r.code === 0 && /^CONFLICT acme\/widget#1  conflicts with its base/.test(r.out) && /mergeable=conflicting/.test(r.err), "a PR that conflicts with its base wakes CONFLICT at arm (the default events)");
+  r = await cli(["watch", "--interval", "1", "--no-arm-wake", "acme/widget#1"]);
+  expect(r.code === 0 && /^CONFLICT acme\/widget#1/.test(r.out), "--no-arm-wake does NOT suppress a state event at arm — so a re-arming binding must retire the item, or it hot-loops");
   gqlCalls = 0;
   scenario = (n) => ({ mergeable: n === 1 ? "MERGEABLE" : "CONFLICTING" });
   r = await cli(watch("--timeout", "10", "acme/widget#1"));
