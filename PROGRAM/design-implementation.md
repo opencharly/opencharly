@@ -4316,3 +4316,44 @@ in its body:**
 **Every unit that skipped one of these five took extra verdicts, and every finding that resulted named one of them.**
 **The pattern is written into `spec#392`, `charly#1212`, `sdk#572`, `sdk#574` and `sdk#577`, and any of those bodies
 can be copied.**
+
+### 2026-11-20 (cont.) -- deploykit's fourth unit, and the body generator that replaced transcription
+
+**One merge since the entry above:** **`sdk#581`** -- `deploykit`'s deploy-file and render-generator construction,
+fourteen comment sites **plus two repairs its predecessors' verdicts named** (a regex fragment left as
+`// : once K1 lands`, and five surviving `Relocated from charly/deploy.go` sentences). **Recorded from
+`origin/main`:**
+
+```console
+$ git -C sdk grep -nE 'DELETED|[Ff]ormer|used to|was (deleted|removed|relocated)|is gone|no longer' \
+    origin/main -- 'deploykit/*.go' | wc -l
+124
+```
+
+**Down from 138 before it.** A fifth unit is open at `sdk#582` and a sixth and seventh are committed and gated.
+
+### The generator: why `#581` passed on its first verdict
+
+**Three consecutive `deploykit` bodies went stale between writing and pushing** -- a commit log, a
+`numstat`, and a sum, each because a repair commit landed after the body was typed. **The fix was not more
+care; it was a script.** `/tmp/goal/genunit.py` takes a worktree and a site count and emits the whole body by
+EXECUTING the five measurements, and it refuses to emit at all unless the ranged comment-only filter is empty:
+
+```python
+assert filter_empty == '', f'NOT comment-only: {filter_empty}'
+```
+
+**The difference is not diligence but provenance:** a typed number is a claim about a command, and a
+generated number IS the command's output. **The first body produced this way passed on its first verdict.**
+
+### And the header, which four of six units were blocked on
+
+**`deploy_file.go`'s header, `render_generator_from_project.go`'s campaign paragraph, `bake_plugins.go`'s
+`(K3 build-tail move, coneB-buildtail)`, `preempt_resolve.go`'s `K1-UNBLOCK wave 1`** -- **four of six PRs were
+blocked on a file header.** The header is where relocation history accumulates, because that is where a file
+explains its own provenance. **The seventh unit was swept with that lesson applied first: every history site
+in `bed_session.go` was inside its doc block, and all seven are gone.**
+
+**Two deliberate exceptions are left and named in the bodies:** `used to decide` and `anything was removed`
+match the widened grep but describe the operation, not history. **A widened instrument that cannot tell
+`is used to` from `used to` must be overridden by reading the sentence -- and the body says so where it does.**
