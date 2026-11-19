@@ -73,6 +73,7 @@ if (argv.includes("--self-test")) {
     ["an in-flight run fires", W, (s) => s.replace('if (cls === "PENDING" || cls === "NONE") return false;', 'if (cls === "NONE") return false;')],
     ["--no-arm-wake ignored", W, (s) => s.replace("opts.armWake !== false &&", "true &&")],
     ["a rate limit is not exit 7", "scripts/gh/cli.ts", (s) => s.replace("      return EXIT.RATE;\n    }\n    if (res.seedError)", "      return EXIT.OK;\n    }\n    if (res.seedError)")],
+    ["ARM printed only at the end", W, (s) => s.replace("opts.onArm?.(reports);", "")],
     ["no takeover", "scripts/gh/lib/lock.ts", (s) => s.replace('process.kill(holder, "SIGTERM");', "void holder;")],
     ["a conflict never wakes", W, (s) => s.replace('cur.mergeable === "conflicting") return "conflict";', 'cur.mergeable === "never") return "conflict";')],
     ["footer shape drifts", "scripts/gh/lib/coord.ts", (s) => s.replace(" · ${id.harness} session", " · session")],
@@ -297,6 +298,23 @@ try {
   scenario = () => ({ run: { id: 31, status: "IN_PROGRESS" }, suite: "IN_PROGRESS" });
   r = await cli([...watch("--timeout", "2", "acme/widget#1")]);
   expect(r.code === 4 && /^TIMEOUT  no event within 2s/.test(r.out), "a run only in flight never fires; the watch times out (exit 4)");
+
+  // The ARM baseline is on stderr WHILE the watch runs — a session must be able to see that it
+  // is armed and on what. It used to be printed only when the watch ended (measured live on
+  // opencharly/marketplace#630: a 10-minute watch showed nothing until it fired).
+  {
+    const child = spawn(process.execPath, [CLI, ...watch("--timeout", "8", "acme/widget#1")], {
+      env: { ...process.env, ALLOW_FAST_POLL: "1", GH_WATCH_RUNTIME_DIR: runtime },
+    });
+    let errSoFar = "";
+    child.stderr.on("data", (d) => (errSoFar += d));
+    const exited = new Promise((res) => child.on("exit", res));
+    await new Promise((res) => setTimeout(res, 2500));
+    const armedWhileRunning = /^ARM {6}acme\/widget#1  state=open/m.test(errSoFar) && child.exitCode === null;
+    child.kill("SIGTERM");
+    await exited;
+    expect(armedWhileRunning, "the ARM baseline is printed when the watch arms, while it is still running");
+  }
 
   scenario = () => ({ merged: true });
   r = await cli(watch("--events", "merged,closed,stall", "acme/widget#1"));
