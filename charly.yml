@@ -19,13 +19,25 @@ import:
     # THIS import key, not
     # from the repo's name.
     - openclaw: ./layer-openclaw
-    # opencharly/layer-strata — the Strata family: the inference engine layer, its
-    # cachyos-based image and the GPU bed `strata.check-strata-gpu-pod` (the GPU-free
-    # mock mode is a runtime posture, not a bed; the withdrawn mock bed was PR #6).
-    # Imported under `strata`, so its entities are addressed qualified.
+    # opencharly/pod-strata — the Strata POD: the `strata` image (base `pod-cdi.pod-cdi`,
+    # the CDI GPU pod contract) and the family's ONLY bed `strata.check-strata-gpu-pod`
+    # (the GPU-free mock mode is a runtime posture, not a bed; the withdrawn mock bed was
+    # PR #6, and the bed moved here from layer-strata in the extraction tracked by
+    # opencharly/opencharly#1174, decision record `design/strata-pod-and-engine-v0216-ledger.md`).
+    #
+    # The KEY is `strata` and stays `strata`: the namespace comes from THIS import key, not
+    # from the repo's name, so the bed keeps the qualified name the roster and every doc
+    # already use across the move.
+    #
+    # opencharly/layer-strata is deliberately NOT imported any more. It keeps `candy/strata`
+    # — the ENGINE LAYER the pod composes by `@github` ref — and the `strata-layer` skill
+    # beside it, and it declares no box, no bed and no deploy: a repo with no entity to
+    # address does not belong in a project's `import:`. Its gitlink is still a pin, audited
+    # from the index like every other one.
+    #
     # Local path, like every entry here: the version rides the GITLINK, advanced with
     # `charly task sync` (Part II #3), never a tag in the URL.
-    - strata: ./layer-strata
+    - strata: ./pod-strata
     # opencharly/plugin-strata — the `charly strata` management CLI over HTTP, an
     # out-of-tree command plugin. A DISTINCT key, because the namespace is the key and
     # `strata` is taken above.
@@ -1012,7 +1024,9 @@ check-all-beds:
         exclude:
             - charly.check-preflight-local
             # Needs an exclusive NVIDIA host plus pre-staged weights: named venue
-            # `cachyos-gpu-workstation-vm`, run on demand (ledger section 57).
+            # `cachyos-gpu-workstation-vm`, run on demand. The decision record is
+            # `design/strata-pod-and-engine-v0216-ledger.md` (it SUPERSEDES the retired
+            # `layer-strata` LEDGER.md, whose section 57 this line used to cite).
             - strata.check-strata-gpu-pod
             # The family imports the cachyos namespace transitively (its box is
             # `base: cachyos.cachyos`), so those beds are reachable twice — once via
