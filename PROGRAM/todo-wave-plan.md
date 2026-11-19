@@ -29,6 +29,8 @@ first time). Both are folded in below.
 
 **`§2 + §3 + §5 = 75 of the 122`.**
 
+**Provenance of the numbers in this document:** the §1 census is `TODO.md`'s own table, extracted mechanically. **The §2 per-row counts were run and their output is pasted in the PR that added this file.** **The audit verdicts in §4–§5 come from four read-only agents and are recorded as theirs, not re-run here** — where they disagree with a count in this file, the count in this file is the one with a command behind it.
+
 **The census above is `TODO.md`'s own. The audit verdicts elsewhere in this plan are per-row findings on the subset each agent measured, so the two can differ by one row without either being wrong.** The one place they do differ today is `§2`: the census says 2 done / 22 open, but the audit found `2.5` done — so **`§2` is really 3 / 21**, and recording that is one of the text-only corrections named below.
 
 ---
