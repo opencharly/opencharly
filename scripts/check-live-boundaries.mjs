@@ -28,7 +28,7 @@
 //   3. a row whose site is GONE                → RED (stale baseline; delete the row)
 'use strict';
 
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync, mkdirSync, realpathSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
@@ -278,9 +278,22 @@ function selfTest() {
     r.skipped.length === REPOS.length && r.findings.length === 0,
     `skipped=${JSON.stringify(r.skipped)} findings=${JSON.stringify(r.findings)}`);
 
+  // arm 7: the EXIT GUARD, which arm 6 cannot reach. arm 6 calls run() in-process; the guard lives in
+  // the top-level else and fires only in the real CLI. So the arm spawns the script as a SUBPROCESS
+  // against an all-skipped tree and asserts a non-zero exit — the only instrument that reaches it.
+  execFileSync('rm', ['-rf', scratch]);
+  mkdirSync(scratch, { recursive: true });
+  execFileSync('git', ['init', '-q', scratch]);
+  const child = spawnSync(process.execPath, [join(root, 'scripts', 'check-live-boundaries.mjs')], {
+    cwd: scratch, encoding: 'utf8',
+  });
+  check('arm 7: the CLI exits non-zero over an all-skipped tree',
+    child.status !== 0 && /every repo SKIPPED/.test(child.stderr || ''),
+    `status=${child.status} stderr=${JSON.stringify((child.stderr || '').slice(0, 160))}`);
+
   execFileSync('rm', ['-rf', scratch]);
   if (failures) { console.error(`\nself-test: ${failures} arm(s) FAILED`); process.exit(1); }
-  console.log('\nself-test: OK (7 arms — control first, every one fails when it should)');
+  console.log('\nself-test: OK (8 arms — control first, every one fails when it should)');
 }
 
 const args = process.argv.slice(2);
