@@ -14,8 +14,10 @@
 // `pr_body_lint.py`. So a body can pass both and still name an identifier the diff removed.
 //
 // THE CHECK. Extract every identifier the diff REMOVES — from `-func NAME(`, `-type NAME`, and
-// `-const/-var NAME`, plus any `NAME` → `OTHER` rename stated in a `## Files changed` row — then
-// grep the body's PROSE (fenced code blocks and the file table blanked) for each one.
+// `-const/-var NAME`, plus any `NAME` → `OTHER` rename stated in a `## Files changed` row — keep
+// only the names the HEAD tree no longer contains as a whole word (a name deleted in one place and
+// alive in another is not removed) — then grep the body's PROSE (fenced code blocks and the file
+// table blanked) for each one.
 //
 // A hit is a finding UNLESS the sentence it sits in marks it as historical: the check accepts a
 // mention preceded, in the same paragraph, by one of the ACCEPTS markers below. That is not a
@@ -28,7 +30,7 @@
 //
 // Exit 0 clean, 1 with findings.
 
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import process from "node:process";
@@ -68,9 +70,17 @@ const IGNORE = new Set([
   "name", "type", "func", "test", "file", "path", "data", "text", "body", "head",
 ]);
 
-// runCheck(diffText, bodyText) -> findings[], so --self-test can drive the SAME code path.
-export function runCheck(diffText, bodyText) {
+// runCheck(diffText, bodyText, survives) -> findings[], so --self-test can drive the SAME code path.
+//
+// `survives(name)` answers whether the HEAD tree still contains the name as a whole word. A name
+// the diff deletes in one place and the head still carries is NOT removed: a body that names it
+// names something that exists. Measured (opencharly/opencharly#1140): deleting three TypeScript
+// files removed block-scoped locals named `s`, `it`, `session`, `verdict` and `footer`, every one
+// alive in the new code, and the check refused a correct body 27 times over. A truly removed name
+// — a renamed test, a deleted helper — appears nowhere in the head, so it is still caught.
+export function runCheck(diffText, bodyText, survives = () => false) {
   const removed = collectRemoved(diffText, bodyText);
+  for (const name of [...removed.keys()]) if (survives(name)) removed.delete(name);
   // The FENCE-PURITY arm is independent of the identifier arm: a body can annotate a console fence
   // whether or not the diff removed anything. So the findings are the union, and `inapplicable`
   // reports ONLY that the identifier half had nothing to check.
@@ -113,8 +123,8 @@ function buildArms() {
   ].join("\n");
 
   const arms = [];
-  const expect = (label, bodyText, wantFindings) => {
-    const { findings } = runCheck(DIFF, bodyText);
+  const expect = (label, bodyText, wantFindings, survives) => {
+    const { findings } = runCheck(DIFF, bodyText, survives);
     arms.push({ label, ok: (findings.length > 0) === wantFindings, verdict: wantFindings ? "FAIL" : "pass", findings });
   };
 
@@ -145,6 +155,23 @@ function buildArms() {
     "a removed identifier in plain prose",
     "The helper `scopedCandySecrets` builds the map the writer consumes.\n",
     true,
+  );
+
+  // GREEN: the diff deletes a declaration of the name, but the HEAD still carries the name, so
+  // it is not removed and naming it is true (the 27 false findings of opencharly/opencharly#1140).
+  expect(
+    "a deleted declaration whose name survives in the head",
+    "The helper `scopedCandySecrets` builds the map the writer consumes.\n",
+    false,
+    (name) => name === "scopedCandySecrets",
+  );
+
+  // RED: the survival test is per name — another name the head still has does not excuse it.
+  expect(
+    "a removed identifier while an unrelated name survives",
+    "The helper `scopedCandySecrets` builds the map the writer consumes.\n",
+    true,
+    (name) => name === "ensureBoxChainSecrets",
   );
 
   // GREEN: inside a pasted COMMAND block ($ first) — `git diff` shows removed names legitimately.
@@ -565,7 +592,11 @@ function scanProse(removed, bodyText) {
 
 const diff = git("diff", `${base}...${head}`, "--", ".");
 const body = readFileSync(bodyPath, "utf8");
-const { removed, findings, inapplicable } = runCheck(diff, body);
+// Whole-word presence in the HEAD tree (the tree this body is published with), read from git
+// objects, so an unstaged worktree file can neither hide a name nor revive one.
+const survives = (name) =>
+  spawnSync("git", ["-C", repo, "grep", "-q", "-w", "-F", "-e", name, head, "--", "."], { stdio: "ignore" }).status === 0;
+const { removed, findings, inapplicable } = runCheck(diff, body, survives);
 
 if (findings.length > 0) {
   for (const f of [...new Set(findings)]) console.log(`FAIL  ${f}`);

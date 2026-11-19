@@ -1,5 +1,5 @@
 # watch.items — the PR/issue items the pi session watches through the harness-neutral
-# watcher, `marketplace/scripts/gh_watch.sh`, delivered as user turns by
+# watcher, `node scripts/gh/cli.ts watch`, delivered as user turns by
 # `.pi/extensions/watch.ts`.
 #
 # One item per line: `owner/repo#num`, `owner/repo/pull/num`,
@@ -12,7 +12,7 @@
 # start a new pi session (the extension arms it at `session_start`), or edit the file and
 # call the `watch_arm` tool with `action: "restart"`.
 #
-# WHY THE EXTENSION AND NOT JUST THE SCRIPT. `gh_watch.sh` is harness-independent and is
+# WHY THE EXTENSION AND NOT JUST THE CLI. `scripts/gh/cli.ts` is harness-independent and is
 # the ONE watcher implementation — the extension only SPAWNS it and turns each event line
 # into a user turn, because pi has no background-completion notification. Nothing about
 # the watching is pi-specific.
