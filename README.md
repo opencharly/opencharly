@@ -47,7 +47,7 @@ its change class, and by an independent fresh `charly/pr-validator` after the pu
 
 ## This repo: one clone of the whole org
 
-`opencharly/opencharly` is the org-level **umbrella**: every OpenCharly repo (395 today) is pinned
+`opencharly/opencharly` is the org-level **umbrella**: every OpenCharly repo (396 today) is pinned
 here as a git submodule — a "gitlink" — flat at the root, so the submodule path equals the repo
 name for all but one alias: `.github` is pinned at the `dotgithub/` path.
 
@@ -318,12 +318,13 @@ a scannable index. Their themes:
 
 ### Virtual machines
 
-2 repos — `kind: vm` definitions for a family, plus that family's VM skills.
+3 repos — `kind: vm` definitions for a family, plus that family's VM skills.
 
 | path | repo | role |
 |---|---|---|
 | `vm-k3s-agent/` | [vm-k3s-agent](https://github.com/opencharly/vm-k3s-agent) | `kind: vm` definition for the k3s worker node. |
 | `vm-k3s-server/` | [vm-k3s-server](https://github.com/opencharly/vm-k3s-server) | `kind: vm` definition for the k3s control-plane node. |
+| `vm-nvidia/` | [vm-nvidia](https://github.com/opencharly/vm-nvidia) | `kind: vm` definition: NVIDIA GPU runtime and CUDA toolkit baked into the guest — the VM counterpart of the CDI pod base |
 
 ### Candy layers: OS bases, bootstrapping and packaging
 
