@@ -476,6 +476,11 @@ export interface RunOptions {
   /** Called with each RATE-LIMIT backoff notice (stderr in the CLI). */
   onNotice?: (line: string) => void;
   /**
+   * Called ONCE with every item's ARM baseline, the moment the baseline poll returns —
+   * before any event can fire — so a caller can show that the watch is armed and on what.
+   */
+  onArm?: (reports: ArmReport[]) => void;
+  /**
    * Whether a BLOCK/INCONCLUSIVE already on the head at arm ends the watch at once
    * (default true). A continuous watcher re-arms after every wake, so it passes false
    * after its first arm, or the same baseline would wake it forever.
@@ -513,6 +518,7 @@ export async function runWatch(items: Item[], opts: RunOptions): Promise<RunResu
     if (opts.signal?.aborted) return none;
     return { ...none, seedError: err };
   }
+  opts.onArm?.(reports);
   const now = nowEpoch();
   for (const it of items) {
     const snap = seeds.get(it.key);
