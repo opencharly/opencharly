@@ -31,7 +31,7 @@
 
 import { execFileSync, spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync, mkdirSync, realpathSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { join } from 'node:path';
 
 const CENSUS = 'design/live-boundary-census.tsv';
 const REPOS = ['charly', 'sdk', 'spec'];
