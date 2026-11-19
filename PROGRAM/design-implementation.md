@@ -4249,3 +4249,35 @@ the `HEAD` count.
 **The diff never changed.** **The fourth PR to carry it passed on its first verdict, and it differed in one
 respect: every remaining claim in its body was a paste, including that block regenerated at the head it
 described.**
+
+### 2026-11-20 -- 14.3's sdk leg: four lanes at zero, and the instrument that re-sized the fifth
+
+**Two merges since the entry above, both from `origin/main`:**
+
+| PR | what landed | measured |
+|---|---|---|
+| **`sdk#574`** | `deploykit`'s OCI-label emission pair | `git -C sdk grep -cE '<wide>' origin/main -- 'deploykit/read_labels.go' 'deploykit/write_labels.go'` -> **0** |
+| **`sdk#576`** | `deploykit`'s intermediates subsystem | `git -C sdk grep -nE '<wide>' origin/main -- 'deploykit/intermediates*.go' | wc -l` -> **1**, and that one is *"is used to decide"*, present tense |
+
+**The `deploykit` census at `origin/main`, by the wide expression:**
+
+```console
+$ git -C sdk grep -nE 'DELETED|[Ff]ormer|used to|was (deleted|removed|relocated)|is gone|no longer' \
+    origin/main -- 'deploykit/*.go' | wc -l
+150
+```
+
+**Down from 171 when the lane was measured.** The module-wide figure, for the same expression over all of
+`sdk`'s `*.go`, is in the entry above -- measured there, and not restated here without its command. **A third unit (`spec_box_resolve.go` + `compile_service_steps.go`, twelve sites) is open at `sdk#577`.**
+
+### What the lane cost, and the two instruments that had to be widened
+
+**`sdk#574` passed on its first verdict. `sdk#576` took five.** The difference was not the diff -- both are comment-only and both trees were correct from the first push. **The five verdicts named, in order:** the block's unchanged tail (*"the tests used before the move"*); a sentence my own fix left without a subject (*"the fields a `*Config` read off"*); the phase tags `(P8b)`, `(W3)`, `(W3, task #36)`, which name a past campaign rather than the code; a commit count of three over four; and a base count stated as `161`, `171` and `150` in one body.
+
+**Three process findings, each worth its round:**
+
+1. **A comment block is one claim in several sentences.** The token finds the site; **the block decides whether the claim is still true.** Sweeping the line the reviewer quotes leaves the sentences around it asserting the same thing in other words -- and leaves a sentence with no subject when the removed phrase was its noun.
+2. **A phase tag is history too, and easier to miss because it is short.** `(P8b)` says *when the code moved*, not what it does.
+3. **`git diff` with no revision range diffs worktree-vs-index.** On a clean tree it prints nothing *whatever was committed*, so an empty result there says nothing about the branch. **Five sections of one body leaned on that fence as the proof of "zero non-comment lines", and the claim was true by luck.** The range is what makes the emptiness a claim.
+
+**And the count, once more:** `161` at base, `150` at head, both stated with their refs -- **because a number without its ref is a number without its meaning, and the oldest ref in a body is the one most likely to be wrong.**
