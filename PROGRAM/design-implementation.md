@@ -4395,3 +4395,34 @@ order they were learned:**
 anything was removed` match the widened expression and describe the operation, not history. **A widened instrument
 that cannot tell `is used to` from `used to` must be overridden by reading the sentence -- and the body says so
 where it does.**
+
+### 2026-11-20 (cont.) -- the lane changes shape: 88 sites across 57 files is breadth work, not depth work
+
+**Two merges since the entry above:** **`sdk#586`** (the deploy-state ledger, five matching lines removed after four
+verdicts) and **`sdk#587`** (the first BREADTH unit -- eighteen sites across seven files, **one verdict**). **Recorded
+from `origin/main`:**
+
+```console
+$ git -C sdk grep -nE 'DELETED|[Ff]ormer|used to|was (deleted|removed|relocated)|is gone|no longer' \
+    origin/main -- 'deploykit/*.go' | wc -l
+67
+```
+
+**171 -> 67 across nine units.**
+
+### The shape change, and what it says about the instrument
+
+**After `#586` the census was 88 sites across 57 files -- an average of 1.5 per file.** **That is a different job from
+the first eight units, which were five to seven sites in one or two files each.** **`sdk#587` took seven files at once
+and passed on its FIRST verdict; a fourth unit is open at `sdk#588` on four more.**
+
+**The per-unit overhead (a PR, a generated body, a validator round) now dominates the work, so breadth is the right
+shape -- and the bodies stay the same size because they are generated from the commands rather than written.**
+
+### One measurement error worth keeping
+
+**While sizing this stretch I ran `git grep -cE '...' origin/main -- 'deploykit/*.go' | wc -l` and read `57`.**
+**`grep -c` over a pathspec prints `path:count` per file, so `| wc -l` counts FILES, not sites.** The census was 92.
+**Running the same fact two ways -- `awk -F: '{s+=$NF}'` and `grep -n | wc -l` -- is what caught it**, and both then
+agreed. **That is the ledger's own rule about `grep -c` biting its author, and the only defence that worked was
+redundancy.**
