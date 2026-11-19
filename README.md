@@ -47,7 +47,7 @@ its change class, and by an independent fresh `charly/pr-validator` after the pu
 
 ## This repo: one clone of the whole org
 
-`opencharly/opencharly` is the org-level **umbrella**: every OpenCharly repo (396 today) is pinned
+`opencharly/opencharly` is the org-level **umbrella**: every OpenCharly repo (397 today) is pinned
 here as a git submodule — a "gitlink" — flat at the root, so the submodule path equals the repo
 name for all but one alias: `.github` is pinned at the `dotgithub/` path.
 
@@ -375,10 +375,11 @@ a scannable index. Their themes:
 
 ### Candy layers: GPU and ML runtimes
 
-11 repos — CUDA/ROCm, the GPU base layers and the inference stacks that ride them.
+12 repos — CUDA/ROCm, the GPU base layers and the inference stacks that ride them.
 
 | path | repo |
 |---|---|
+| `layer-cdi/` | [opencharly/layer-cdi](https://github.com/opencharly/layer-cdi) |
 | `layer-cuda/` | [opencharly/layer-cuda](https://github.com/opencharly/layer-cuda) |
 | `layer-llama-cpp/` | [opencharly/layer-llama-cpp](https://github.com/opencharly/layer-llama-cpp) |
 | `layer-nvenc-headers/` | [opencharly/layer-nvenc-headers](https://github.com/opencharly/layer-nvenc-headers) |
