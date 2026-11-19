@@ -1,17 +1,11 @@
 /**
  * pr-watch.ts — OpenCode-native delivery binding for the PR/issue watcher.
  *
- * HARNESS SPLIT (operator directive, 2026-09-29). The harness-INDEPENDENT watcher is
- * the SHELL family (`marketplace/scripts/gh_watch.sh` + `pr_watch_many.sh` +
- * `pr_state_watch.sh` + `_watch_common.sh`) — usable from any harness. This OpenCode
- * plugin is PURE TypeScript: it polls the GitHub API NATIVELY (via `../lib/watch.ts`,
- * the ONE shared engine) and NEVER spawns a `.sh`, so it depends on NO script and NO
- * `marketplace` pin. It shares the watcher CONTRACT with the shell family (event
- * vocabulary, wake-line format, item grammar), asserted by `scripts/check-opencode-coord.mjs`.
- *
- * R2 — the detached V2 loop (session capture, `ctx.session.synthetic` delivery, the
- * poll loop, the rate backoff) lives ONCE in `../lib/watcher-loop.ts`; this plugin is
- * the `pr-watch.items` CONFIG binding over it, and `tracker.ts` imports the SAME loop.
+ * The watcher is the ONE engine every harness uses, `scripts/gh/lib/watch.ts`
+ * (opencharly/opencharly#1140), imported in-process. Its contract — the events, the
+ * verdict, the wake lines — is stated there. The OpenCode delivery (session capture,
+ * `ctx.session.synthetic`) lives in `../lib/watcher-loop.ts`, which `tracker.ts` shares;
+ * this plugin is the `pr-watch.items` CONFIG binding over it.
  *
  * DELIVERY — measured 2026-09-28 against the REAL v2.0.18 binary. The V2 `setup(ctx)`
  * context does NOT carry `client`; the V2 "inject context without starting a turn"
@@ -29,14 +23,8 @@
  * Defensive: if the session domain is unavailable or a poll fails transiently, the
  * plugin logs/skips and no-ops; opencode keeps running.
  */
-import { wakeLine } from "../lib/wake-line.ts";
-import { parseItem, type Item } from "../lib/watch.ts";
+import { DEFAULT_WORKFLOW, parseItem, type Item } from "../../scripts/gh/lib/watch.ts";
 import { makeWarn, parseItems, readText, v2SessionSink, watchLoop } from "../lib/watcher-loop.ts";
-
-// The ONE shared "last non-empty stdout line" helper (R2) — the same module
-// `coord.ts` imports. Re-exported under the historical name this plugin's own
-// check asserts.
-export const lastWakeLine = wakeLine;
 
 // `parseItems` is the ONE shared config-line parser (R2) — re-exported from the
 // shared loop module under the historical name this plugin's own check asserts.
@@ -48,10 +36,10 @@ export { parseItems };
  * status) — omitting either is the defect that let a BLOCK pass silently — beside the
  * terminal outcomes.
  */
-export const WATCH_EVENTS = "comment,merged,closed,verdict";
+export const WATCH_EVENTS = "comment,merged,closed,conflict,verdict";
 
 /** The validator workflow whose COMPLETED runs are the progress signal. */
-const WF = "charly/pr-validator";
+const WF = DEFAULT_WORKFLOW;
 
 export function pickSessionID(sessions: any[], directory: string): string | undefined {
   const roots = sessions.filter(

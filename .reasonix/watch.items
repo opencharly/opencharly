@@ -1,5 +1,5 @@
 # watch.items — the PR/issue items a reasonix session watches through the
-# harness-INDEPENDENT watcher, `marketplace/scripts/gh_watch.sh`.
+# ONE watcher every harness uses, `node scripts/gh/cli.ts watch`.
 #
 # One item per line: `owner/repo#num`, `owner/repo/pull/num`,
 # `owner/repo/issues/num`, or a full https://github.com/owner/repo/(pull|issues)/num
@@ -11,12 +11,12 @@
 # Uncomment (or add) a line below to arm it, then start a new reasonix session
 # (the SessionStart hook in `.reasonix/settings.json` reads this file).
 #
-# WHY A SHELL WATCHER AND NOT A PLUGIN. The watcher is deliberately NOT a
-# reasonix code extension: `gh_watch.sh` is harness-independent, already carries
-# the rate-limit discipline (one batched GraphQL poll per interval - 300s by default - a free
-# /rate_limit guard, a 300s poll floor), the stall alarm, and `--auto-rearm`.
-# Wrapping it in a sidecar would duplicate that logic in a second place. The
-# SessionStart hook below only ARMS it.
+# WHY THE SHARED CLI AND NOT A PLUGIN. The watcher is deliberately NOT a
+# reasonix code extension: `scripts/gh/cli.ts` is the ONE watcher every harness
+# uses, and already carries the verdict, the rate-limit discipline (one batched
+# GraphQL poll per interval, a 300s poll floor) and the stall alarm. Wrapping it
+# in a sidecar would duplicate that logic in a second place. The SessionStart
+# hook below only ARMS it.
 #
 # WHY NOT `[progress_watch]`. That block (in `reasonix.toml`) is the in-session
 # LOOP guard: it detects a model repeating itself and can pause or retry. It

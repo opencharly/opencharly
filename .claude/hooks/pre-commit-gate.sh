@@ -8,7 +8,7 @@
 #   - staged Go modules must be golangci-lint clean when the tool is available.
 #
 # Attribution identity/confidence, change class, CHANGELOG coverage,
-# architecture, and all R0-R10 proof are judged once by the fresh pr-validator.
+# architecture, and all R0-R11 proof are judged once by the fresh pr-validator.
 # They are deliberately absent here so two policy implementations cannot drift.
 
 INPUT=$(cat)

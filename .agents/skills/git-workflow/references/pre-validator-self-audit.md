@@ -179,8 +179,11 @@ both body-only, and neither covered by classes 1-5.
    never after (B2b.1 "How and when a sign-off is made"). Never WEAKEN a marker without pasted proof; prefer
    strengthening.
 8. The PR title must match the diff.
-9. Arm the watcher (`marketplace/scripts/pr_state_watch.sh <owner>/<repo> <pr>`),
-   and run the read-in-full gate before EVERY update push (the project
+9. Arm the watcher (`node scripts/gh/cli.ts watch <owner>/<repo>#<pr>`). Its
+   ARM line names the PR's `mergeable` state: a `CONFLICT` wake means GitHub will
+   run NO validator on this head, so merge the base in and push before waiting on
+   a verdict (measured on opencharly/opencharly#1145, which sat with no run for
+   hours). Then run the read-in-full gate before EVERY update push (the project
    rulebook "Before every update push: read everything, fix everything"):
    every new comment and the full verdict read IN FULL; EVERY finding fixed or
    rebutted with evidence; a fresh RCA naming the missed control posted in the
@@ -230,8 +233,9 @@ file BEFORE the push:
 python3 scripts/pr_body_lint.py <body.md> --repo <worktree>
 ```
 
-The rule ids required in `## Rulebook compliance` default to R0-R10; a repo with
-its own numbered rules passes `--rules R0,R1,R2,R3,R4,R5,R6,R7,R8,R9,R10`.
+The rule ids required in `## Rulebook compliance` default to R0-R11 (the
+linter's `DEFAULT_RULES`); a repo with its own numbered rules passes them with
+`--rules`, for example `--rules R0,R1,R2,R3`.
 Exit 0 is clean, exit 1 is a finding to fix before the push.
 
 It removes the classes that need no judgment; whether the evidence is
