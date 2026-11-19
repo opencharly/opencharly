@@ -172,10 +172,17 @@ both body-only, and neither covered by classes 1-5.
 6. One cutover = remove AND place in the SAME change. If the replacement home
    does not exist yet, land the home first (producer-first). Removing content
    whose home is deferred is a split cutover and is blocking, never filed.
-7. Guardrail / validator-spec edits (a validator's own prompt, a
-   `FORBIDDEN_*` list, a gate) are T4 self-modifying-security changes: they
-   need a maintainer-account sign-off or must be split into their own
-   signed-off change. The sign-off is posted BEFORE the next push or re-run,
+7. Guardrail / validator-spec edits are T4 self-modifying-security changes:
+   they need a maintainer-account sign-off or must be split into their own
+   signed-off change. Decide it FROM THE DIFF, not from intent — the surfaces
+   are the validator rulebook's T3 "weakened guardrails" list: the pre-commit
+   and pre-push gates (`hooks/`, `.claude/hooks/`, a harness's gate plugin, a
+   gate script those hooks or `charly task verify` run), branch-protection and
+   ruleset config, the validator's own spec or prompt, and the rulebook's
+   landing, attribution, no-force-push and no-direct-push rules (`AGENTS.md`).
+   A diff that touches any of them needs the sign-off even when it only ADDS a
+   gate (measured: opencharly/opencharly#1127 and #1160 were each BLOCKED once
+   on T4 alone). The sign-off is posted BEFORE the next push or re-run,
    never after (B2b.1 "How and when a sign-off is made"). Never WEAKEN a marker without pasted proof; prefer
    strengthening.
 8. The PR title must match the diff.

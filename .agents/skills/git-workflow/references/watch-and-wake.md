@@ -92,7 +92,10 @@ terminated.
 - **ONE watcher per session.** Put every item you wait on into ONE watch. The lock keys on the
   watched items and events, so arming the same watch twice takes over the first; a different
   item list is a different watch, so stop the old one before arming the new one, and confirm in
-  the process table (`pgrep -af 'scripts/gh/cli.ts watch'`) that exactly one runs.
+  the process table that exactly one runs: `pgrep -fa '^node .*scripts/gh/cli\.ts watch'`.
+  Anchor the pattern on the `node` process: an unanchored `pgrep -f` also matches the
+  harness's wrapper shell and the probe's own shell, whose command lines carry the same
+  text (measured: one watcher, an unanchored count of 3).
 - **A 300-second poll FLOOR.** Every watcher polls at 300 s and REFUSES a shorter interval (exit
   5). `ALLOW_FAST_POLL=1` exists for tests only. Expect up to one interval of lag: when you need
   the state NOW, read it once with `status`. One read answers a question; a loop of reads is the
