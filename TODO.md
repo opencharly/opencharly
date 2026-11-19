@@ -49,7 +49,7 @@ the `sdk` pin since #1004).
 | 0. Preconditions | 4 | 2 | 1 | 1 |
 | 1. Decisions | 2 | 1 | 0 | 1 |
 | 2. Schema | 26 | 2 | 22 | 2 |
-| 3. Parsing and validation | 43 | 3 | 39 | 1 |
+| 3. Parsing and validation | 43 | 2 | 40 | 1 |
 | 4. Generation | 6 | 1 | 5 | 0 |
 | 5. Modules and the plugin protocol | 13 | 0 | 13 | 0 |
 | 6. Plugins and the install IR | 9 | 0 | 8 | 1 |
@@ -61,7 +61,7 @@ the `sdk` pin since #1004).
 | 12. OCE alignment | 15 | 2 | 8 | 5 |
 | 13. Deployments, drivers, venues and captures | 7 | 0 | 7 | 0 |
 | 14. Code rules and enforcement | 4 | 0 | 4 | 0 |
-| **Total** | **146** | **14** | **120** | **12** |
+| **Total** | **146** | **13** | **121** | **12** |
 
 The Decisions row counts the unnumbered decided block plus item 1.1.
 
