@@ -4162,3 +4162,65 @@ chosen from `git diff -U0 | grep -v '^[+-][[:space:]]*//'` being empty; `spec#39
 measuring the population by directory first; `#1146` with an arm proven by removing the guard it tests.
 
 **A claim that arrives after its measurement never needs a second round.**
+
+### 2026-11-19/20 (cont.) — three rows closed, and the instrument that re-sized the last one
+
+**`spec#396`, `#1149` and `sdk#572`/`#573` landed after the entry above.** State, from `origin/main`, not from
+the PR bodies:
+
+| PR | what landed | measured |
+|---|---|---|
+| **`spec#396`** | 7.3 phase 2 -- `RepoCacheDir` reads the ONE resolver | `git -C spec show origin/main:refs/cache.go \| grep -c 'os.Getenv("CHARLY_REPO_CACHE")'` -> **0** |
+| **`sdk#572`** | 14.3's `sdk` leg, `loaderkit` lane | `git -C sdk grep -cF 'DELETED' origin/main -- 'loaderkit/*.go'` -> **0** |
+| **`sdk#573`** | the same leg, `kit` + `root` + `vmshared` lanes | those three lanes absent from the per-directory census below |
+
+**The `sdk` lane census at `main` after all three:**
+
+```console
+$ git -C sdk grep -cF 'DELETED' origin/main -- '*.go' | sed 's|origin/main:||' \
+    | awk -F: '{split($1,a,"/"); d=(length(a)>1?a[1]:"root"); s[d]+=$NF} END{for(k in s) printf "%-14s %d\n", k, s[k]}'
+deploykit      24
+storekit       1
+```
+
+**25 total, down from 39. `storekit`'s single site is already present-tense.** **So 14.3's `sdk` leg stands at
+`spec` + `charly` + four `sdk` lanes complete, with `deploykit` alone remaining.**
+
+### The measurement that re-sized the last lane, and why it matters more than the count
+
+**`deploykit` is 24 by the token and 171 by the class:**
+
+```console
+$ git -C sdk grep -cF 'DELETED' origin/main -- 'deploykit/*.go' | awk -F: '{s+=$NF} END{print s+0}'
+24
+$ git -C sdk grep -nE 'DELETED|[Ff]ormer|used to|was (deleted|removed|relocated)|is gone|no longer' \
+    origin/main -- 'deploykit/*.go' | wc -l
+171
+```
+
+**`D-CODE-4` forbids *"history instead of present code"*, not a word.** **The same claim is made as
+*"relocated from `charly/engine.go`"*, *"the former `writeLabels`"*, *"used to carry its own copy"*,
+*"no longer sourced from"*.** **The three lanes that landed used the token as their population and were
+small enough that the proxy and the class nearly coincided; `deploykit` is where they diverge.**
+
+**So the close condition for `#1147` is now the WIDE grep, not the token:**
+
+```console
+$ git -C sdk grep -cE 'DELETED|[Ff]ormer|used to|was (deleted|removed|relocated)|is gone|no longer' \
+    origin/main -- '*.go'
+0
+```
+
+**A body that swept 24 and said "the `DELETED` token is gone" would be true of the token and false of the
+class — the exact false-completeness shape rule 6 names.**
+
+### And the count itself, which cost four rounds on one PR
+
+`kit`/`root`/`vmshared` took three PRs across six verdicts, and **every finding was a number or a ref**:
+"eight sites" over seven rewrites; `eight`/`seven` disagreeing in two sections because a `re.sub` matched
+one capitalisation; a "what this does not sweep" block whose command said `origin/main` while its output was
+the `HEAD` count.
+
+**The diff never changed.** **The fourth PR to carry it passed on its first verdict, and it differed in one
+respect: every remaining claim in its body was a paste, including that block regenerated at the head it
+described.**
