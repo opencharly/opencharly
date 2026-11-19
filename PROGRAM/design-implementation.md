@@ -4204,13 +4204,19 @@ $ git -C sdk grep -nE 'DELETED|[Ff]ormer|used to|was (deleted|removed|relocated)
 *"no longer sourced from"*.** **The three lanes that landed used the token as their population and were
 small enough that the proxy and the class nearly coincided; `deploykit` is where they diverge.**
 
-**So the close condition for `#1147` is now the WIDE grep, not the token:**
+**So `#1147`'s close condition is the WIDE grep, not the token -- and this is a TARGET, not a current
+measurement:**
 
 ```console
+# the close condition: run when the lane is done, and it must print 0.
+# run TODAY it prints 171, which is the number in the paragraph above.
 $ git -C sdk grep -cE 'DELETED|[Ff]ormer|used to|was (deleted|removed|relocated)|is gone|no longer' \
     origin/main -- '*.go'
-0
+0          # <- the value that CLOSES the row; today's value is 171
 ```
+
+**Stated beside the 171 without that label, a `0` reads as a measurement, and a reader would conclude the
+row is already closed.** **A target and a reading are the same digits and different claims.**
 
 **A body that swept 24 and said "the `DELETED` token is gone" would be true of the token and false of the
 class — the exact false-completeness shape rule 6 names.**
