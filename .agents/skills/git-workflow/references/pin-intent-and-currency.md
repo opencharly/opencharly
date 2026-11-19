@@ -89,26 +89,26 @@ while the `distro-*` pins were behind their own `main`.
 | `differs (no checkout to judge ancestry)` | **no** | the SHAs differ and the ancestry read could not be made, because the checkout (or, for a twin, the nested checkout) is not there. Reported, never folded into a verdict — and a fresh session worktree is full of them, so this state is normal, not alarming. |
 | `unpinned` | YES | no intent and no `branch=` — the pin cannot be judged at all. Obliges declaring one. |
 
-**A submodule is BORN `unpinned`.** `git submodule add <url> <path>` writes `path`, `url` and NOTHING
-else — no `branch =` — so the freshly added path has no intent, and `charly task verify` fails
-STRUCTURALLY on it (`pod-strata: no intent and no branch= in .gitmodules — declare one`) until the same
-commit declares one:
-
-```sh
-git submodule add <url> <path>
-git config -f .gitmodules submodule.<path>.branch main
-```
-
-Measured on the umbrella commit that added `pod-strata` (2026-11-19): the gitlink, the `.gitmodules`
-entry, the `import:` and the README row all landed correctly and the gate still failed on that single
-missing line. Declaring it costs one command and one file edit in the commit that adds the path — and
-it is cheap to forget because `git submodule add` reports success.
 | `no-source-pin` | YES | an EDGE whose declared source names no path, or records no gitlink in this repo's index — there is nothing to inherit. |
 | `pin-mismatch` | YES | an EDGE whose recorded gitlink disagrees with its source's. The two sides are made to agree by the sanctioned verb (or by the producing repo's PR), never by a hand-pin. |
 | `unmerged` | YES | the recorded commit is AHEAD of the served ref — the pin names a commit the repo does not serve. A PR branch was pinned; re-point it at a MERGED ref. |
 | `ref-not-served` | YES | a LEAF for which no branch or tag of that name is served by the submodule's URL — the intent ITSELF is wrong. |
 | `no-gitlink` / `no-url` | YES | the objects the contract rests on are missing from the index / `.gitmodules`. |
 | `blocked-by <source> (not a declared pin)` / `blocked-by <source>:<twin> (no ref declared)` | YES | the edge names a producer that is NOT a declared pin, or a twin its source declares no `branch=`/`url=` for — so there is no leg to name and the pin is UNJUDGEABLE. The remedy is upstream: declare the producer, or give this pin its own `upstream:` intent. |
+
+**A submodule is BORN `unpinned`.** `git submodule add <url> <path>` writes `path`, `url` and NOTHING
+else — no `branch =` — so the freshly added path has no intent, and `charly task verify` fails
+STRUCTURALLY on it (`pod-strata: no intent and no branch= in .gitmodules — declare one`) until the same
+commit declares one:
+```sh
+git submodule add <url> <path>
+git config -f .gitmodules submodule.<path>.branch main
+```
+Measured on the umbrella commit that added `pod-strata` (2026-11-19): the gitlink, the `.gitmodules`
+entry, the `import:` and the README row all landed correctly and the gate still failed on that single
+missing line. Declaring it costs one command and one file edit in the commit that adds the path — and
+it is cheap to forget because `git submodule add` reports success.
+
 
 ### Why `behind` and `blocked-by` PASS — and why the output leads with them
 
