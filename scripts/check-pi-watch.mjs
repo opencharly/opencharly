@@ -40,6 +40,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseTypeScript } from "./lib/ts-syntax.mjs";
+import { LIVE_MERGED_PR, hasGithubCredential } from "./lib/live-github.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const argv = process.argv.slice(2);
@@ -230,14 +231,6 @@ if (argv.includes("--self-test")) {
 check();
 
 // ── 6. LIVE: the real pi runtime, real GitHub, a real merged PR, count the starts ──
-/** A real PR that merged on 2026-10-08: its state never changes, and the watch only reads it. */
-const LIVE_MERGED_PR = "opencharly/dsh-opencharly#3";
-
-/** A GitHub credential the CLI can use: a token in the environment, or a logged-in `gh`. */
-function hasGithubCredential() {
-  if (process.env.GITHUB_TOKEN || process.env.GH_TOKEN) return true;
-  return spawnSync("gh", ["auth", "token"], { stdio: "ignore" }).status === 0;
-}
 
 async function live() {
   if (process.env.LIVE_PI !== "1") {

@@ -40,6 +40,7 @@ import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { LIVE_MERGED_LINE, LIVE_MERGED_PR, hasGithubCredential, judgeLiveCall } from "./lib/live-github.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const argv = process.argv.slice(2);
@@ -154,6 +155,16 @@ const CLI = join(root, "scripts/gh/cli.ts");
     threw = e instanceof W.UsageError;
   }
   expect(threw, "parseEvents refuses an unknown event (no silent ignore)");
+
+  // The live layers' judge: a call with the result PASSes, a call without it FAILs, no call
+  // SKIPs — and an output that merely ECHOES the result, with no call behind it, is NOT a pass.
+  {
+    const called = /tools\.coord_watch\(/;
+    const line = `MERGED   ${LIVE_MERGED_PR}  (unblocked)`;
+    eq(judgeLiveCall(`execute {"code":"return await tools.coord_watch({})"}\n${line}`, called, LIVE_MERGED_LINE), "PASS", "the live judge: a call with its result is a PASS");
+    eq(judgeLiveCall('execute {"code":"return await tools.coord_watch({})"}\nTIMEOUT', called, LIVE_MERGED_LINE), "FAIL", "the live judge: a call without its result is a FAIL");
+    eq(judgeLiveCall(`the tool would print: ${line}`, called, LIVE_MERGED_LINE), "SKIP", "the live judge: an echoed result with no call is NOT a pass");
+  }
   eq([...W.parseEvents(undefined)].join(","), "verdict,merged,closed,conflict", "the default events are your-own-PR events, a conflict with the base included");
   threw = false;
   try {
@@ -438,9 +449,7 @@ try {
   // proves the binding depends on no shell script and no submodule pin. The model's
   // decision to call a tool is stochastic: the load/no-reload assertions are HARD, the
   // tool-call ones live-or-skip.
-  const LIVE_MERGED_PR = "opencharly/dsh-opencharly#3"; // merged 2026-10-08; its state never changes
-  const realCredential =
-    Boolean(REAL_ENV.GITHUB_TOKEN || REAL_ENV.GH_TOKEN) || spawnSync("gh", ["auth", "token"], { stdio: "ignore" }).status === 0;
+  const realCredential = hasGithubCredential(REAL_ENV);
   if (process.env.LIVE_OPENCODE !== "1") {
     console.log("  SKIP  live opencode layer (set LIVE_OPENCODE=1 to run the real binary end to end)");
   } else if (spawnSync("sh", ["-c", "command -v opencode"]).status !== 0) {
@@ -491,17 +500,12 @@ try {
       if (process.env.COORD_LIVE_DEBUG) writeFileSync(process.env.COORD_LIVE_DEBUG, text);
       expect(!/failed to load plugin|must default export|Cannot find module|ERR_MODULE_NOT_FOUND/i.test(text), "real opencode: the binding and its shared lib loaded (no load error)");
       expect(!/\breload\b/i.test(text), "real opencode: no server reload during coord_comment");
-      // Three outcomes, kept apart: the tool ran and returned the right thing (PASS); the tool
-      // ran and returned the wrong thing (FAIL — the binding or the engine is broken); the model
-      // never called it (SKIP — a provider condition). The model's own execute trace says which.
-      const commentCalled = /tools\.coord_comment\(/.test(text);
-      if (/STATUS[\s\S]*\*Agent: `coord-live` · OpenCode session `ses_[A-Za-z0-9]+`\*/.test(text)) {
-        ok("real opencode: coord_comment (dry run) built the verb and the footer with the LIVE session id");
-      } else if (commentCalled) {
-        fail("real opencode: coord_comment was called but did not return the verb and the live-session footer");
-      } else {
-        console.log(`  SKIP  real opencode: the model (${model}) did not invoke coord_comment — layers B and C prove the executor`);
-      }
+      // PASS / FAIL / SKIP by the one shared judge (layer A tests it): PASS needs the model's own
+      // execute trace of the tool AND its expected output — an echoed footer with no call is not a pass.
+      const commentVerdict = judgeLiveCall(text, /tools\.coord_comment\(/, /STATUS[\s\S]*\*Agent: `coord-live` · OpenCode session `ses_[A-Za-z0-9]+`\*/);
+      if (commentVerdict === "PASS") ok("real opencode: coord_comment (dry run) built the verb and the footer with the LIVE session id");
+      else if (commentVerdict === "FAIL") fail("real opencode: coord_comment was called but did not return the verb and the live-session footer");
+      else console.log(`  SKIP  real opencode: the model (${model}) did not invoke coord_comment — layers B and C prove the executor`);
 
       let wtext = "";
       // Retry only while the model has not called the tool at all; once it has, its result decides.
@@ -511,8 +515,9 @@ try {
         );
       }
       expect(!/\breload\b/i.test(wtext), "real opencode: no server reload during coord_watch");
-      if (/MERGED\s+opencharly\/dsh-opencharly#3/.test(wtext)) ok("real opencode: coord_watch read REAL GitHub and returned the MERGED wake line");
-      else if (/tools\.coord_watch\(/.test(wtext)) fail(`real opencode: coord_watch was called on ${LIVE_MERGED_PR} but returned no MERGED wake line`);
+      const watchVerdict = judgeLiveCall(wtext, /tools\.coord_watch\(/, LIVE_MERGED_LINE);
+      if (watchVerdict === "PASS") ok("real opencode: coord_watch read REAL GitHub and returned the MERGED wake line");
+      else if (watchVerdict === "FAIL") fail(`real opencode: coord_watch was called on ${LIVE_MERGED_PR} but returned no MERGED wake line`);
       else console.log(`  SKIP  real opencode: the model (${model}) did not invoke coord_watch — layers B and C prove the executor`);
     } finally {
       rmSync(proj, { recursive: true, force: true });
