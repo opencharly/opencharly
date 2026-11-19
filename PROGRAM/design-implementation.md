@@ -4281,3 +4281,38 @@ $ git -C sdk grep -nE 'DELETED|[Ff]ormer|used to|was (deleted|removed|relocated)
 3. **`git diff` with no revision range diffs worktree-vs-index.** On a clean tree it prints nothing *whatever was committed*, so an empty result there says nothing about the branch. **Five sections of one body leaned on that fence as the proof of "zero non-comment lines", and the claim was true by luck.** The range is what makes the emptiness a claim.
 
 **And the count, once more:** `161` at base, `150` at head, both stated with their refs -- **because a number without its ref is a number without its meaning, and the oldest ref in a body is the one most likely to be wrong.**
+
+### 2026-11-20 (cont.) -- deploykit's third unit landed, and the unit pattern that holds
+
+**One merge since the entry above:** **`sdk#577`** -- `deploykit`'s box-resolve and render-service bridge,
+twelve comment sites. **Recorded from `origin/main`:**
+
+```console
+$ git -C sdk grep -nE 'DELETED|[Ff]ormer|used to|was (deleted|removed|relocated)|is gone|no longer' \
+    origin/main -- 'deploykit/*.go' | wc -l
+138
+```
+
+**Down from 150 before it.** **A fourth unit is open at `sdk#580`** (deploy_file.go + render_generator_from_project.go,
+fourteen sites) and a fifth is swept and gated in a held worktree (`bake_plugins.go`, `preempt_resolve.go`,
+`enc_passphrase.go`, sixteen sites) -- **held so it does not compete for `sdk`'s seven-check queue.**
+
+### The unit pattern, stated once so it can be copied
+
+**Three `deploykit` units have now landed and every one that did so first-try carried the same five measurements
+in its body:**
+
+1. **per-file `git diff --numstat`**, and its sum computed by `awk` -- not by hand;
+2. **`git diff -U0 origin/main...HEAD`** with the **revision range**, then the comment-only filter -- and a sentence
+   saying why the range matters, **because `git diff` with no range diffs worktree-vs-index and prints nothing on a
+   clean tree whatever was committed**;
+3. **the site count from the KEYWORD-FILTERED removed-line count**, never the bare removed-comment count -- on one
+   unit those differ 74 vs 14, and citing the wrong one is a command for a different question;
+4. **the remainder at BOTH refs**, base and head, with the net stated and its operands shown -- one unit's diff
+   removes fourteen matching lines and ADDS one, so the census moves by thirteen and the identity has to close;
+5. **`git log --oneline origin/main..HEAD` pasted**, never a count of it -- six PRs in this session were blocked on
+   their own commit count.
+
+**Every unit that skipped one of these five took extra verdicts, and every finding that resulted named one of them.**
+**The pattern is written into `spec#392`, `charly#1212`, `sdk#572`, `sdk#574` and `sdk#577`, and any of those bodies
+can be copied.**
