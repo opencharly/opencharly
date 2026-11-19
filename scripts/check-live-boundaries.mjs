@@ -20,7 +20,8 @@
 //   node scripts/check-live-boundaries.mjs                # the gate: RED on a new pair, info on a skip
 //   node scripts/check-live-boundaries.mjs --self-test     # every arm; each must fail when it should
 //   node scripts/check-live-boundaries.mjs --emit-census   # rewrite design/live-boundary-census.tsv
-//   node scripts/check-live-boundaries.mjs --light          # SKIP visibly when a repo is absent
+//   (an absent repo always SKIPs visibly -- there is no flag for it, because a skip is the
+//    default rather than an opt-in)
 //
 // The census has THREE failure directions, and direction 3 is what keeps it honest:
 //   1. a pair in a file with no row            → RED (new debt)
@@ -307,7 +308,7 @@ else {
   // so the message a reader needs is printed whether or not a stale row also fired.
   if (skipped.length === REPOS.length) {
     for (const why of skipped) console.error(`SKIP ${why}`);
-    console.error(`check-live-boundaries: FAIL — every repo SKIPPED (${skipped.length}/${REPOS.length}), so nothing was judged. Run this from the umbrella root with charly, sdk and spec materialized, or with --light if a skip is genuinely intended.`);
+    console.error(`check-live-boundaries: FAIL — every repo SKIPPED (${skipped.length}/${REPOS.length}), so nothing was judged. Run this from the umbrella root with charly, sdk and spec materialized.`);
     process.exit(1);
   }
   for (const f of findings) console.error(f);
