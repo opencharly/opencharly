@@ -23,7 +23,7 @@ import:
     # the CDI GPU pod contract) and the family's ONLY bed `strata.check-strata-gpu-pod`
     # (the GPU-free mock mode is a runtime posture, not a bed; the withdrawn mock bed was
     # PR #6, and the bed moved here from layer-strata in the extraction tracked by
-    # opencharly/opencharly#1174, decision record `design/strata-pod-and-engine-v0216-ledger.md`).
+    # opencharly/opencharly#1174, decision record `opencharly/pod-strata `PIN-CHAIN.md``).
     #
     # The KEY is `strata` and stays `strata`: the namespace comes from THIS import key, not
     # from the repo's name, so the bed keeps the qualified name the roster and every doc
@@ -1025,7 +1025,7 @@ check-all-beds:
             - charly.check-preflight-local
             # Needs an exclusive NVIDIA host plus pre-staged weights: named venue
             # `cachyos-gpu-workstation-vm`, run on demand. The decision record is
-            # `design/strata-pod-and-engine-v0216-ledger.md` (it SUPERSEDES the retired
+            # `opencharly/pod-strata `PIN-CHAIN.md`` (it SUPERSEDES the retired
             # `layer-strata` LEDGER.md, whose section 57 this line used to cite).
             - strata.check-strata-gpu-pod
             # The family imports the cachyos namespace transitively (its box is
