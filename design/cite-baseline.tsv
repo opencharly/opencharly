@@ -67,7 +67,7 @@ command:tmux	plugin-agent/candy/plugin-agent/tmux_compat.go	21-36	TmuxCompatCmd	
 command:udev	plugin-udev/candy/plugin-udev/command.go	72-77	UdevCmd	9f8fe33495a775a3
 command:update	charly/charly/commands.go	29-41	podUpdateCmd	9e99857a4e6f92aa
 command:vm	plugin-vm/candy/plugin-vm/vm.go	22-44	VmCmd	851a76d1baa49e5d
-containerd namespace per deployment	plugin-deploy-pod/candy/plugin-deploy-pod/engine_ops.go	139-146	engineDefaultRuntime	932fc1ea7283e693
+containerd namespace per deployment	plugin-deploy-pod/candy/plugin-deploy-pod/engine_ops.go	139-146	engineDefaultRuntime	4038322045b955e6
 containerd namespace per deployment	spec/schema/deploy.cue	160-162	#Deploy	289b8b9f9cf57785
 deploy from-box|export|import	plugin-fleet/candy/plugin-fleet/deploy_cmd.go	33-34	DeployCmd	dcf9ee0c6c91b388
 deploy path|show|status	plugin-fleet/candy/plugin-fleet/deploy_cmd.go	35-38	DeployCmd	4554767870bf05c1
