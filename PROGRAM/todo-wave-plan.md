@@ -9,8 +9,8 @@ first time). Both are folded in below.
 
 ## 1. Where the 122 are
 
-| § | governs | items | done | **open** | moved |
-|---|---|---|---|---|---|
+| governs | items | done | **open** | moved |
+|---|---|---|---|---|
 | 0. Preconditions | 4 | 2 | **1** | 1 |
 | 1. Decisions | 2 | 1 | **0** | 1 |
 | 2. Schema | 26 | 2 | **22** | 2 |
