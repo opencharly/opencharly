@@ -4165,7 +4165,8 @@ measuring the population by directory first; `#1146` with an arm proven by remov
 
 ### 2026-11-19/20 (cont.) — three rows closed, and the instrument that re-sized the last one
 
-**`spec#396`, `#1149` and `sdk#572`/`#573` landed after the entry above.** State, from `origin/main`, not from
+**Three PRs landed after the entry above -- `spec#396`, `sdk#572` and `sdk#573`.** (`#1149` was the entry
+itself, not a subsequent merge; it is named in that entry's own table.) State, from `origin/main`, not from
 the PR bodies:
 
 | PR | what landed | measured |
