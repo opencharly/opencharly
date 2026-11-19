@@ -91,7 +91,7 @@ The largest block and the plan's weak point. Depends on Wave 1's shapes.
 - ~4 PRs.
 **Estimate: 2–3 days.**
 
-### Wave 4 — `§4 §6 §7` (17) · `sdk`
+### Wave 4 — `§4 §6 §7` (18) · `sdk`
 `§6`'s IR work is the riskiest — it touches every deploy target. `§7.3` stays open (`vm-images` = 12 sites).
 **Estimate: 3–5 days**, ~5 PRs.
 
@@ -111,10 +111,10 @@ The largest block and the plan's weak point. Depends on Wave 1's shapes.
 
 | wave | rows | PRs | estimate |
 |---|---|---|---|
-| 1 · `§2` schema | 21 | ~4 | 2–4 d |
+| 1 · `§2` schema | 22 | ~4 | 2–4 d |
 | 2 · `§3` parser | 40 | ~10 | **4–7 d** |
 | 3 · `§5` plugin protocol | 13 | ~4 | 2–3 d |
-| 4 · `§4 §6 §7` | 17 | ~5 | 3–5 d |
+| 4 · `§4 §6 §7` | 18 | ~5 | 3–5 d |
 | 5 · the remainder | 16 | ~5 | 2–4 d |
 | `§12` (overlapped) | 8 | ~3 | +0 d on the critical path |
 

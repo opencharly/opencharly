@@ -59,5 +59,20 @@ if census:
         print(f"FAIL {path}: sections with open rows that no wave places: {', '.join('§'+x for x in unplaced)}")
         fail += 1
 
+
+# --- check 4: a wave heading that names sections in backticks and a count in
+#     parentheses must have that count equal the census sum of the sections named.
+rows_map = {}
+for m in re.finditer(r'^\| (\d+)\. [^|]+\| (\d+) \| (\d+) \| \*\*(\d+)\*\* \| (\d+) \|', text, re.M):
+    rows_map[m.group(1)] = int(m.group(4))
+for m in re.finditer(r'^#+ [^\n]*?`[^`]*§\d[^`]*`[^\n]*?\((\d+)[^)]*\)', text, re.M):
+    named = re.findall(r'§(\d+)', m.group(0))
+    stated = int(m.group(1))
+    if named:
+        want = sum(rows_map.get(n, 0) for n in named)
+        if want != stated:
+            print(f"FAIL {path}: heading names {'+'.join(named)} = {want} but states {stated}")
+            fail += 1
+
 print(f"check-totals: {fail} finding(s)")
 sys.exit(1 if fail else 0)
