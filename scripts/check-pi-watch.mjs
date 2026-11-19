@@ -21,18 +21,21 @@
 //   5. SHIPPED INERT — `.pi/watch.items` is comment-only, and the extension is listed in
 //      `.pi/settings.json` (an unwired extension is the defect this catches).
 //   6. LIVE (`LIVE_PI=1`) — the REAL `pi` runtime loads the extension with its shared-lib
-//      import, and a CONFLICT wake retires its item: against a local GitHub that always
-//      serves a conflicted PR, one arm makes ONE GraphQL request and delivers ONE wake in
-//      the 20 s window (measured on the unfixed binding: 10 and 10 — the hot-loop). With
-//      `LIVE_PI` unset the layer SKIPS visibly; with `LIVE_PI=1` and no `pi` on PATH it
-//      FAILS, because a live run the operator asked for did not happen (R8).
+//      import, against REAL GitHub: it watches a real PR that merged long ago (a state that
+//      never changes, read-only), and the `MERGED` state event must retire the item — ONE
+//      watcher start and ONE wake in the 20 s window. A binding that re-armed a state-event
+//      item would start the watcher every few seconds (the hot-loop opencharly#1163 fixed).
+//      The starts are counted by one line added after the shebang of the scratch copy of
+//      `cli.ts`; GitHub is never stood in for (R8, opencharly/opencharly#1170). With
+//      `LIVE_PI` unset, or with no GitHub credential, the layer SKIPS visibly; with
+//      `LIVE_PI=1` and no `pi` on PATH it FAILS — a live run that was asked for did not
+//      happen.
 //
 // Usage: node scripts/check-pi-watch.mjs [--root <dir>] [--self-test]
 // exit 0 clean · 1 finding
 
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { spawn, spawnSync } from "node:child_process";
-import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -226,7 +229,16 @@ if (argv.includes("--self-test")) {
 
 check();
 
-// ── 6. LIVE: the real pi runtime, a conflicted PR, count the arms ─────────────
+// ── 6. LIVE: the real pi runtime, real GitHub, a real merged PR, count the starts ──
+/** A real PR that merged on 2026-10-08: its state never changes, and the watch only reads it. */
+const LIVE_MERGED_PR = "opencharly/dsh-opencharly#3";
+
+/** A GitHub credential the CLI can use: a token in the environment, or a logged-in `gh`. */
+function hasGithubCredential() {
+  if (process.env.GITHUB_TOKEN || process.env.GH_TOKEN) return true;
+  return spawnSync("gh", ["auth", "token"], { stdio: "ignore" }).status === 0;
+}
+
 async function live() {
   if (process.env.LIVE_PI !== "1") {
     console.log("  SKIP  live pi layer (set LIVE_PI=1 to run the real pi runtime end to end)");
@@ -236,56 +248,43 @@ async function live() {
     fail("LIVE_PI=1 but no `pi` binary on PATH");
     return;
   }
-  let gql = 0;
-  const server = createServer((req, res) => {
-    let body = "";
-    req.on("data", (c) => (body += c));
-    req.on("end", () => {
-      res.writeHead(200, { "content-type": "application/json", "x-ratelimit-remaining": "4999" });
-      if (req.url !== "/graphql") return res.end("{}");
-      gql += 1;
-      const data = {};
-      for (const [, n] of JSON.parse(body).query.matchAll(/\bi(\d+):/g)) {
-        data[`i${n}`] = {
-          pullRequest: {
-            state: "OPEN", merged: false, mergeable: "CONFLICTING", updatedAt: new Date().toISOString(), headRefOid: "h1",
-            comments: { totalCount: 0, nodes: [] },
-            commits: { nodes: [{ commit: { oid: "h1", checkSuites: { nodes: [] } } }] },
-          },
-          issue: null,
-        };
-      }
-      res.end(JSON.stringify({ data }));
-    });
-  });
-  await new Promise((r) => server.listen(0, "127.0.0.1", r));
+  if (!hasGithubCredential()) {
+    console.log("  SKIP  live pi layer: no GitHub credential (GITHUB_TOKEN, GH_TOKEN or a logged-in gh) for the real GitHub read");
+    return;
+  }
   const proj = mkdtempSync(join(tmpdir(), "check-pi-watch-live-"));
   try {
     mkdirSync(join(proj, ".pi/extensions"), { recursive: true });
     cpSync(join(root, "scripts/gh"), join(proj, "scripts/gh"), { recursive: true });
     cpSync(join(root, REL_EXT), join(proj, REL_EXT));
-    writeFileSync(join(proj, REL_ITEMS), "acme/widget#1\n");
+    writeFileSync(join(proj, REL_ITEMS), `${LIVE_MERGED_PR}\n`);
+    // Count the watcher's starts: one statement right after the shebang (which must stay
+    // line 1) of the SCRATCH copy. The CLI itself runs unchanged against real GitHub.
+    const cli = join(proj, "scripts/gh/cli.ts");
+    const starts = join(proj, "starts.txt");
+    const [shebang, ...rest] = readFileSync(cli, "utf8").split("\n");
+    writeFileSync(cli, [shebang, `import { appendFileSync as __count } from "node:fs"; __count(${JSON.stringify(starts)}, "start\\n");`, ...rest].join("\n"));
     const child = spawn("pi", ["--mode", "rpc", "--no-session", "--offline", "--no-extensions", "-e", join(proj, REL_EXT)], {
       cwd: proj,
-      env: { ...process.env, GITHUB_API_URL: `http://127.0.0.1:${server.address().port}`, GITHUB_TOKEN: "test-token", GH_WATCH_RUNTIME_DIR: proj },
+      env: { ...process.env, GH_WATCH_RUNTIME_DIR: proj },
       stdio: ["pipe", "pipe", "pipe"],
     });
     let out = "";
     child.stdout.on("data", (d) => (out += d));
     child.stderr.on("data", (d) => (out += d));
     // Longer than several re-arm delays (2 s each), far shorter than the 300 s poll floor:
-    // a binding that re-arms a retired item makes many requests in this window, a correct one ONE.
+    // a binding that re-arms a retired item starts the watcher many times here, a correct one ONCE.
     await new Promise((r) => setTimeout(r, 20000));
     child.kill("SIGTERM");
     await new Promise((r) => child.once("exit", r));
+    const startCount = existsSync(starts) ? readFileSync(starts, "utf8").split("\n").filter(Boolean).length : 0;
     const wakes = (out.match(/"event":"send_user_message"/g) || []).length;
     const loadErr = /Cannot find module|ERR_MODULE_NOT_FOUND|Failed to load extension/i.exec(out);
     if (loadErr) fail(`real pi: the extension and its shared-lib import load (found '${loadErr[0]}')`);
     else ok("real pi: the extension and its shared-lib import load");
-    if (gql === 1 && wakes === 1) ok("real pi: a CONFLICT wake retires its item — 1 GraphQL request, 1 wake in 20 s");
-    else fail(`real pi: a CONFLICT wake retires its item — expected 1 GraphQL request and 1 wake in 20 s, got ${gql} and ${wakes} (a re-arm loop)`);
+    if (startCount === 1 && wakes === 1) ok(`real pi: a real MERGED state event (${LIVE_MERGED_PR}) retires its item — 1 watcher start, 1 wake in 20 s`);
+    else fail(`real pi: a real MERGED state event (${LIVE_MERGED_PR}) retires its item — expected 1 watcher start and 1 wake in 20 s, got ${startCount} and ${wakes} (a re-arm loop, or no watch at all)`);
   } finally {
-    server.close();
     rmSync(proj, { recursive: true, force: true });
   }
 }

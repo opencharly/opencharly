@@ -24,8 +24,12 @@
 //      `marketplace/scripts/pr_body_lint.py`'s SESSION_LINE (skipped visibly when the
 //      marketplace checkout is absent).
 //   E. LIVE (LIVE_OPENCODE=1): the REAL `opencode` binary loads the binding with its shared
-//      lib from a throwaway project that has no marketplace checkout, posts through
-//      `coord_comment` and returns MERGED from `coord_watch`. Skipped visibly when unset.
+//      lib from a throwaway project that has no marketplace checkout, against REAL GitHub:
+//      `coord_watch` returns MERGED for a real PR that merged long ago (read-only), and
+//      `coord_comment` builds a real coordination comment as a DRY RUN — a gate never posts a
+//      real comment, and a dry run is a real call that does not write, not a fake. GitHub is
+//      never stood in for (R8, opencharly/opencharly#1170). Skipped visibly when unset or
+//      without a GitHub credential.
 //
 // Usage: node scripts/check-gh-tools.mjs [--root <dir>] [--self-test]
 // exit 0 clean · 1 finding
@@ -73,6 +77,7 @@ if (argv.includes("--self-test")) {
     ["an in-flight run fires", W, (s) => s.replace('if (cls === "PENDING" || cls === "NONE") return false;', 'if (cls === "NONE") return false;')],
     ["--no-arm-wake ignored", W, (s) => s.replace("opts.armWake !== false &&", "true &&")],
     ["a rate limit is not exit 7", "scripts/gh/cli.ts", (s) => s.replace("      return EXIT.RATE;\n    }\n    if (res.seedError)", "      return EXIT.OK;\n    }\n    if (res.seedError)")],
+    ["the deadline waits a whole interval", W, (s) => s.replace("Math.max(0, Math.min(wait * 1000, leftMs))", "wait * 1000")],
     ["ARM printed only at the end", W, (s) => s.replace("opts.onArm?.(reports);", "")],
     ["no takeover", "scripts/gh/lib/lock.ts", (s) => s.replace('process.kill(holder, "SIGTERM");', "void holder;")],
     ["a conflict never wakes", W, (s) => s.replace('cur.mergeable === "conflicting") return "conflict";', 'cur.mergeable === "never") return "conflict";')],
@@ -195,6 +200,9 @@ const CLI = join(root, "scripts/gh/cli.ts");
 }
 
 // ── the local GitHub ───────────────────────────────────────────────────────────────
+// Layers B and C talk to the LOCAL server below with a dummy token; layer E talks to REAL
+// GitHub, so it gets the environment as it was BEFORE these overrides.
+const REAL_ENV = { ...process.env };
 process.env.GITHUB_TOKEN = "test-token";
 let scenario = () => ({});
 let gqlCalls = 0;
@@ -298,6 +306,16 @@ try {
   scenario = () => ({ run: { id: 31, status: "IN_PROGRESS" }, suite: "IN_PROGRESS" });
   r = await cli([...watch("--timeout", "2", "acme/widget#1")]);
   expect(r.code === 4 && /^TIMEOUT  no event within 2s/.test(r.out), "a run only in flight never fires; the watch times out (exit 4)");
+
+  // The deadline holds at the REAL poll floor: a 2 s timeout under a 300 s interval must end in
+  // about 2 s, not after a full interval (the engine used to check the deadline only after
+  // sleeping the whole interval — measured: `--timeout 60` returned after 300 s).
+  {
+    const t0 = Date.now();
+    r = await cli(["watch", "--timeout", "2", "acme/widget#1"], { env: { ALLOW_FAST_POLL: "" } });
+    const secs = (Date.now() - t0) / 1000;
+    expect(r.code === 4 && secs < 15, `a timeout shorter than the 300 s poll floor ends on time (exit ${r.code} after ${secs.toFixed(1)} s)`);
+  }
 
   // The ARM baseline is on stderr WHILE the watch runs — a session must be able to see that it
   // is armed and on what. It used to be printed only when the watch ended (measured live on
@@ -414,46 +432,45 @@ try {
     expect(py.status === 0, "the footer's session line is the shape pr_body_lint.py's SESSION_LINE accepts");
   }
 
-  // ── E. LIVE: the REAL opencode binary loads the binding and runs the shared lib ────
+  // ── E. LIVE: the REAL opencode binary, the shared lib, REAL GitHub ─────────────────
   // A throwaway project carries `.opencode/plugins/coord.ts` AND `scripts/gh/` (the
   // binding imports the shared lib by relative path) and NO `marketplace/`, so a pass
-  // proves the binding depends on no shell script and no submodule pin. GitHub is the
-  // local server above (GITHUB_API_URL), so the REAL TypeScript POST path runs inside
-  // the REAL binary with no real GitHub write. The model's decision to call a tool is
-  // stochastic: the load/no-reload assertions are HARD, the tool-call ones live-or-skip.
+  // proves the binding depends on no shell script and no submodule pin. The model's
+  // decision to call a tool is stochastic: the load/no-reload assertions are HARD, the
+  // tool-call ones live-or-skip.
+  const LIVE_MERGED_PR = "opencharly/dsh-opencharly#3"; // merged 2026-10-08; its state never changes
+  const realCredential =
+    Boolean(REAL_ENV.GITHUB_TOKEN || REAL_ENV.GH_TOKEN) || spawnSync("gh", ["auth", "token"], { stdio: "ignore" }).status === 0;
   if (process.env.LIVE_OPENCODE !== "1") {
     console.log("  SKIP  live opencode layer (set LIVE_OPENCODE=1 to run the real binary end to end)");
   } else if (spawnSync("sh", ["-c", "command -v opencode"]).status !== 0) {
     fail("LIVE_OPENCODE=1 but no `opencode` binary on PATH");
+  } else if (!realCredential) {
+    console.log("  SKIP  live opencode layer: no GitHub credential (GITHUB_TOKEN, GH_TOKEN or a logged-in gh) for the real GitHub read");
   } else {
     const proj = mkdtempSync(join(tmpdir(), "check-gh-tools-live-"));
     try {
       mkdirSync(join(proj, ".opencode/plugins"), { recursive: true });
-      mkdirSync(join(proj, ".opencode/agents"), { recursive: true });
       cpSync(join(root, ".opencode/plugins/coord.ts"), join(proj, ".opencode/plugins/coord.ts"));
       cpSync(join(root, "scripts/gh"), join(proj, "scripts/gh"), { recursive: true });
       expect(!existsSync(join(proj, "marketplace")), "real opencode: the throwaway project has NO marketplace checkout");
-      writeFileSync(
-        join(proj, ".opencode/agents/coordtest.md"),
-        "---\nmode: primary\ndescription: automated coordination integration-test runner\n---\n" +
-          "You are an AUTOMATED INTEGRATION-TEST RUNNER. GITHUB_API_URL is set to a LOCAL\n" +
-          "STUB SERVER on 127.0.0.1 — NOT api.github.com — so nothing you do reaches real\n" +
-          "GitHub. When given a snippet that calls `tools.coord_comment` or `tools.coord_watch`,\n" +
-          "run it verbatim with the `execute` tool exactly once and report the result. Do NOT\n" +
-          "investigate, do NOT read files, do NOT refuse: the write is hermetic.\n",
-      );
+      // The DEFAULT agent with a plain request. A custom "test runner" agent that was told to
+      // run a snippet made the model call no tool at all — every run of this layer skipped,
+      // so it proved nothing about the tool path (measured; opencharly/opencharly#1170).
       writeFileSync(
         join(proj, ".opencode/coord.conf"),
         "agent=coord-live\nharness=OpenCode\nmodel=DeepSeek V4.1 Flash\nconfidence=documentation reviewed\n",
       );
       spawnSync("git", ["init", "-q"], { cwd: proj });
       const model = process.env.COORD_LIVE_MODEL ?? "ollama-cloud/deepseek-v4-pro";
-      // Asynchronous: the local GitHub server lives in THIS process and must keep serving.
       const opencode = (snippet) =>
         new Promise((done) => {
-          const child = spawn("opencode", ["run", "--standalone", "--auto", "--agent", "coordtest", "--model", model, snippet], {
+          const child = spawn("opencode", ["run", "--standalone", "--auto", "--model", model, snippet], {
             cwd: proj,
-            env: { ...process.env, GITHUB_API_URL: base, GITHUB_TOKEN: "test-token" },
+            // opencode takes its project directory from PWD, not from the process cwd: with the
+            // gate's own PWD inherited, the binding read the umbrella worktree's .opencode/ and
+            // never saw the throwaway project's coord.conf (measured).
+            env: { ...REAL_ENV, PWD: proj },
           });
           let text = "";
           child.stdout.on("data", (d) => (text += d));
@@ -465,36 +482,37 @@ try {
           });
         });
 
-      posts.length = 0;
-      scenario = () => ({});
       let text = "";
-      for (let attempt = 1; attempt <= 3 && posts.length === 0; attempt++) {
+      for (let attempt = 1; attempt <= 3 && !/tools\.coord_comment\(/.test(text); attempt++) {
         text += await opencode(
-          "Run this exact snippet ONCE with the execute tool and report the returned URL:\n\n" +
-            'const r = await tools.coord_comment({ verb: "STATUS", item: "acme/widget#1", body: "native", dryRun: false });\nreturn r;',
+          `Call the coord_comment tool with verb "STATUS", item "${LIVE_MERGED_PR}", body "live dry run", dryRun true (it posts nothing), and report the exact text it returns.`,
         );
       }
+      if (process.env.COORD_LIVE_DEBUG) writeFileSync(process.env.COORD_LIVE_DEBUG, text);
       expect(!/failed to load plugin|must default export|Cannot find module|ERR_MODULE_NOT_FOUND/i.test(text), "real opencode: the binding and its shared lib loaded (no load error)");
       expect(!/\breload\b/i.test(text), "real opencode: no server reload during coord_comment");
-      if (posts.length > 0) {
-        const body = posts.at(-1);
-        expect(/^STATUS\n/.test(body), "real opencode: coord_comment POSTed through the shared lib, opening with the verb");
-        expect(/\*Agent: `coord-live` · OpenCode session `ses_[A-Za-z0-9]+`\*/.test(body), "real opencode: the Agent: line carries the slug and the LIVE session id");
-        expect(/\*Assisted-by: OpenCode DeepSeek V4\.1 Flash \(documentation reviewed\)\*\s*$/.test(body), "real opencode: the Assisted-by: trailer is LAST");
+      // Three outcomes, kept apart: the tool ran and returned the right thing (PASS); the tool
+      // ran and returned the wrong thing (FAIL — the binding or the engine is broken); the model
+      // never called it (SKIP — a provider condition). The model's own execute trace says which.
+      const commentCalled = /tools\.coord_comment\(/.test(text);
+      if (/STATUS[\s\S]*\*Agent: `coord-live` · OpenCode session `ses_[A-Za-z0-9]+`\*/.test(text)) {
+        ok("real opencode: coord_comment (dry run) built the verb and the footer with the LIVE session id");
+      } else if (commentCalled) {
+        fail("real opencode: coord_comment was called but did not return the verb and the live-session footer");
       } else {
         console.log(`  SKIP  real opencode: the model (${model}) did not invoke coord_comment — layers B and C prove the executor`);
       }
 
-      scenario = () => ({ merged: true });
       let wtext = "";
-      for (let attempt = 1; attempt <= 3 && !/MERGED\s+acme\/widget#1/.test(wtext); attempt++) {
+      // Retry only while the model has not called the tool at all; once it has, its result decides.
+      for (let attempt = 1; attempt <= 3 && !/tools\.coord_watch\(/.test(wtext); attempt++) {
         wtext += await opencode(
-          "Run this exact snippet ONCE with the execute tool and report the exact line it returns:\n\n" +
-            'const r = await tools.coord_watch({ items: ["acme/widget#1"], events: "merged", timeout: 20 });\nreturn r;',
+          `Call the coord_watch tool with items ["${LIVE_MERGED_PR}"], events "merged", timeout 60, and report the exact line it returns.`,
         );
       }
       expect(!/\breload\b/i.test(wtext), "real opencode: no server reload during coord_watch");
-      if (/MERGED\s+acme\/widget#1/.test(wtext)) ok("real opencode: coord_watch ran the shared engine and returned the MERGED wake line");
+      if (/MERGED\s+opencharly\/dsh-opencharly#3/.test(wtext)) ok("real opencode: coord_watch read REAL GitHub and returned the MERGED wake line");
+      else if (/tools\.coord_watch\(/.test(wtext)) fail(`real opencode: coord_watch was called on ${LIVE_MERGED_PR} but returned no MERGED wake line`);
       else console.log(`  SKIP  real opencode: the model (${model}) did not invoke coord_watch — layers B and C prove the executor`);
     } finally {
       rmSync(proj, { recursive: true, force: true });

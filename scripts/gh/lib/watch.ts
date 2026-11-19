@@ -539,7 +539,10 @@ export async function runWatch(items: Item[], opts: RunOptions): Promise<RunResu
   const start = Date.now();
   let wait = opts.intervalSec;
   for (;;) {
-    await sleepAbortable(wait * 1000, opts.signal);
+    // Never sleep past the deadline: with the 300 s poll floor, a 60 s timeout used to wait the
+    // whole interval before it was even checked (measured: `--timeout 60` returned after 300 s).
+    const leftMs = opts.timeoutSec > 0 ? opts.timeoutSec * 1000 - (Date.now() - start) : Infinity;
+    await sleepAbortable(Math.max(0, Math.min(wait * 1000, leftMs)), opts.signal);
     wait = opts.intervalSec;
     if (opts.signal?.aborted) return { ...none, reports };
     if (opts.timeoutSec > 0 && Date.now() - start >= opts.timeoutSec * 1000) {
