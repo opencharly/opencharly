@@ -4111,3 +4111,54 @@ went `DIRTY` while `#1127` merged ahead of it, and that is a state only its auth
   dispatch.
 - **A recorded verdict is accepted without measurement** → that is A-1 firing, and this ledger's own history
   says it costs a round.
+
+### 2026-11-19/20 — what the merges after the ledger entry actually were
+
+**This section exists because the ledger's own rule is that it is updated at every merge, and five merges
+landed after the previous entry without one -- `#1136`, `plugin-containerd#19`, `#1146`, `spec#392` and
+`charly#1212`. The sixth row below is `#1148`, which is the entry being continued rather than one of the
+five; it is listed because its line count is programme state a reader will want beside the others.** Their state is recorded here from `origin/main`, not from
+the PR bodies.
+
+| PR | what landed | measured on `main` |
+|---|---|---|
+| **`#1136`** | the wave-gate policy renumbered to seven rules, with rules 4 and 5 added | `grep -cE '^\*\*(4\|5)\.' PROGRAM/wave-gate-policy.md` -> **2** |
+| **`plugin-containerd#19`** | the W2c pin bump and the artifact it regenerates | `go.mod` at `sdk v0.2026320.1345` / `spec v0.2026320.1252`; `cue_types_gen.go` carries **9** `yaml:` tags; `ci.yml` **55** lines |
+| **`#1146`** | **14.4** -- the `D-CODE-5` skip-and-mock census gate | `scripts/check-live-boundaries.mjs` -> **317 lines**; `design/live-boundary-census.tsv` -> **17 lines**, 11 pair files |
+| **`#1148`** | the evidence-round entry above | the ledger grew to **4113 lines** |
+| **`spec#392`** | **14.3's `spec` leg** | `git -C spec grep -cF 'DELETED' origin/main -- '*.go' ':!spec/cue_types_gen.go'` -> **0**; 19 generated projections filed at `#1147` |
+| **`charly#1212`** | **14.3's `charly` leg** | tag `v2026.323.0152`; `git -C charly grep -cF 'DELETED' origin/main -- '*.go'` -> **0**; 192 prose occurrences filed at `charly#1211` |
+
+**Section 14 now has three of four rows landed** (14.1, 14.2, 14.4) **with 14.3 two-thirds done** -- `spec` and
+`charly` swept, `sdk` at 7 of 39 with `deploykit` (24) and `loaderkit` (7) named in `#1147`.
+
+### What this stretch taught, in one place, because it cost more rounds than any code
+
+**Six PRs spent their entire lives on the body, and the diff was correct in every one from its first push.**
+`spec#390 -> #394` is the clearest: five verdicts, one unchanged tree, seven findings, none about the code.
+The seven were: a grep claimed but not pasted; a count pasted where a location was needed; R9 denying a
+runtime change the classification described; `## Filed issues` naming an issue in the wrong repository; a
+commit count contradicted by `git log`; a restatement the fix did not reach; and a count invalidated by my
+own later sweep.
+
+**The missed control, named.** Every gate I ran -- the body linter, the live-body comparison, the
+removed-identifier check -- validates the *form* of the document. **A claim and its paste are both well-formed
+markdown, so no gate could tell a true sentence from a false one.** There were gates for shape and none for
+truth.
+
+**Three process rules, each bought with a round, now part of every body I write:**
+
+1. **Walk every bullet and every table row before the first push and ask, per line: is a pasted command and
+   its output adjacent?** A bullet with no paste either gets one or becomes a filed-issue pointer.
+2. **Act, then measure, then paste -- never paste a measurement taken before your last commit.** A fence
+   expires when the head moves, and six findings this stretch were a paste that outlived the commit it
+   described.
+3. **Compression is only safe if it removes a claim together with its evidence.** Cutting from 200 lines to
+   92 kept the conclusions and dropped the pastes, and the next verdict named exactly that.
+
+**And the counter-example, which is the useful one:** the four PRs that PASSed on their first verdict all
+did the opposite of composing a claim and measuring later. `#19` at 66 lines; `charly#1212` with its tier
+chosen from `git diff -U0 | grep -v '^[+-][[:space:]]*//'` being empty; `spec#392` with its scope chosen by
+measuring the population by directory first; `#1146` with an arm proven by removing the guard it tests.
+
+**A claim that arrives after its measurement never needs a second round.**
