@@ -65,3 +65,11 @@ bin/
 # self-inflicted failure with no tracked file to explain it.
 __pycache__/
 *.pyc
+
+# Working documents: local-only, never in git.
+# TODO.md is the implementation work list and PROGRAM/design-implementation.md the package
+# ledger. Both change dozens of times a day, and landing them through PR-only,
+# validator-gated, body-reconciled merges costs more than the work they track.
+TODO.md
+PROGRAM/design-implementation.md
+PROGRAM/todo-wave-plan.md

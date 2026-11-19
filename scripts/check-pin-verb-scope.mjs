@@ -123,7 +123,6 @@ const SURFACES = [
  */
 const NON_CLAIM_MENTIONS = new Map([
   [
-    "TODO.md",
     "its mentions are the pin verb's CURRENCY mode (`charly task pins --param MODE=currency`) inside a Done proof and the compliance record — a question about whether pins are current, not a presentation of the advance operation",
   ],
   [
