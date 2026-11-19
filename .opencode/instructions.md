@@ -101,85 +101,43 @@ footer, and waits on GitHub without hand-writing the footer:
   `Agent:` line with the live session id, then the `Assisted-by:` trailer) to end a PR
   body, an issue or a comment with; it posts nothing.
 - **`coord_watch`** — a bounded, session-invoked one-shot wait
-  (`events`/`timeout`/`stallmin`) that polls the GitHub API NATIVELY and returns the
+  (`events`/`timeout`/`stallmin`) that runs the shared engine in-process and returns the
   **ARM report** (the baseline it armed on) plus the wake line. The BACKGROUND
   continuous watch stays `pr-watch.ts`'s job.
 
-**EVENT SEMANTICS — the DEFAULT set carries the verdicts.** The default event set is
-`merged,closed,comment,verdict,stall` (the same vocabulary the shell `gh_watch.sh`
-family uses). It deliberately INCLUDES `comment` and `verdict`: a `charly/pr-validator`
-**BLOCK arrives as a COMMENT** and the run reaching a status is a **VERDICT**, so a
-default of only `merged,closed,stall` would silently never wake on either — the defect
-this default corrects.
+**ONE implementation (opencharly/opencharly#1140).** `coord.ts`, `pr-watch.ts` and
+`tracker.ts` are thin OpenCode bindings of the umbrella's `scripts/gh/lib/` — the SAME
+engine, verb set, footer builder and GitHub client that `node scripts/gh/cli.ts` runs for
+every other harness. They import it in-process (no `.sh`, no spawn, no `marketplace` pin),
+so OpenCode cannot drift from the other harnesses: the contract is one code path, tested
+once by `scripts/check-gh-tools.mjs`.
 
-- **`verdict` = the watched workflow run in EVERY status** — `QUEUED`/`WAITING`/
-  `IN_PROGRESS`/`RUNNING`/`COMPLETED` — carrying **status + conclusion**; it fires on a
-  run **STATUS TRANSITION** (queued→running→completed), not only on completion. The
-  wake line names the status/conclusion and the run URL:
-  `VERDICT  owner/repo#12  charly/pr-validator  IN_PROGRESS  https://github.com/.../actions/runs/<id>`
-  `VERDICT  owner/repo#12  charly/pr-validator  COMPLETED/success  ...`
-- **`comment`** reads the LATEST comment's first non-blank line and, when the validator
-  posts `## Review — BLOCK` / `## Review — PASS`, carries that parsed verdict in the
-  wake line.
-- **The ARM report** is the FIRST emission per item at arm time: the CURRENT baseline —
-  the latest run's status + conclusion AND the latest review comment's parsed verdict,
-  e.g. `ARM  owner/repo#12  state=open  run=charly/pr-validator/COMPLETED/failure  review=BLOCK  <url>`.
-  It exists precisely so arming on a PR that is ALREADY BLOCKed (or has a run already in
-  flight) wakes IMMEDIATELY with that fact, instead of waiting for a comment that may
-  never come (the "I missed the validation run and the block" case).
+**The verdict.** `verdict` fires when the newest `validate / validate` check run of the
+`charly/pr-validator` suite on the PR's head reaches a FINAL conclusion that is new since
+arm — a REST re-run creates a new check run, so it fires. Its class is PASS, BLOCK or
+INCONCLUSIVE (the validator's comment for that head says so). A run that is only in flight
+never wakes anyone. The ARM report (stderr for the CLI, the first lines of the tool result
+here) is the baseline per item, and a BLOCK or INCONCLUSIVE already on the head wakes at
+arm, once. The wake lines, the event semantics and the decision table are the git-workflow
+skill's `references/watch-and-wake.md`.
 
 Identity (`agent`/`harness`/`model`/`confidence`) defaults from
 `.opencode/coord.conf` (git-ignored; copy `.opencode/coord.conf.example`) then
 `COORD_*` env; the `session` is always the live `toolCtx.sessionID`, so a stale
 config can never mislabel who is speaking.
 
-**PURE TYPESCRIPT — no shell delegation, no submodule pin (operator directive,
-2026-09-29).** Harness-INDEPENDENT tooling is SHELL — the coordination CLI
-`coord.sh` and the watcher family (`gh_watch.sh`, `pr_watch_many.sh`,
-`pr_state_watch.sh`, `_watch_common.sh`) stay shell, usable from bash / Claude Code /
-Codex / git hooks / CI. The OpenCode plugins are PURE TypeScript and NEVER spawn
-those scripts (no `Bun.spawn`/`spawnSync` of a `.sh`, no reference to any script
-file), so they load and work from the SAME ref as the plugin — with NO `marketplace`
-submodule pin to lag. This is deliberately TWO harness-native implementations of ONE
-shared CONTRACT (the closed verb set, the canonical footer order, the event
-vocabulary + wake-line format, the item grammar) — a maintainer-account R2 divergence,
-not a forked copy. `scripts/check-opencode-coord.mjs` pins the CONTRACT on the
-TypeScript side (unit layer) AND, **where the shell family is present**, RUNS
-`coord.sh` and diffs its output against the TypeScript output (Layer B3); it SKIPS
-that comparison visibly where the shell is absent, so the gate never depends on the
-pin.
+**API efficiency and rate limits.** ONE batched GraphQL request per poll for N items. The
+remaining quota is read from that response's header; below 200 the watch backs off (×2,
+capped at 600 s) visibly. Any rate-limit signal (REST 403/429, GraphQL `RATE_LIMITED`) is
+FATAL: the tool returns a `RATE-LIMITED …` message and the watch stops. `POLL_FLOOR = 300`:
+a shorter interval is refused.
 
-**API EFFICIENCY + RATE LIMITS (operator requirement, 2026-09-29).**
-- **ONE request per poll for N items** — a single batched GraphQL query with one alias
-  per item; calls-per-poll is **1** regardless of item count (asserted by the gate).
-- **Skip unchanged items** — a per-item fingerprint (`state|merged|updatedAt|comments|
-  verdict|commit`) means an idle watch costs exactly one batched call per interval;
-  delta events (comment/verdict) are only evaluated on a change (state events are
-  always evaluated — they are arm-baseline driven).
-- **Rate limits FAIL HARD** — a REST 403/429 or a GraphQL `RATE_LIMITED` throws
-  `RateLimitedError`; the tool returns a distinct `RATE-LIMITED …` message and the
-  watch STOPS (never spins, never reports it as "no event"). The remaining quota is
-  read FREE from the batched response's `x-ratelimit-remaining` header, so a
-  near-exhausted quota backs off VISIBLY without an extra call.
-- **`POLL_FLOOR = 300`** — a sub-300s interval is refused; `clampInterval` enforces it.
-
-**Execution is ASYNC + ABORTABLE (R1 fix, measured 2026-09-28; preserved by the
-native rewrite).** `coord_watch` runs a LONG-LIVED poll loop, so a blocking spawn
-froze opencode's server event loop and the supervisor restarted it. The native loop
-is fully async and wires the tool executor's `context.signal` into every `fetch` and
-the poll sleep, so stopping the Session terminates the watch promptly. Auth is
-`GITHUB_TOKEN`/`GH_TOKEN`, else the `gh` CLI's stored token (`gh auth token` — one
-async `execFile`; the `gh` binary is a tool, not a `.sh`); `GITHUB_API_URL` overrides
-the API base (GitHub Enterprise / tests). `scripts/check-opencode-coord.mjs` asserts
-statically that `coord.ts`/`pr-watch.ts` contain NO `.sh`, NO `spawnSync`, and NO
-`Bun.spawn`; runs the shell family vs the TypeScript output where the shell is present
-(Layer B3); drives the tools against a REAL local HTTP server (calls-per-poll, rate-limit
-fail-hard, poll-floor); and — live — drives the REAL binary against a local capture
-server (`GITHUB_API_URL`). The A/B/B2/B3 layers run in-process under plain `node`; only
-the LIVE C layer drives the REAL opencode binary (it SKIPS visibly when `LIVE_OPENCODE`
-is unset; the model's tool-invocation is stochastic, so the C layer's tool-call
-assertions are live-or-skip, while the plugin-load + no-reload assertions are
-deterministic).
+**Execution is async and abortable.** `coord_watch` runs a long-lived poll loop, fully
+async; the tool executor's `context.signal` reaches every `fetch` and the poll sleep, so
+stopping the session ends the watch promptly. Auth is `GITHUB_TOKEN`/`GH_TOKEN`, else
+`gh auth token`; `GITHUB_API_URL` overrides the API base (GitHub Enterprise / tests).
+`scripts/check-gh-tools.mjs` drives these tools in-process against a local GitHub, and
+with `LIVE_OPENCODE=1` through the REAL opencode binary (skipped visibly when unset).
 
 ### Monitoring AND controlling agents (`.opencode/plugins/agent-progress.ts`)
 
@@ -247,17 +205,13 @@ the test NEVER interrupts/deletes a real session; live-or-skip, visibly).
 
 ### Watching for PR events (opencode)
 
-The watcher is the harness-independent `marketplace/scripts/gh_watch.sh` family
-(`pr_watch_many.sh`, `pr_state_watch.sh`) — run one, never hand-roll a `sleep` poll. It
-emits one line per event and exits; re-arm after each wake.
+The watcher is the ONE engine every harness uses (`scripts/gh/lib/watch.ts`; the CLI
+`node scripts/gh/cli.ts watch` for the others) — never hand-roll a `sleep` poll.
 
-The PR-event binding is `.opencode/plugins/pr-watch.ts`. It is PURE TypeScript: it
-polls the GitHub API NATIVELY (via the shared engine `../lib/watch.ts` — the same one
-`coord.ts` uses) and NEVER spawns `gh_watch.sh`, so it depends on no `.sh` and no
-`marketplace` pin; delivery is IN-PROCESS — never an `opencode run` subprocess (that
-starts a separate headless run, can race the live session, and interrupts the
-in-flight turn). It shares the event vocabulary + wake-line format with the shell
-family (asserted by the gate).
+The PR-event binding is `.opencode/plugins/pr-watch.ts`. It runs the shared engine's
+continuous loop in-process and delivers each wake IN-PROCESS — never an `opencode run`
+subprocess (that starts a separate headless run, can race the live session, and
+interrupts the in-flight turn).
 
 **V2 delivery (opencode ≥ 2.0, MEASURED against v2.0.18).** The `setup(ctx)` context
 carries NO `client` (only 1.x's `server(input)` does). The V2 "inject context without
@@ -280,12 +234,9 @@ recently updated root session in this directory).
 
 Config: one item per line in `.opencode/pr-watch.items` (`acme/widget#12`; blank lines
 and `#` comments ignored). The shipped file contains only comments, so the plugin is
-**inert until you add an item**. It polls GitHub natively (no `gh_watch.sh`, no
-`marketplace` pin) for `comment,merged,closed,verdict` — the default DELTA set INCLUDES
-`verdict`, so a validator BLOCK (a comment) and a run reaching a status both wake the
-session — and delivers the **ARM report** as its FIRST emission per item (the baseline it
-armed on: latest run status+conclusion AND latest review verdict), so arming on an
-already-BLOCKed PR wakes at once. Plugins load once at startup — **restart** to activate.
+**inert until you add an item**. It watches `comment,merged,closed,verdict`, so a new
+comment and a final verdict (a re-run included) both wake the session, and a BLOCK already
+on the head wakes at arm. Plugins load once at startup — **restart** to activate.
 `scripts/check-pr-watch.mjs` asserts the delivery primitives are present as CODE
 (comments stripped) and that the delivered event set carries `comment` + `verdict`, so a
 commented-out or absent call fails the gate.
@@ -297,8 +248,8 @@ table, no `/session/:id/todo` endpoint, no `todo.updated` event). So AGENTS.md r
 durable ledger is kept in a durable file on this harness, and `tracker.ts` is its mechanism.
 It is PURE TypeScript
 (no `.sh`, no `marketplace` pin) and reuses the shared modules rather than copying them:
-`lib/watch.ts` (the poll engine), `lib/watcher-loop.ts` (the detached loop extracted from
-`pr-watch.ts`), and `coord.ts` (the closed `VERBS` set).
+`scripts/gh/lib/watch.ts` (the ONE engine and item grammar) and `lib/watcher-loop.ts` (the
+in-process delivery loop it shares with `pr-watch.ts`).
 
 Three tools:
 

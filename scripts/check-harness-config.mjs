@@ -754,7 +754,7 @@ ok(existsSync(join(root, ".claude/workflows/audit-deploy-configs.js")), ".claude
 }
 
 // 11. The PR watcher is bound per harness. DISCRIMINATING: `main` carries no reasonix
-//     watch binding. The harness-INDEPENDENT watcher is `marketplace/scripts/gh_watch.sh`;
+//     watch binding. The harness-INDEPENDENT watcher is `scripts/gh/cli.ts`;
 //     the items file is the same `owner/repo#num` grammar the opencode plugin parses. The
 //     pi arm's items file is inert by design; the extension that arms it is verified by
 //     `scripts/check-pi-watch.mjs`.

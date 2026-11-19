@@ -374,8 +374,8 @@ them work together:
   the session footer — `*Agent: `<slug>` · <Harness> session `<session-id>`*` FIRST, the
   `Assisted-by:` trailer LAST — so every PR is traceable to the session that made it. The slug
   names the work and is the authority key; the session id is the harness's own id for this
-  session. Write it with your harness's writer (`coord.sh --footer`, or the `coord_footer` tool
-  in OpenCode and pi), never by hand. A model-free bot names its workflow and run the same way.
+  session. Write it with the ONE writer (`node scripts/gh/cli.ts footer`, or the `coord_footer`
+  tool in OpenCode and pi, which share its builder), never by hand. A model-free bot names its workflow and run the same way.
 - **Sessions talk to each other through PR and issue comments, and nowhere else.** A
   coordination comment opens with one verb from the closed set (Part II #7), posts on the
   threads of both sides, and is read in full by the session it addresses before that session's
@@ -389,10 +389,25 @@ verb grammar), `/charly-internals:agents`.
 *Enforces: R1, R7.* Delegate bounded, independent work to addressable agents; the author stays
 responsible for the briefs, the integration and the evidence. R1 uses a fresh
 root-cause-analyzer, and landing uses a fresh independent `pr-validator`; never impersonate
-either. Delegated executors return verbatim commands, outputs and exit codes. A **monitor** is
-ONE managed background watch over the whole in-flight list, re-armed by replacement, with a
-clearing condition and a window matched to what it watches. *Detail:*
-`/charly-internals:agents`, `/charly-internals:git-workflow` (`references/watch-and-wake.md`).
+either. Delegated executors return verbatim commands, outputs and exit codes.
+
+**Every wait has exactly one watcher: `node scripts/gh/cli.ts watch`, the ONE implementation
+every harness uses.** It runs as a managed background command, never a detached `&`; its exit
+is the wake. It is re-armed by replacement after every wake you act on, and what you wait for
+picks its `--events`:
+- **Your own PR's verdict or landing**, a REST re-run included: the default
+  (`verdict,merged,closed,conflict` — a PR that conflicts with its base gets no validator run,
+  so the watch wakes on the conflict).
+- **Several of your own PRs**: the same, every PR in ONE watch.
+- **Another session's PR or issue that blocks you**: `--events merged,closed,stall`.
+- **A reply on a thread**: `--events comment`.
+- **A bed or a long command**: the command itself, in the background, with its own exit
+  status captured.
+
+A verdict is the newest `validate / validate` check run on the head, so a re-run fires it.
+Every watch polls at a 300 s floor; `node scripts/gh/cli.ts status` reads the state once.
+*Detail:* `/charly-internals:git-workflow` (`references/watch-and-wake.md`, "Which watcher
+to arm"), `/charly-internals:agents`.
 
 ## AI Attribution (Fedora Policy Compliant)
 

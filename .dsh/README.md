@@ -70,7 +70,7 @@ The three gaps this section used to list are **closed**, by the native DSH plugi
 |---|---|
 | **the git gates** | the plugin's `tools/pre-execute` listener **DENIED** `git commit --no-verify -m …` with this repo's own gate text (`pre-commit-gate BLOCKED: \`git commit --no-verify\` (or \`-n\`) bypasses project hooks.`). The command never executed; HEAD and the index were unchanged afterwards. |
 | **SOUL injection** | `SOUL.md` is injected byte-for-byte — lines 1–14, line 103 (`crème brûlée`), and the closing "This is yours" section all match the live system prompt. |
-| **session-start watch auto-arm** | `session/created` arms `marketplace/scripts/gh_watch.sh` from `.dsh/watch.items` as a background job. It is inert **here only** because `watch.items` is comment-only by design, so nothing observable was armed. |
+| **session-start watch auto-arm** | `session/created` arms the watcher from `.dsh/watch.items` as a background job (measured with the shell watcher it then spawned; the plugin's move to `node scripts/gh/cli.ts watch` is the opencharly/dsh-opencharly leg of opencharly/opencharly#1140). It is inert **here only** because `watch.items` is comment-only by design, so nothing observable was armed. |
 
 **Correction worth keeping** (measured 2026-10-07): the watch itself is NOT host config — DSH notifies the
 session when a background job finishes, so a canonical watcher armed as a background job already turns its
@@ -87,18 +87,17 @@ rewriting it.
 
 ## Watch discipline
 
-Arm ONE watcher per scope; never hand-roll a poll loop; poll floor 300s; prefer terminal
+Arm ONE watcher per session — `node scripts/gh/cli.ts watch`, the implementation every harness
+uses — as a background job; never hand-roll a poll loop; poll floor 300s; prefer terminal
 events plus the `stall` alarm over per-comment events.
 
-Re-arming follows the watcher's own WATCH_DONE rule: a **DELTA** fire (comment/verdict) arms a
-successor BEFORE it prints, so the agent acts and the watch keeps running; a **STATE** fire
-(merged/closed/**stall**) sets `WATCH_DONE` and must **not** be re-armed — a successor would
-re-fire it immediately and livelock (a merged PR stays merged, a stalled item stays stalled).
-A STALL is a takeover candidate, not a re-arm.
+Each wake is one finite run: act on it, then re-arm (adding `--no-arm-wake`, so a verdict
+already reported is not reported again). A STATE event (merged/closed/**stall**) is done — a
+re-arm would re-fire it at once, because a merged PR stays merged and a stalled item stays
+stalled. A STALL is a takeover candidate, not a re-arm.
 
-- `marketplace/scripts/gh_watch.sh <owner>/<repo>#<n>` — comments / verdicts / merged /
-  closed / stall.
-- `marketplace/scripts/pr_state_watch.sh <owner>/<repo> <pr>` — one PR's terminal state
-  (distinguishes a verdict BLOCK from POISON).
+- `node scripts/gh/cli.ts watch <owner>/<repo>#<n>` — your PR's verdict (a re-run included),
+  merge or close; `--events merged,closed,stall` for another session's blocker.
+- `node scripts/gh/cli.ts status <owner>/<repo>#<n>` — the state and verdict, read once.
 - `scripts/check-bed-watch.sh <bed>` — one R10 bed; the exit code is the honest signal
   (3 = prereq SKIP).

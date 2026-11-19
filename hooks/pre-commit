@@ -31,14 +31,18 @@
 #
 # The per-commit gates, in order:
 #   1. opencode gate     — the TypeScript gate plugin contract
+#   1a. gh tools         — the ONE GitHub watcher and coordination toolset (`scripts/gh/`):
+#                          the verdict contract (a REST re-run fires), the CLI's exit codes
+#                          and lock, and the OpenCode binding (`node scripts/check-gh-tools.mjs`;
+#                          opencharly/opencharly#1140)
 #   2. pr-watch gate     — the PR-watch plugin's pure logic + SDK delivery primitives
 #   3. pi gate           — the pi gate extension fails CLOSED, uses the rule-2 worktree
 #                          path, and wires both gate scripts (`node scripts/check-pi-gates.mjs`)
-#   4. pi watch binding  — the pi wake binding delegates to the neutral watchers, wakes,
+#   4. pi watch binding  — the pi wake binding spawns the ONE watcher CLI, wakes,
 #                          re-arms, and ships inert (`node scripts/check-pi-watch.mjs`); plus
 #                          the bed watcher's own `--self-test`
-#   5. pi pr-status      — the PR-status tool normalises the state, finds the run by head
-#                          SHA, reads jobs via REST, and classifies INCONCLUSIVE
+#   5. pi pr-status      — the PR-status tool is a one-shot read through the shared engine,
+#                          with no second classifier and no watch loop
 #   6. pi question       — the `question` tool is dependency-free, headless-safe, serialized,
 #                          and wired into `.pi/settings.json`
 #   7. task contexts     — every step of every task in charly.yml declares a context the plan
@@ -159,6 +163,7 @@ bash "$ROOT/hooks/pre-commit-gate.sh" "$COMMIT_INDEX"
 echo "pre-commit: running the umbrella gate..."
 
 node "$ROOT/scripts/check-opencode-plugin.mjs"
+node "$ROOT/scripts/check-gh-tools.mjs"
 node "$ROOT/scripts/check-pr-watch.mjs"
 node "$ROOT/scripts/check-pi-gates.mjs"
 node "$ROOT/scripts/check-pi-watch.mjs"

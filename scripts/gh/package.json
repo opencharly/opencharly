@@ -1,0 +1,6 @@
+{
+  "name": "opencharly-gh-tools",
+  "private": true,
+  "type": "module",
+  "description": "The ONE GitHub watcher and coordination toolset every harness uses (opencharly/opencharly#1140). Run with node: `node scripts/gh/cli.ts --help`."
+}

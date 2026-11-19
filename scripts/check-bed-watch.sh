@@ -4,7 +4,7 @@
 # HARNESS-NEUTRAL. No harness knowledge: it emits ONE line per bed on stdout and exits;
 # the caller's harness turns each line into a wake (a pi binding sends it as a user turn;
 # a shell caller reads it; CI parses it). It is the bed-surface sibling of the GitHub
-# watcher family (`marketplace/scripts/{gh_watch,pr_state_watch,pr_watch_many}.sh`), kept
+# watcher (`scripts/gh/cli.ts`), kept
 # in the umbrella's own `scripts/` because its subject — the umbrella's `.check/` runs —
 # is umbrella tooling. If a non-umbrella consumer ever needs it, it promotes to
 # `marketplace/scripts/` at that point (R2: extract on the second occurrence).

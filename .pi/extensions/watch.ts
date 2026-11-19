@@ -9,23 +9,23 @@
  * `pr-watch.ts` + `ctx.session.synthetic`, reasonix's `watch-arm.sh` hook); pi has
  * nothing. This extension is that binding.
  *
- * IT IS DELIBERATELY THIN (R2, "as neutral as possible"). It contains NO watching logic:
- * it SPAWNS the harness-neutral shell tools and turns each line they print into a user
- * turn. All the real behaviour — the poll floor, the single-instance lock, the rate-limit
- * back-off, the stall alarm, the exit-code classification — lives in those scripts, which
- * are usable from bash, Claude Code, Codex, and CI too:
+ * IT IS DELIBERATELY THIN (R2). It contains NO watching logic: it SPAWNS the umbrella's
+ * ONE watcher CLI and turns each line it prints into a user turn. All the real behaviour —
+ * the verdict, the poll floor, the single-instance lock, the rate-limit back-off, the stall
+ * alarm, the exit codes — lives in the shared tools every harness uses
+ * (opencharly/opencharly#1140):
  *
- *   - `marketplace/scripts/gh_watch.sh`      — PRs + issues (the org-wide watcher family)
+ *   - `scripts/gh/cli.ts watch`             — PRs + issues (`scripts/gh/lib/watch.ts`)
  *   - `scripts/check-bed-watch.sh`           — R10 check beds (this repo's bed surface)
  *
- * WAKE DELIVERY. The scripts print one line per event and (for `gh_watch.sh`) exit.
+ * WAKE DELIVERY. The watcher prints one line per event and exits.
  * `pi.sendUserMessage(text, {deliverAs:"followUp"})` delivers that line as a USER TURN, so
  * the agent acts on it in a fresh turn — the pi equivalent of opencode's
  * `ctx.session.synthetic` and reasonix's SessionStart injection. The agent's own re-arm is
  * replaced by the extension re-arming the one-shot watcher on its exit (the re-arm
- * invariant, `marketplace/internals/skills/git-workflow/references/watch-and-wake.md`).
+ * invariant, `.agents/skills/git-workflow/references/watch-and-wake.md`).
  *
- * AUTO-ARM. On `session_start` the extension arms `gh_watch.sh` from `.pi/watch.items`
+ * AUTO-ARM. On `session_start` the extension arms the watcher from `.pi/watch.items`
  * (comment-only by default, so it is INERT until the operator arms a scope). R10 beds are
  * launched explicitly through the `watch_arm` tool — never auto-launched, because running a
  * `disposable: true` bed is a deliberate, evidence-producing act.
@@ -40,26 +40,26 @@ import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { Type } from "typebox";
+import { STATE_EVENTS } from "../../scripts/gh/lib/watch.ts";
 
 // ── the neutral tooling this binding drives (relative to the project root) ─────
-/** The GitHub watcher family member (org-wide, harness-neutral). */
-const GH_WATCH_REL = "marketplace/scripts/gh_watch.sh";
+/** The ONE GitHub watcher CLI (harness-neutral; this repo's `scripts/gh/`). */
+const GH_WATCH_REL = "scripts/gh/cli.ts";
 /** The R10 bed runner/reporter (harness-neutral; this repo's `scripts/`). */
 const BED_WATCH_REL = "scripts/check-bed-watch.sh";
 /** The pi GitHub watch list (comment-only = inert). */
 const ITEMS_REL = ".pi/watch.items";
 
-/** The watcher's poll interval and stall window (`gh_watch.sh` refuses a sub-300s interval). */
+/** The watcher's poll interval and stall window (the watcher refuses a sub-300s interval). */
 const INTERVAL = "300";
 const STALL_MIN = "60";
 /**
- * The delivered event set. `comment` (a reviewer's BLOCK/PASS on an issue OR PR) and
- * `verdict` (the `charly/pr-validator` run reaching a status) are included because the
+ * The delivered event set. `comment` (a reply on an issue OR PR) and `verdict` (the
+ * validator's final verdict on the PR head, a re-run included) are included because the
  * operator's ask is explicitly "issue, PR and validation comments and results"; `stall`
- * is included because it is the silence alarm (`gh_watch.sh` drops it when `--events` is
- * overridden, so it must be named here).
+ * is the silence alarm.
  */
-const EVENTS = "comment,verdict,merged,closed,stall";
+const EVENTS = "comment,verdict,merged,closed,conflict,stall";
 
 /** A child that exits this fast without printing a line is a FAILURE, not a quiet watch. */
 const FAST_FAIL_MS = 5000;
@@ -84,16 +84,14 @@ interface GhState {
    */
   gen: number;
   items: string[];
-  /** Items that fired a terminal STATE (MERGED/CLOSED) — never re-armed. */
-  done: Set<string>;
   /**
-   * Items that fired a STATE fire (STALL) — a one-shot arm must NOT re-arm for them. `gh_watch.sh`
-   * sets `WATCH_DONE=1` on every STATE fire (MERGED/CLOSED/STALL) and deliberately does not
-   * re-arm, because "the successor would IMMEDIATELY re-fire it (a merged PR stays merged; a
-   * stalled item stays stalled), which would livelock and burn the API budget". MERGED/CLOSED
-   * land in `done`; STALL must land here, or the extension's own re-arm bypasses that guard and
-   * hot-loops at ~2s on a stale item. Cleared on restart. */
-  stalled: Set<string>;
+   * Items whose STATE event fired — never re-armed until a restart (`watch_arm` with
+   * `action: "restart"`). A state event fires from the arm baseline (`runWatch` checks it
+   * before anything else, and `--no-arm-wake` does not suppress it), so re-arming an item still
+   * in that state re-fires it at once: a hot-loop of wakes and API requests. WHICH events are
+   * state events is the engine's own `STATE_EVENTS`; this binding names none of them, because a
+   * hand-kept list missed `conflict` the day the engine gained it. */
+  retired: Set<string>;
   fastFailures: number;
   startedAt: number;
   lastErr: string;
@@ -103,8 +101,7 @@ const gh: GhState = {
   proc: null,
   gen: 0,
   items: [],
-  done: new Set(),
-  stalled: new Set(),
+  retired: new Set(),
   fastFailures: 0,
   startedAt: 0,
   lastErr: "",
@@ -213,43 +210,43 @@ function clearRearm(): void {
   }
 }
 
-/** Handle one `gh_watch.sh` event line: de-duplicate STATE fires, then deliver. */
+/** Handle one watcher event line: de-duplicate STATE fires, then deliver. */
 function handleGhLine(pi: ExtensionAPI, line: string): void {
   const ev = watcherEvent(line);
   const item = watcherItem(line);
-  if (ev === "MERGED" || ev === "CLOSED") gh.done.add(item);
-  if (ev === "STALL") {
-    // STATE fire: mirror `gh_watch.sh`'s WATCH_DONE — a stalled item is NOT re-armed, so it can
-    // never emit a second STALL. The former delivery-dedup map is gone with that guarantee (R5).
-    gh.stalled.add(item);
-  }
+  // A STATE event ends the watch for its item, exactly as the engine's own continuous loop
+  // drops it (`watchStream`); the set of state events is the engine's, imported, never restated.
+  if (STATE_EVENTS.has(ev.toLowerCase())) gh.retired.add(item);
   deliver(pi, `WATCHER ${line.trim()}`);
 }
 
-/** Arm (or re-arm) the one-shot `gh_watch.sh` over the items not yet terminal. */
+/** Arm (or re-arm) the one-shot watcher over the items not yet terminal. */
 function armGh(pi: ExtensionAPI): void {
   if (stopping) return;
-  const active = gh.items.filter((i) => !gh.done.has(i) && !gh.stalled.has(i));
+  const active = gh.items.filter((i) => !gh.retired.has(i));
   if (active.length === 0) return;
 
   const script = join(projectRoot, GH_WATCH_REL);
   if (!existsSync(script)) {
-    note(latestCtx, `watch: ${GH_WATCH_REL} not found — the marketplace pin is stale`);
+    note(latestCtx, `watch: ${GH_WATCH_REL} not found — this checkout predates the shared watcher`);
     return;
   }
 
   const args = [
     script,
+    "watch",
     "--interval",
     INTERVAL,
     "--stallmin",
     STALL_MIN,
     "--events",
     EVENTS,
+    // A verdict already on the head wakes the FIRST arm only; a re-arm must not re-report it.
+    ...(gh.gen > 0 ? ["--no-arm-wake"] : []),
     ...active,
   ];
   const gen = ++gh.gen;
-  const proc = spawn("bash", args, { cwd: projectRoot, env: process.env });
+  const proc = spawn("node", args, { cwd: projectRoot, env: process.env });
   gh.proc = proc;
   gh.startedAt = Date.now();
   gh.lastErr = "";
@@ -275,7 +272,7 @@ function armGh(pi: ExtensionAPI): void {
     if (gen !== gh.gen) return;
     if (gh.proc === proc) gh.proc = null;
     if (stopping) return;
-    // Exit 6 = `gh_watch.sh` could not acquire the watch lock: a PEER holds it. That is the
+    // Exit 6 = the watcher could not take over the watch lock: a PEER holds it. That is the
     // single-instance guard working, never a failure of this arm (and never a FATAL) — but this
     // session's own delivery is not running, so back off and say so.
     if (code === 6) {
@@ -321,8 +318,7 @@ async function restartGh(pi: ExtensionAPI): Promise<string> {
     gh.proc = null;
   }
   gh.items = await readItems();
-  gh.done.clear();
-  gh.stalled.clear();
+  gh.retired.clear();
   gh.fastFailures = 0;
   armGh(pi);
   return gh.items.length === 0
@@ -458,8 +454,7 @@ export default function (pi: ExtensionAPI) {
         `project:  ${projectRoot}`,
         `GitHub:   ${gh.items.length === 0 ? "inert (.pi/watch.items empty/comment-only)" : `${gh.items.length} item(s)`}`,
         `  items:  ${gh.items.join(", ") || "-"}`,
-        `  done:   ${[...gh.done].join(", ") || "-"}`,
-        `  stalled: ${[...gh.stalled].join(", ") || "-"} (STATE fire — not re-armed; restart to re-watch)`,
+        `  retired: ${[...gh.retired].join(", ") || "-"} (a state event fired — not re-armed; restart to re-watch)`,
         `  armed:  ${gh.proc ? "yes (this session's arm is tracked)" : gh.rearmTimer ? "re-arm pending" : "no — this session tracks no arm"}`,
         `beds:     ${beds.size === 0 ? "none" : [...beds.keys()].join(", ")}`,
       ];
