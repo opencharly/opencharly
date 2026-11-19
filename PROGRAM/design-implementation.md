@@ -4114,8 +4114,10 @@ went `DIRTY` while `#1127` merged ahead of it, and that is a state only its auth
 
 ### 2026-11-19/20 — what the merges after the ledger entry actually were
 
-**This section exists because the ledger's own rule is that it is updated at every merge, and six merges
-landed after the previous entry without one.** Their state is recorded here from `origin/main`, not from
+**This section exists because the ledger's own rule is that it is updated at every merge, and five merges
+landed after the previous entry without one -- `#1136`, `plugin-containerd#19`, `#1146`, `spec#392` and
+`charly#1212`. The sixth row below is `#1148`, which is the entry being continued rather than one of the
+five; it is listed because its line count is programme state a reader will want beside the others.** Their state is recorded here from `origin/main`, not from
 the PR bodies.
 
 | PR | what landed | measured on `main` |
