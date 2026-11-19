@@ -4204,19 +4204,34 @@ $ git -C sdk grep -nE 'DELETED|[Ff]ormer|used to|was (deleted|removed|relocated)
 *"no longer sourced from"*.** **The three lanes that landed used the token as their population and were
 small enough that the proxy and the class nearly coincided; `deploykit` is where they diverge.**
 
-**So `#1147`'s close condition is the WIDE grep, not the token -- and this is a TARGET, not a current
-measurement:**
+**So `#1147`'s close condition is the WIDE grep, not the token -- and the scope of the grep has to be
+stated, because the two scopes give different numbers and both are true:**
 
 ```console
-# the close condition: run when the lane is done, and it must print 0.
-# run TODAY it prints 171, which is the number in the paragraph above.
-$ git -C sdk grep -cE 'DELETED|[Ff]ormer|used to|was (deleted|removed|relocated)|is gone|no longer' \
-    origin/main -- '*.go'
-0          # <- the value that CLOSES the row; today's value is 171
+$ git -C sdk grep -nE 'DELETED|[Ff]ormer|used to|was (deleted|removed|relocated)|is gone|no longer' \
+    origin/main -- 'deploykit/*.go' | wc -l
+171
+$ git -C sdk grep -nE 'DELETED|[Ff]ormer|used to|was (deleted|removed|relocated)|is gone|no longer' \
+    origin/main -- '*.go' | wc -l
+404
 ```
 
-**Stated beside the 171 without that label, a `0` reads as a measurement, and a reader would conclude the
-row is already closed.** **A target and a reading are the same digits and different claims.**
+**171 is the `deploykit` lane; 404 is the whole module, which still carries the class in `loaderkit`,
+`kit` and the rest even though their `DELETED` token is gone.** **So the close condition for `#1147` is the
+lane-scoped one, and the row that closes 14.3 entirely is the module-scoped 404 -> 0.**
+
+**And both are TARGETS, not readings:**
+
+```console
+# run when the lane is done; must print 0. Run today, the lane prints 171 and the module 404.
+$ git -C sdk grep -cE '...' origin/main -- 'deploykit/*.go'
+0          # the value that CLOSES the lane; today 171
+$ git -C sdk grep -cE '...' origin/main -- '*.go'
+0          # the value that CLOSES 14.3; today 404
+```
+
+**A target and a reading are the same digits and different claims, and a SCOPE and a COUNT are the same
+number about different trees.**
 
 **A body that swept 24 and said "the `DELETED` token is gone" would be true of the token and false of the
 class — the exact false-completeness shape rule 6 names.**
