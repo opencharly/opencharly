@@ -9,8 +9,8 @@
 // notification, so without it every wait is hand-polled or dropped. The properties this
 // gate pins, each a real defect class:
 //
-//   1. IT DELEGATES — it must spawn the harness-neutral scripts
-//      (`marketplace/scripts/gh_watch.sh`, `scripts/check-bed-watch.sh`) and contain NO
+//   1. IT DELEGATES — it must spawn the harness-neutral tools
+//      (`scripts/gh/cli.ts watch`, the ONE watcher, and `scripts/check-bed-watch.sh`) and contain NO
 //      hand-rolled poll loop (`setInterval` / `while(true)` / `for(;;)` / `pollOnce`). A
 //      re-implementation is the R2 duplication this check forbids.
 //   2. IT WAKES — delivery is `pi.sendUserMessage(..., {deliverAs:"followUp"})`, and the
@@ -70,7 +70,8 @@ function check() {
   if (parseErr) fail(`${REL_EXT} parses as TypeScript (${parseErr})`);
 
   // 1. delegates to the neutral tooling; contains no poll loop of its own.
-  if (!/gh_watch\.sh/.test(code)) fail(`spawns the neutral marketplace/scripts/gh_watch.sh`);
+  if (!/scripts\/gh\/cli\.ts/.test(code)) fail(`spawns the ONE watcher CLI scripts/gh/cli.ts`);
+  if (!/--no-arm-wake/.test(code)) fail(`re-arms with --no-arm-wake, so a verdict reported at arm does not wake it again`);
   if (!/check-bed-watch\.sh/.test(code)) fail(`spawns the neutral scripts/check-bed-watch.sh`);
   for (const banned of ["setInterval", "while (true)", "while(true)", "for (;;)", "pollOnce"]) {
     if (code.includes(banned)) fail(`contains no hand-rolled poll loop (found '${banned}')`);
@@ -166,7 +167,8 @@ if (argv.includes("--self-test")) {
   const ext = original.get(REL_EXT);
   const mutations = [
     ["unparseable", REL_EXT, () => ext + "\nconst broken = ;\n", "parses as TypeScript"],
-    ["no gh_watch.sh", REL_EXT, () => ext.replace(/gh_watch\.sh/g, "gh_watch-DISABLED.sh"), "gh_watch.sh"],
+    ["no shared watcher", REL_EXT, () => ext.replace(/scripts\/gh\/cli\.ts/g, "scripts/gh/DISABLED.ts"), "scripts/gh/cli.ts"],
+    ["re-arm re-wakes", REL_EXT, () => ext.replace(/--no-arm-wake/g, "--arm-again"), "--no-arm-wake"],
     ["no bed watcher", REL_EXT, () => ext.replace(/check-bed-watch\.sh/g, "check-bed-DISABLED.sh"), "check-bed-watch.sh"],
     ["no delivery", REL_EXT, () => ext.replace(/sendUserMessage/g, "__no_send__"), "sendUserMessage"],
     ["poll loop", REL_EXT, () => ext + "\nsetInterval(() => {}, 1);\n", "poll loop"],

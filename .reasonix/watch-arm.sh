@@ -7,9 +7,10 @@
 # invisible, unkillable from the transcript, and would fight the watcher's own
 # single-instance lock.
 #
-# The watcher itself is `marketplace/scripts/gh_watch.sh` — harness-INDEPENDENT,
-# already carrying the poll floor, the rate-limit guard, the stall alarm and
-# `--auto-rearm`. This hook only binds it to `.reasonix/watch.items`.
+# The watcher itself is `node scripts/gh/cli.ts watch` — the ONE watcher every
+# harness uses (opencharly/opencharly#1140), carrying the verdict, the poll floor,
+# the rate-limit guard and the stall alarm. This hook only binds it to
+# `.reasonix/watch.items`.
 #
 # Payload: one line of JSON on stdin (event, sessionId, cwd, ...). Exit 0.
 # Outside an OpenCharly checkout, or with no armed items, it prints nothing.
@@ -24,8 +25,8 @@ ROOT="${PWD:-}"
 ITEMS_FILE="$ROOT/.reasonix/watch.items"
 [ -f "$ITEMS_FILE" ] || exit 0
 
-WATCHER="$ROOT/marketplace/scripts/gh_watch.sh"
-[ -x "$WATCHER" ] || exit 0
+WATCHER="$ROOT/scripts/gh/cli.ts"
+[ -f "$WATCHER" ] || exit 0
 
 # Collect armed items: strip comments and blank lines, keep only well-formed
 # entries. `grep -m` bounds the work (never pipe an unbounded grep into head).
@@ -42,10 +43,11 @@ ITEMS="$(
 printf 'PR watcher: %d item(s) armed in .reasonix/watch.items.\n' "$(printf '%s\n' "$ITEMS" | wc -l)"
 printf 'Arm it as a background job (it exits when an event fires, and the host notifies you):\n\n'
 # shellcheck disable=SC2086
-printf '  %s --auto-rearm --stallmin 60 %s\n' "$WATCHER" "$(printf '%s ' $ITEMS)"
-printf '\nThe stall alarm is ON: no progress for the window while an item is still\n'
-printf 'open+unmerged means a takeover candidate. `--auto-rearm` keeps the watch\n'
-printf 'alive across fires; a watcher alert is an ADDITION to the ledger, never a\n'
-printf 'reason to consider the current item done.\n'
+printf '  node %s watch --events verdict,merged,closed,conflict,comment,stall --stallmin 60 %s\n' "$WATCHER" "$(printf '%s ' $ITEMS)"
+printf '\nIt wakes on a validator verdict (a re-run included), a merge, a close, a\n'
+printf 'new comment, or a stall (no progress for the window while an item is still\n'
+printf 'open+unmerged: a takeover candidate). Re-arm it after acting on a wake, adding\n'
+printf '--no-arm-wake so a verdict already reported is not reported again. A watcher\n'
+printf 'alert is an ADDITION to the ledger, never a reason to consider the item done.\n'
 
 exit 0

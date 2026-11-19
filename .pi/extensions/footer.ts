@@ -2,42 +2,17 @@
  * footer.ts — the pi `coord_footer` tool: the two-line SESSION FOOTER for THIS pi session.
  *
  * Every agent-authored PR body, issue and comment ends with the session footer
- * (AGENTS.md Part II #7; opencharly/opencharly#1119): the `Agent:` line naming the work
- * slug, an optional parent slug, the harness and the harness's OWN session id, then the
- * `Assisted-by:` trailer LAST. pi exposes its session id only to extensions
- * (`ctx.sessionManager.getSessionId()`), never to the shell, so `coord.sh --footer` cannot
- * read it from the environment — this tool is the pi binding of the same footer.
- *
- * The output is byte-compatible with `marketplace/scripts/coord.sh --footer` for the same
- * inputs, and it is the shape `marketplace/scripts/pr_body_lint.py`'s SESSION_LINE accepts;
- * `scripts/check-pi-footer.mjs` fires this module and asserts both.
+ * (AGENTS.md "Session identity and inter-session communication"): the `Agent:` line naming
+ * the work slug, an optional parent slug, the harness and the harness's OWN session id,
+ * then the `Assisted-by:` trailer LAST. pi exposes its session id only to extensions
+ * (`ctx.sessionManager.getSessionId()`), never to the shell, so the shared CLI
+ * (`scripts/gh/cli.ts footer`) cannot read it — this tool is pi's binding of the SAME
+ * builder, `scripts/gh/lib/coord.ts`'s `buildFooter` (opencharly/opencharly#1140).
+ * `scripts/check-pi-footer.mjs` fires this module and asserts its output.
  */
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
-
-const TIERS = [
-  "fully tested and validated",
-  "analysed on a live system",
-  "documentation reviewed",
-  "syntax check only",
-  "theoretical suggestion",
-];
-
-/** The two footer lines, in the canonical order: `Agent:` FIRST, `Assisted-by:` LAST. */
-export function buildFooter(id: {
-  agent: string;
-  parent?: string;
-  harness: string;
-  session: string;
-  model: string;
-  confidence: string;
-}): string {
-  const sub = id.parent ? ` (subagent of \`${id.parent}\`)` : "";
-  return (
-    `*Agent: \`${id.agent}\`${sub} · ${id.harness} session \`${id.session}\`*\n` +
-    `*Assisted-by: ${id.harness} ${id.model} (${id.confidence})*`
-  );
-}
+import { TIERS, buildFooter, isTier } from "../../scripts/gh/lib/coord.ts";
 
 const text = (t: string) => ({ content: [{ type: "text" as const, text: t }], details: {} });
 
@@ -73,7 +48,7 @@ export default function (pi: ExtensionAPI) {
         .filter(([, v]) => !v)
         .map(([k]) => k);
       if (missing.length) return text(`coord_footer: missing ${missing.join(", ")}`);
-      if (!TIERS.includes(confidence))
+      if (!isTier(confidence))
         return text(`coord_footer: invalid confidence '${confidence}' — one of: ${TIERS.join(" | ")}`);
       return text(buildFooter({ agent, parent, harness, session, model, confidence }));
     },

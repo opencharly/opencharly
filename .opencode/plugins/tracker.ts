@@ -9,19 +9,15 @@
  * plugin is it. It does NOT restate the rule, the verb grammar, or the GitHub workflow —
  * it IMPLEMENTS them and LINKS to their owners (R2: no duplication of rules or code).
  *
- * R2 — this plugin builds on the ALREADY-SHARED modules rather than copying them:
- *   - `.opencode/lib/watch.ts`         — the poll engine / batched GraphQL snapshot /
- *                                        `parseItem` / `ghJson` / the rate-limit contract.
- *   - `.opencode/lib/watcher-loop.ts`  — the detached native watch loop (extracted from
- *                                        `pr-watch.ts`, which previously held it inline).
- *   - `.opencode/plugins/coord.ts`     — the CLOSED verb set (`VERBS`) and the canonical
- *                                        footer parser contract. Every actual POST reuses
- *                                        `coord_comment`; a claim/resolve is a
- *                                        coordination comment, not a second implementation.
- *
- * PURE TYPESCRIPT — no `.sh`, no `spawnSync` / `Bun.spawn`, no `marketplace` pin (the
- * operator directive recorded in `coord.ts` / `.opencode/instructions.md`). The ONE
- * `execFile` (in `watch.ts`'s `resolveToken`) drives the `gh` CLI, a TOOL, never a script.
+ * R2 — this plugin builds on the ONE shared toolset (`scripts/gh/lib/`,
+ * opencharly/opencharly#1140) rather than copying it:
+ *   - `scripts/gh/lib/github.ts`        — the GitHub client and the rate-limit contract;
+ *   - `scripts/gh/lib/watch.ts`         — the item grammar and the watch engine;
+ *   - `scripts/gh/lib/coord.ts`         — the CLOSED verb set and the footer parser;
+ *   - `.opencode/lib/watcher-loop.ts`   — OpenCode's delivery binding of the engine.
+ * Every actual POST reuses `coord_comment`; a claim/resolve is a coordination comment,
+ * not a second implementation. No `.sh` and no `spawnSync`: the ONE `execFile` (in
+ * `github.ts`'s `resolveToken`) drives the `gh` CLI, a tool.
  *
  * TOOLS
  *   tracker_ledger  the durable ledger: read / reconcile / replace the session's
@@ -42,18 +38,12 @@
  */
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import {
-  ghJson,
-  parseItem,
-  rateLimitMessage,
-  RateLimitedError,
-  type Item,
-} from "../lib/watch.ts";
+import { ghJson, rateLimitMessage, RateLimitedError } from "../../scripts/gh/lib/github.ts";
+import { DEFAULT_WORKFLOW, parseItem, type Item } from "../../scripts/gh/lib/watch.ts";
+import { VERBS, parseAgent, parseVerb } from "../../scripts/gh/lib/coord.ts";
 import { makeWarn, v2SessionSink, watchLoop } from "../lib/watcher-loop.ts";
-import { VERBS, parseAgent, parseVerb } from "./coord.ts";
 
-/** The default validator workflow — the progress signal (a COMPLETED run). */
-export const DEFAULT_WORKFLOW = "charly/pr-validator";
+export { DEFAULT_WORKFLOW };
 
 /** Rule 9's four ledger categories + the blocking marker. */
 export const LEDGER_KINDS = ["subagent", "pr", "issue", "blocker", "op"] as const;
