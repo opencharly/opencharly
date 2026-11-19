@@ -4399,7 +4399,7 @@ where it does.**
 ### 2026-11-20 (cont.) -- the lane changes shape: 88 sites across 57 files is breadth work, not depth work
 
 **Two merges since the entry above:** **`sdk#586`** (the deploy-state ledger, five matching lines removed after four
-verdicts) and **`sdk#587`** (the first BREADTH unit -- eighteen sites across seven files, **one verdict**). **Recorded
+verdicts) and **`sdk#587`** (the first BREADTH unit -- twenty-one sites across seven files, **one verdict**). **Recorded
 from `origin/main`:**
 
 ```console
