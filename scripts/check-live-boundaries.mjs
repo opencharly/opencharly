@@ -158,7 +158,6 @@ function run(root, { emitCensus = false } = {}) {
       '# column is the number of skip lines in that file, each of which has a mock in scope.',
       '# Anchors: skip = \\bt\\.Skip(f|Now)?\\( ; mock = \\b(mock|gomock|sqlmock|fake|stub), case-insensitive.',
       '# Regenerate after a deliberate repair; a row whose site is gone is a RED finding, not a no-op.',
-      ...(baseline.size ? [] : []),
     ];
     const all = new Map([...seen].sort());
     for (const [key, n] of all) lines.push(`${key}\t${n}`);
