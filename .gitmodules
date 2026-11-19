@@ -1711,3 +1711,7 @@
 	path = pod-cdi
 	url = https://github.com/opencharly/pod-cdi.git
 	branch = main
+[submodule "vm-nvidia"]
+	path = vm-nvidia
+	url = https://github.com/opencharly/vm-nvidia.git
+	branch = main
