@@ -50,7 +50,7 @@ the `sdk` pin since #1004).
 | 1. Decisions | 2 | 1 | 0 | 1 |
 | 2. Schema | 26 | 2 | 22 | 2 |
 | 3. Parsing and validation | 43 | 2 | 40 | 1 |
-| 4. Generation | 6 | 1 | 5 | 0 |
+| 4. Generation | 6 | 0 | 6 | 0 |
 | 5. Modules and the plugin protocol | 13 | 0 | 13 | 0 |
 | 6. Plugins and the install IR | 9 | 0 | 8 | 1 |
 | 7. Store, state, secrets and concurrency | 6 | 2 | 4 | 0 |
@@ -61,7 +61,7 @@ the `sdk` pin since #1004).
 | 12. OCE alignment | 15 | 2 | 8 | 5 |
 | 13. Deployments, drivers, venues and captures | 7 | 0 | 7 | 0 |
 | 14. Code rules and enforcement | 4 | 0 | 4 | 0 |
-| **Total** | **146** | **13** | **121** | **12** |
+| **Total** | **146** | **12** | **122** | **12** |
 
 The Decisions row counts the unnumbered decided block plus item 1.1.
 
@@ -883,7 +883,7 @@ Still open:
 | # | Current state (evidence) | Target | Code work |
 |---|---|---|---|
 | 4.1 | Three pipelines: `schemagen` concat/params/vocab (`spec/internal/schemagen/main.go`: `concatSchema`, `writeParams`, `writeVocab`), the `schemaretag` struct-tag pass (`spec/schemaparams/schemaparams.go:68`) and `wiregen` (`spec/internal/wiregen`); ad-hoc per-plugin gengotypes (66 of 120 plugin repositories carry `params/cue_types_gen.go`, 2 through `go:generate`: `plugin-omarchy`, `plugin-nerdctl`) — counted 2026-11-13. | D-GEN-1 | One pinned generator and one task in every repository; delete the vocabulary generator and the YAML retag. |
-| 4.2 | **LANDED.** `params_json` exists only as a generated protobuf field: `git -C spec grep -c ParamsJson origin/main -- proto` = `6`; `charly` carries `0` hand-written `{Args}` envelopes. | D-GEN-6, D-PROTO-6 | Generate the typed role and api wrappers; validate every payload on receipt. |
+| 4.2 | **OPEN -- one half landed.** `params_json` exists only as a generated protobuf field (`git -C spec grep -c ParamsJson origin/main -- proto` -> `6`) and `charly` carries `0` hand-written `{Args}` envelopes -- but the typed role and `api` wrappers this row's own code-work cell asks for do not exist: `git -C spec grep -ci typedRole origin/main -- 'proto/*'` -> `0`. The row is done when those are generated and every payload is validated on receipt. | D-GEN-6, D-PROTO-6 | Generate the typed role and api wrappers; validate every payload on receipt. |
 | 4.3 | Four command models: Kong structs, reflected `#CLIModel`, the `CLISubcommand` catalog and `command_model_json`. | D-CLI-4, §13 | Command arguments as CUE definitions in the owning plugin's module; generate the grammar and MCP tools from them. |
 | 4.4 | 1 of the 119 plugin repositories declares the D-GEN-2 regen-reproducibility gate (`plugin-candy`'s `TestGenReproducible`); four more carry generated-output comparison tests (`TestGenerated*`: `plugin-adb`, `plugin-cstream`, `plugin-pipeline`, `plugin-task`) *(count-drift — was 0)*. | D-GEN-2 | A reproducibility gate in every repository. |
 | 4.5 | Twenty-two generated `var` word lists live in `spec/vocab_gen.go`, six of them registry-composed (`KindWords`, `ProviderClasses`, `KindValueDefs`, `OpVerbs`, `ResourceKinds`, `DocDirectives`) — the runtime reads Go lists where it could read the composed schema. | D-GEN-5, §13 | Read every list from the composed schema at runtime; keep only the tables CUE cannot express (producer-first `spec`, then `charly`). |
