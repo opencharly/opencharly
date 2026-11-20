@@ -337,7 +337,7 @@ _subsystemDefaultDriver: {for k, _ in _subsystem {(k): [for w, r in _driver if r
 // Field names of the bodies that can hold named nodes. Optional fields cannot be enumerated
 // inside CUE, so these lists are written out; design-consistency.sh checks them against the
 // definitions.
-_candyField: ["description", "from", "step", "require", "need", "use", "provide", "package", "os_override", "file", "package_repo", "path_append", "service", "user", "volume", "export", "module", "packaging", "platform", "build_with", "entrypoint", "tag", "capture"]
+_candyField: ["description", "from", "step", "require", "need", "use", "provide", "package", "os_override", "file", "package_repo", "path_append", "var", "service", "user", "volume", "export", "module", "packaging", "platform", "build_with", "entrypoint", "tag", "capture"]
 _deployField: ["description", "step", "disposable", "preemptible", "update_gate", "concurrency", "instrument", "ephemeral", "need", "use", "provide", "require", "create", "connect", "from", "publish", "node_selector", "node", "device", "api_level", "config", "env", "install_opt", "box", "serial", "google_account", "default_namespace", "admission_policy", "kubeconfig_context", "storage", "ingress", "image_default", "pod_default", "kubeconfig", "kubevirt", "label", "annotation"]
 
 _kindWord: [for w, _ in #KindAlt {w}]
@@ -384,6 +384,10 @@ _reserved: strings.Join(list.Concat([_kindWord, _deploymentKindWord]), "|")
 	package_repo?: {[#Name]: #PackageRepo}
 	file?:         {[#AbsPath]: #File}
 	path_append?:  [...#AbsPath]
+	// var: a candy's declared variables. A step's ${NAME} resolves from
+	// var union the auto-exported set (§11), and the same map rides the candy's
+	// metadata so a bed's runner can supply it to a `check:` step.
+	var?: {[=~"^[A-Z_][A-Z0-9_]*$"]: string}
 	service?:      {[#Name]: #Service}
 	user?:         {[#Name]: #User}
 	volume?:       {[#Name]: #Volume}

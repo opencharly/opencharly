@@ -1388,6 +1388,7 @@ release:
 | `file` | files by literal absolute path, one effect each |
 | `package_repo` | package repositories by name |
 | `path_append` | directories appended to `PATH` |
+| `var` | a candy's declared variables, `NAME` (an uppercase identifier) to value; a step's `${NAME}` is substituted from `var` ∪ the auto-exported set (§11), and the same map rides the candy's metadata so a bed's runner can supply it |
 | `service` | services by name |
 | `user` | users by name |
 | `volume` | persistent directories by name, each optionally `encrypted` |
