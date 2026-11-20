@@ -44,8 +44,12 @@ plan/*
 #   scratchpad/    — per-session temporary files.
 #   .worktrees/    — per-session linked feature worktrees under the umbrella
 #                    (<umbrella>/.worktrees/<slug>/<repo>/), the harness-neutral
-#                    session model (AGENTS.md "The development model"); the tracked
-#                    submodule checkouts stay clean at their gitlinks.
+#                    session model (AGENTS.md Part II #2; made by `charly task
+#                    worktree`); the tracked submodule checkouts stay clean at
+#                    their gitlinks.
+#   .claude/worktrees/ — the worktrees Claude Code's own `isolation: worktree`
+#                    makes at a repo root; in the umbrella the session model is
+#                    .worktrees/ above, so these never belong in the tree.
 #   bin/           — a worktree-local built binary.
 .check/
 .build/
@@ -55,6 +59,7 @@ image/
 .dockerignore
 scratchpad/
 .worktrees/
+.claude/worktrees/
 bin/
 *.sync-conflict-*
 

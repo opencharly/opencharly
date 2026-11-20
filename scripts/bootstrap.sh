@@ -4,12 +4,18 @@
 # It COMPOSES the existing steps; it re-implements none of them (R2):
 #
 #   1. scripts/init-submodules.sh          materialize the working set (args pass through: --all, …)
-#   2. charly/scripts/bootstrap-charly.sh  build ./charly/bin/charly from the checkout (R9)
-#   3. charly task hooks                   install this clone's git hooks
-#   4. scripts/sync-skill-bindings.mjs     assert the committed harness skill bindings ARE the
+#   2. scripts/init-submodules.sh --stores every declared submodule's OBJECT STORE in the clone's
+#                                          common git dir, blobless and with NO checkout, so the
+#                                          DESIGN gate can read every pin from any session worktree
+#                                          (opencharly/opencharly#1155); and fetch.recurseSubmodules
+#                                          off, so a superproject fetch never reaches into a path
+#                                          that has no checkout ("Could not access submodule …")
+#   3. charly/scripts/bootstrap-charly.sh  build ./charly/bin/charly from the checkout (R9)
+#   4. charly task hooks                   install this clone's git hooks
+#   5. scripts/sync-skill-bindings.mjs     assert the committed harness skill bindings ARE the
 #                                          corpus derivation (--check: a bootstrap never rewrites
 #                                          a tracked file; a stale binding is a finding, not a fix)
-#   5. harness install records             the per-USER state a harness keeps outside the repo
+#   6. harness install records             the per-USER state a harness keeps outside the repo
 #
 # Step 5 exists because enablement is not installation. `.claude/settings.json`'s `enabledPlugins`
 # is the enablement half; Claude Code loads a plugin's skills only when its plugin registry
@@ -66,20 +72,24 @@ while IFS='|' read -r tool class needed_by how; do
 done <<< "$DEPS"
 [ ${#missing_core[@]} -eq 0 ] || die "cannot bootstrap without: ${missing_core[*]} (see the warnings above)"
 
-say "1/5 materialize the working set"
+say "1/6 materialize the working set"
 bash scripts/init-submodules.sh "$@"
 
-say "2/5 build charly/bin/charly"
+say "2/6 every submodule's object store, no checkout (the DESIGN gate reads them)"
+bash scripts/init-submodules.sh --stores
+git config fetch.recurseSubmodules false
+
+say "3/6 build charly/bin/charly"
 ./charly/scripts/bootstrap-charly.sh
 CHARLY="$ROOT/charly/bin/charly"
 
-say "3/5 install this clone's git hooks"
+say "4/6 install this clone's git hooks"
 "$CHARLY" task hooks
 
-say "4/5 assert the harness skill bindings match the pinned corpus"
+say "5/6 assert the harness skill bindings match the pinned corpus"
 node scripts/sync-skill-bindings.mjs --check --require-corpus
 
-say "5/5 harness install records"
+say "6/6 harness install records"
 
 # A harness CLI may rewrite a TRACKED file while it records an install: `claude plugin install
 # --scope project` re-serializes `.claude/settings.json` in Claude Code's own key order and layout

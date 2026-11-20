@@ -447,6 +447,29 @@ init:
         context: [runtime]
 
 # -----------------------------------------------------------------------------
+# worktree — ONE command from a session slug to a READY session worktree
+# (AGENTS.md Part II #2; opencharly/opencharly#1155):
+#
+#   CHARLY_WORKTREE_SLUG=<slug> charly task worktree
+#
+# It fetches origin/main, adds <umbrella>/.worktrees/<slug>/opencharly on feat/<slug>,
+# brings every module STORE up to the new pins (the pre-push DESIGN gate reads them),
+# materializes the working set (the body linter, the pin check's inputs) and builds the
+# worktree's own binary (R9). A bare `git worktree add` gives none of that: its pre-push
+# SKIPPED the body linter, measured. The slug travels in the ENVIRONMENT, never as a task
+# param — the same channel and the same reason as `init` above.
+# -----------------------------------------------------------------------------
+worktree:
+  task:
+    description: Create a READY session worktree — .worktrees/<slug>/opencharly on feat/<slug> off origin/main, the module stores, the working set and its own charly binary (CHARLY_WORKTREE_SLUG=<slug>)
+    dir: .
+    plan:
+      - run: create the session worktree named by CHARLY_WORKTREE_SLUG
+        command: bash scripts/new-worktree.sh "$CHARLY_WORKTREE_SLUG"
+        timeout: 30m
+        context: [runtime]
+
+# -----------------------------------------------------------------------------
 # sync — advance EVERY submodule pin this repo declares, per the pin contract.
 # The wave is an ORG-WIDE cutover, not a way to move one pin: it advances EVERY
 # declared path. Phase 1 rolls every leaf submodule that HAS a checkout to its
