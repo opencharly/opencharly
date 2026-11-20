@@ -107,8 +107,9 @@ the violation and rerun the gate, or stop and ask the operator. *Detail:*
   that needs DESIGN to say otherwise amends DESIGN first, with the design-check output and an
   operator sign-off. The body names the D-ids the change touches; untouched non-conforming
   code is filed design debt, not a block. D-STORE-1, D-STORE-11 and D-STORE-12 are the XDG
-  contract: every host path resolves through `spec/storeroot`; code that reads `HOME`/`XDG_*`
-  or builds a base-directory path does not conform. *Detail:* `/charly-internals:design`,
+  contract: every host path resolves through `spec/storeroot`; code that reads
+  `HOME`/`XDG_*`/`CHARLY_*` or builds a base-directory path does not conform. *Detail:*
+  `/charly-internals:design`,
   `/charly-internals:xdg`.
 
 *Old citations.* Rule references written before 2026-10-09 use the old numbering: old
