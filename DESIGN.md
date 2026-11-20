@@ -2479,16 +2479,18 @@ charly deploy add hello-vm-next     # realizes and captures hello-vm first if ne
 
 | ID | Requirement |
 |---|---|
-| D-STORE-1 | The roots, resolved by ONE resolver on the contract surface — `spec/storeroot`, so the plugin host and every plugin it serves resolve the same trees from the same code, with `sdk/storekit` re-exporting it as its own API — configuration `$XDG_CONFIG_HOME/charly`, cache `$XDG_CACHE_HOME/charly` (single override `CHARLY_CACHE_DIR`), state `$XDG_STATE_HOME/charly`, runtime `$XDG_RUNTIME_DIR/charly`. |
+| D-STORE-1 | The roots, resolved by ONE resolver on the contract surface — `spec/storeroot`, so the plugin host and every plugin it serves resolve the same trees from the same code, with `sdk/storekit` re-exporting it as its own API — configuration `$XDG_CONFIG_HOME/charly` with search path `$XDG_CONFIG_DIRS/charly`, data `$XDG_DATA_HOME/charly` with search path `$XDG_DATA_DIRS/charly`, state `$XDG_STATE_HOME/charly`, cache `$XDG_CACHE_HOME/charly` (the single override `CHARLY_CACHE_DIR`, used verbatim), runtime `$XDG_RUNTIME_DIR/charly`. It implements the XDG Base Directory semantics of `github.com/adrg/xdg`; an empty or relative XDG variable takes the specification's default, and an unset `XDG_RUNTIME_DIR` falls back to the state root. |
 | D-STORE-2 | The user configuration (`#UserConfig`) holds only what the user sets — one driver per subsystem (D-DRV-1), the leasable host resources (D-HW-4), image registry, the project-less `plugin:` list, whether the OS packages a plugin needs may be installed on the host (D-STORE-9), and each plugin's own section — under its own schema. |
 | D-STORE-3 | One content-addressed store holds every cached item: fetched repositories, CUE modules, plugin binaries, load results and artifacts. Its on-disk form IS an OCI Image Layout, and no other on-disk cache format exists: a store tree is that layout and nothing else — no `.lock`, no `locks/`, and no sidecar file of any kind. A view is a derived, hardlinked reconstruction of an entry for a consumer that needs real files; it is not a second store and holds no content of its own. The payload/validity split that keeps a resolution record out of the payload's digest is D-STORE-6. Entries are immutable, keyed by input digest, published by atomic rename; reads take no lock. |
 | D-STORE-4 | A plugin binary's key covers its module source, `go.sum`, the toolchain and the platform. |
 | D-STORE-5 | A mutable name (a branch) resolves to a commit before it reaches the store; it re-resolves only on `--refresh`. |
 | D-STORE-6 | Stored payloads contain no timestamps or absolute paths unless they are inputs. Validity metadata — which necessarily carries a resolution time — lives in the entry's config blob, deliberately outside the payload digest, and that split is a requirement rather than a compromise: never "fix" it by stripping the validity record or by polluting a payload with it. |
-| D-STORE-7 | `charly clean` keeps what state references and evicts the rest within a size budget; locks die with their holder. |
-| D-STORE-8 | Tests use injected roots and write nothing outside their temporary directory. |
+| D-STORE-7 | `charly clean` keeps what state references and evicts the rest within a size budget; locks die with their holder. It never touches the data root (D-STORE-12). |
+| D-STORE-8 | Tests use injected roots — the resolver's `Resolver` type — and write nothing outside their temporary directory; the process-environment default is covered by one non-parallel or subprocess test. |
 | D-STORE-9 | `local_install` is `false` by default, so charly installs nothing on the host that runs it unless the operator enables it. `charly local-install` (§22) is the one command that installs the OS packages a declared plugin needs (D-CANDY-6) on that host; it refuses while `local_install` is `false`, unless `--local-install` enables the install for that invocation. While the switch is `false` every other path reports the missing packages (`charly doctor`) or fails naming them — never installs. |
 | D-STORE-10 | The store is served, read-only, as an image registry to the deployments that pull images — a container engine, a cluster's nodes — and a built image reaches a cluster through that view or by delivery into the engine store the cluster reads. The registry is a view of store entries (D-STORE-3), never a second copy, and nothing it serves is fetched again from a public registry. |
+| D-STORE-11 | The resolver is the only reader of the host's base-directory environment for charly-owned paths. Outside `spec/storeroot`, no code reads `HOME` or an `XDG_*` variable, or builds `.config`, `.local/share`, `.local/state` or `.cache` into a charly path. A user-supplied `~`/`$HOME` expansion and a third-party application's own base directory are the named exceptions, each in the XDG gate's allowlist with its reason. |
+| D-STORE-12 | `$XDG_DATA_HOME/charly` holds durable user data that cannot be re-derived — SSH keys, VM disks and per-VM state, encrypted-volume plaintext, bind-mounted volumes. It never holds a cached item: a built image or artifact remains the cache store's (D-STORE-3, D-STORE-10), and `charly clean` never evicts the data root (D-STORE-7). |
 
 ### 20.1 The audit record
 
@@ -2651,7 +2653,7 @@ sshd-account:
 
 CI gates: the import graph (D-MOD-1, D-MOD-2); schema patterns on every plugin CUE module (D-PAT-1..3); no domain words in core (D-CORE-2); manifest ≡
 `describe` (§4.4); typed protocol (D-ROLE-2, D-PROTO-6); protocol conformance in every plugin repository (§4.7); generation reproducibility (D-GEN-2); store roots
-only via the contract resolver (D-STORE-1); test roots (D-STORE-8); no unused kinds or fields (D-LAW-2); the
+only via the contract resolver (D-STORE-1, D-STORE-11, D-STORE-12); test roots (D-STORE-8); no unused kinds or fields (D-LAW-2); the
 deployment conformance check (every deployment kind: realize, venue exec, service start, port
 binding, need grants, destroy, fresh rebuild; every box as both `pod` and `vm`). The design
 check (Appendix A) is not a CI gate: it runs locally and on demand (A.1).
