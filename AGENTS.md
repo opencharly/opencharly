@@ -106,7 +106,10 @@ the violation and rerun the gate, or stop and ask the operator. *Detail:*
   a field, shape, kind, verb, capability or mechanism, read the row that governs it. A change
   that needs DESIGN to say otherwise amends DESIGN first, with the design-check output and an
   operator sign-off. The body names the D-ids the change touches; untouched non-conforming
-  code is filed design debt, not a block. *Detail:* `/charly-internals:design`.
+  code is filed design debt, not a block. D-STORE-1, D-STORE-11 and D-STORE-12 are the XDG
+  contract: every host path resolves through `spec/storeroot`; code that reads `HOME`/`XDG_*`
+  or builds a base-directory path does not conform. *Detail:* `/charly-internals:design`,
+  `/charly-internals:xdg`.
 
 *Old citations.* Rule references written before 2026-10-09 use the old numbering: old
 R3/R4/R4a/R7a are now R2/R3/R4/R8, old R2 is part of [Hard Cutover by
@@ -458,7 +461,8 @@ Before declaring completion, answer every applicable item YES.
 - **R9–R10:** the exact final-tree change-class gate passed with zero warnings, on a fresh
   worktree-local build.
 - **R11:** every DESIGN requirement the change touches is cited and conformed to, amended
-  first with sign-off, or filed as design debt.
+  first with sign-off, or filed as design debt; host paths resolve through the one XDG resolver
+  (D-STORE-1, D-STORE-11, D-STORE-12).
 - **Review:** every validator result and every comment was read in full before each push.
 - **Identity:** every body, comment and commit you authored ends with your session footer.
 - **Cutover:** the approved plan completed, with no hidden phase, TODO or substitute.
