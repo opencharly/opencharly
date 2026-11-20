@@ -882,7 +882,8 @@ repair_paths() {
 # WHY. The DESIGN gate (`scripts/design-check.sh`) reads every pinned module from its store
 # at the pinned commit (`scripts/design-module-store.sh` resolves a path with no checkout to
 # `<git-common-dir>/modules/<path>`), and its pin-tag control judges EVERY pin — so a light
-# tree could not push a `TODO.md`, `design/` or pin change at all (232 findings, measured).
+# tree could not push any change the gate judges — `DESIGN.md`, `design/`, a pin — at all
+# (232 findings, measured 2026-11-19 on a push of `TODO.md`, then still one of its inputs).
 # The stores live ONCE, in the main clone's common dir, and every session worktree reads
 # them through the same resolver: a worktree costs no extra download. A store does not
 # initialize the path: the superproject still reports it `-`, so the light-tree semantics
