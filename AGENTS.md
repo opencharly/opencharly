@@ -475,7 +475,9 @@ Before declaring completion, answer every applicable item YES.
 
 2. **Sessions root at the umbrella; edits happen in a session worktree.** *(R6, R9)* Each repo
    a session edits gets its own worktree at `<umbrella>/.worktrees/<slug>/<repo>/`, branched off
-   fresh `origin/main`; every Go build happens inside `charly/`. **A clone is a WORKING SET**,
+   fresh `origin/main`; every Go build happens inside `charly/`. The umbrella's own worktree is
+   ONE command, `CHARLY_WORKTREE_SLUG=<slug> charly task worktree` (`bash scripts/new-worktree.sh
+   <slug>` before a binary exists): the working set and a worktree-local binary come with it. **A clone is a WORKING SET**,
    blobless and never shallow: the pins live in the index, and `charly task init` materializes
    only the derived set a session builds against or edits (`CHARLY_INIT_PATHS=<a,b>` for named
    repos, `CHARLY_INIT_MODE=all` for every one). A fresh clone bootstraps with

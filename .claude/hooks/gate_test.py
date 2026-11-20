@@ -3,6 +3,7 @@
 
 import json
 import os
+import re
 import shutil
 import stat
 import subprocess
@@ -73,13 +74,50 @@ def local_go_version():
 LOCAL_GO = local_go_version()
 
 
+def linter_go_version():
+    """The Go version the installed golangci-lint was BUILT with, e.g. '1.26.8'.
+
+    A linter cannot load a module that targets a newer Go than its own build
+    ("the Go language version (go1.26) used to build golangci-lint is lower than
+    the targeted Go version (1.27.4)"), so the lint fixtures must not name the
+    host's toolchain when the host is newer than the linter: every lint case
+    would then pass or fail for the WRONG reason (measured 2026-11-20 — host
+    go1.27.4, linter built with go1.26.8: "lint failure blocked" passed only
+    because the linter could not load the module, and both lint-clean cases
+    failed). None when there is no linter or its version cannot be read.
+    """
+    if shutil.which("golangci-lint") is None:
+        return None
+    try:
+        result = subprocess.run(["golangci-lint", "version"], capture_output=True,
+                                text=True, timeout=60)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    match = re.search(r"built with go(\d+)\.(\d+)(?:\.(\d+))?", result.stdout + result.stderr)
+    if not match:
+        return None
+    return "%s.%s.%s" % (match.group(1), match.group(2), match.group(3) or "0")
+
+
+def version_key(text):
+    return tuple(int(part) for part in text.split(".")) if text else None
+
+
+LINTER_GO = linter_go_version()
+# The fixtures' Go: the host's, unless the linter was built with an OLDER Go —
+# then the linter's own, so the lint cases exercise lint and nothing else.
+FIXTURE_GO = LOCAL_GO
+if LINTER_GO and (FIXTURE_GO is None or version_key(LINTER_GO) < version_key(FIXTURE_GO)):
+    FIXTURE_GO = LINTER_GO
+
+
 def repo(go_module=False, go_version=None):
     path = tempfile.mkdtemp(prefix="gate-test-")
     for args in (("init", "-q"), ("config", "user.email", "t@t"),
                  ("config", "user.name", "t")):
         subprocess.run(["git", "-C", path, *args], capture_output=True)
     if go_module:
-        version = go_version or LOCAL_GO or "1.24"
+        version = go_version or FIXTURE_GO or "1.24"
         with open(os.path.join(path, "go.mod"), "w") as stream:
             stream.write("module gatetest\n\ngo %s\n" % version)
         with open(os.path.join(path, "main.go"), "w") as stream:
@@ -200,6 +238,19 @@ def stub_linter(recorder):
     return path
 
 
+def stub_old_linter():
+    """A directory holding a `golangci-lint` stub that cannot load the module:
+    it fails exactly the way a linter built with an older Go does."""
+    path = tempfile.mkdtemp(prefix="gate-test-oldlint-")
+    linter = os.path.join(path, "golangci-lint")
+    with open(linter, "w") as stream:
+        stream.write("#!/bin/sh\necho \"Error: can't load config: the Go language version "
+                     "(go1.26) used to build golangci-lint is lower than the targeted Go "
+                     "version (1.27.4)\" >&2\nexit 3\n")
+    os.chmod(linter, 0o755)
+    return path
+
+
 def recorded_toolchain(recorder):
     if not os.path.exists(recorder):
         return ""
@@ -226,6 +277,46 @@ expect("commit: the lint leg runs under the toolchain the module names",
 expect("commit: a lint-clean module under the named toolchain is allowed",
        "BLOCK" if result.returncode == 2 else "ALLOW", "ALLOW")
 shutil.rmtree(pinned, ignore_errors=True)
+
+# A linter built with an OLDER Go than the module targets cannot load the module.
+# That is no finding about the code: a visible NOTE, never a block.
+env = dict(os.environ)
+env["PATH"] = os.pathsep.join([stub_old_linter(), env.get("PATH", "")])
+skewed = repo(go_module=True)
+with open(os.path.join(skewed, "main.go"), "a") as stream:
+    stream.write("\n// touched\n")
+subprocess.run(["git", "-C", skewed, "add", "main.go"], capture_output=True)
+result = gate_result(COMMIT_GATE, f"git -C {skewed} commit -m x", env=env)
+expect("commit: a linter too old for the module's Go does not block",
+       "BLOCK" if result.returncode == 2 else "ALLOW", "ALLOW")
+expect("commit: a linter too old for the module's Go says so in a NOTE",
+       "cannot load" in (result.stderr or "") and "SKIPPED" in (result.stderr or ""), True)
+shutil.rmtree(skewed, ignore_errors=True)
+
+# An UMBRELLA-shaped clone (its committed `hooks/pre-commit` beside
+# `.claude/hooks/pre-commit-gate.sh`) whose hooks were never installed has no
+# pre-commit or pre-push gate at all: the commit is refused until
+# `charly task hooks` sets core.hooksPath=hooks (opencharly/opencharly#1155).
+umbrella = repo()
+for rel in ("hooks/pre-commit", ".claude/hooks/pre-commit-gate.sh"):
+    os.makedirs(os.path.dirname(os.path.join(umbrella, rel)), exist_ok=True)
+    with open(os.path.join(umbrella, rel), "w") as stream:
+        stream.write("#!/bin/sh\nexit 0\n")
+with open(os.path.join(umbrella, "README.md"), "a") as stream:
+    stream.write("touched\n")
+subprocess.run(["git", "-C", umbrella, "add", "-A"], capture_output=True)
+result = gate_result(COMMIT_GATE, f"git -C {umbrella} commit -m x")
+expect("commit: an umbrella clone with its hooks NOT installed is refused",
+       "BLOCK" if result.returncode == 2 else "ALLOW", "BLOCK")
+expect("commit: the refusal names the install command",
+       "charly task hooks" in (result.stderr or ""), True)
+subprocess.run(["git", "-C", umbrella, "config", "core.hooksPath", "elsewhere"], capture_output=True)
+expect("commit: an umbrella clone whose hooksPath points elsewhere is refused",
+       gate(COMMIT_GATE, f"git -C {umbrella} commit -m x"), "BLOCK")
+subprocess.run(["git", "-C", umbrella, "config", "core.hooksPath", "hooks"], capture_output=True)
+expect("commit: an umbrella clone with its hooks installed is allowed",
+       gate(COMMIT_GATE, f"git -C {umbrella} commit -m x"), "ALLOW")
+shutil.rmtree(umbrella, ignore_errors=True)
 
 # The named toolchain cannot be obtained on this host: the lint leg is skipped
 # with a visible NOTE and the commit is NOT blocked — an environment problem

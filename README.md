@@ -1013,11 +1013,12 @@ bash scripts/bootstrap.sh              # the working set, the binary, the hooks,
 export PATH="$PWD/charly/bin:$PATH"    # from here on this page reads `charly …`
 ```
 
-`scripts/bootstrap.sh` composes five steps, and each one stays runnable on its own:
+`scripts/bootstrap.sh` composes six steps, and each one stays runnable on its own:
 
 | step | what it does |
 |---|---|
 | `bash scripts/init-submodules.sh` | materialize the working set (needs only `git` + `python3`; the bootstrap passes its arguments through, so `bash scripts/bootstrap.sh --all` materializes every path) |
+| `bash scripts/init-submodules.sh --stores` | give every declared submodule its object store in the clone's common git dir — blobless, with no checkout (≈420 MB, measured 2026-11-19) — so the pre-push DESIGN gate can read every pin from any session worktree; and set `fetch.recurseSubmodules=false`, so a fetch never reaches into a path that has no checkout (opencharly/opencharly#1155) |
 | `./charly/scripts/bootstrap-charly.sh` | build `charly/bin/charly` from the checkout |
 | `charly task hooks` | install this clone's git hooks (pre-commit, pre-push) |
 | `node scripts/sync-skill-bindings.mjs --check --require-corpus` | assert that the committed harness skill bindings (the `.dsh/skills` farm, `reasonix.toml`'s `[skills] paths`, `.claude/settings.json`'s `enabledPlugins`) are the derivation of the pinned corpus |
@@ -1028,10 +1029,10 @@ plugin's skills only when its per-user plugin registry also holds an install rec
 checkout, and nothing in a clone writes that record. Without it a session at this root loads none
 of the `/charly-*` skills (opencharly/opencharly#1100).
 
-Two steps there are not `charly` commands, and neither can be. The build that produces the
-`charly` binary cannot itself be a `charly` task, and neither can the materialization — the
-working set includes `charly` itself, so the binary does not exist yet when the first clone
-happens. Every command after the bootstrap is the installed-binary form, exactly as on a host
+The first three steps are not `charly` commands, and none can be. The build that produces the
+`charly` binary cannot itself be a `charly` task, and neither can the two materialization steps
+before it — the working set includes `charly` itself, so the binary does not exist yet when the
+first clone happens. Every command after the bootstrap is the installed-binary form, exactly as on a host
 that installed a package. Without the `export`, the same commands run as
 `./charly/bin/charly …`.
 
@@ -1120,7 +1121,8 @@ form — `charly task …`, the same shape a packaged `charly` gives you:
 
 | command | purpose |
 |---|---|
-| `charly task init` | materialize the umbrella's submodules on demand — the derived working set by default (`CHARLY_INIT_MODE=all\|list` and `CHARLY_INIT_PATHS` select the others) |
+| `charly task init` | materialize the umbrella's submodules on demand — the derived working set by default (`CHARLY_INIT_MODE=all\|list\|stores` and `CHARLY_INIT_PATHS` select the others); a working-set run also advances every other checkout that a pull left behind its pin, when that checkout is clean and a strict ancestor. After a pull that adds an `import:` path the project cannot load until it runs, so run its script form then: `bash scripts/init-submodules.sh` |
+| `charly task worktree` | create a ready session worktree: `CHARLY_WORKTREE_SLUG=<slug> charly task worktree` adds `.worktrees/<slug>/opencharly` on `feat/<slug>` off `origin/main`, brings the module stores up to the new pins, materializes the working set borrowing from them, and builds the worktree's own binary |
 | `charly task map` | list every submodule with its pin and sync state |
 | `charly task sync` | advance EVERY submodule pin this repo declares, per the pin contract (it rolls the checkouts that exist to their default-branch HEAD and stages the gitlinks; it does not commit) |
 | `charly task verify` | run the full pinning gate on demand — every pin, including the remote branch audit |

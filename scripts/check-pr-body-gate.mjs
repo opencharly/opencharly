@@ -104,8 +104,9 @@ function check() {
   if (/\$\{PR_BODY_FILE:-\$?ROOT\//.test(code)) fail(`does not default the body path into the tracked tree`);
 
   // 3. The two SKIPS must not fail closed: a missing body is the discipline failing, and
-  //    an unmaterialized `marketplace` submodule would otherwise make every fresh
-  //    worktree unlandable. Both branches must exit 0 and SAY what to do.
+  //    a tree that pins NO marketplace (a fixture, a fork) has no linter to require. Both
+  //    branches must exit 0 and SAY what to do. (A tree that DOES pin it blocks instead —
+  //    F23 fires that arm.)
   const absentBodyBranch = /if \[ ! -e "\$BODY" \]; then([\s\S]*?)\nfi/.exec(code)?.[1] ?? "";
   if (!absentBodyBranch) fail(`has an explicit missing-body branch`);
   else if (!/exit 0/.test(absentBodyBranch)) fail(`a missing body SKIPS (exit 0) instead of failing closed`);
@@ -778,9 +779,36 @@ async function fire() {
         atPin.code === 0 && /pre-push: OK/.test(atPin.out),
         `hooks/pre-push FIRED: a marketplace checkout AT the pin proceeds and lints the body as before (exit 0)`,
       );
+
+      // F23 — A PINNED MARKETPLACE THAT IS NOT MATERIALIZED BLOCKS (opencharly/opencharly#1155).
+      //      The index still pins it, so the linter is part of this tree's working set: each
+      //      unprepared state is a BLOCK naming the one command that fixes it, never the
+      //      skip a tree with NO pin gets (F4/F5 above run before the gitlink exists).
+      const unmaterialized = /this tree pins marketplace[\s\S]*bash scripts\/init-submodules\.sh/;
+      //      (a) the linter's sibling module is gone, so the linter cannot run.
+      rmSync(join(mp, "scripts", "squash_body.py"), { force: true });
+      const pinnedBroken = run();
+      expect(
+        pinnedBroken.code === 1 && /cannot run here/.test(pinnedBroken.out) && unmaterialized.test(pinnedBroken.out),
+        `hooks/pre-push FIRED: a PINNED marketplace whose linter cannot run is BLOCKED, naming the init`,
+      );
+      //      (b) the directory is no git repository.
+      rmSync(join(mp, ".git"), { recursive: true, force: true });
+      const pinnedNotRepo = run();
+      expect(
+        pinnedNotRepo.code === 1 && /not a git repository/.test(pinnedNotRepo.out) && unmaterialized.test(pinnedNotRepo.out),
+        `hooks/pre-push FIRED: a PINNED marketplace that is not a git repository is BLOCKED, naming the init`,
+      );
+      //      (c) the directory is gone altogether — a bare `git worktree add`.
+      rmSync(mp, { recursive: true, force: true });
+      const pinnedAbsent = run();
+      expect(
+        pinnedAbsent.code === 1 && /is absent/.test(pinnedAbsent.out) && unmaterialized.test(pinnedAbsent.out),
+        `hooks/pre-push FIRED: a PINNED marketplace that is absent is BLOCKED, naming the init (no SKIP)`,
+      );
     } else {
       skip(
-        `hooks/pre-push FIRED: the marketplace control-version arms — the org linter is not materialized in this checkout`,
+        `hooks/pre-push FIRED: the marketplace control-version and pinned-materialization arms — the org linter is not materialized in this checkout`,
       );
     }
 
@@ -866,10 +894,20 @@ if (argv.includes("--self-test")) {
       "missing linter fails closed",
       (s) =>
         s.replace(
-          /if \[ ! -f "\$LINT" \]; then\n  echo "pre-push: \[pre-push-skip\] \$LINT is absent[^\n]*\n/,
-          'if [ ! -f "$LINT" ]; then\n  echo "nope"; exit 1\n  echo "pre-push: [pre-push-skip] $LINT is absent"\n',
+          /  echo "pre-push: \[pre-push-skip\] \$LINT is absent[^\n]*\n/,
+          '  echo "nope"; exit 1\n  echo "pre-push: [pre-push-skip] $LINT is absent"\n',
         ),
       "missing linter SKIPS visibly",
+      false,
+    ],
+    [
+      "a PINNED marketplace that is absent only skips (the pre-#1155 shape)",
+      (s) =>
+        s.replace(
+          /    marketplace_unmaterialized "\$LINT is absent"\n/,
+          "    :\n",
+        ),
+      "PINNED marketplace that is absent is BLOCKED",
       false,
     ],
     [

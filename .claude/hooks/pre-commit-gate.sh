@@ -3,7 +3,8 @@
 #
 # This hook enforces only immediate local mechanics:
 #   - no `--no-verify` / `-n` bypass;
-#   - no `core.hooksPath` override;
+#   - no `core.hooksPath` override, and in the umbrella the clone's hooks must be INSTALLED
+#     (`core.hooksPath=hooks`, set by `charly task hooks`; opencharly/opencharly#1155);
 #   - commit commands must tokenize cleanly; and
 #   - staged Go modules must be golangci-lint clean when the tool is available.
 #
@@ -130,6 +131,7 @@ def workspace_member_roots(repo):
 # (Measured on this host: golangci-lint v2.13.2 links x/tools v0.49.0, whose
 # export-data reader understands version 4 and below; the host's go1.27.3 emits
 # version 5, and the toolchain the module names, go1.26.8, emits version 4.)
+LINTER_TOO_OLD = re.compile(r"used to build golangci-lint is lower than the targeted Go version")
 GO_DIRECTIVE = re.compile(r"^\s*(go|toolchain)\s+(\S+?)(?:\s*//.*)?$")
 GO_VERSION = re.compile(r"^(\d+)\.(\d+)(?:\.(\d+))?$")
 
@@ -357,6 +359,22 @@ def lint_staged_go(repo):
             continue
         if result.returncode != 0:
             detail = ((result.stdout or "") + (result.stderr or "")).strip()
+            # A linter BUILT with an older Go than the module targets cannot load the
+            # module at all: it reports no finding about the code, so it must not be
+            # read as one. Measured 2026-11-20: golangci-lint v2.13.2 built with
+            # go1.26.8, a module naming go 1.27.4 -> "can't load config: the Go
+            # language version (go1.26) used to build golangci-lint is lower than the
+            # targeted Go version (1.27.4)". It is the environment class above (an
+            # unobtainable toolchain, a timeout): a visible NOTE, never a block.
+            if LINTER_TOO_OLD.search(detail):
+                sys.stderr.write(
+                    "pre-commit-gate NOTE: golangci-lint cannot load %s — it was built with an "
+                    "older Go than the module targets; the lint leg is SKIPPED (rebuild "
+                    "golangci-lint with that Go: go install "
+                    "github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest). "
+                    "The pr-validator remains the gate.\n%s\n" % (root, detail[:400])
+                )
+                continue
             block("golangci-lint reports issues in %s:\n%s" % (root, detail[:4000]))
 
 
@@ -492,6 +510,36 @@ def alias_gate(repo):
                   % (cur_path, line.strip()[:120]))
 
 
+def hooks_installed_gate(repo):
+    """In the umbrella, refuse a commit when this clone's git hooks were never installed.
+
+    The umbrella's pre-commit and pre-push gates are `hooks/`, armed per clone by
+    `charly task hooks` (`git config core.hooksPath hooks`). A clone set up WITHOUT that step
+    (e.g. `init-submodules.sh` and `bootstrap-charly.sh` by hand, the order AGENTS.md Part II #2
+    states first) committed with NO gate at all, and nothing noticed (opencharly/opencharly#1155).
+    The umbrella is recognised by its committed `hooks/pre-commit` beside `.claude/hooks/`.
+    """
+    base = os.path.abspath(repo or os.getcwd())
+    try:
+        top = subprocess.run(["git", "-C", base, "rev-parse", "--show-toplevel"],
+                             capture_output=True, text=True, timeout=10).stdout.strip()
+    except Exception:
+        return
+    if not top or not os.path.isfile(os.path.join(top, "hooks", "pre-commit")) \
+            or not os.path.isfile(os.path.join(top, ".claude", "hooks", "pre-commit-gate.sh")):
+        return
+    try:
+        path = subprocess.run(["git", "-C", top, "config", "--get", "core.hooksPath"],
+                              capture_output=True, text=True, timeout=10).stdout.strip()
+    except Exception:
+        return
+    if path != "hooks":
+        block("this clone's git hooks are not installed (core.hooksPath is %r, not 'hooks'), so the "
+              "umbrella's pre-commit and pre-push gates would not run. Install them once per clone: "
+              "./charly/bin/charly task hooks  (bash scripts/bootstrap.sh does it for a fresh clone)."
+              % (path or "unset"))
+
+
 for global_args, commit_args in invocations:
     if hooks_path_override(global_args):
         block("a `core.hooksPath` override bypasses project hooks.")
@@ -500,6 +548,7 @@ for global_args, commit_args in invocations:
     repo = dash_c_dir(global_args)
     if repo is not None and not os.path.isdir(repo):
         continue
+    hooks_installed_gate(repo)
     lint_staged_go(repo)
     alias_gate(repo)
 

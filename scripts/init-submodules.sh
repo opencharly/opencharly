@@ -84,13 +84,16 @@
 #                 full set: the bump advances an unmaterialized pin in the index)
 #   --paths a,b   materialize the named paths, given as ONE comma-separated string
 #   <path>...     materialize the named paths, as separate arguments
+#   --stores      give EVERY declared path its object store in the clone's common git dir,
+#                 fetching a store that lacks its pinned commit — with NO checkout (the
+#                 DESIGN gate reads the stores; opencharly/opencharly#1155)
 #   --self-test   exercise the whole thing on a temp fixture
 #   --land <path> land the pin in ONE path (internal: the repair pass calls it)
 #   --check <path> report whether a path is really materialized (exit 1 if not)
 #   --root <dir>  the umbrella root to act on (default: this script's parent)
 #
 #   INIT_JOBS=<n>         the parallel fetch width (default 8).
-#   CHARLY_INIT_MODE      working-set | all | list — the mode, for a caller that
+#   CHARLY_INIT_MODE      working-set | all | list | stores — the mode, for a caller that
 #                         selects it in the ENVIRONMENT (see the channel below).
 #   CHARLY_INIT_PATHS     a comma-separated list of paths, for the same caller.
 #
@@ -133,6 +136,7 @@ while [ $# -gt 0 ]; do
     --root) ROOT="${2:?--root needs a directory}"; shift 2 ;;
     --list) CLI_LIST=1; shift ;;
     --all) CLI_ALL=1; shift ;;
+    --stores) MODE="stores"; MODE_SET="flag"; shift ;;
     --paths)
       # A COMMA-separated list of paths — the shape a caller that carries its
       # paths as ONE string (an environment variable, a CI variable) has. The
@@ -173,9 +177,10 @@ case "${CHARLY_INIT_MODE:-}" in
   "") ;;
   all) ENV_ALL=1 ;;
   list) ENV_LIST=1 ;;
+  stores) MODE="stores"; MODE_SET="env" ;;
   working-set) ;;
   *)
-    echo "FAIL: CHARLY_INIT_MODE must be working-set, all or list (got '$CHARLY_INIT_MODE')" >&2
+    echo "FAIL: CHARLY_INIT_MODE must be working-set, all, list or stores (got '$CHARLY_INIT_MODE')" >&2
     exit 2
     ;;
 esac
@@ -608,8 +613,44 @@ materialize_uninitialized() {
   for path in "${todo[@]}"; do
     specs+=("$(pathspec_for literal "$path")")
   done
+  borrow_from_stores "${todo[@]}"
   git -C "$ROOT" -c protocol.version=2 submodule update --init --recursive \
     --filter=blob:none --jobs "$JOBS" -- "${specs[@]}"
+}
+
+# A LINKED WORKTREE BORROWS ITS SUBMODULE OBJECTS FROM THE COMMON STORES
+# (opencharly/opencharly#1155). A linked worktree shares the superproject's objects
+# but NOT its submodules': each worktree's submodule git dirs live under its OWN
+# `<git-dir>/modules/`, so a plain `submodule update` re-downloads every path of the
+# working set per worktree. When the clone's COMMON git dir already holds a path's
+# store (`init-submodules.sh --stores`, run by `bootstrap.sh`; or the main clone's own
+# checkout), the path is initialized with `--reference` to that store: its clone
+# records a Git ALTERNATE and fetches only what the store lacks. A path that cannot
+# borrow FAILS the run, named: it never falls through to a silent full download.
+#
+# ONE path per call: `--reference` names ONE repository for every path of its call,
+# and each path has its own store. The call does NOT recurse — the materializing call
+# after this one finds the path initialized and owns the nested level, as before. In
+# the main clone (git dir == common dir) there is nothing to borrow from: a no-op.
+borrow_from_stores() {
+  local gitdir common
+  gitdir="$(git -C "$ROOT" rev-parse --path-format=absolute --git-dir)" || return 0
+  common="$(git -C "$ROOT" rev-parse --path-format=absolute --git-common-dir)" || return 0
+  [ "$gitdir" != "$common" ] || return 0
+  local path name store failed=0
+  for path in "$@"; do
+    name="$(git -C "$ROOT" config -f "$ROOT/.gitmodules" --get-regexp '^submodule\..*\.path$' \
+      | awk -v p="$path" '$2 == p { sub(/^submodule\./, "", $1); sub(/\.path$/, "", $1); n = $1 } END { print n }')"
+    [ -n "$name" ] || continue
+    store="$common/modules/$name"
+    [ -d "$store/objects" ] || continue
+    if ! git -C "$ROOT" -c protocol.version=2 submodule update --init --filter=blob:none \
+      --reference "$store" -- "$(pathspec_for literal "$path")"; then
+      echo "init: FAIL — $path could not be initialized borrowing from its store $store" >&2
+      failed=1
+    fi
+  done
+  return "$failed"
 }
 
 # The path's OWN work: the porcelain view with the path's DECLARED nested paths
@@ -659,6 +700,30 @@ own_work_status() {
     exclude+=("$(pathspec_for exclude,literal "$p")")
   done
   git -C "$ROOT/$path" status --porcelain -- . "${exclude[@]}" 2>/dev/null || true
+}
+
+# FOLLOW one checkout OUTSIDE the requested set to its recorded gitlink when that is
+# safe (a clean tree, a strict ancestor), else leave it with a notice. It fails only
+# when the advance it chose to make fails.
+follow_path() {
+  local path="$1" head recorded own_status own_rc=0
+  head="$(git -C "$ROOT/$path" rev-parse HEAD 2>/dev/null || true)"
+  recorded="$(recorded_gitlink "$path")"
+  [ -n "$head" ] && [ -n "$recorded" ] && [ "$head" != "$recorded" ] || return 0
+  own_status="$(own_work_status "$path")" || own_rc=$?
+  if [ "$own_rc" -ne 0 ] || [ -n "$own_status" ]; then
+    echo "init: notice — $path (outside the requested set) is not at its recorded gitlink and its own work tree is not clean; left untouched" >&2
+    return 0
+  fi
+  if ! git -C "$ROOT/$path" cat-file -e "$recorded^{commit}" 2>/dev/null; then
+    git -C "$ROOT/$path" fetch --quiet origin || true
+  fi
+  if ! git -C "$ROOT/$path" merge-base --is-ancestor "$head" "$recorded" 2>/dev/null; then
+    echo "init: notice — $path (outside the requested set) is at $head, which is not an ancestor of its recorded gitlink $recorded; left untouched" >&2
+    return 0
+  fi
+  # Once it moved, its nested level follows exactly as a requested path's does.
+  advance_path "$path" && materialize_nested_level "$path"
 }
 
 # Advance ONE already-materialized path to the recorded gitlink, or leave it
@@ -811,6 +876,106 @@ repair_paths() {
 }
 
 # ── the live path ───────────────────────────────────────────────────────────────
+# STORES: every declared submodule's OBJECT STORE in the clone's common git dir, with NO
+# checkout (opencharly/opencharly#1155, #1142).
+#
+# WHY. The DESIGN gate (`scripts/design-check.sh`) reads every pinned module from its store
+# at the pinned commit (`scripts/design-module-store.sh` resolves a path with no checkout to
+# `<git-common-dir>/modules/<path>`), and its pin-tag control judges EVERY pin — so a light
+# tree could not push a `TODO.md`, `design/` or pin change at all (232 findings, measured).
+# The stores live ONCE, in the main clone's common dir, and every session worktree reads
+# them through the same resolver: a worktree costs no extra download. A store does not
+# initialize the path: the superproject still reports it `-`, so the light-tree semantics
+# are unchanged.
+#
+# A store is created BLOBLESS and bare, then `core.bare` is unset — a bare store breaks a
+# later normal checkout of that path ("core.bare and core.worktree do not make sense",
+# measured, git 2.56.1) — with the normal remote-tracking refspec. A store that already
+# exists (a checkout made it) is only FETCHED, and only when it lacks its pinned commit.
+ensure_one_store() {
+  local name="$1" url="$2" pin="$3" store="$4"
+  if [ ! -d "$store" ]; then
+    mkdir -p "$(dirname "$store")"
+    if ! git -c protocol.version=2 clone -q --bare --filter=blob:none -- "$url" "$store" 2>/dev/null; then
+      echo "FAIL $name: could not clone $url"
+      return 0
+    fi
+    git --git-dir "$store" config core.bare false
+    git --git-dir "$store" config remote.origin.fetch '+refs/heads/*:refs/remotes/origin/*'
+    echo "CREATED $name"
+  fi
+  if ! git --git-dir "$store" cat-file -e "$pin^{commit}" 2>/dev/null; then
+    if ! git --git-dir "$store" -c protocol.version=2 fetch -q --update-head-ok --tags origin 2>/dev/null; then
+      echo "FAIL $name: could not fetch from $url"
+      return 0
+    fi
+    if ! git --git-dir "$store" cat-file -e "$pin^{commit}" 2>/dev/null; then
+      echo "FAIL $name: the store does not hold the pinned commit $pin after a fetch (the pin is on no fetched ref)"
+      return 0
+    fi
+    echo "FETCHED $name"
+  fi
+  echo "OK $name"
+}
+
+ensure_stores() {
+  local common
+  common="$(git -C "$ROOT" rev-parse --path-format=absolute --git-common-dir)" || return 1
+  local declared
+  if ! declared="$(declared_submodules)" || [ -z "$declared" ]; then
+    echo "init: FAIL — the declared submodule set could not be read from $ROOT/.gitmodules" >&2
+    return 1
+  fi
+  # The path -> NAME map, read ONCE. (A per-path `git config | awk '... exit'` lookup ended
+  # its pipe early: git took SIGPIPE, and under `pipefail` + `set -e` the whole run died with
+  # exit 141 after 15 s — measured.)
+  local -A name_of=()
+  local key value
+  while read -r key value; do
+    key="${key#submodule.}"
+    name_of["$value"]="${key%.path}"
+  done < <(git -C "$ROOT" config -f "$ROOT/.gitmodules" --get-regexp '^submodule\..*\.path$')
+  local results
+  results="$(mktemp -d)"
+  local path name url pin running=0 n=0
+  while IFS= read -r path; do
+    [ -n "$path" ] || continue
+    name="${name_of[$path]:-}"
+    if [ "$name" != "$path" ]; then
+      echo "FAIL $path: its submodule NAME is '$name' — the DESIGN store resolver reads modules/<path>, so a name that differs from its path is unsupported" >"$results/$n"
+      n=$((n + 1))
+      continue
+    fi
+    url="$(git -C "$ROOT" config -f "$ROOT/.gitmodules" --get "submodule.$name.url")"
+    pin="$(recorded_gitlink "$path")"
+    if [ -z "$pin" ]; then
+      echo "FAIL $path: no gitlink is recorded in the index" >"$results/$n"
+      n=$((n + 1))
+      continue
+    fi
+    ensure_one_store "$name" "$url" "$pin" "$common/modules/$name" >"$results/$n" &
+    n=$((n + 1))
+    running=$((running + 1))
+    if [ "$running" -ge "$JOBS" ]; then
+      wait -n || true
+      running=$((running - 1))
+    fi
+  done <<<"$declared"
+  wait
+  local created fetched failed ok
+  created="$(cat "$results"/* | grep -c '^CREATED ' || true)"
+  fetched="$(cat "$results"/* | grep -c '^FETCHED ' || true)"
+  ok="$(cat "$results"/* | grep -c '^OK ' || true)"
+  failed="$(cat "$results"/* | grep '^FAIL ' | sed 's/^FAIL //' || true)"
+  rm -rf "$results"
+  if [ -n "$failed" ]; then
+    printf '%s\n' "$failed" | sed 's/^/init: FAIL — /' >&2
+    echo "init: stores — $ok of $n hold their pinned commit; $(printf '%s\n' "$failed" | grep -c .) failed (named above)" >&2
+    return 1
+  fi
+  echo "init: stores — all $n declared submodule(s) hold their pinned commit in $common/modules ($created created, $fetched fetched; no checkout was made)"
+}
+
 run_live() {
   # A --land child MUST NOT run the live path: the repair pass invokes this
   # script recursively, and a mode mix-up would fork-bomb. The guard is the
@@ -904,6 +1069,38 @@ run_live() {
     # nested pin stays unjudgeable (opencharly/opencharly#647).
     materialize_nested_level "$path" || bad_state=1
   done
+
+  # THE WORKING SET FOLLOWS A PULL — EVERY checkout, not only the requested set's
+  # (opencharly/opencharly#1155). A path materialized earlier (a past `CHARLY_INIT_PATHS`,
+  # an `all` wave, a session's need) that the derivation no longer names kept its OLD
+  # pin after a pull, and the tree then held a checkout the index disagreed with — the
+  # stale `plugin-marketplace` checkout of #1155, which the next pin check reported as
+  # someone's divergence. Every OTHER initialized path off its gitlink FOLLOWS when that
+  # is safe: a clean checkout that is a strict ancestor of its pin goes through the SAME
+  # advance. Anything else — its own uncommitted work, or a commit that is no ancestor —
+  # is left untouched with a NOTICE, never a failure: a path outside the requested set
+  # is not this run's to judge (the self-test's diverged `extra` path holds that line).
+  # ONE non-recursive `submodule status` reads them all.
+  #
+  # A caller that NAMES its paths gets exactly those (the "NAMED paths win" rule
+  # above): the follow belongs to the runs that own the whole tree — the working-set
+  # run (`bootstrap.sh`, `charly task init`, `charly task worktree`) and `--all`.
+  local -A requested=()
+  for path in "${want[@]}"; do
+    requested["$path"]=1
+  done
+  local line flag rest extra_path
+  if [ "${#PATHS[@]}" -eq 0 ]; then
+    while IFS= read -r line; do
+      flag="${line:0:1}"
+      [ "$flag" = "+" ] || continue
+      rest="${line:1}"
+      rest="${rest#* }"
+      extra_path="${rest% (*}"
+      [ -z "${requested[$extra_path]:-}" ] || continue
+      follow_path "$extra_path" || bad_state=1
+    done < <(git -C "$ROOT" submodule status 2>/dev/null)
+  fi
   [ "$bad_state" -eq 0 ] || return 1
 
   # The VERDICT counts what is really on disk, not what HEAD claims. This is
@@ -920,8 +1117,13 @@ run_live() {
     fi
   done
   [ "$initialized" -eq "${#want[@]}" ] || return 1
+  # The notice counts what is ON DISK, not what was requested: the requested set is a
+  # floor, and a path checked out earlier stays checked out, so "declared minus
+  # requested" overstated the unchecked-out paths in any tree that had more.
+  local unchecked
+  unchecked="$(git -C "$ROOT" submodule status 2>/dev/null | grep -c '^-' || true)"
   echo "init: OK — ${initialized} of ${#want[@]} requested path(s) are materialized at their recorded gitlinks"
-  echo "init: notice — $((total - ${#want[@]})) of $total declared submodule path(s) have no checkout; their pin is still audited from the index (uninitialized, not a failure)"
+  echo "init: notice — ${unchecked} of $total declared submodule path(s) have no checkout; their pin is still audited from the index (uninitialized, not a failure)"
 }
 
 # ── the self-test ───────────────────────────────────────────────────────────────
@@ -1243,6 +1445,23 @@ other"
     echo "  PASS  a checkout behind its recorded gitlink is advanced to it"
   else
     echo "  FAIL  a checkout behind its recorded gitlink was not advanced (rc=$out_rc, HEAD $advanced_sha != $head_sha): $out" >&2
+    fails=$((fails + 1))
+  fi
+
+  # ── claim 9b: the WORKING SET FOLLOWS A PULL — a checkout OUTSIDE the derived set ──
+  # ──          that is a clean strict ancestor of its moved gitlink advances, and the ──
+  # ──          closing notice counts what is ON DISK (opencharly/opencharly#1155) ─────
+  # `skipped` is not derived (the fixture gate only CITES it), but claim 6's --all run
+  # checked it out. Its gitlink moves the way a pull moves it; the working-set run must
+  # bring it along, and with every path checked out the notice must count NONE missing.
+  git -C "$fixture" update-index --cacheinfo "160000,$head_sha,skipped"
+  out="$(bash "$SCRIPT" --root "$fixture" 2>&1)" && out_rc=0 || out_rc=$?
+  local followed_sha
+  followed_sha="$(git -C "$fixture/skipped" rev-parse HEAD 2>/dev/null || true)"
+  if [ "$out_rc" -eq 0 ] && [ "$followed_sha" = "$head_sha" ] && grep -q 'notice — 0 of 6 declared' <<<"$out"; then
+    echo "  PASS  a checkout outside the derived set follows its moved gitlink, and the notice counts the checkouts on disk"
+  else
+    echo "  FAIL  the working set did not follow a pull (rc=$out_rc [must be 0], skipped HEAD '$followed_sha' [must be $head_sha], the notice must count 0 of 6 unchecked): $out" >&2
     fails=$((fails + 1))
   fi
 
@@ -1706,6 +1925,46 @@ other"
     fails=$((fails + 1))
   fi
 
+  # ── claim 26: --stores gives EVERY declared path its store at its pin, with NO ──
+  # ──          checkout (opencharly/opencharly#1155) ───────────────────────────────
+  # A plain clone of the fixture superproject: gitlinks, no submodule at all. The DESIGN
+  # gate reads every pin from `<git-common-dir>/modules/<path>`; --stores must create
+  # each one there, hold its pinned commit, and leave every path uninitialized.
+  local s_root="$BASE/stores-clone"
+  git clone -q "$fixture" "$s_root" >/dev/null 2>&1
+  out="$(bash "$SCRIPT" --root "$s_root" --stores 2>&1)" && out_rc=0 || out_rc=$?
+  local s_ok=1 s_path s_pin
+  for s_path in core extra corpus other skipped gated; do
+    s_pin="$(git -C "$s_root" ls-files -s -- "$s_path" | awk '{print $2}')"
+    git --git-dir "$s_root/.git/modules/$s_path" cat-file -e "$s_pin^{commit}" 2>/dev/null || s_ok=0
+  done
+  local s_unchecked
+  s_unchecked="$(git -C "$s_root" submodule status | grep -c '^-' || true)"
+  if [ "$out_rc" -eq 0 ] && [ "$s_ok" -eq 1 ] && [ "$s_unchecked" = "6" ] \
+    && [ "$(git --git-dir "$s_root/.git/modules/core" config --get core.bare)" = "false" ]; then
+    echo "  PASS  --stores gives every declared path its store at its pin, with no checkout"
+  else
+    echo "  FAIL  --stores did not make every store (rc=$out_rc [must be 0], every pin present [$s_ok, must be 1], unchecked paths $s_unchecked [must be 6], core.bare must be false): $out" >&2
+    fails=$((fails + 1))
+  fi
+
+  # ── claim 27: a LINKED WORKTREE borrows its submodule objects from the stores ──
+  # Its submodule git dirs are its own (`<git-dir>/modules/`), so without the borrow
+  # every worktree re-downloads its working set; with it, each clone records a Git
+  # ALTERNATE pointing at the common store.
+  local w_root="$BASE/stores-worktree"
+  git -C "$s_root" worktree add -q --detach "$w_root" >/dev/null 2>&1
+  out="$(bash "$SCRIPT" --root "$w_root" --paths core 2>&1)" && out_rc=0 || out_rc=$?
+  local w_gitdir w_alt
+  w_gitdir="$(git -C "$w_root" rev-parse --absolute-git-dir 2>/dev/null || true)"
+  w_alt="$(cat "$w_gitdir/modules/core/objects/info/alternates" 2>/dev/null || true)"
+  if [ "$out_rc" -eq 0 ] && [ "$w_alt" = "$s_root/.git/modules/core/objects" ]; then
+    echo "  PASS  a linked worktree's submodule records an alternate to the common store"
+  else
+    echo "  FAIL  a linked worktree did not borrow from the common store (rc=$out_rc [must be 0], alternates '$w_alt' [must be $s_root/.git/modules/core/objects]): $out" >&2
+    fails=$((fails + 1))
+  fi
+
   if [ "$fails" -ne 0 ]; then
     echo "init-submodules --self-test: FAIL ($fails)" >&2
     return 1
@@ -1715,6 +1974,7 @@ other"
 
 case "$MODE" in
   self-test) run_self_test ;;
+  stores) ensure_stores ;;
   land) land_pin "$LAND" ;;
   check)
     if is_materialized "$CHECK"; then
