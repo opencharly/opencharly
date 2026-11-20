@@ -29,7 +29,7 @@
 # system's published schema (the egress vendoring pipeline) instead of a shape of charly's own; the
 # run reports how many files it left out, so the boundary is visible rather than silent.
 #
-# THE CENSUS. The tree carries known violations today — the §10.1 rewrite is TODO.md 2.16 — and a
+# THE CENSUS. The tree carries known violations today — the §10.1 rewrite is D-PAT-1..4 — and a
 # gate that is red on landing enforces nothing, so `design/dpat-baseline.tsv` records them as a
 # census: one row per (file, rule, symbol) with the count of occurrences. The check tolerates
 # exactly what the census records, reports each tolerated violation as known and names the issue
@@ -463,7 +463,7 @@ baseline_header() {
 # no `// S10`), D-PAT-2's one-name-one-home (a top-level definition declared in a second pinned
 # module), and D-PAT-3's no-union-written-out (a `|` disjunction outside `or(...)`, other than the
 # two-value literal default). The tree carries violations of all three today — the §10.1 rewrite is
-# TODO.md 2.16 — and a gate that is red on landing enforces nothing, so they are recorded here as a
+# D-PAT-1..4 — and a gate that is red on landing enforces nothing, so they are recorded here as a
 # census: the gate is green on this tree, and red on every new violation. DESIGN.md A.11 states
 # which half of D-PAT-2 and D-PAT-3 is NOT decidable from this text and why.
 #
