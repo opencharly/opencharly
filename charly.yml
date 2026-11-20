@@ -42,6 +42,11 @@ import:
     # out-of-tree command plugin. A DISTINCT key, because the namespace is the key and
     # `strata` is taken above.
     - strata-cli: ./plugin-strata
+    # opencharly/pod-kde-vnc — the kde-vnc POD: the `kde-vnc` image (base `pod-cdi.pod-cdi`,
+    # the CDI GPU pod contract) serving a fullscreen GPU-accelerated KDE Plasma over VNC, and
+    # its bed `kde-vnc.check-kde-vnc-pod` (opencharly/opencharly#1171). The namespace is THIS
+    # key; the version rides the GITLINK.
+    - kde-vnc: ./pod-kde-vnc
 defaults:
     platform:
         - linux/amd64

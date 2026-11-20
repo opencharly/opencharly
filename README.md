@@ -47,7 +47,7 @@ its change class, and by an independent fresh `charly/pr-validator` after the pu
 
 ## This repo: one clone of the whole org
 
-`opencharly/opencharly` is the org-level **umbrella**: every OpenCharly repo (398 today) is pinned
+`opencharly/opencharly` is the org-level **umbrella**: every OpenCharly repo (399 today) is pinned
 here as a git submodule — a "gitlink" — flat at the root, so the submodule path equals the repo
 name for all but one alias: `.github` is pinned at the `dotgithub/` path.
 
@@ -210,7 +210,7 @@ rule, and the class prefix in the repo name states it. The rule itself is stated
 | package repositories | `charly-`, `pkg-` | 10 | the published native package repos, the packaging sources they are built from, and the plugin that generates them |
 | candy layers | `layer-` | 161 | ONE candy with its own files beside it — and for a family, its box, VM and beds |
 | plugins | `plugin-` | 119 | the provider candy: the words charly speaks — kinds, deploys, verbs, steps, builders, commands, engines |
-| pods | `pod-` | 73 | a candy with a `service:`, i.e. something that runs |
+| pods | `pod-` | 74 | a candy with a `service:`, i.e. something that runs |
 | virtual machines | `vm-` | 2 | `kind: vm` definitions for a family that has no image repo |
 | product and tooling | bare or product-specific | 13 | appliances, the org's review action, vendored upstream forks |
 | pi packages | `pi-`, `rpiv-` | 4 | vendored pi agent packages and extensions |
@@ -784,7 +784,7 @@ a scannable index. Their themes:
 
 ### Pods: Desktops and compositors
 
-13 repos — the streaming desktops and the bars/pickers/notifiers around them.
+14 repos — the streaming desktops and the bars/pickers/notifiers around them.
 
 | path | repo |
 |---|---|
@@ -792,6 +792,7 @@ a scannable index. Their themes:
 | `pod-hyprland/` | [opencharly/pod-hyprland](https://github.com/opencharly/pod-hyprland) |
 | `pod-kde-desktop/` | [opencharly/pod-kde-desktop](https://github.com/opencharly/pod-kde-desktop) |
 | `pod-kde-selkies/` | [opencharly/pod-kde-selkies](https://github.com/opencharly/pod-kde-selkies) |
+| `pod-kde-vnc/` | [opencharly/pod-kde-vnc](https://github.com/opencharly/pod-kde-vnc) |
 | `pod-labwc/` | [opencharly/pod-labwc](https://github.com/opencharly/pod-labwc) |
 | `pod-selkies/` | [opencharly/pod-selkies](https://github.com/opencharly/pod-selkies) |
 | `pod-selkies-core/` | [opencharly/pod-selkies-core](https://github.com/opencharly/pod-selkies-core) |
