@@ -38,6 +38,15 @@
 #   * FEWER — the census overstates the debt, so it is lowered in the change that fixes it. That
 #     is what makes "the census must reach zero" true instead of aspirational: the last row
 #     deleted leaves a plain check with nothing to tolerate.
+#
+# `design/dpat-baseline.tsv` is FROZEN: it may only shrink. New known debt enters through
+# `design/dpat-admission.tsv`, one row per (file, rule, symbol) with WHY it cannot be retired yet
+# and the ISSUE that retires it; the check merges the two into one census. That is how a pin
+# advance that surfaces an upstream shape — spec#402's `os:`/`source:` defs mirrored by
+# plugin-distro's parity-guarded schema, or a value union `or()` cannot express (spec#385) —
+# enters with its reason on the record instead of being blessed in the dark or blocking the pin.
+# An admission row that no finding needs, a key present in BOTH files, and a row with no why or
+# no issue are each findings.
 # The line a violation sits on is NOT part of a row's key: an edit that shifts a known violation
 # must not turn the gate red, and a new violation landing on a tolerated line must not be blessed.
 #
@@ -72,6 +81,7 @@ for arg in "$@"; do
 	esac
 done
 BASELINE="$ROOT/design/dpat-baseline.tsv"
+ADMISSION="$ROOT/design/dpat-admission.tsv"
 # The pinned module's object store, resolved the way GIT resolves it: a linked worktree keeps its
 # submodule repositories under `<git-common-dir>/worktrees/<name>/modules/<path>`, so a store
 # assumed to be `<git-common-dir>/modules/<path>` cannot read a pin advanced inside a session
@@ -380,12 +390,15 @@ finish_dup() {
 }
 
 # ── the census ────────────────────────────────────────────────────────────────────────────────
-# census <findings> <baseline> <fail-out> <known-out> — compare the findings with the census. A
-# finding within its count is KNOWN and is written to <known-out>; anything else, in either
-# direction, is a FAIL line. A malformed census row and a missing header are FAIL lines too.
+# census <findings> <baseline> <admission> <fail-out> <known-out> — compare the findings with the
+# census. The census is the FROZEN baseline plus the admissions, and both are one row per
+# (file, rule, symbol) with a COUNT: the baseline may only shrink, and an admission carries the WHY
+# it cannot be retired yet and the ISSUE that retires it. A finding within its count is KNOWN and is
+# written to <known-out>; anything else, in either direction, is a FAIL line. A malformed row, a key
+# present in both files, and an admission no finding needs are FAIL lines too.
 census() {
 	awk -F'\t' \
-		-v fail="$3" -v known="$4" \
+		-v fail="$4" -v known="$5" -v adm="${3:-}" \
 		-v catalogue="$(catalogue)" '
 	BEGIN {
 		OFS = "\t"
@@ -395,6 +408,34 @@ census() {
 		for (i = 1; i <= n; i++) {
 			k = index(line[i], "=")
 			if (k > 0) T[substr(line[i], 1, k - 1)] = substr(line[i], k + 1)
+		}
+		# the admission ledger: the ONLY way new known debt enters. Read here so the baseline pass
+		# below can refuse a key that lives in both files — one row, one home.
+		anc = 0
+		if (adm != "") {
+			while ((rc = (getline aline < adm)) > 0) {
+				anc++
+				if (aline ~ /^#/ || aline == "") continue
+				split(aline, a, "\t")
+				if (a[1] == "file" && a[2] == "rule" && a[3] == "symbol" && a[4] == "count") { ahdr = 1; continue }
+				if (length(a) != 6 || a[4] !~ /^[0-9]+$/ || a[5] == "" || a[6] == "") {
+					printf "FAIL design/dpat-admission.tsv:%d: a row is file, rule, symbol, count, why, issue; this row is not\n", anc > fail
+					continue
+				}
+				if (a[6] !~ /#[0-9]+$/) {
+					printf "FAIL design/dpat-admission.tsv:%d: the issue column names no owner/repo#<n>\n", anc > fail
+					continue
+				}
+				ak = a[1] SUBSEP a[2] SUBSEP a[3]
+				if (ak in awant) {
+					printf "FAIL design/dpat-admission.tsv:%d: a second admission for %s %s in %s\n", anc, a[2], a[3], a[1] > fail
+					continue
+				}
+				awant[ak] = a[4] + 0
+				admitfile[ak] = a[1]; admitrule[ak] = a[2]; admitsym[ak] = a[3]; admitissue[ak] = a[6]
+			}
+			close(adm)
+			if (anc > 0 && !ahdr) printf "FAIL design/dpat-admission.tsv: the documented header row (file, rule, symbol, count, why, issue) is missing\n" > fail
 		}
 	}
 	function text(r) { return (r in T) ? T[r] : ("an unknown rule " r) }
@@ -410,6 +451,10 @@ census() {
 			printf "FAIL design/dpat-baseline.tsv:%d: a second row for %s %s in %s\n", FNR, $2, $3, $1 > fail
 			next
 		}
+		if (k in awant) {
+			printf "FAIL design/dpat-baseline.tsv:%d: %s %s in %s is also admitted — one row, one home\n", FNR, $2, $3, $1 > fail
+			next
+		}
 		want[k] = $4 + 0; wfile[k] = $1; wrule[k] = $2; wsym[k] = $3
 		order[++n] = k
 		next
@@ -420,6 +465,7 @@ census() {
 		# within its count: KNOWN, and reported as such; beyond it: a new violation, with its line.
 		# A fifth field says WHY (the other homes of a duplicated name); only `dup` writes one.
 		if (seen[k] <= want[k] + 0) printf "%s\t%s\t%s\t%s\n", $1, $2, $3, $4 > known
+		else if (seen[k] <= awant[k] + 0) printf "%s\t%s\t%s\t%s\n", $1, $2, $3, $4 > known
 		else printf "FAIL %s:%s: %s: %s%s\n", $1, $2, $3, text($3), ($5 == "" ? "" : " — " $5) > fail
 	}
 	END {
@@ -431,6 +477,11 @@ census() {
 			if (seen[k] + 0 >= want[k]) continue
 			printf "FAIL design/dpat-baseline.tsv: still records %d x %s \"%s\" in %s and the tree has %d — lower it, the census must reach zero\n", \
 				want[k], wrule[k], wsym[k], wfile[k], seen[k] > fail
+		}
+		for (ak in awant) {
+			if (seen[ak] + 0 >= awant[ak]) continue
+			printf "FAIL design/dpat-admission.tsv: admits %d x %s \"%s\" in %s (%s) and the tree has %d — lower it or delete the admission\n", \
+				awant[ak], admitrule[ak], admitsym[ak], admitfile[ak], admitissue[ak], seen[ak] + 0 > fail
 		}
 	}
 	' "$2" "$1"
@@ -479,6 +530,13 @@ baseline_header() {
 #
 # `bash scripts/design-dpat.sh --emit-census` prints this file from the current pins; a regenerate
 # is a reviewed diff, because every row it drops is a violation somebody fixed.
+#
+# THIS FILE IS FROZEN: it may only shrink. New known debt — a shape an upstream pin brings in that
+# cannot be retired yet — enters through `design/dpat-admission.tsv`, one row per (file, rule,
+# symbol) with the same COUNT and two columns this file does not have: WHY it cannot be retired,
+# and the ISSUE that retires it. The check merges the two files into one census, refuses a key that
+# lives in both, and refuses an admission the tree no longer needs. `--emit-census` prints only
+# what THIS file records, so a new finding it reports is either fixed or admitted on the record.
 EOF
 	printf '# tracked-by: %s\n' "${1:-opencharly/opencharly#0 — filed before this gate landed}"
 	printf 'file\trule\tsymbol\tcount\n'
@@ -501,22 +559,22 @@ reconcile_markers() {
 	return 1
 }
 
-run_check() { # <stream file> <baseline> <fail-out> <known-out>
-	: >"$3"
+run_check() { # <stream file> <baseline> <admission> <fail-out> <known-out>
 	: >"$4"
+	: >"$5"
 	if [[ ! -f "$2" ]]; then
-		printf 'FAIL %s: the census is missing — the gate tolerates known violations only through it\n' "${2#"$ROOT"/}" >>"$3"
+		printf 'FAIL %s: the census is missing — the gate tolerates known violations only through it\n' "${2#"$ROOT"/}" >>"$4"
 		return 0
 	fi
 	scan "$1.defs" <"$1" >"$1.findings"
 	finish_dup "$1.defs" >>"$1.findings"
-	census "$1.findings" "$2" "$3" "$4"
+	census "$1.findings" "$2" "${3:-}" "$4" "$5"
 	if ! why=$(reconcile_markers "$1"); then
-		printf 'FAIL %s: %s\n' "${1##*/}" "$why" >>"$3"
+		printf 'FAIL %s: %s\n' "${1##*/}" "$why" >>"$4"
 	fi
 	local issue
 	issue=$(grep -m1 -E '^# tracked-by: ' "$2" | sed 's/^# tracked-by: *//')
-	[[ -n "$issue" ]] || printf 'FAIL %s: no "# tracked-by: <owner>/<repo>#<n>" line — the census must name the issue that retires it\n' "${2#"$ROOT"/}" >>"$3"
+	[[ -n "$issue" ]] || printf 'FAIL %s: no "# tracked-by: <owner>/<repo>#<n>" line — the census must name the issue that retires it\n' "${2#"$ROOT"/}" >>"$4"
 }
 
 summary() { # <known file> <issue>
@@ -531,6 +589,14 @@ summary() { # <known file> <issue>
 		"$MODULES" "$IN_SCOPE" "$SKIPPED"
 	printf 'design-dpat: %s known violations (%s) — tracked by %s\n' \
 		"$total" "$counts" "$2"
+	if [[ -f "$ADMISSION" ]]; then
+		local admitted issues
+		admitted=$(awk -F'\t' '!/^#/ && $1 != "file" && NF >= 6 { n++ } END { print n + 0 }' "$ADMISSION")
+		if [[ "$admitted" -gt 0 ]]; then
+			issues=$(awk -F'\t' '!/^#/ && $1 != "file" && NF >= 6 { print $6 }' "$ADMISSION" | sort -u | paste -sd, -)
+			printf 'design-dpat: %s known violation(s) admitted through design/dpat-admission.tsv — %s\n' "$admitted" "$issues"
+		fi
+	fi
 }
 
 # ── the self-test ────────────────────────────────────────────────────────────────────────────
@@ -602,7 +668,7 @@ EOF
 		IN_SCOPE=0
 		SKIPPED=0
 		stream_dir "$work/tree" >"$work/stream"
-		run_check "$work/stream" "$work/b/census.tsv" "$work/b/fail.$cases" "$work/b/known.$cases"
+		run_check "$work/stream" "$work/b/census.tsv" "$work/b/admission.tsv" "$work/b/fail.$cases" "$work/b/known.$cases"
 	}
 
 	fail_like() { # fail_like <name> <pattern>
@@ -765,7 +831,7 @@ EOF
 	printf '@@FILE\tfixture/schema/a.cue\n#A: {a: int}@@FILE\tfixture/schema/b.cue\n#B: close({\n})\n' >"$work/b/glued"
 	cases=$((cases + 1))
 	IN_SCOPE=2
-	run_check "$work/b/glued" "$work/b/census.tsv" "$work/b/fail.$cases" "$work/b/known.$cases"
+	run_check "$work/b/glued" "$work/b/census.tsv" "$work/b/admission.tsv" "$work/b/fail.$cases" "$work/b/known.$cases"
 	fail_like "a marker that does not start a line" 'marker\(s\) start a line'
 
 	# ── D-PAT-2: one name, one home
@@ -848,15 +914,64 @@ EOF
 	# a census with no tracked-by line names no owner for the debt
 	{ printf 'file\trule\tsymbol\tcount\n'; printf 'fixture/schema/ok.cue\tclose\t#Known: close({\t1\n'; } >"$work/b/untracked.tsv"
 	cases_up
-	run_check "$work/stream" "$work/b/untracked.tsv" "$work/b/fail.$cases" "$work/b/known.$cases"
+	run_check "$work/stream" "$work/b/untracked.tsv" "$work/b/admission.tsv" "$work/b/fail.$cases" "$work/b/known.$cases"
 	fail_like "a census that names no tracked issue" 'tracked-by'
 
 	# a missing baseline is a finding: a check cannot silently run with no census
 	cases_up
-	run_check "$work/stream" "$work/b/absent.tsv" "$work/b/fail.$cases" "$work/b/known.$cases"
+	run_check "$work/stream" "$work/b/absent.tsv" "$work/b/admission.tsv" "$work/b/fail.$cases" "$work/b/known.$cases"
 	fail_like "no census file at all" 'the census is missing'
 
-	printf 'design-dpat: self-test passed (%s cases; every rule, both census directions, and the boundary each fail when they must)\n' "$cases"
+	# ── the admission ledger: the ONLY way new known debt enters, and it carries why + issue
+	cat >>"$work/tree/fixture/schema/ok.cue" <<'EOF'
+
+#Admitted: close({
+	z?: int
+})
+EOF
+	printf '# design/dpat-admission.tsv — self-test fixture\n#\n# fixture rows\nfile\trule\tsymbol\tcount\twhy\tissue\n' >"$work/b/admission.tsv"
+	printf 'fixture/schema/ok.cue\tclose\t#Admitted: close({\t1\tthe shape lands at the pin and cannot be retired yet\tself-test/fixture#1\n' >>"$work/b/admission.tsv"
+	cases_up
+	pass_like "a violation the admission records"
+	if ! grep -q '^fixture/schema/ok.cue	.*	close	' "$work/b/known.$cases"; then
+		printf 'FAIL self-test: an admitted violation was not reported as known\n'
+		exit 1
+	fi
+
+	# an admission with no issue names nobody who retires it
+	printf 'fixture/schema/ok.cue\tclose\t#Admitted: close({\t1\tthe shape lands at the pin\t\n' >"$work/b/admission-bad.tsv"
+	printf 'file\trule\tsymbol\tcount\twhy\tissue\n' >>"$work/b/admission-bad.tsv"
+	cases_up
+	run_check "$work/stream" "$work/b/census.tsv" "$work/b/admission-bad.tsv" "$work/b/fail.$cases" "$work/b/known.$cases"
+	fail_like "an admission row with no issue" 'a row is file, rule, symbol, count, why, issue'
+
+	# an admission whose debt the tree no longer carries must be deleted, not left standing
+	printf 'fixture/schema/ok.cue\tclose\t#Gone: close({\t1\tdebt that was fixed\tself-test/fixture#2\n' >>"$work/b/admission.tsv"
+	cases_up
+	fail_like "an admission the tree no longer needs" 'delete the admission'
+	sed -i '$d' "$work/b/admission.tsv"
+
+	# a key in BOTH files has two homes: refuse it rather than count it twice
+	printf 'fixture/schema/ok.cue\tclose\t#Admitted: close({\t1\n' >>"$work/b/census.tsv"
+	cases_up
+	fail_like "a key present in both the census and the admissions" 'one row, one home'
+	sed -i '$d' "$work/b/census.tsv"
+
+	# a census may not hold un-admitted new debt: the same key with the admission withdrawn fails
+	mv "$work/b/admission.tsv" "$work/b/admission.off"
+	cases_up
+	fail_like "an admitted-looking finding with no admission row" 'ok.cue:[0-9]+: close:'
+	mv "$work/b/admission.off" "$work/b/admission.tsv"
+
+	# an admission file with rows but no header row cannot be read
+	{ printf 'fixture/schema/ok.cue\tclose\t#Admitted: close({\t1\tthe shape lands at the pin and cannot be retired yet\tself-test/fixture#1\n'; } >"$work/b/admission-nohdr.tsv"
+	cases_up
+	run_check "$work/stream" "$work/b/census.tsv" "$work/b/admission-nohdr.tsv" "$work/b/fail.$cases" "$work/b/known.$cases"
+	fail_like "an admission file with no header row" 'the documented header row'
+	rm -f "$work/b/admission.tsv"
+	head -n -3 "$work/tree/fixture/schema/ok.cue" >"$work/trim" && mv "$work/trim" "$work/tree/fixture/schema/ok.cue"
+
+	printf 'design-dpat: self-test passed (%s cases; every rule, both census directions, the admission ledger, and the boundary each fail when they must)\n' "$cases"
 }
 
 # ── the modes ────────────────────────────────────────────────────────────────────────────────
@@ -904,7 +1019,7 @@ stream_pins "$ROOT" >"$work/stream" || {
 	exit 1
 }
 scope || { printf 'design-dpat: FAILED — this run judged no schema\n'; exit 1; }
-run_check "$work/stream" "$BASELINE" "$work/fail" "$work/known"
+run_check "$work/stream" "$BASELINE" "$ADMISSION" "$work/fail" "$work/known"
 if [[ -s "$work/fail" ]]; then
 	# A finding is acted on only if the reader knows WHICH COMMIT was judged. The schema is read
 	# from the index gitlinks, never from a checkout, so each failing module pin is named beside

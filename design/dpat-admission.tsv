@@ -1,0 +1,28 @@
+# design/dpat-admission.tsv — the KNOWN schema-pattern debt that enters the census with its reason.
+#
+# `design/dpat-baseline.tsv` is the frozen census: it may only shrink. New known debt — a shape an
+# upstream pin brings in that cannot be retired yet — enters HERE instead, one row per
+# (file, rule, symbol) with the same COUNT as a census row plus two columns the census does not
+# have: WHY it cannot be retired, and the ISSUE that retires it (DESIGN.md A.11).
+#
+# `scripts/design-dpat.sh` merges this file into the census. It refuses a row with no why or no
+# issue, a key that also lives in the baseline (one row, one home), and an admission the tree no
+# longer needs. An admitted row is reported as known like any other, and this file's issues are
+# printed with the run's summary, so the debt and its owner are on the record.
+#
+# Columns: file, rule, symbol, count, why, issue.
+file	rule	symbol	count	why	issue
+plugin-distro/candy/plugin-distro/schema/os.cue	dup	#OsBootstrapper	1	one name, two homes: a pinned plugin's schema is compiled with nothing else in scope (DESIGN A.11), so it cannot import spec's def; the mirror is guarded by plugin-distro's parity test	opencharly/opencharly#945
+plugin-distro/candy/plugin-distro/schema/os.cue	dup	#OsInit	1	one name, two homes: a pinned plugin's schema is compiled with nothing else in scope (DESIGN A.11), so it cannot import spec's def; the mirror is guarded by plugin-distro's parity test	opencharly/opencharly#945
+plugin-distro/candy/plugin-distro/schema/os.cue	union	#OsPackageManager: *"dnf" | "apt" | "pacman" | "apk" | "zypper"	1	the mirror restates spec's default-bearing enumeration, which or() cannot express — measured: or([#OsPackage, #ManagerLocator]) accepts a non-matching value (spec#385)	opencharly/spec#385
+plugin-distro/candy/plugin-distro/schema/os.cue	union	firmware: *"uefi" | "bios" | "uefi_secure"	1	the mirror restates spec's default-bearing enumeration, which or() cannot express — measured: or([#OsPackage, #ManagerLocator]) accepts a non-matching value (spec#385)	opencharly/spec#385
+plugin-distro/candy/plugin-distro/schema/source.cue	dup	#SourceAlt	1	one name, two homes: a pinned plugin's schema is compiled with nothing else in scope (DESIGN A.11), so it cannot import spec's def; the mirror is guarded by plugin-distro's parity test	opencharly/opencharly#945
+plugin-distro/candy/plugin-distro/schema/source.cue	dup	#SourceBootstrap	1	one name, two homes: a pinned plugin's schema is compiled with nothing else in scope (DESIGN A.11), so it cannot import spec's def; the mirror is guarded by plugin-distro's parity test	opencharly/opencharly#945
+plugin-distro/candy/plugin-distro/schema/source.cue	dup	#SourceIso	1	one name, two homes: a pinned plugin's schema is compiled with nothing else in scope (DESIGN A.11), so it cannot import spec's def; the mirror is guarded by plugin-distro's parity test	opencharly/opencharly#945
+plugin-distro/candy/plugin-distro/schema/source.cue	open	config?: {...}	1	S10 foreign-owned: the installer's own answer file is passed through, not a charly shape — closing it would reject the installer's keys	opencharly/opencharly#945
+spec/schema/os.cue	dup	#OsBootstrapper	1	one name, two homes: a pinned plugin's schema is compiled with nothing else in scope (DESIGN A.11), so it cannot import spec's def; the mirror is guarded by plugin-distro's parity test	opencharly/opencharly#945
+spec/schema/os.cue	dup	#OsInit	1	one name, two homes: a pinned plugin's schema is compiled with nothing else in scope (DESIGN A.11), so it cannot import spec's def; the mirror is guarded by plugin-distro's parity test	opencharly/opencharly#945
+spec/schema/os.cue	union	#Package: #OsPackage | #ManagerLocator	1	#402's two-definition value union: a definition union with no table form cannot be written as a derivation, and or() is not equivalent (spec#385, measured)	opencharly/spec#385
+spec/schema/source.cue	dup	#SourceAlt	1	one name, two homes: a pinned plugin's schema is compiled with nothing else in scope (DESIGN A.11), so it cannot import spec's def; the mirror is guarded by plugin-distro's parity test	opencharly/opencharly#945
+spec/schema/source.cue	dup	#SourceBootstrap	1	one name, two homes: a pinned plugin's schema is compiled with nothing else in scope (DESIGN A.11), so it cannot import spec's def; the mirror is guarded by plugin-distro's parity test	opencharly/opencharly#945
+spec/schema/source.cue	dup	#SourceIso	1	one name, two homes: a pinned plugin's schema is compiled with nothing else in scope (DESIGN A.11), so it cannot import spec's def; the mirror is guarded by plugin-distro's parity test	opencharly/opencharly#945
