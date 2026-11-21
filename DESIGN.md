@@ -2690,7 +2690,8 @@ validated with `cue vet -d '#Document' DESIGN.cue charly.yml`, and a user config
 | `scripts/design-consistency.sh` | compares DESIGN.md with DESIGN.cue |
 | `scripts/design-examples.sh` | validates every example and every negative case |
 | `scripts/design-dpat.sh` | checks the schema patterns (D-PAT-1, D-PAT-2, D-PAT-3) in every pinned plugin CUE module, on the half of each the pinned CUE text decides (A.11) |
-| `design/dpat-baseline.tsv` | the census of the schema-pattern violations that gate tolerates, and the issue that retires it (A.11) |
+| `design/dpat-baseline.tsv` | the FROZEN census of the schema-pattern violations that gate tolerates, and the issue that retires it (A.11) |
+| `design/dpat-admission.tsv` | the known schema-pattern debt that enters the census later than the baseline, with WHY it cannot be retired yet and the issue that retires it (A.11) |
 | `scripts/design-pintag.sh` | answers, for every pin of the tree, whether it is at a tag or its untagged-ness is explained: a CHANGELOG commit above a tag, the tag-on-merge caller's birth, or a repository without one (A.12) |
 | `design/pintag-baseline.tsv` | the pins the pin-tag control records as untagged, and why, with the issue that retires the census (A.12) |
 | `design/example/load.cue` | the loader's view of a document (§11.1 stage 3, D-LOAD-5), in CUE |
@@ -3107,6 +3108,18 @@ strings removed and whitespace collapsed — so an edit that shifts a known viol
 gate red, and a new violation landing on a tolerated line cannot be blessed. `--emit-census` prints
 the file from the current pins, and its diff is reviewed like any other, because every row it drops
 is a violation somebody fixed.
+
+**New known debt enters through the admission ledger, with its reason.** The census above is
+FROZEN: it may only shrink, so a shape that a later pin brings in cannot be blessed by editing a
+count. `design/dpat-admission.tsv` is the second half: one row per file, rule and symbol with the
+same count, plus the WHY it cannot be retired yet and the ISSUE that retires it. The control merges
+the two files into one census and fails on a row with no why or no issue, on a key present in both
+(one row, one home), and on an admission the tree no longer carries. This is how a pin advance that
+surfaces an upstream shape enters the record instead of being silently blessed or blocking the pin:
+`spec`#402's `os:`/`source:` definitions, mirrored by plugin-distro's parity-guarded schema, are
+unretirable until the composition this section describes exists; and the value union in `#Package`
+is one of the four shapes CUE cannot derive (`opencharly/spec#385`). Every admitted row is reported
+as known, and the run's summary names the issues, so the debt and its owner stay on the record.
 
 **A duplicate row is retired by the composition, not by an edit here.** The one-home half is gated,
 but its rows retire in the repository that owns each declaration, and only once the schemas compose
