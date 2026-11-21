@@ -89,7 +89,6 @@ kind:hook	spec/schema/hook.cue	12-20	#Hook	a818367685f46363
 kind:resource	plugin-resource/candy/plugin-resource/schema/resource.cue	21-27	#ResourceInput	923be81c20e14952
 kind:sidecar	plugin-sidecar/candy/plugin-sidecar/schema/sidecar.cue	48-89	#ScSecurity	ba51088a37c53e10
 kind:skill	plugin-harness-kind/candy/plugin-harness-kind/schema/skill.cue	19-32	#SkillInput	faefee417399e060
-kind:skill	spec/schema/skill.cue	33-38	-	62a70d2225cf652c
 kind:theme	plugin-desktop-kind/candy/plugin-desktop-kind/schema/desktop.cue	16-69	#DkThemeTokens	dafbc7fdaa15f299
 krun annotations ram_mib/cpus	plugin-substrate/candy/plugin-substrate/schema/vm.cue	38-57	#Vm	061086d13962e77a
 krun annotations ram_mib/cpus	plugin-substrate/candy/plugin-substrate/schema/vm.cue	49-52	#Vm	4c898239aa75e026
