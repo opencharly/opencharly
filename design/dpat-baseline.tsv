@@ -34,7 +34,7 @@ plugin-builder/candy/plugin-builder/schema/builder.cue	union	#BdStrMap: {[string
 plugin-crabbox/candy/plugin-crabbox/schema/crabbox.cue	union	method: "version" | "providers" | "describe" | "config" | "doctor" | "health" | "ready" | "leases" | "usage" | "events" | "logs" | "containerd-preflight"	1
 plugin-crabbox/candy/plugin-crabbox/schema/crabbox.cue	open	containerd?: {...} @go(Containerd)	1
 plugin-crabbox/candy/plugin-crabbox/schema/crabbox.cue	open	firecracker?: {...} @go(Firecracker)	1
-plugin-cstream/candy/plugin-cstream/schema/cstream.cue	union	method: "status" | "login" | "frame"	1
+plugin-cstream/candy/plugin-cstream/schema/cstream.cue	union	method: "status" | "login" | "frame" | "type" | "key" | "move" | "click" | "scroll"	1
 plugin-cstream/candy/plugin-cstream/schema/cstream.cue	union	expect?: "accept" | "reject"	1
 plugin-dbus/candy/plugin-dbus/schema/dbus.cue	union	method: "list" | "call" | "introspect" | "notify"	1
 plugin-distro/candy/plugin-distro/schema/distro.cue	union	section_field?: {[string]: "list" | "list_of_maps"}	1
