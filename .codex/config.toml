@@ -6,6 +6,9 @@ sandbox_mode = "workspace-write"
 approval_policy = "on-request"
 approvals_reviewer = "auto_review"
 
+# Allow the umbrella rulebook and nested repositories' instructions to load together.
+project_doc_max_bytes = 262144
+
 # OpenCharly has a large curated skill catalog. Use Codex's documented maximum
 # catalog budget; the AGENTS.md dispatcher remains the reliable selector.
 [skills]

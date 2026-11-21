@@ -1022,7 +1022,7 @@ export PATH="$PWD/charly/bin:$PATH"    # from here on this page reads `charly â€
 | `./charly/scripts/bootstrap-charly.sh` | build `charly/bin/charly` from the checkout |
 | `charly task hooks` | install this clone's git hooks (pre-commit, pre-push) |
 | `node scripts/sync-skill-bindings.mjs --check --require-corpus` | assert that the committed harness skill bindings (the `.dsh/skills` farm, `reasonix.toml`'s `[skills] paths`, `.claude/settings.json`'s `enabledPlugins`) are the derivation of the pinned corpus |
-| harness install records | for each harness CLI on `PATH`: Claude Code registers the marketplaces `extraKnownMarketplaces` names and installs every `enabledPlugins` key at project scope; Codex registers the `charly-plugins` marketplace. opencode, pi, reasonix and DSH read the committed config and the corpus, so they need no install step |
+| harness install records | for each harness CLI on `PATH`: Claude Code registers the marketplaces `extraKnownMarketplaces` names and installs every `enabledPlugins` key at project scope; Codex registers or refreshes the `charly-plugins` marketplace, installs its declared default plugins, and verifies that each is enabled. opencode, pi, reasonix and DSH read the committed config and the corpus, so they need no install step |
 
 The last step exists because **enabling a plugin does not install it**. Claude Code loads a
 plugin's skills only when its per-user plugin registry also holds an install record for this
