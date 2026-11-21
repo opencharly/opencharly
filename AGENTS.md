@@ -510,10 +510,15 @@ Before declaring completion, answer every applicable item YES.
 5. **Harness config lives only in the umbrella — and a skill lives with the thing it describes.**
    *(R2)* Every harness's configuration lives at this repo's root and nowhere else. A skill's
    `SKILL.md` and an agent definition's `<name>.md` are authored content under the `.agents/`
-   trees of the repo that owns them. **Which repo owns a skill is decided by what the repo
-   CONTAINS:** a skill lives with the code, plugin or config it describes; a general-guidance
+   trees of the repo that owns them, **at that repo's ROOT** — never inside the candy's own
+   directory, which the collector does not read. **Which repo owns a skill is decided by what the
+   repo CONTAINS:** a skill lives with the code, plugin or config it describes; a general-guidance
    skill, or one whose config home cannot author skills (`opencharly/.github`, the bounded
-   exception of opencharly/opencharly#611), lives in this umbrella. A binding that bridges a
+   exception of opencharly/opencharly#611), lives in this umbrella. **And the `owner:` rule binds
+   it:** the node names a candy DEFINED IN THE SAME REPO as the body — a foreign owner (a pod
+   naming a `layer-*` candy it composes by ref) is a load error, so a box, pod or VM repo that
+   wants its own skill declares a candy of its own, and one that does not carries the node only
+   with the body in the candy's repo. A binding that bridges a
    harness to the corpus is DERIVED from the pinned corpus, never hand-maintained. *Detail:*
    `/charly-internals:skills`, `/charly-internals:agents`.
 
