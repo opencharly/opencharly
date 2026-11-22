@@ -63,8 +63,9 @@
 //      `version`, `stateSchemaVersion`, `protocolVersion:"2"`, string
 //      `tools`; no `capabilities`).                              [discriminating]
 //  11. The PR watcher is bound per harness (reasonix, pi, DSH).      [discriminating]
-//  12. The R0 dispatcher table resolves to real skills and the
-//      unrouted-skill count holds under its ratchet.                 [structural]
+//  12. The R0 dispatcher table resolves to real skills, every skill a
+//      root .md routes to resolves, and the unrouted-skill count
+//      holds under its ratchet.                                      [structural]
 //  13. The DSH arm's .dsh/skills farm IS its derivation from the corpus
 //      (scripts/sync-skill-bindings.mjs --only farm), every entry is a
 //      symlink, and the README signpost is present.               [discriminating]
@@ -283,6 +284,8 @@ if (argv.includes("--self-test")) {
     // (b) RATCHET: deleting a row leaves its skill unrouted, pushing the count past the
     //     ceiling. This is the arm that makes the gate able to fail at all.
     ["marketplace/DISPATCHER.md", (p) => writeFileSync(p, readFileSync(p, "utf8").replace(/^\| .+ \| `\/charly-check:check` \|$\n/m, "")), "dispatcher coverage ratchet holds", "12 (the ratchet — dropping a row must FAIL, or the gate cannot notice coverage loss)", true],
+    // (c) INVARIANT: a skill the hand-curated AGENTS.md table routes to must exist in the corpus.
+    ["AGENTS.md", (p) => writeFileSync(p, readFileSync(p, "utf8").replace("`/charly-internals:git-workflow`", "`/charly-internals:no-such-skill`")), "every skill a root .md routes to resolves", "12 (a root-document route must resolve — the hand-curated-table arm)", true],
     // The DSH arm has three surfaces, so it needs three mutations plus the
     // corpus-level collision arm (the property a flat name-keyed farm can lose).
     [".dsh/watch.items", (p) => rmSync(p), "(the DSH watch binding) exists", "11 (DSH arm — a harness with no watch binding must FAIL)"],
@@ -775,7 +778,7 @@ ok(existsSync(join(root, ".dsh/watch.items")), ".dsh/watch.items (the DSH watch 
 // 12. Dispatcher coverage: the R0 dispatcher table in `marketplace/DISPATCHER.md` is the
 //     routing half of the corpus, emitted one row per `type: skill` entity carrying a
 //     `triggers:` list (see `plugin-marketplace/candy/plugin-marketplace/emit_dispatcher.go`).
-//     Two assertions, and they catch DIFFERENT defects:
+//     Three assertions, and they catch DIFFERENT defects ((c) is written beside (a), below):
 //       (a) INVARIANT — every emitted row resolves to a real `marketplace/<family>/skills/
 //           <name>/SKILL.md`. A row pointing at a deleted or renamed skill is a dangling
 //           `/charly-<family>:<skill>` reference, which BREAKS the docs build (an
@@ -807,6 +810,27 @@ ok(existsSync(join(root, ".dsh/watch.items")), ".dsh/watch.items (the DSH watch 
       dangling.length === 0,
       `every DISPATCHER.md row resolves to a marketplace/<family>/skills/<name>/SKILL.md ` +
         `(dangling: ${dangling.map((d) => `${d.family}:${d.name}`).join(", ") || "none"})`,
+    );
+
+    // (c) every skill a hand-authored root document routes to resolves, by the same rule as (a).
+    //     The R0 table in AGENTS.md is hand-curated OUTSIDE the generated markers, so (a) never
+    //     reads it: `/charly-tools:generate-podcast` sat in that table for six weeks while the
+    //     pinned corpus had no such skill (opencharly/opencharly#1226).
+    const rootRefs = [];
+    for (const f of readdirSync(root).filter((n) => n.endsWith(".md")).sort()) {
+      readFileSync(join(root, f), "utf8").split("\n").forEach((line, i) => {
+        for (const m of line.matchAll(/\/charly-([a-z0-9-]+):([a-z0-9-]+)/g)) {
+          rootRefs.push({ where: `${f}:${i + 1}`, family: m[1], name: m[2] });
+        }
+      });
+    }
+    const unresolved = rootRefs.filter(
+      (r) => !existsSync(join(root, "marketplace", r.family, "skills", r.name, "SKILL.md")),
+    );
+    ok(
+      unresolved.length === 0,
+      `every skill a root .md routes to resolves in the pinned corpus (${rootRefs.length} refs; ` +
+        `dangling: ${unresolved.map((d) => `${d.where} /charly-${d.family}:${d.name}`).join(", ") || "none"})`,
     );
 
     // (b) the ratchet: unrouted corpus skills may not exceed the recorded ceiling.

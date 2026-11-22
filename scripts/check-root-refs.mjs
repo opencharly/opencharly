@@ -21,13 +21,17 @@
 //      (A canonical missing at the root is check 1's failure, so this walk does not
 //      duplicate it — that would be dead weight, not a second witness.)
 //                                                                          [discriminating]
+//   3. Every `*.md` at the umbrella root other than AGENTS.md itself is named in AGENTS.md's
+//      "Where things are documented" section, so the rulebook points at every root document
+//      (opencharly/opencharly#1226: six of them were named nowhere in it).
+//                                                                          [discriminating]
 //
 // Usage:
 //   node scripts/check-root-refs.mjs                 # check this tree
 //   node scripts/check-root-refs.mjs --root <dir>    # check another tree
 //   node scripts/check-root-refs.mjs --self-test     # prove it discriminates
 
-import { existsSync, readFileSync, mkdtempSync, writeFileSync, mkdirSync, rmSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, mkdtempSync, writeFileSync, mkdirSync, rmSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join, resolve } from "node:path";
 import { tmpdir } from "node:os";
@@ -60,6 +64,17 @@ const SURFACES = [
 // 2026.277.1539.md) are deliberately NOT matched — they are not root-narrative
 // references.
 const REF = /(?:^|[\s`'"([{<])((?:[A-Za-z0-9._-]+\/)*)([A-Z][A-Z0-9_-]*)\.md\b/g;
+
+// The AGENTS.md section that maps every root document (check 3): from its heading to the next
+// heading of the same or a higher level, or the end of the file.
+const DOCS_HEADING = "## Where things are documented";
+function docsSection(agents) {
+  const start = agents.indexOf(`\n${DOCS_HEADING}\n`);
+  if (start < 0) return null;
+  const body = agents.slice(start + DOCS_HEADING.length + 2);
+  const end = body.search(/^#{1,2} /m);
+  return end < 0 ? body : body.slice(0, end);
+}
 
 // check(dir) — the ONE implementation. `dir` defaults to the resolved root; the
 // self-test drives the SAME code path against a mutated temp tree.
@@ -104,6 +119,21 @@ function check(dir = root) {
     }
   }
 
+  // Check 3 — every root document is named in AGENTS.md's documentation map.
+  const agentsPath = join(dir, "AGENTS.md");
+  if (existsSync(agentsPath)) {
+    const section = docsSection(readFileSync(agentsPath, "utf8"));
+    if (section === null) {
+      failures.push(`AGENTS.md: no "${DOCS_HEADING}" section — the rulebook must map every root document`);
+    } else {
+      for (const name of readdirSync(dir).filter((n) => n.endsWith(".md") && n !== "AGENTS.md").sort()) {
+        if (!section.includes(name)) {
+          failures.push(`AGENTS.md: root document \`${name}\` is not named in "${DOCS_HEADING}"`);
+        }
+      }
+    }
+  }
+
   return failures;
 }
 
@@ -113,7 +143,7 @@ function report(failures) {
     console.error(`check-root-refs: ${failures.length} failure(s)`);
     return 1;
   }
-  console.log(`check-root-refs: OK — ${CANONICAL.length} canonical root narratives present; every root-file reference in the agent surfaces resolves`);
+  console.log(`check-root-refs: OK — ${CANONICAL.length} canonical root narratives present; every root-file reference in the agent surfaces resolves; every root document is named in AGENTS.md "${DOCS_HEADING}"`);
   return 0;
 }
 
@@ -139,9 +169,14 @@ function selfTest() {
     if (good) ok++; else bad++;
   };
 
+  // Every AGENTS.md fixture carries the documentation map naming the canonical narratives, so
+  // check 3 is satisfied unless a mutation targets it.
+  const map = `\n${DOCS_HEADING}\n\n${CANONICAL.map((n) => `- \`${n}\``).join("\n")}\n`;
+  const agents = (body) => write("AGENTS.md", `${body}\n${map}`);
+
   // baseline: narratives present, AGENTS.md references a bare SOUL.md → GREEN
   for (const n of CANONICAL) write(n, `# ${n}\n`);
-  write("AGENTS.md", "read `SOUL.md` first\n");
+  agents("read `SOUL.md` first");
   expect("baseline: narratives + a bare ref present", false);
 
   // mutation 1 — check 1: remove SOUL.md → RED (canonical missing at root)
@@ -150,17 +185,27 @@ function selfTest() {
   write("SOUL.md", "# SOUL\n");
 
   // mutation 2 — check 2 STALE arm: a prefixed ref whose file is at the umbrella root
-  write("AGENTS.md", "read `charly/SOUL.md` first\n");
+  agents("read `charly/SOUL.md` first");
   expect("stale charly/SOUL.md reference (STALE arm)", true);
 
   // mutation 3 — SCOPING: a non-canonical uppercase ref (`SKILL.md`) and a prefixed
   // non-narrative ref (`charly/AGENTS.md`) must NOT fire (the false positives the first
   // implementation produced). All narratives stay at root → expected GREEN.
-  write("AGENTS.md", "see `SKILL.md` and `charly/AGENTS.md`\n");
+  agents("see `SKILL.md` and `charly/AGENTS.md`");
   expect("non-narrative refs are ignored (scoping)", false);
 
-  // restored correct tree → GREEN
+  // mutation 4 — check 3: a root document the map does not name → RED
+  agents("read `SOUL.md` first");
+  write("EXTRA.md", "# EXTRA\n");
+  expect("root document EXTRA.md not named in the map (check 3)", true);
+  rmSync(join(tmp, "EXTRA.md"));
+
+  // mutation 5 — check 3: the map section itself is gone → RED
   write("AGENTS.md", "read `SOUL.md` first\n");
+  expect("AGENTS.md without the documentation map (check 3)", true);
+
+  // restored correct tree → GREEN
+  agents("read `SOUL.md` first");
   expect("restored correct tree", false);
 
   rmSync(tmp, { recursive: true, force: true });
