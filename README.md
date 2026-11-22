@@ -47,7 +47,7 @@ its change class, and by an independent fresh `charly/pr-validator` after the pu
 
 ## This repo: one clone of the whole org
 
-`opencharly/opencharly` is the org-level **umbrella**: every OpenCharly repo (399 today) is pinned
+`opencharly/opencharly` is the org-level **umbrella**: every OpenCharly repo (398 today) is pinned
 here as a git submodule — a "gitlink" — flat at the root, so the submodule path equals the repo
 name for all but one alias: `.github` is pinned at the `dotgithub/` path.
 
@@ -826,7 +826,7 @@ a scannable index. Their themes:
 
 ### Pods: AI and ML services
 
-16 repos — the CDI GPU pod base box, inference servers, notebook servers, the photo library with its ML backend, the model trainers, and the agent front-ends that talk to them.
+15 repos — the CDI GPU pod base box, inference servers, notebook servers, the photo library with its ML backend, the model trainers, and the agent front-ends that talk to them.
 
 | path | repo |
 |---|---|
@@ -836,7 +836,6 @@ a scannable index. Their themes:
 | `pod-hermes/` | [opencharly/pod-hermes](https://github.com/opencharly/pod-hermes) |
 | `pod-hermes-full/` | [opencharly/pod-hermes-full](https://github.com/opencharly/pod-hermes-full) |
 | `pod-immich/` | [opencharly/pod-immich](https://github.com/opencharly/pod-immich) |
-| `pod-immich-ml/` | [opencharly/pod-immich-ml](https://github.com/opencharly/pod-immich-ml) |
 | `pod-jupyter/` | [opencharly/pod-jupyter](https://github.com/opencharly/pod-jupyter) |
 | `pod-jupyter-ml/` | [opencharly/pod-jupyter-ml](https://github.com/opencharly/pod-jupyter-ml) |
 | `pod-marimo/` | [opencharly/pod-marimo](https://github.com/opencharly/pod-marimo) |

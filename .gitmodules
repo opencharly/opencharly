@@ -982,10 +982,6 @@
 	path = pod-hermes
 	url = https://github.com/opencharly/pod-hermes.git
 	branch = main
-[submodule "pod-immich-ml"]
-	path = pod-immich-ml
-	url = https://github.com/opencharly/pod-immich-ml.git
-	branch = main
 [submodule "pod-jupyter-ml"]
 	path = pod-jupyter-ml
 	url = https://github.com/opencharly/pod-jupyter-ml.git
