@@ -134,6 +134,7 @@ if (argv.includes("--self-test")) {
   const { tmpdir } = await import("node:os");
 
   const surfaces = [
+    "AGENTS.md",
     ".claude/settings.json",
     ".claude/workflows/audit-deploy-configs.js",
     ".claude/hooks/pre-commit-gate.sh",
@@ -260,6 +261,7 @@ if (argv.includes("--self-test")) {
     [".pi/mcp.json", (p) => { const m = JSON.parse(readFileSync(p, "utf8")); delete m.mcpServers.deepwiki; writeFileSync(p, JSON.stringify(m)); }, ".pi/mcp.json declares the DeepWiki server", "6"],
     ["opencode.json", (p) => { const o = JSON.parse(readFileSync(p, "utf8")); delete o.mcp.deepwiki; writeFileSync(p, JSON.stringify(o)); }, "opencode.json declares the DeepWiki server", "6"],
     [".codex/config.toml", (p) => { const t = readFileSync(p, "utf8").split("\n").filter((l) => !/^\[mcp_servers\.deepwiki\]$/.test(l.trim()) && !/^url\s*=/.test(l.trim())).join("\n"); writeFileSync(p, t); }, ".codex/config.toml declares the DeepWiki server", "6"],
+    [".codex/config.toml", (p) => writeFileSync(p, readFileSync(p, "utf8").replace(/^project_doc_max_bytes = .+$/m, "project_doc_max_bytes = 1")), "fits the complete AGENTS.md", "6b (rulebook truncation)"],
     ["opencode.json", (p) => { const o = JSON.parse(readFileSync(p, "utf8")); o.instructions = [".opencode/instructions.md"]; writeFileSync(p, JSON.stringify(o)); }, "injects SOUL.md for opencode", "7 (opencode arm)"],
     [".pi/extensions/charly-gates.ts", (p) => writeFileSync(p, readFileSync(p, "utf8").replace(/readSoul/g, "__soul_removed__")), "injects the SOUL.md identity", "7 (pi arm)"],
     [".reasonix/soul-inject.sh", (p) => writeFileSync(p, readFileSync(p, "utf8").replace(/cat "\$SOUL"/, "true")), "injects SOUL.md for reasonix", "7 (reasonix arm — a wired hook whose script stopped emitting must FAIL)"],
@@ -573,6 +575,14 @@ ok(existsSync(join(root, ".claude/workflows/audit-deploy-configs.js")), ".claude
     const url = extract(jsonOr(surface), surface);
     ok(url === DEEPWIKI_URL, `${surface} declares the DeepWiki server for ${who} (deepwiki.url === ${DEEPWIKI_URL})`);
   }
+}
+
+// 6b. Codex applies the top-level project instruction byte budget before the model sees AGENTS.md.
+{
+  const config = (read(".codex/config.toml") ?? "").split(/^\s*\[/m, 1)[0];
+  const budget = Number(config.match(/^project_doc_max_bytes\s*=\s*(\d+)\s*$/m)?.[1]);
+  const rulebook = read("AGENTS.md");
+  ok(rulebook !== null && budget >= Buffer.byteLength(rulebook), "Codex project_doc_max_bytes fits the complete AGENTS.md");
 }
 
 // 7. SOUL.md is INJECTED into every harness's session context (opencharly/opencharly#359):

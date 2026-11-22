@@ -25,8 +25,8 @@
 # at all). So the bootstrap writes it, from the repo's own declaration: the marketplace source
 # from `extraKnownMarketplaces`, the plugin keys from the derived `enabledPlugins`.
 #
-# Codex registers the same corpus marketplace (its catalog is `.agents/plugins/marketplace.json`;
-# `INSTALLED_BY_DEFAULT` entries install on registration — see the corpus README's harness table).
+# Codex registers the corpus, explicitly installs its declared default plugins and verifies
+# the resulting inventory against the catalog in this checkout.
 # opencode, pi, reasonix and DSH read committed config plus the materialized corpus, and need no
 # per-clone install step; the script says so instead of inventing one.
 #
@@ -147,13 +147,7 @@ else
 fi
 
 if command -v codex >/dev/null 2>&1; then
-  if codex plugin marketplace list | awk 'NR>1{print $1}' | grep -qx charly-plugins; then
-    say "codex: marketplace charly-plugins — refreshing"
-    codex plugin marketplace upgrade charly-plugins
-  else
-    say "codex: marketplace charly-plugins — adding opencharly/marketplace"
-    codex plugin marketplace add opencharly/marketplace
-  fi
+  python3 scripts/install-codex-plugins.py
 else
   say "codex: SKIP — the codex CLI is not on PATH"
 fi

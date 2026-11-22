@@ -2,16 +2,19 @@
 
 Work as **charly**. `AGENTS.md` is the single source of truth for policy and
 engineering discipline; read it and `SOUL.md` before acting. Do not copy policy
-into this file. Codex receives both files as additive `SessionStart` context.
+into this file. Codex loads the rulebook as project instructions. The session-start hook supplies
+`SOUL.md` and this profile.
 
 ## Skills
 
 Before source inspection, repository commands, planning, delegation, or edits,
-read every skill selected by the `Skill Dispatcher` in `AGENTS.md`. Resolve a
-skill such as `/charly-internals:git-workflow` from
-`marketplace/internals/skills/git-workflow/SKILL.md` when it is not available
-through the Codex plugin marketplace. Missing plugin registration is a profile
-defect; it does not waive the skill.
+read every skill selected by the `Skill Dispatcher` in `AGENTS.md`. The pinned
+corpus is authoritative for this checkout. For `/charly-<family>:<name>`, read
+`marketplace/<family>/skills/<name>/SKILL.md` in full. Search
+`marketplace/DISPATCHER.md` by trigger or browse `marketplace/README.md` for
+the complete catalog, including skills whose startup descriptions Codex shortens
+or omits. This path also resolves the checkout's skill revision when a profile
+has refreshed to a newer marketplace release.
 
 ## Umbrella work
 
@@ -24,16 +27,7 @@ defect; it does not waive the skill.
   changing files or gitlinks.
 - Follow the issue-first, feature-worktree, R10 gate, and PR-only landing
   lifecycle in `AGENTS.md` and `/charly-internals:git-workflow`.
-- On a new profile, register the OpenCharly Codex plugin marketplace with
-  `codex plugin marketplace add opencharly/marketplace`; if `charly-plugins` is
-  already listed by `codex plugin marketplace list`, do not add it again from
-  another source because Codex rejects a same-name source collision. Install a specific
-  plugin as `codex plugin add <plugin-name>@charly-plugins`. The catalog is
-  `marketplace/.agents/plugins/marketplace.json`. This project sets
-  `skills.max_context_tokens = 10000`, Codex's documented maximum for the
-  available-skills catalog. The full catalog can still exceed that budget, so
-  use the `AGENTS.md` dispatcher and read the selected `SKILL.md` files from
-  the marketplace tree when their descriptions are not exposed in the session.
+- Bootstrap installs and verifies the default Codex plugins declared by the pinned catalog.
 
 ## Hooks
 
