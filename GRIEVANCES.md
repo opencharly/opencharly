@@ -5,6 +5,8 @@ This document names five of those things, states the status quo without strawman
 what OpenCharly does instead — with the mechanism, not the marketing.
 
 [The vision](VISION.md) says where the project is going. This says what it is running away from.
+The examples are written in the grammar [DESIGN.md](https://github.com/opencharly/opencharly/blob/main/DESIGN.md)
+defines, on CachyOS; the released candy repositories are migrating to that grammar.
 
 ---
 
@@ -13,49 +15,38 @@ what OpenCharly does instead — with the mechanism, not the marketing.
 ### The status quo
 
 A Containerfile describes one image. If two images need the same three tools, you write those tools
-twice, or you invent a base image and inherit — which couples the two images to a shared ancestor
-they may not otherwise want, and makes every change to the ancestor a change to both.
-
-The usual escapes each cost something:
+twice, or you invent a shared base image and inherit from it. The usual escapes each cost something:
 
 | Escape | What it costs |
 |---|---|
-| A shared base image | Inheritance is a chain, not a set. You get exactly one parent, and everything in it. |
-| Multi-stage `COPY --from` | Works for build artifacts, not for "install this package and its config and its service". |
-| A shell script both images run | The script is opaque to the build cache, to the linter, and to anything trying to answer "what is in this image?". |
-| Templating (Jinja, Helm, `envsubst`) | You are now maintaining a program that emits configuration, and the errors move from build time to render time. |
+| A shared base image | Inheritance is a chain, not a set: one parent, and everything in it. |
+| Multi-stage `COPY --from` | Works for build output, not for "a package, its config and its service". |
+| A shell script both images run | Opaque to the build cache, the linter, and the question "what is in this image?". |
+| Templating (Jinja, Helm, `envsubst`) | A program that emits configuration; errors move from build time to render time. |
 
 None of these is wrong. They are what you do when the unit of configuration is the *artifact*.
 
 ### What OpenCharly does
 
-The unit of configuration is a **candy** — one concern, in one directory, with its own packages,
-files, services and acceptance checks. A **box** is a candy that names a `base:` and a list of other
-candies. Composition is a set, not a chain.
+The unit of configuration is a **candy** — one concern, with its own packages, files, services and
+checks. A **box** is a candy with a `from:` starting point, and it composes other candies with
+`require:`. Composition is a set, not a chain:
 
 ```yaml
 tutorial-shell:
-    candy:
-        base: fedora
-        candy:
-            - '@github.com/opencharly/charly/candy/ripgrep:v2026.201.0706'
-            - '@github.com/opencharly/charly/candy/sshd:v2026.201.0706'
+    description: A CachyOS shell with search tools and an SSH server.
+    from: cachyos.cachyos-image
+    require: [devtool.ripgrep, devtool.sshd]
 ```
 
-Any box may compose any subset of this repository's candies, in any
-combination, without either candy knowing the other exists.
-
-**Why that is more than tidiness.** Because a candy is a unit, it can carry its own acceptance
-tests, and those tests travel with it into every box that composes it. `ripgrep`'s checks — the
-binary exists, `rg --version` parses, a pattern matches, an absent pattern exits 1 — run inside
-*every* image that includes `ripgrep`, without that image's author writing anything. A shared base
-image cannot do this; a shell script certainly cannot.
+Any box may require any subset of candies, in any combination, without either candy knowing the
+other exists — and each candy brings its own checks along ([§5](#5-the-tests-never-travel-with-the-image)).
 
 ### The honest limits
 
-Composition order still matters when two candies write the same file, and `require:` exists for
-genuine prerequisites. Candies are not hermetic: two of them can install conflicting packages, and
-you will find out at build time. This buys you composability, not commutativity.
+Order still matters when two candies write the same file, and candies are not hermetic: two of them
+can install conflicting packages, and you find out at build time. This buys you composability, not
+commutativity.
 
 ---
 
@@ -63,60 +54,68 @@ you will find out at build time. This buys you composability, not commutativity.
 
 ### The status quo
 
-`apt-get install ripgrep` and `dnf install ripgrep` differ by more than a verb. Package names drift
-(`python3-gobject` vs `python-gobject`), some packages exist in one ecosystem and not another, and
-the init system, the default user, and the filesystem layout all vary underneath.
-
-So a project that supports two distributions usually ends up with:
-
-- two Containerfiles that have diverged more than anyone intended, or
-- one Containerfile with `if [ -f /etc/debian_version ]` branches in shell, or
-- a configuration-management layer (Ansible, Chef) whose entire purpose is papering over this, run
-  as a separate system with its own execution model.
-
-The third is the honest solution and it is a large dependency to take on for the problem of "the
-package is called something else over there".
+`pacman -S ripgrep` and `dnf install ripgrep` differ by more than a verb. Package names drift
+(`python-gobject` vs `python3-gobject`), some packages exist in one ecosystem only, and the init
+system, the default user and the filesystem layout vary underneath. A project that supports two
+distributions ends up with two diverged Containerfiles, `if [ -f /etc/debian_version ]` branches in
+shell, or a configuration-management layer (Ansible, Chef) whose purpose is papering over this — the
+honest solution, and a large dependency for "the package is called something else over there".
 
 ### What OpenCharly does
 
-A candy declares packages once. If the name is the same everywhere, that is the whole declaration:
+A candy declares a package once. When the name is the same everywhere, that is the whole
+declaration, and it works on CachyOS, Arch, Fedora, Debian and Ubuntu:
 
 ```yaml
 ripgrep:
-    candy:
-        package:
-            - ripgrep
+    description: ripgrep, the recursive search tool.
+    package: {ripgrep: {}}
+    step:
+        - check: ripgrep runs
+          command: rg --version
 ```
 
-That candy already works on Fedora, Arch, Debian and Ubuntu. Nothing further is written.
-
-When names genuinely differ, a `distro:` map overrides *only* the part that differs:
+When names differ, `os_override:` replaces only the part that differs. A key is an operating
+system's **family** or its **node name**, and the most specific key wins:
 
 ```yaml
 a11y-tools:
-    candy:
-        distro:
-            arch:
-                package: [python-atspi, python-gobject]
-            fedora:
-                package: [python3-pyatspi, python3-gobject]
+    description: The AT-SPI accessibility bindings for the system Python.
+    package: {python-atspi: {}, python-gobject: {}}
+    os_override:
+        fedora:
+            package: {python3-pyatspi: {}, python3-gobject: {}}
+        debian:
+            package: {python3-pyatspi: {}, python3-gi: {}}
+    step:
+        - check: the system Python imports pyatspi
+          command: python3 -c "import pyatspi"
+
+nvidia-open:
+    description: The NVIDIA open kernel module and its user space.
+    package: {nvidia-open: {}, nvidia-utils: {}}
+    os_override:
+        cachyos:
+            package: {linux-cachyos-nvidia-open: {}, nvidia-utils: {}}
+    step:
+        - check: the NVIDIA user space is installed
+          package: {name: nvidia-utils}
 ```
 
-First matching section wins, and the distro identity is inherited down the base chain, so a box on
-`fedora` selects the `fedora` section without stating it.
+CachyOS and Arch take the default; Ubuntu matches the `debian` family. Where CachyOS genuinely
+differs — it ships the module prebuilt for its own kernel — its node name beats the `arch` family
+it belongs to.
 
-**The same principle covers init systems**, which is where the difference usually hurts most. A
-candy declares a `service:`; charly resolves which init the *target* uses and injects that init's
-own candy into the composition — `supervisord` for a container image, nothing extra for a machine
-that already runs systemd. The candy never names an init, and the same candy is correct on both.
+**Init systems follow the same rule.** A candy declares a `service:` and never names an init; the
+operating system names its inits — `supervisord` in a container, `systemd` on a machine — so the same
+candy is correct on both.
 
 ### The honest limits
 
-"No or minimal changes" is a real claim, not a universal one. A package that exists only on one
-distribution is still a per-distro problem, and a candy that shells out to `systemctl` directly is
-still writing for one init. The claim is that the *common* cases — package naming, service
-declaration, user identity — are absorbed, so the remaining per-distro surface is small and
-explicit rather than diffuse.
+A package that exists on one distribution only is still a per-distribution problem, and a candy that
+shells out to `systemctl` is still writing for one init. The claim is that the *common* cases —
+package names, services, user identity — are absorbed, so what remains is small and explicit rather
+than diffuse.
 
 ---
 
@@ -124,54 +123,44 @@ explicit rather than diffuse.
 
 ### The status quo
 
-You describe a container with a Containerfile. You describe a VM guest with Packer, or cloud-init,
-or a Kickstart file, or a golden image someone built by hand two years ago. You describe a
-configured host with Ansible.
+You describe a container with a Containerfile, a VM guest with Packer, cloud-init, a Kickstart file
+or a golden image someone built by hand two years ago, and a configured host with Ansible. Three
+languages, three execution models, three definitions of "done", usually owned by different people —
+so the container and the VM drift, invisibly, until something behaves differently in one of them.
 
-These are three different languages, three different execution models, and three different
-definitions of "done". Worse, they are usually maintained by different people, so the container
-image and the VM image drift — and the drift is invisible until something behaves differently in
-one of them.
-
-The standard answer is "use containers for everything". That answer is unavailable the moment you
-need a different kernel, nested virtualization, a device that will not pass through, or a full
-systemd that is not worth fighting.
+"Use containers for everything" stops working the moment you need a different kernel, nested
+virtualization, a device that will not pass through, or a full systemd not worth fighting.
 
 ### What OpenCharly does
 
-The same candy list is consumed by every substrate. `pod:`, `vm:`, `local:`, `kubernetes:` and `android:`
-all compile to one shared **InstallPlan IR** — a single intermediate representation that a target
-then executes in its own idiom.
+A box is target-neutral; the deployment decides what is built from it. `pod:` and `vm:` are written
+identically:
 
 ```yaml
-# a container
 my-app:
-    pod:
-        image: my-app-box
+    description: A CachyOS box with an SSH server.
+    from: cachyos.cachyos-image
+    require: [devtool.sshd]
 
-# the same candies on a machine, over SSH
-my-app-guest:
-    vm:
-        from: my-app-box
+my-app-pod:
+    pod: {description: The box as a rootless container., from: my-app}
+my-app-vm:
+    vm: {description: The same box as a virtual machine., from: my-app}
 ```
 
-Changing the substrate keyword is the whole change. Charly handles what differs underneath: which
-init to install, whether packages go into a layer or onto a running system, whether a service
-becomes a supervisord program or a systemd unit, how ports are published.
-
-**Why an IR rather than a translation layer.** Because a translation layer converts A into B and
-inherits the quirks of both. A shared IR means neither container-shaped nor VM-shaped is the
-"real" one — a new substrate is a new target consuming the same plan, not another pairwise
-conversion.
+Changing the kind is the whole change. `local:` and `android:` apply the same candies to a host or a
+device, and `kubernetes:` runs pods and VMs as workloads. All of them compile to one shared **install
+plan** that each target executes in its own idiom — an image layer or a running system, a supervisord
+program or a systemd unit. A shared plan, not a pairwise translation, means neither form is the
+"real" one, and a new target is one more consumer of the same plan.
 
 ### The honest limits
 
-Not everything is substrate-neutral, and pretending otherwise would be the same lie the status quo
-tells. A `local:` deploy touches a real machine's packages and units, which is why this
-repository's own examples run it inside a disposable VM guest rather than against a workstation. A
-VM has a kernel and a boot sequence a container does not. What is portable is the *composition*;
-the substrates remain genuinely different, and charly's job is to make the difference explicit and
-handled rather than duplicated across three toolchains.
+A `local:` deployment changes a real machine's packages and units, which is why this project's own
+examples run it inside a disposable VM rather than on a workstation. A VM has a kernel and a boot
+sequence a container does not. What is portable is the *composition*; the targets stay genuinely
+different, and charly's job is to make the difference explicit and handled rather than duplicated
+across three toolchains.
 
 ---
 
@@ -179,47 +168,49 @@ handled rather than duplicated across three toolchains.
 
 ### The status quo
 
-Two habits, both understandable, both bad:
-
 **Running as root because it is easier.** Rootless containers have real friction — uid mapping,
-subuid ranges, storage drivers, and a long tail of images that assume uid 0. So a great deal of
-tooling still runs privileged, and the isolation you believe you have is thinner than advertised.
+subuid ranges, storage drivers, images that assume uid 0 — so much tooling still runs privileged,
+and the isolation you believe you have is thinner than advertised.
 
-**Nesting that does not work.** Build a container that itself builds containers, and you meet
-`--privileged`, or a bind-mounted docker socket — which is a root shell on the host wearing a
-costume. Run a VM inside a container, or a container inside a VM guest, and the usual answer is
-"don't".
+**Nesting that does not work.** A container that builds containers meets `--privileged` or a
+bind-mounted Docker socket — a root shell on the host wearing a costume. A VM inside a container, or
+a container inside a VM, usually gets the answer "don't".
 
-The consequence is that the moment you want a genuinely disposable environment — one an agent can
-be handed, one that can be destroyed and rebuilt without thought — you find the isolation boundary
-is either too weak to trust or too rigid to nest.
+So the moment you want a genuinely disposable environment — one an agent can be handed, destroyed and
+rebuilt without thought — the boundary is either too weak to trust or too rigid to nest.
 
 ### What OpenCharly does
 
-Every box is designed to run **rootless and nested**. The `container-nesting` candy exists
-specifically so that rootless podman, buildah and skopeo work *inside a rootless outer container*,
-at the default uid 1000, with no added capabilities. Rootless libvirt (`virtqemud`,
-`virtnetworkd`) runs as ordinary supervisord programs at uid 1000, keyed off `$XDG_RUNTIME_DIR`,
-needing only `/dev/kvm`.
+Nesting is a declared need, and the deployment grants the least that satisfies it:
 
-That is what makes **candyboxing** possible: a box can run as a VM inside a container, or as a
-container inside a VM guest, and charly's own acceptance beds do both. `check-builder-vm`,
-`check-substrate`, `check-group-vm` and `check-structkind-vm` all nest a real VM inside the test
-environment; `openclaw-desktop` runs nested charly inside a container.
+```yaml
+nested-podman:
+    description: Rootless podman inside a rootless container.
+    package: {podman: {}, fuse-overlayfs: {}}
+    need:
+        nesting: {container: {}}
+    step:
+        - check: an inner container runs
+          phase: deployment
+          command: podman run --rm quay.io/libpod/alpine true
+```
 
-**Why this is the load-bearing one.** It is what lets the security model be *"secure the box, not
-the candy"*. If the boundary is a real kernel-enforced one, and if it nests, then you can hand an
-agent the entire toolset inside a disposable environment instead of trying to whitelist which
-commands it may run. Command allowlists fail because the interesting attacks are compositions of
-boring commands. A wall does not care.
+`nesting: {container: {}}` gets `/dev/fuse`, `/dev/net/tun` and user namespaces; `nesting: {vm: {}}`
+gets `/dev/kvm`; `nesting: {userns: {}}` gets a seccomp profile that admits user-namespace sandboxes
+and nothing wider, never `unconfined`. Boxes run rootless at uid 1000 by default, so a VM can run
+inside a container and a container inside a VM — **candyboxing**.
+
+**Why this is the load-bearing one.** It lets the security model be *"secure the box, not the
+candy"*. If the boundary is kernel-enforced and it nests, you can hand an agent the entire toolset
+inside a disposable environment instead of whitelisting the commands it may run. Command allowlists
+fail because the interesting attacks are compositions of boring commands. A wall does not care.
 
 ### The honest limits
 
-Rootless nesting requires kernel support (user namespaces, and `/dev/kvm` for the VM case) and it
-is not free — there are performance costs and some device classes genuinely cannot pass through.
-"Designed to" is not "does, on every host, unconditionally". The claim is that nesting and
-rootlessness are the *default assumption* the boxes are built against and continuously tested on,
-rather than an exotic configuration you are on your own with.
+Rootless nesting needs kernel support — user namespaces, and `/dev/kvm` for VMs — and is not free:
+there are performance costs, and some device classes cannot pass through. The claim is that nesting
+and rootlessness are the *default* the boxes are built against, not an exotic configuration you are
+on your own with.
 
 ---
 
@@ -227,69 +218,68 @@ rather than an exotic configuration you are on your own with.
 
 ### The status quo
 
-Unit tests run on a developer's machine, mocking away everything slow so they stay fast.
-Acceptance tests run in a CI pipeline, which builds its own copy of the artifact and tests that
-copy. Live testing happens somewhere else again — a staging host, a smoke script, an uptime probe —
-usually written by a different team with its own idea of "pass". Three systems, three artifacts,
-three definitions of done, and nothing forces them to agree.
-
-Each one is reasonable in isolation: fast feedback wants a small, fast suite; shipping wants a gate
-that blocks; operations wants proof the running thing works. The fracture is the problem. The build
-CI tested and the image that ships are produced by different code paths, so "it passed CI" is a
-claim about a build that is not the build you are running. And the checks themselves live in a YAML
-file in the repository — they are not part of the image. The artifact users pull from the registry
-is, at the moment they pull it, an unverified thing, and it cannot be re-verified by the person who
-pulled it, because the proof did not travel with it.
+Unit tests run on a developer's machine, acceptance tests in a CI pipeline that builds its own copy
+of the artifact, and live checks somewhere else again — a staging host, a smoke script, an uptime
+probe — each with its own idea of "pass". The build CI tested and the image that ships come from
+different code paths, so "it passed CI" is a claim about a build you are not running. The checks live
+in a file in the repository, not in the image: the artifact you pull from a registry is unverified,
+and you cannot re-verify it, because the proof did not travel with it.
 
 ### What OpenCharly does
 
-The acceptance spec is part of the artifact. Every candy carries a `description:` and a `plan:` of
-deterministic `check:` steps — the spec is the test — and `charly box build` bakes that plan into
-the `ai.opencharly.description` OCI label. A pulled image is self-testable without its source
-repository: the checks that shipped are the checks that run.
+The checks are part of the candy, and the artifact carries them. Every check has a **phase** — what
+it observes:
 
-The same baked plan runs at every level, the mode explicit in the verb:
-
-```bash
-charly check box <image>   # the artifact's own checks, inside an isolated disposable container
-charly check live <name>   # the same checks, against the running deployment, real ports and env
-charly check run <bed>     # the whole chain on a disposable bed: build → check box → deploy → check live → fresh rebuild → re-check → teardown
+```yaml
+hello-web:
+    description: A web server whose page is in the artifact and is served once it runs.
+    package: {python: {}}
+    file:
+        /srv/hello/index.html: {content: hello}
+    service:
+        hello-web: {exec: python -m http.server 8080 --directory /srv/hello}
+    step:
+        - check: the page is in the artifact
+          file: {path: /srv/hello/index.html, content: {contains: hello}}
+        - check: the server answers
+          http: {url: "http://127.0.0.1:8080/", body: {contains: hello}}
+          retry: {until: 30s}
 ```
 
-`charly check box` runs the build-context invariants inside the built image itself. `charly check
-live` runs the same steps inside the deployed container, resolving deploy-time variables (real
-ports, real volumes, real environment). `charly check run <bed>` is the R10 acceptance gate: a
-`disposable: true` deploy that builds, deploys, checks, tears down, and then re-verifies on a fresh
-`charly update` — so the gate is a fresh rebuild of the actual deployed artifact, never a
-hand-patched instance. Unit tests keep their place — a green `go test ./...` proves compilation —
-but they are not the acceptance; the acceptance is the artifact's own plan. The tests are not a
-parallel system to the image; they ride inside it, and CI is where the artifact's own checks are
-run.
+An `artifact` check runs inside the built image, in a disposable container, before the image is
+stored; a `ready` check holds a deployment back until it passes; a `deployment` check runs against
+the live deployment — its real ports, services and environment. The phase follows from what the
+check can observe, so the `file` check above runs on the artifact and the `http` check on the
+deployment. The image's labels carry the resolved checks, so anyone who pulls it can run them
+without the source repository:
+
+```bash
+charly check box <box>          # the artifact checks, on the built image
+charly check live <deployment>  # the deployment checks, on the running deployment
+charly check run <deployment>   # realize a disposable deployment from a fresh build and run every phase
+```
+
+Unit tests keep their place, but the acceptance is the artifact's own checks; CI is where they run.
 
 ### The honest limits
 
-A check is only as good as the plan that declares it — write a thin plan and the image ships thin
-proof, because the spec is only as honest as its author. Build-context checks cannot see a running
-service, and deploy-context checks need a running deployment, so the two contexts genuinely differ
-and a real gate needs both. The fresh-rebuild R10 proof is defined on `disposable: true` targets;
-proving a production system you must not destroy is a smaller, different claim. What is gained is
-that the separation is collapsed by construction: one plan, baked into the artifact, run at every
-level, re-runnable by anyone who pulls the image.
+A check is only as good as the plan that declares it: write a thin plan and the image ships thin
+proof. Artifact and deployment checks see different things, so a real gate needs both. The full
+destroy-and-rebuild proof is defined only for deployments marked disposable; proving a production
+system you must not destroy is a smaller, different claim.
 
 ---
 
 ## What this adds up to
 
-Each grievance is separately survivable. Together they produce the thing this project is actually
-reacting to: an environment nobody can reproduce, described in a different language per substrate,
-whose proof does not travel with the artifact, that only one person can rebuild, and that nobody
-dares hand to an automated agent because the isolation is not trusted.
+Each grievance is survivable alone. Together they produce an environment nobody can reproduce,
+described in a different language per target, whose proof does not travel with it, that only one
+person can rebuild, and that nobody dares hand to an automated agent.
 
-The five answers compose into one property — **a described environment that is disposable**. You
-can destroy it because you can rebuild it; you can rebuild it because the description is complete;
-the description is complete because it is composed of units that each carry their own proof — a
-proof that travels with the thing it describes.
+The five answers compose into one property — **a described environment that is disposable**. You can
+destroy it because you can rebuild it; you can rebuild it because the description is complete; and
+the description is complete because it is composed of candies that each carry their own proof.
 
-For the positive statement of where that leads, see [the vision](VISION.md). For how any of it
-works, see the [skills index](https://github.com/opencharly/marketplace) or the site at
-[opencharly.ai](https://opencharly.ai).
+For where that leads, see [the vision](VISION.md). For how it works, see
+[DESIGN.md](https://github.com/opencharly/opencharly/blob/main/DESIGN.md), the
+[skills index](https://github.com/opencharly/marketplace) or [opencharly.ai](https://opencharly.ai).

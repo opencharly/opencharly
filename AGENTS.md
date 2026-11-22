@@ -575,8 +575,12 @@ Before declaring completion, answer every applicable item YES.
 
 ## Where things are documented
 
-- `SOUL.md` — identity; `VISION.md` — thesis and direction; `PROGRAM/` — binding program
-  north stars.
+- `SOUL.md` — identity; `VISION.md` — thesis and direction; `GRIEVANCES.md` — the five
+  problems the project answers; `LIBERATION.md` — the letter on trust and freedom behind the
+  identity; `PROGRAM/` — binding program north stars.
+- `CONTAINERD.md`, `K3S.md`, `LIBKRUN.md` — host configuration references for the containerd
+  substrate (containerd, nerdctl and crun; k3s on that containerd; libkrun vsock and TSI);
+  `IMAGES.md` — the image contract that prepares such a host.
 - `DESIGN.md` — the normative architecture (requirements `D-<AREA>-<n>`); `DESIGN.cue` — its
   schema, the single copy; `design/` — the design check's examples, negatives and ledgers.
 - `README.md` — the org map, user overview, and the maintenance-command table
