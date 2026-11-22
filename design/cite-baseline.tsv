@@ -80,7 +80,7 @@ GPU shared through CDI vs held alone through VFIO	plugin-gpu/README.md	23-29	-	b
 GPU shared through CDI vs held alone through VFIO	spec/schema/arbiter.cue	40-56	#PreemptLease	815228e090db8a3a
 GPU shared through CDI vs held alone through VFIO	spec/schema/deploy.cue	324-324	#Deploy	c5b928edd97d201b
 kind:android	spec/schema/android.cue	14-24	#Android	f615fdb22527d614
-kind:builder	spec/schema/builder.cue	8-30	#Builder	40cf6239fe0e930d
+kind:builder	spec/schema/builder.cue	9-33	#Builder	1e67df59c651e055
 kind:cua	plugin-cua/candy/plugin-cua/schema/cua.cue	173-191	#CuaDeviceInput	7b7bdd4ccee16f37
 kind:distro	plugin-distro/candy/plugin-distro/schema/distro.cue	32-47	#DistroInput	fdb988c388629d51
 kind:firecracker	plugin-substrate/candy/plugin-substrate/schema/firecracker.cue	17-43	#Firecracker	14f1f819602aaa36
@@ -115,13 +115,13 @@ ssh tunnel	plugin-ssh/candy/plugin-ssh/tunnel.go	31-41	SshTunnelCmd	a0cd71a5971b
 step:apk-install	plugin-installstep/candy/plugin-installstep/charly.yml	45-45	-	e529a8fb71a3c8db
 step:apk-install	spec/spec/union_types.go	353-359	UnmarshalJSON	4e4ac51420145c4f
 step:builder	plugin-installstep/candy/plugin-installstep/charly.yml	48-48	-	e1f89f1fd3cb5613
-step:builder	spec/spec/install_step_vocab.go	140-185	BuilderStep	246b575cf7a938bc
+step:builder	spec/spec/install_step_vocab.go	140-181	BuilderStep	430a078ee9186a04
 step:file	plugin-installstep/candy/plugin-installstep/charly.yml	39-39	-	a8046d02613a4f04
 step:helm-release	layer-helm-chart/charly.yml	41-54	-	c17a834588f9abc4
 step:helm-release	layer-helm-chart/charly.yml	45-54	-	74b11cd0248a0d57
 step:local-pkg-install	plugin-installstep/candy/plugin-installstep/charly.yml	49-49	-	4524317a439492af
 step:op	plugin-installstep/candy/plugin-installstep/charly.yml	50-50	-	abe96085d5de2561
-step:op	spec/spec/install_step_vocab.go	211-260	OpStep	104c655670bc8a53
+step:op	spec/spec/install_step_vocab.go	216-248	OpStep	26d35c6440316a9a
 step:reboot	plugin-installstep/candy/plugin-installstep/charly.yml	46-46	-	89e4370519471a30
 step:repo-change	plugin-installstep/candy/plugin-installstep/charly.yml	44-44	-	b64afe1329bb1e8c
 step:service-custom	plugin-installstep/candy/plugin-installstep/charly.yml	43-43	-	635a8dc075a9108f
