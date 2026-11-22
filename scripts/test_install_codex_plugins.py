@@ -31,6 +31,23 @@ class InstallerTest(unittest.TestCase):
             ['codex', 'plugin', 'add', 'alpha@charly-plugins'],
         ])
 
+    def test_refreshes_existing_marketplace(self):
+        catalog = {'name': 'charly-plugins', 'plugins': [
+            {'name': 'alpha', 'policy': {'installation': 'INSTALLED_BY_DEFAULT'}},
+        ]}
+        responses = [
+            json.dumps({'marketplaces': [{'name': 'charly-plugins'}]}),
+            json.dumps({'installed': [{'pluginId': 'alpha@charly-plugins', 'installed': True, 'enabled': True}]}),
+        ]
+        with patch.object(Path, 'read_text', return_value=json.dumps(catalog)), \
+             patch.object(installer.subprocess, 'check_output', side_effect=responses), \
+             patch.object(installer.subprocess, 'run') as run:
+            installer.main()
+        self.assertEqual([call.args[0] for call in run.call_args_list], [
+            ['codex', 'plugin', 'marketplace', 'upgrade', 'charly-plugins'],
+            ['codex', 'plugin', 'add', 'alpha@charly-plugins'],
+        ])
+
 
 if __name__ == '__main__':
     unittest.main()
