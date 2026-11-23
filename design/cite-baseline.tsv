@@ -47,7 +47,7 @@ command:agentteams	plugin-agentteams/candy/plugin-agentteams/control.go	28-34	Ag
 command:alias	plugin-alias/candy/plugin-alias/alias.go	213-218	AliasCmd	a7b88dcda014c540
 command:cache	plugin-cache/candy/plugin-cache/plugin.go	101-108	CacheCmd	cb7759b02fea03d2
 command:candy	plugin-candy/candy/plugin-candy/params.go	40-47	paramsUsage	bc7bee9cdd4451c5
-command:clean	plugin-clean/candy/plugin-clean/charly.yml	115-117	-	ee97f7e03eaea37c
+command:clean	plugin-clean/candy/plugin-clean/charly.yml	118-120	-	ee97f7e03eaea37c
 command:config	plugin-pod/candy/plugin-pod/pod_cmd.go	420-450	ConfigSetupCmd	a7752f4f12b9b522
 command:containerd	plugin-nerdctl/candy/plugin-containerd/charly.yml	43-47	-	a91feb5e0950136f
 command:cp	plugin-pod/candy/plugin-pod/pod_cmd.go	410-415	CpCmd	c7144d6f4f27c137
