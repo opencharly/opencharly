@@ -319,7 +319,7 @@ other; it is not labelled with a guess. The sets are
 canonical in `opencharly/.github/labels/taxonomy.json`, the generic path/action
 rules in `labels/category-rules.json`, and the tests, precedence rules, **design/
 rulebook violation table** and held-out cold-reader protocol in
-`/charly-internals:git-workflow` (`references/issue-labels.md`). The
+`/charly-internals:git-workflow` (its issue-labels reference page). The
 close-time verifier compares the merged PR's paths and subject to the issue's labels.
 
 ## Disposable-Only Autonomy
