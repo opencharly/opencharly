@@ -121,7 +121,13 @@ const MUST_NOT_AUTO_ALLOW = [
 // self-test stopped discriminating: its "dropping a DISPATCHER row must FAIL" arm mutates one row,
 // which took the gap to 227, still under the ceiling, so the mutation went unnoticed. `charly task
 // verify` caught that, which is the only reason it was found rather than assumed.
-const MAX_UNROUTED = 226;
+//
+// MEASURED AGAIN 2026-11-23 when the pins advanced to the retired-corpus tree
+// (opencharly/marketplace#644): `134/358 corpus skills routed, 224 unrouted` (358 − 134 = 224).
+// The corpus lost `immich-ml` and `immich-ml-layer` to the retirement list, the routed rows did
+// not move, and at 226 the self-test's own dropping-a-row arm went green again — exactly the
+// slack this ratchet exists to forbid. The ceiling tightens to the measurement.
+const MAX_UNROUTED = 224;
 
 // ── --self-test: prove the discriminating/structural split by executing it ──────────
 // Copies every surface this gate reads into a temp tree, asserts the gate is GREEN there
