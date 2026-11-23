@@ -296,7 +296,7 @@ verified by `charly task org-map`. *Detail:* `/charly-internals:repo-setup`.
 
 ## Issue categories and types
 
-*Enforces: R1, R2, R6.* Every issue carries exactly one `category:` and exactly one
+*Enforces: R1, R2.* Every issue carries exactly one `category:` and exactly one
 `type:` from the org-wide closed sets, set at creation through the org issue form or
 the `scripts/gh/cli.ts issue` wrapper, which refuses to create without them. There is
 **no fallback value**. The category follows the capability the remedy changes or
