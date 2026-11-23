@@ -35,3 +35,10 @@
 # tracked-by: opencharly/.github#192 — the tag-on-merge breakage that wrote no CHANGELOG commit
 module	commit	state	reason
 pi-asciinema	2938ef8d00de3752553ba6128756f79d7ffb41df	untagged	a human commit merged on top of the CHANGELOG tip, untagged, and no CHANGELOG commit follows it while tag-on-merge is present at the pin and at its parent — the merge that produced the pin wrote no CHANGELOG record (opencharly/.github#286)
+
+# opencharly/dotgithub — found by the 2026-11-23 pin wave, which advanced this pin. Same signature
+# as the plugin-punktfunk/plugin-agent-pi/plugin-gh rows above: a squash merge above a tag with no
+# CHANGELOG commit, while tag-on-merge is present at the pin and at its parent. Recorded on
+# opencharly/opencharly#793 (the mechanism is opencharly/.github#286); retires when tag-on-merge
+# writes the missing CHANGELOG commit for #310.
+dotgithub	4efc29370c93aea81e5960221bf96c7f8b15ecde	untagged	the merge that produced the pin (PR #310) wrote no CHANGELOG commit and no tag — the last tag is v2026.317.1447 on its parent, and tag-on-merge is present at the pin and at its parent (opencharly/opencharly#793; the mechanism is opencharly/.github#286)
