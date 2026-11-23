@@ -114,9 +114,13 @@ shopt -s nullglob
 for src in "${docs[@]}"; do extract "$src" "$work/$src"; done
 
 # project <dir>: the document's project — DESIGN.md's context blocks, then the document's own
-# context and uses-context blocks.
+# context and uses-context blocks. A document other than DESIGN.md with no such block has no project:
+# its examples are complete documents, each validated alone.
 project() {
 	local dir="$1" m
+	if [[ "$dir" != "$work/DESIGN.md" ]] && ! grep -qxE 'context|uses-context' "$dir"/*.mode 2>/dev/null; then
+		return 0
+	fi
 	: > "$dir/project.yaml"
 	for m in "$work/DESIGN.md"/*.mode; do
 		[[ "$(cat "$m")" == context ]] && cat "${m%.mode}.yaml" >> "$dir/project.yaml"

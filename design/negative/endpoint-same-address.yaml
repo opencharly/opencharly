@@ -1,0 +1,16 @@
+# rule: D-VAL-15
+# expect: endpoints hello and greeting have the same address
+web:
+    description: Two endpoints with the same port, transport, protocol, host and path.
+    package:
+        - python
+    provide:
+        endpoint:
+            hello:
+                port: 8080
+                protocol: http
+                path: /hello
+            greeting:
+                port: 8080
+                protocol: http
+                path: /hello

@@ -524,27 +524,27 @@ one binary per platform, by digest (§4.1). A project adopts it by adding it to 
 ```yaml
 plugin:
     plugin-build:
-        repo: github.com/opencharly/plugin-build
+        repo: opencharly/plugin-build
         release: v2026.276.1100
         digest: sha256:1b7c00d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9
     plugin-container:
-        repo: github.com/opencharly/plugin-container
+        repo: opencharly/plugin-container
         release: v2026.276.1100
         digest: sha256:8e2100d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9
     plugin-machine:
-        repo: github.com/opencharly/plugin-machine
+        repo: opencharly/plugin-machine
         release: v2026.276.1100
         digest: sha256:c04d00d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9
     plugin-check:
-        repo: github.com/opencharly/plugin-check
+        repo: opencharly/plugin-check
         release: v2026.276.1100
         digest: sha256:5a9000d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9
     plugin-kubernetes:
-        repo: github.com/opencharly/plugin-kubernetes
+        repo: opencharly/plugin-kubernetes
         release: v2026.276.1100
         digest: sha256:6b1200d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9
     plugin-android:
-        repo: github.com/opencharly/plugin-android
+        repo: opencharly/plugin-android
         release: v2026.276.1100
         digest: sha256:9d3400d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9
 ```
@@ -699,6 +699,7 @@ The type decides, never the author:
 | D-CAP-5 | A plugin calls another plugin's api through `Host.call` only when its candy lists that api under `need:` or `use:` (D-API-2). |
 | D-CAP-6 | The needs and uses of a deployment are the union of those of the deployment, its box and all their candies, and the host needs its inner nodes derive (D-NEST-7). Where one of them needs what another uses, the deployment needs it. |
 | D-CAP-7 | A capability says what a node is given, never where it runs: no capability type names a kind of deployment or a nesting of one. A deployment inside another is expressed by tree position alone (D-NEST-1), and the host capabilities it requires of its parent are derived from it (D-NEST-7). |
+| D-CAP-8 | An endpoint's address is its port, transport, protocol, host and path together. Several endpoints may share a port and transport, told apart by their `path` or `host` — a server that answers `/hello` and `/api` on one port provides two endpoints — and two endpoints of one stack never share a whole address (D-VAL-15). A check reaches a provided endpoint by its name (D-VERB-8), never by restating its address. |
 
 ## 9. Host capabilities
 
@@ -1015,8 +1016,9 @@ owner's tests.
 | D-VAL-10 | An unnamespaced word that no first-party plugin owns is an error naming the plugin that does (D-PLUG-7). | core | — |
 | D-VAL-11 | A `capture: process` capture names a deployment whose driver row declares process capture (D-CAPTURE-4). | container plugin, machine plugin | — |
 | D-VAL-12 | A step's verb needs only accesses the venue of its deployment serves (D-VENUE-2): a `check` that runs in the guest needs `exec`. | core | — |
-| D-VAL-13 | Every `publish` key names a provided `endpoint` of the deployment's stack; the guest side is that endpoint's own port. | container plugin, machine plugin | — |
+| D-VAL-13 | Every `publish` key names a provided `endpoint` of the deployment's stack; the guest side is that endpoint's own port. Publishing an endpoint publishes its port, so endpoints that share a guest port and transport share one publication: several of them published to one host port are that one publication, and published to two different host ports are an error naming both. | container plugin, machine plugin | — |
 | D-VAL-14 | A node names a capability at most once: under `need:` or under `use:`, never both (D-CAP-1). | core | `rules.cue` |
+| D-VAL-15 | Two endpoints of one stack never have the same address — the same port, transport, protocol, host and path (D-CAP-8); the error names both. | core | `rules.cue` |
 
 The other requirements that need the whole load are stated where their concept lives and checked
 by core: a name defined twice (§11.2 rule 2), an undeclared or unused plugin word (D-PLUG-4,
@@ -1332,7 +1334,7 @@ release:
                       tool: [git, gh]
                       turn: 12
                       cache: {path: /tmp/review-cache, key: sha, field: commit}
-                      checkout: [github.com/opencharly/charly]
+                      checkout: [opencharly/charly]
                       output: {summary: {}}
                     - harness_check: the change is ready to publish
                       harness: reviewer
@@ -1665,6 +1667,10 @@ web-server:
         /srv/web/index.html: {content: hello}
     service:
         web-server: {exec: python3 -m http.server 8080 --directory /srv/web}
+    provide:
+        endpoint:
+            page: {port: 8080, protocol: http, path: /index.html}
+            listing: {port: 8080, protocol: http, path: /}
     step:
         - check: the page is in the artifact
           file: {path: /srv/web/index.html, content: {contains: hello}}
@@ -1674,8 +1680,8 @@ web-server:
           phase: ready
           port: {port: 8080}
           retry: {until: 30s}
-        - check: the server answers
-          http: {url: "http://127.0.0.1:8080/", body: {contains: hello}}
+        - check: the server answers at the page endpoint
+          http: {endpoint: page, body: {contains: hello}}
         - check: the server accepts a POST with a body and does not follow redirects
           http: {url: "http://127.0.0.1:8080/", request_method: post, request_body: "ping", follow_redirect: false, body: {contains: pong}}
         - check: the TLS endpoint answers with the local CA and a self-signed certificate
@@ -1687,7 +1693,9 @@ web-server:
 
 The `file` and `command` checks observe the artifact; `port` and `http` can only observe a
 deployment, so `http` writes no phase; the `port` check is the readiness condition, so it says
-`ready`; the last `command` check needs the running server, so it says `deployment`.
+`ready`; the last `command` check needs the running server, so it says `deployment`. The two
+endpoints share port 8080 and are told apart by their paths (D-CAP-8), and the first `http` check
+names the `page` endpoint instead of restating its address (D-VERB-8).
 
 A deployment that has no artifact — a `local`, an `android` or an inner `local` node — runs the
 artifact checks of its candies in its venue right after the IR is applied, then its ready and
@@ -1729,6 +1737,7 @@ provide:
         web:
             port: 8080
             protocol: http
+            path: /
 use:
     gpu: {}
 step:
@@ -1741,7 +1750,7 @@ step:
     - check: the server answers
       phase: deployment
       http:
-          url: http://127.0.0.1:8080/
+          endpoint: web
           body:
               contains: hello
 ```
@@ -2417,7 +2426,7 @@ VNC or SPICE, its keys and its pointer), `forward` (a port) and `power`. The dep
 |---|---|---|---|
 | short name | `redis`, `check-k3s-vm.cluster` | a node of this project; dots walk into inner nodes | documents and CLI |
 | namespaced name | `devtool.ripgrep` | the node of the repository the `import:` binds to that namespace | documents and CLI |
-| repository reference (CLI) | `github.com/opencharly/arch@v2026.276.1200:workstation` | the node in that repository at that release | CLI only |
+| repository reference (CLI) | `opencharly/arch@v2026.276.1200:workstation` | the node in that repository at that release | CLI only |
 
 | ID | Requirement |
 |---|---|
@@ -2428,22 +2437,22 @@ VNC or SPICE, its keys and its pointer), `forward` (a port) and `power`. The dep
 
 <!-- example: imports context -->
 ```yaml
-repo: github.com/example/lab
+repo: example/lab
 import:
     arch:
-        repo: github.com/opencharly/arch
+        repo: opencharly/arch
         release: v2026.276.1200
         digest: sha256:2d44107f8e9d0c1b2a3f4e5d6c7b8a9f0e1d2c3b4a5f6e7d8c9b0a1f2e3d4c56
     devtool:
-        repo: github.com/opencharly/devtool
+        repo: opencharly/devtool
         release: v2026.276.1200
         digest: sha256:4f1c9e2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e
     charly:
-        repo: github.com/opencharly/charly
+        repo: opencharly/charly
         release: v2026.276.1200
         digest: sha256:0c9e12a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f
     cachyos:
-        repo: github.com/opencharly/cachyos
+        repo: opencharly/cachyos
         release: v2026.276.1200
         digest: sha256:7e3b5c9d1f2a4b6c8d0e2f4a6b8c0d2e4f6a8b0c2d4e6f8a0b2c4d6e8f0a2b4c
     demo:
@@ -2452,7 +2461,7 @@ import:
 
 | ID | Requirement |
 |---|---|
-| D-REF-3 | A repository reference is `{repo, release, digest}` or `{path}`. `repo` is `host/owner/name`; `release` is a tag; `digest` is the sha256 of the release's tree, verified on every fetch. |
+| D-REF-3 | A repository reference is `{repo, release, digest}` or `{path}`. `repo` is `owner/name` for a repository on GitHub and `host/owner/name` for one on any other host, and this one form names a repository everywhere: a document's `repo:`, `import:` and `plugin:`, a harness's `checkout:` and the CLI (D-REF-7). `github.com/owner/name` is not a second spelling and is rejected; `release` is a tag; `digest` is the sha256 of the release's tree, verified on every fetch. |
 | D-REF-4 | A namespace names its repository, in the singular; its recommended form is the repository's own name. |
 | D-REF-5 | `charly box reconcile` is the only writer of `release`, `digest` and the digests that pin `oci` origins; it prints the diff. |
 | D-REF-6 | An imported project resolves its own names through its own imports, which the importer does not see. A released project's references are all `{repo, release, digest}`. |
@@ -2462,15 +2471,15 @@ import:
 ```bash
 charly box build web-shell                                            # short name
 charly box build arch.workstation                                     # namespaced
-charly box build github.com/opencharly/arch@v2026.276.1200:workstation  # a released repository
-charly box build opencharly/arch@v2026.276.1200:workstation           # GitHub shorthand
+charly box build opencharly/arch@v2026.276.1200:workstation           # a released repository on GitHub
+charly box build gitlab.com/example/lab@v2026.276.1200:web-shell      # a released repository on another host
 charly box build opencharly/arch:workstation                          # newest release; prints it and its digest
 charly box build opencharly/arch@main:workstation                     # a branch, development only; prints the commit
 ```
 
 | ID | Requirement |
 |---|---|
-| D-REF-7 | A CLI repository reference is `<repo>[@<release or branch>]:<name>`; `owner/repo` means `github.com/owner/repo`. Without `@…` the newest release is used. Every resolution prints the repository, release or commit, and digest it used. |
+| D-REF-7 | A CLI repository reference is `<repo>[@<release or branch>]:<name>`, with `<repo>` in the one form of D-REF-3. Without `@…` the newest release is used. Every resolution prints the repository, release or commit, and digest it used. |
 | D-REF-8 | A repository reference is accepted wherever the CLI takes a node; there is no `--repo` flag. |
 
 ## 19. A complete project
@@ -2479,12 +2488,12 @@ Everything it uses is declared in it, so a freshly installed `charly` runs it as
 
 <!-- example: complete-project -->
 ```yaml
-repo: github.com/example/hello
+repo: example/hello
 plugin:
-    plugin-build:     {repo: github.com/opencharly/plugin-build,     release: v2026.276.1100, digest: "sha256:1b7c00d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9"}
-    plugin-container: {repo: github.com/opencharly/plugin-container, release: v2026.276.1100, digest: "sha256:8e2100d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9"}
-    plugin-machine:   {repo: github.com/opencharly/plugin-machine,   release: v2026.276.1100, digest: "sha256:c04d00d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9"}
-    plugin-check:     {repo: github.com/opencharly/plugin-check,     release: v2026.276.1100, digest: "sha256:5a9000d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9"}
+    plugin-build:     {repo: opencharly/plugin-build,     release: v2026.276.1100, digest: "sha256:1b7c00d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9"}
+    plugin-container: {repo: opencharly/plugin-container, release: v2026.276.1100, digest: "sha256:8e2100d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9"}
+    plugin-machine:   {repo: opencharly/plugin-machine,   release: v2026.276.1100, digest: "sha256:c04d00d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9"}
+    plugin-check:     {repo: opencharly/plugin-check,     release: v2026.276.1100, digest: "sha256:5a9000d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9"}
 
 fedora-43:
     os:
@@ -2761,6 +2770,7 @@ sshd-account:
 | D-VERB-5 | A step has exactly one intent, and the step table (`#StepAlt`) has one alternative per intent. A `run` step carries its `guard` and exactly one of its `command` or its `render` block, and no verb (D-VERB-1, D-IR-2); a `check` step carries exactly one verb (`#Verb`); `harness_run` and `harness_check` carry none, and a `harness_check` names the venue accesses it may read as `evidence`. |
 | D-VERB-6 | A verb is a fact verb or a protocol verb (`#FactVerbAlt`, `#ProtocolVerbAlt`), never both. An application's own checks are `http` with JSON-path matchers, `command`, or a namespaced verb of its non-first-party plugin (D-PLUG-7); a plugin's internal operation is an `api` method (D-ROLE-3), never a verb. |
 | D-VERB-7 | Only a check has a phase (§16.5). Each verb declares the phases it can observe: every fact verb observes an artifact and a deployment, because the artifact's instance starts the init and services it declares; only a protocol verb observes a deployment alone. A check's phase is `artifact` when its verb can observe one and `deployment` otherwise, unless the check writes `ready` or `deployment`; a `harness_check` observes a deployment. A phase the verb cannot observe is a load error. |
+| D-VERB-8 | An `http` check names either a `url` or an `endpoint` its stack provides. The endpoint form takes the scheme from the endpoint's `protocol`, and the host, port and path from its address, resolved where the check runs — the published host port when the check runs outside the deployment — so the address is written once, where the endpoint is provided (D-CAP-8). |
 
 ## 24. Repositories
 
@@ -2956,8 +2966,9 @@ alone. Each `alone` and `context`
 example is a document of its own. The `context` blocks (the imports of §18.2 and the plugins of
 §7) and every `uses-context` block together form **one** project, validated as one document —
 so a name defined twice across examples is caught as in a real project. `GRIEVANCES.md` is read by
-the same check under the same markers: its `uses-context` blocks and the `context` blocks of this
-document form a second project, so its examples are held to this design and cannot drift from it.
+the same check under the same markers. Its examples are complete documents, each a `charly.yml` that
+imports what it uses, so each is validated alone and none can drift from this design; a
+`uses-context` block there would join the `context` blocks of this document as a second project.
 Every document is extracted into a temporary directory — no copy is kept — and must
 pass each stage below, in order:
 

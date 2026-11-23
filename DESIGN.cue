@@ -58,7 +58,9 @@ import (
 #Hostname:    =~"^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$"
 #Address:     =~"^[a-z0-9]([a-z0-9.-]*[a-z0-9])?:[0-9]+$"
 #Url:         =~"^[a-z][a-z0-9+.-]*://[^ ]+$"
-#Repo:        =~"^[a-z0-9.-]+/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+// D-REF-3: one repository form everywhere: `owner/name` on GitHub, `host/owner/name` on any other
+// host, so a GitHub repository has exactly one spelling.
+#Repo: =~"^([a-z0-9-]+\\.[a-z0-9.-]+/)?[A-Za-z0-9-]+/[A-Za-z0-9_.-]+$" & !~"^github\\.com/"
 #Module:      =~"^[a-z0-9.-]+(/[A-Za-z0-9_.-]+)+$"
 #Release:     =~"^v[0-9]{4}\\.[0-9]{3}\\.[0-9]{4}$"
 #Digest:      =~"^sha256:[0-9a-f]{64}$"
@@ -529,7 +531,8 @@ _leasableWord: [for w, r in _capability if r.lease {w}]
 #SizeNeed: {size!: #Size}
 #MountNeed: {host!: #AbsPath, path!: #AbsPath, writable: *false | bool}
 // An endpoint the content serves: its port and transport, and the protocol, path and host name it
-// is reached by. A deployment publishes endpoints by name (D-VAL-13).
+// is reached by. The five together are its address, and endpoints may share a port (D-CAP-8). A
+// deployment publishes endpoints by name, one publication per shared port (D-VAL-13).
 #Endpoint: {
 	port!:     #Port
 	transport: *"tcp" | or(_transportWord)
@@ -702,8 +705,9 @@ _leasableWord: [for w, r in _capability if r.lease {w}]
 #KernelParamCheck: {name!: #Text, #PresenceFields..., value?: #Matcher}
 #DnsCheck:         {name!: #Hostname, #PresenceFields..., address?: #AddressChecks, server?: #Text}
 #InterfaceCheck:   {name!: #Name, #PresenceFields..., address?: #AddressChecks, mtu?: #Matcher}
-#HttpCheck: {
-	url!:           #Url
+// D-VERB-8: an http check reaches a URL, or a provided endpoint by its name: the endpoint form takes
+// its scheme, host, port and path from that endpoint where the check runs, never from the author.
+#HttpRequestFields: {
 	request_method: *"get" | or(_requestMethodWord)
 	status?:        int
 	body?:          #Matcher
@@ -713,6 +717,11 @@ _leasableWord: [for w, r in _capability if r.lease {w}]
 	follow_redirect?: bool
 	ca_file?:       #AbsPath
 }
+#HttpCheckAlt: {
+	url:      {url!: #Url, #HttpRequestFields...}
+	endpoint: {endpoint!: #Name, #HttpRequestFields...}
+}
+#HttpCheck: or([for _, a in #HttpCheckAlt {a}])
 
 // D-VERB-4: one operation key per multi-operation verb; a wait is the `retry` modifier.
 // D-VERB-4: the cluster check's operations are observations. A wait is the `retry` modifier and a

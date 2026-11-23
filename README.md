@@ -47,7 +47,7 @@ its change class, and by an independent fresh `charly/pr-validator` after the pu
 
 ## This repo: one clone of the whole org
 
-`opencharly/opencharly` is the org-level **umbrella**: every OpenCharly repo (398 today) is pinned
+`opencharly/opencharly` is the org-level **umbrella**: every OpenCharly repo (399 today) is pinned
 here as a git submodule — a "gitlink" — flat at the root, so the submodule path equals the repo
 name for all but one alias: `.github` is pinned at the `dotgithub/` path.
 
@@ -208,7 +208,7 @@ rule, and the class prefix in the repo name states it. The rule itself is stated
 | core and contract | bare names | 6 | the product, the wire/IR contract, the SDK, the generated corpus, the site |
 | distro image families | `distro-` | 5 | a distro's base and builder, its OS-exclusive layers, its VMs and beds |
 | package repositories | `charly-`, `pkg-` | 10 | the published native package repos, the packaging sources they are built from, and the plugin that generates them |
-| candy layers | `layer-` | 161 | ONE candy with its own files beside it — and for a family, its box, VM and beds |
+| candy layers | `layer-` | 162 | ONE candy with its own files beside it — and for a family, its box, VM and beds |
 | plugins | `plugin-` | 119 | the provider candy: the words charly speaks — kinds, deploys, verbs, steps, builders, commands, engines |
 | pods | `pod-` | 74 | a candy with a `service:`, i.e. something that runs |
 | virtual machines | `vm-` | 2 | `kind: vm` definitions for a family that has no image repo |
@@ -438,7 +438,7 @@ a scannable index. Their themes:
 
 ### Candy layers: Developer and ops tooling
 
-17 repos — the everyday CLI surface: git/gh, editors, search, tmux, cloud SDKs, observability.
+18 repos — the everyday CLI surface: git/gh, editors, search, tmux, cloud SDKs, observability, and the example candy the docs import.
 
 | path | repo |
 |---|---|
@@ -447,6 +447,7 @@ a scannable index. Their themes:
 | `layer-dev-tools/` | [opencharly/layer-dev-tools](https://github.com/opencharly/layer-dev-tools) |
 | `layer-devops-tools/` | [opencharly/layer-devops-tools](https://github.com/opencharly/layer-devops-tools) |
 | `layer-direnv/` | [opencharly/layer-direnv](https://github.com/opencharly/layer-direnv) |
+| `layer-example/` | [opencharly/layer-example](https://github.com/opencharly/layer-example) |
 | `layer-fastfetch/` | [opencharly/layer-fastfetch](https://github.com/opencharly/layer-fastfetch) |
 | `layer-gh/` | [opencharly/layer-gh](https://github.com/opencharly/layer-gh) |
 | `layer-github-actions/` | [opencharly/layer-github-actions](https://github.com/opencharly/layer-github-actions) |
