@@ -1,8 +1,7 @@
 # rule: D-IR-6
-# expect: package.ripgrep.input: field not allowed
+# expect: package.0.name: invalid value "ripgrep"
 x:
-  description: A candy that gives an OS package a manager input.
-  package: {ripgrep: {input: {version: "14"}}}
-  step:
-    - check: ripgrep runs
-      command: rg --version
+  description: A candy that gives an OS package a manager's config.
+  package:
+    - name: ripgrep
+      config: {version: "14"}

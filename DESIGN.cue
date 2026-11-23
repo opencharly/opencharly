@@ -372,13 +372,13 @@ _reserved: strings.Join(list.Concat([_kindWord, _deploymentKindWord]), "|")
 // ════ M1 — content: what a candy installs; an `os_override` overrides the same shape ════
 // D-IR-6: an OS package carries nothing; a manager package may carry its plugin's config.
 // D-IR-5: a manager's attributes are that config, never fields of the package entry itself.
-#PackageMap: {
-	[#OsPackage]:      {}
-	[#ManagerLocator]: #ManagerPackage
-}
+// A package is named, once: a bare name for an OS package or a manager package, or a mapping for
+// a manager package that carries its manager's config (D-IR-6). The set is a block list of names.
+#PackageSet: [...(#Package | #ManagedPackage)] & list.UniqueItems() // D-CANDY-2: names, never a map
+#ManagedPackage: {name!: #ManagerLocator, #ManagerPackage...}
 #ManagerPackage: {config?: #Opaque} // S10: the owning manager plugin's config
 #Content: {
-	package?:      #PackageMap
+	package?:      #PackageSet
 	package_repo?: {[#Name]: #PackageRepo}
 	file?:         {[#AbsPath]: #File}
 	path_append?:  [...#AbsPath]
@@ -829,7 +829,7 @@ _leasableWord: [for w, r in _capability if r.lease {w}]
 }
 #Source: or([for _, a in #SourceAlt {a}])
 #SourceIso: {#Download..., config?: #Opaque} // S10: the installer's own answer file
-#SourceBootstrap: {builder!: #Ref @ref(builder), package?: #PackageMap}
+#SourceBootstrap: {builder!: #Ref @ref(builder), package?: #PackageSet}
 
 #Os: {
 	description!:     #Text

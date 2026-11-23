@@ -21,7 +21,6 @@ _ns: {for k, _ in *doc.import | {} {(k): true}}
 _refKind: {for n, v in _node {(n): [if _kindOf[n] == "candy" for f, _ in v if f == "from" {"box"}, _kindOf[n]][0]}}
 
 _candyFieldSet: {for f in _candyField {(f): true}}
-_noContent: {description: _, from: _, require: _, platform: _, build_with: _, entrypoint: _, tag: _, capture: _}
 
 // The candies of the document: top level, and one level inside top-level candies and local or
 // android bodies — each with its path and value.
@@ -108,13 +107,6 @@ violation: [
 	let substance = [for k, _ in c.value if k != "description" && k != "step" {k}]
 	if len(substance) == 0 {
 		{rule: "D-VAL-8", node: c.at, message: "has no substance: no content, no `from`, no `require` and no inner node"}
-	},
-	// D-VAL-1
-	for c in _candies
-	let own = [for k, _ in c.value if _noContent[k] == _|_ && k != "step" && _candyFieldSet[k] != _|_ {k}]
-	let checks = [for f, l in c.value if f == "step" for st in l for k, _ in st if k == "check" {k}]
-	if len(own) > 0 && len(checks) == 0 {
-		{rule: "D-VAL-1", node: c.at, message: "has content of its own (\(strings.Join(own, ", "))) but no check: step"}
 	},
 	// D-VAL-2
 	for x in _check if !x.namespaced && !x.found {

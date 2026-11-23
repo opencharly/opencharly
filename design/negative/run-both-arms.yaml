@@ -2,7 +2,7 @@
 # expect: empty disjunction
 x:
   description: A candy whose run step both runs a command and renders a document.
-  package: {nginx: {}}
+  package: [nginx]
   step:
     - run: this step both runs and renders
       command: echo hi

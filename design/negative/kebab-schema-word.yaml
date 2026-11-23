@@ -2,7 +2,7 @@
 # expect: conflicting values "always" and "on-failure"
 x:
   description: A candy whose service restarts with a kebab-case word.
-  package: {jq: {}}
+  package: [jq]
   service:
     jq: {exec: /usr/bin/jq, restart: on-failure}
   step:

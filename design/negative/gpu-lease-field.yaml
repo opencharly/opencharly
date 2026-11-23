@@ -2,7 +2,7 @@
 # expect: gpu.nvidia.lease: field not allowed
 x:
   description: A candy that authors the lease mode instead of asking for sole use.
-  package: {cuda-toolkit: {}}
+  package: [cuda-toolkit]
   need:
     gpu: {nvidia: {lease: exclusive}}
   step:

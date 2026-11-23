@@ -7,9 +7,8 @@ what OpenCharly does instead — with the mechanism, not the marketing.
 [The vision](VISION.md) says where the project is going. This says what it is running away from.
 The examples are written in the grammar [DESIGN.md](https://github.com/opencharly/opencharly/blob/main/DESIGN.md)
 defines — the target architecture, not every part of it implemented yet — on CachyOS, and the design
-check validates every one of them against DESIGN.cue. They are written in full block YAML; the only
-`{}` left is an entry that carries nothing but its name, because YAML has no other way to write an
-empty mapping.
+check validates every one of them against DESIGN.cue. They are written in plain block YAML, and only
+the examples of §5 carry check steps: checks are optional, and §5 is where they are the point.
 
 ---
 
@@ -19,14 +18,14 @@ empty mapping.
 
 A Containerfile describes exactly one image. When two images need the same three tools, you either
 copy those install steps into both files, or you build a shared base image and make both inherit
-from it. Every way out of that choice costs something:
+from it.
 
-| Escape | What it costs |
-|---|---|
-| A shared base image | Inheritance is a chain, not a set: an image has one parent and gets everything in it, whether it needs it or not. |
-| Multi-stage `COPY --from` | It copies build output well, but not "a package, its configuration and its service" as one unit. |
-| A shell script both images run | The build cache, the linter and anyone asking "what is in this image?" see an opaque script, not what it installs. |
-| Templating (Jinja, Helm, `envsubst`) | You now maintain a program that writes configuration, and its errors show up when it renders, not when you build. |
+Each way out costs something. A shared base image is a chain, not a set: an image has one parent and
+gets everything in it, whether it needs it or not. A multi-stage `COPY --from` moves build output
+well, but not "a package, its configuration and its service" as one unit. A shell script that both
+images run hides what it installs from the build cache, from the linter and from anyone asking what
+is in the image. And templating with Jinja, Helm or `envsubst` means you now maintain a program that
+writes your configuration, whose mistakes show up when it renders rather than when you build.
 
 None of these is wrong. They are what you do when the unit of configuration is the *artifact*
 rather than the concern.
@@ -40,15 +39,39 @@ checks. A **box** is a candy with a `from:` starting point, and it composes othe
 <!-- example: grievance-compose uses-context -->
 ```yaml
 tutorial-shell:
-    description: A CachyOS shell with search tools and an SSH server.
+    description: A CachyOS shell with an SSH server and search tools.
     from: cachyos.cachyos-image
     require:
-        - devtool.ripgrep
         - devtool.sshd
+    package:
+        - ripgrep
+        - jq
 ```
 
 Any box may require any subset of candies, in any combination, without either candy knowing the
-other exists — and each candy brings its own checks along ([§5](#5-the-tests-never-travel-with-the-image)).
+other exists.
+
+### When to write `package:`, and when `require:`
+
+Both put software into a box, so they can look like two ways of doing one thing. They are not: they
+work at different sizes, and each has one job.
+
+- **`package:` installs packages, and nothing else.** It is a list of names the package manager
+  installs. Use it when installing the package *is* the whole concern: the name is the same on every
+  distribution you target, it needs no configuration file, no service and no user, and only this box
+  needs it.
+- **`require:` adds another candy, with everything that candy carries.** A candy is a whole concern:
+  its packages, its files, its services and users, its per-distribution package names
+  (`os_override:`, §2) and its checks when it has them. Use `require:` as soon as the concern is more
+  than a package name — it brings configuration, a service, or a name that differs between
+  distributions — or when more than one box needs it, so it is written once and shared.
+
+The example above uses both. `devtool.sshd` is a package plus its configuration, a service and a
+user, and many boxes need it, so the box requires the candy. `ripgrep` and `jq` are one package each,
+with one name everywhere and nothing else to them, so the box lists them under `package:`.
+
+When in doubt, start with `package:`. The moment you find yourself wanting the same package line, a
+config file or a per-distribution name in a second place, move it into a candy and `require:` it.
 
 ### The honest limits
 
@@ -75,62 +98,33 @@ there".
 
 ### What OpenCharly does
 
-A candy declares a package once. When the name is the same everywhere, that is the whole
-declaration, and it works on CachyOS, Arch, Fedora, Debian and Ubuntu:
+A package is named once. When the name is the same everywhere — like `ripgrep` and `jq` in §1 — the
+package line is the whole declaration, and the same line works whether the box starts from CachyOS,
+Arch, Fedora, Debian or Ubuntu.
 
-<!-- example: grievance-package uses-context -->
-```yaml
-ripgrep:
-    description: ripgrep, the recursive search tool.
-    package:
-        ripgrep: {}
-    step:
-        - check: ripgrep runs
-          command: rg --version
-```
-
-When names differ, `os_override:` replaces only the part that differs. A key is an operating
-system's **family** or its **node name**, and the most specific key wins:
+When the name differs, the package becomes a candy, and `os_override:` replaces only what differs,
+for the operating systems where it differs. The Python GObject bindings are `python-gobject` on Arch
+and CachyOS, `python3-gobject` on Fedora and `python3-gi` on Debian and Ubuntu; a box that needs them
+requires the candy and never thinks about the name again:
 
 <!-- example: grievance-os-override uses-context -->
 ```yaml
-a11y-tools:
-    description: The AT-SPI accessibility bindings for the system Python.
+python-gobject:
+    description: The GObject bindings for the system Python.
     package:
-        python-atspi: {}
-        python-gobject: {}
+        - python-gobject
     os_override:
         fedora:
             package:
-                python3-pyatspi: {}
-                python3-gobject: {}
+                - python3-gobject
         debian:
             package:
-                python3-pyatspi: {}
-                python3-gi: {}
-    step:
-        - check: the system Python imports pyatspi
-          command: python3 -c "import pyatspi"
-
-nvidia-open:
-    description: The NVIDIA open kernel module and its user space.
-    package:
-        nvidia-open: {}
-        nvidia-utils: {}
-    os_override:
-        cachyos:
-            package:
-                linux-cachyos-nvidia-open: {}
-                nvidia-utils: {}
-    step:
-        - check: the NVIDIA user space is installed
-          package:
-              name: nvidia-utils
+                - python3-gi
 ```
 
-CachyOS and Arch take the default; Ubuntu matches the `debian` family. Where CachyOS genuinely
-differs — it ships the module prebuilt for its own kernel — its node name beats the `arch` family
-it belongs to.
+A key is an operating system's **family** or its **node name**, and the most specific key wins:
+Ubuntu matches the `debian` family, and a `cachyos:` key would beat the `arch` family CachyOS belongs
+to.
 
 **Init systems follow the same rule.** A candy declares a `service:` and never names an init; the
 operating system names its inits — `supervisord` in a container, `systemd` on a machine — so the same
@@ -237,12 +231,9 @@ agent-box:
     description: A CachyOS box with a container engine and a hypervisor for an agent's work.
     from: cachyos.cachyos-image
     package:
-        podman: {}
-        qemu-base: {}
-        libvirt: {}
-    step:
-        - check: the container engine and the hypervisor are installed
-          command: podman --version && qemu-system-x86_64 --version
+        - podman
+        - qemu-base
+        - libvirt
 
 agent-sandbox:
     pod:
@@ -257,11 +248,6 @@ agent-sandbox:
                     pod:
                         description: A rootless container inside the VM inside the pod.
                         from: agent-box
-                        step:
-                            - check: the innermost container runs CachyOS
-                              command: cat /etc/os-release
-                              stdout:
-                                  contains: ID=cachyos
 ```
 
 Because the `vm` is written inside the `pod`, the pod gets `/dev/kvm` and `/dev/vhost-net` and
@@ -303,8 +289,9 @@ tells you how to verify it, and you cannot re-verify it, because the proof did n
 
 ### What OpenCharly does
 
-The checks are part of the candy, and the artifact carries them. Every check has a **phase** — what
-it observes:
+The checks are part of the candy, and the artifact carries them. They are optional — none of the
+examples above needs one — but a candy that has them takes them everywhere it goes. Every check has a
+**phase** — what it observes:
 
 <!-- example: grievance-checks uses-context -->
 ```yaml
@@ -312,7 +299,7 @@ hello-web:
     description: A web server whose page is in the artifact and is served once it runs.
     from: cachyos.cachyos-image
     package:
-        python: {}
+        - python
     file:
         /srv/hello/index.html:
             content: hello

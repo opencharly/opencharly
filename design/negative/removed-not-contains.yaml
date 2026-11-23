@@ -2,7 +2,7 @@
 # expect: step.x.0.stdout
 x:
   description: A candy with a removed matcher.
-  package: {jq: {}}
+  package: [jq]
   step:
     - check: jq runs
       command: jq --version
