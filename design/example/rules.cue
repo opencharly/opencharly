@@ -113,6 +113,66 @@ _endpoints: [
 	},
 ]
 
+// D-VAL-16 (D-PLUG-4): every kind and verb word a document writes is owned by a plugin it
+// declares. One row per word: `target` is the owner §3.1 names, under the repository §7 gives it;
+// `current` is every repository that serves the word today, measured from each repository's
+// `plugin.providers` manifest on 2026-11-23 (a kind and the deploy target that realizes it are two
+// repositories today). A document passes by declaring the target, or every current repository.
+// The `current` column shrinks to the target as opencharly/opencharly#1251 consolidates the
+// repositories. A word with no row (its target repository is not named in §7) is not checked.
+_pluginOwner: {
+	candy: {target: "opencharly/plugin-build", current: ["opencharly/plugin-candy-kind"]}
+	box: {target: "opencharly/plugin-build", current: ["opencharly/plugin-candy-kind", "opencharly/plugin-build"]}
+	os: {target: "opencharly/plugin-build", current: ["opencharly/plugin-distro"]}
+	source: {target: "opencharly/plugin-build", current: ["opencharly/plugin-distro"]}
+	init: {target: "opencharly/plugin-build", current: ["opencharly/plugin-init"]}
+	builder: {target: "opencharly/plugin-build", current: ["opencharly/plugin-builder"]}
+	pod: {target: "opencharly/plugin-container", current: ["opencharly/plugin-substrate", "opencharly/plugin-deploy-pod"]}
+	vm: {target: "opencharly/plugin-machine", current: ["opencharly/plugin-substrate", "opencharly/plugin-deploy-vm"]}
+	local: {target: "opencharly/plugin-machine", current: ["opencharly/plugin-substrate", "opencharly/plugin-deploy-local"]}
+	kubernetes: {target: "opencharly/plugin-kubernetes", current: ["opencharly/plugin-substrate", "opencharly/plugin-kube"]}
+	android: {target: "opencharly/plugin-android", current: ["opencharly/plugin-substrate", "opencharly/plugin-adb"]}
+	command: {target: "opencharly/plugin-check", current: ["opencharly/plugin-command"]}
+	file: {target: "opencharly/plugin-check", current: ["opencharly/plugin-file"]}
+	package: {target: "opencharly/plugin-check", current: ["opencharly/plugin-package"]}
+	service: {target: "opencharly/plugin-check", current: ["opencharly/plugin-service"]}
+	process: {target: "opencharly/plugin-check", current: ["opencharly/plugin-process"]}
+	port: {target: "opencharly/plugin-check", current: ["opencharly/plugin-port"]}
+	user: {target: "opencharly/plugin-check", current: ["opencharly/plugin-user"]}
+	group: {target: "opencharly/plugin-check", current: ["opencharly/plugin-unix-group"]}
+	mount: {target: "opencharly/plugin-check", current: ["opencharly/plugin-mount"]}
+	kernel_param: {target: "opencharly/plugin-check", current: ["opencharly/plugin-kernel-param"]}
+	dns: {target: "opencharly/plugin-check", current: ["opencharly/plugin-dns"]}
+	interface: {target: "opencharly/plugin-check", current: ["opencharly/plugin-interface"]}
+	http: {target: "opencharly/plugin-check", current: ["opencharly/plugin-http"]}
+	kube: {target: "opencharly/plugin-kubernetes", current: ["opencharly/plugin-kube"]}
+	appium: {target: "opencharly/plugin-android", current: ["opencharly/plugin-appium"]}
+}
+
+_declared: {for _, r in *doc.plugin | {} for f, v in r if f == "repo" {(v): true}}
+
+// The words a plugin candy of this document serves itself (its manifest, §4.1): a plugin's own
+// repository uses its words without declaring itself.
+_servedHere: {for n, v in _node if v.module != _|_ for f, p in v if f == "provide" for role, ws in p if role == "kind" || role == "verb" for w, _ in ws {(w): true}}
+
+// The words a document writes, each with the first place it is written: top-level nodes (a candy
+// with `from:` is a box), placed inner nodes, inner candies, and the verbs of every step.
+_written: [
+	for n, _ in _node {{word: _refKind[n], at: n}},
+	for x in _inner if x.key != _|_ {{word: x.key, at: x.at}},
+	for c in _candies {{word: "candy", at: c.at}},
+	for n, l in _stepList for i, e in l for k, _ in e.value if _verbSet[k] != _|_ {{word: k, at: "\(n).step.\(i)"}},
+]
+_writtenWord: {for w in _written {(w.word): true}}
+_unowned: {
+	for word, _ in _writtenWord if _pluginOwner[word] != _|_ if _servedHere[word] == _|_
+	let o = _pluginOwner[word]
+	if _declared[o.target] == _|_
+	if len([for r in o.current if _declared[r] == _|_ {r}]) > 0 {
+		(word): {at: [for w in _written if w.word == word {w.at}][0], owner: o}
+	}
+}
+
 violation: [
 	// D-VAL-8: a candy has substance
 	for c in _candies
@@ -139,5 +199,9 @@ violation: [
 	// D-VAL-15: two endpoints of one stack never share a whole address
 	for i, a in _endpoints for j, b in _endpoints if i < j && a.at == b.at && a.key == b.key {
 		{rule: "D-VAL-15", node: a.at, message: "endpoints \(a.name) and \(b.name) have the same address (\(a.key))"}
+	},
+	// D-VAL-16: a written word's owning plugin is declared in `plugin:`
+	for w, u in _unowned {
+		{rule: "D-VAL-16", node: u.at, message: "writes the word \(w), but plugin: declares neither \(u.owner.target) nor \(strings.Join(u.owner.current, " and "))"}
 	},
 ]
