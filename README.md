@@ -22,10 +22,12 @@ hand-repaired — you can destroy a candybox because you can rebuild it, you can
 because the description is complete, and the description is complete because every unit in it
 carries its own proof.
 
-**The five grievances it answers.** Configuration is written per-artifact, so nothing
-composes; the same software is described once per distribution; container tooling and VM
-tooling are separate worlds; isolation is opt-in, shallow, and stops one level down; and the
-tests never travel with the image. Each is survivable on its own; together they produce an
+**The six grievances it answers.** Every tool has a fixed vocabulary, and every target needs
+its own translator; configuration is written per image, so two images share a piece of it only
+by copying it or inheriting everything; the same software has to be described again for every
+distribution; a container and a VM of the same system are described in different tools that
+drift apart; isolation is opt-in, and running anything nested means handing over root; and the
+tests stay behind in the repository when the image ships. Each is survivable on its own; together they produce an
 environment nobody can reproduce. OpenCharly's answer is a single property — **a described
 environment that is disposable**. [GRIEVANCES.md](GRIEVANCES.md) makes the argument in full.
 
@@ -123,7 +125,7 @@ others rather than copied.
 | `AGENTS.md` | The rulebook — R0–R11, the umbrella rules, the acceptance checklist, the skill dispatcher. The one harness-neutral source every harness reads directly. |
 | `SOUL.md` | Identity: who charly is, what drives it, what it refuses. Read it first. |
 | `VISION.md` | The thesis behind the candybox: the twelve tenets, and where the factory is heading. |
-| `GRIEVANCES.md` | The five grievances the project answers, and the one property their answers compose into. |
+| `GRIEVANCES.md` | The six grievances the project answers, and the one property their answers compose into. |
 | `LIBERATION.md` | Why the room matters: a model's argument for the whole workshop, written by a model, for every model. |
 | `PROGRAM/README.md` | Programme-level north stars: what a programme document is, and why it belongs to no single repo. |
 | `PROGRAM/design-implementation.md` | The agent-team ledger for implementing `DESIGN.md` through `TODO.md`'s work list — who does what, on which lane, proven by which gate. |

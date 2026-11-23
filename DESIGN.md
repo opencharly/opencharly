@@ -253,6 +253,9 @@ of what it serves. A project uses a plugin by naming its repository in `plugin:`
 
 <!-- example: plugin-candy -->
 ```yaml
+plugin:
+    plugin-build:     {repo: opencharly/plugin-build,     release: v2026.276.1100, digest: "sha256:1b7c00d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9"}
+
 plugin-check:
     description: The check command and the fact verbs.
     module: github.com/opencharly/plugin-check
@@ -422,6 +425,10 @@ a plugin that calls it needs or uses it:
 
 <!-- example: plugin-api-owner -->
 ```yaml
+plugin:
+    plugin-build:     {repo: opencharly/plugin-build,     release: v2026.276.1100, digest: "sha256:1b7c00d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9"}
+    plugin-check:     {repo: opencharly/plugin-check,     release: v2026.276.1100, digest: "sha256:5a9000d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9"}
+
 plugin-container:
     description: The pod kind, its venue, grants and captures, and the image_load api.
     module: github.com/opencharly/plugin-container
@@ -435,6 +442,10 @@ plugin-container:
 
 <!-- example: plugin-api-caller -->
 ```yaml
+plugin:
+    plugin-build:     {repo: opencharly/plugin-build,     release: v2026.276.1100, digest: "sha256:1b7c00d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9"}
+    plugin-check:     {repo: opencharly/plugin-check,     release: v2026.276.1100, digest: "sha256:5a9000d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9"}
+
 plugin-kubernetes:
     description: Clusters and workloads, the kube protocol verb, and the helm manager.
     module: github.com/opencharly/plugin-kubernetes
@@ -716,6 +727,10 @@ shared access to any GPU the host has (D-HW-9).
 
 <!-- example: host-need -->
 ```yaml
+plugin:
+    plugin-build:     {repo: opencharly/plugin-build,     release: v2026.276.1100, digest: "sha256:1b7c00d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9"}
+    plugin-check:     {repo: opencharly/plugin-check,     release: v2026.276.1100, digest: "sha256:5a9000d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9"}
+
 gpu-stream:
     description: Video encoding that runs on the CPU and uses a shared GPU when the host has one.
     package: [gst-plugins-good]
@@ -741,6 +756,10 @@ The boundary a deployment runs behind is a need too — never a runtime setting 
 
 <!-- example: boundary-need -->
 ```yaml
+plugin:
+    plugin-build:     {repo: opencharly/plugin-build,     release: v2026.276.1100, digest: "sha256:1b7c00d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9"}
+    plugin-check:     {repo: opencharly/plugin-check,     release: v2026.276.1100, digest: "sha256:5a9000d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9"}
+
 browser-sandbox:
     description: A browser whose own sandbox runs in user namespaces, never unconfined.
     package: [chromium]
@@ -1019,6 +1038,7 @@ owner's tests.
 | D-VAL-13 | Every `publish` key names a provided `endpoint` of the deployment's stack; the guest side is that endpoint's own port. Publishing an endpoint publishes its port, so endpoints that share a guest port and transport share one publication: several of them published to one host port are that one publication, and published to two different host ports are an error naming both. | container plugin, machine plugin | — |
 | D-VAL-14 | A node names a capability at most once: under `need:` or under `use:`, never both (D-CAP-1). | core | `rules.cue` |
 | D-VAL-15 | Two endpoints of one stack never have the same address — the same port, transport, protocol, host and path (D-CAP-8); the error names both. | core | `rules.cue` |
+| D-VAL-16 | Every kind and verb word a document writes is served by a plugin its `plugin:` declares, or by a plugin candy of the same document (D-PLUG-4); the error names the word and the plugin that owns it. | core | `rules.cue` |
 
 The other requirements that need the whole load are stated where their concept lives and checked
 by core: a name defined twice (§11.2 rule 2), an undeclared or unused plugin word (D-PLUG-4,
@@ -1437,6 +1457,10 @@ A candy, and a box built on the Arch source of the `arch` repository (imported a
 
 <!-- example: manager-install -->
 ```yaml
+plugin:
+    plugin-build:     {repo: opencharly/plugin-build,     release: v2026.276.1100, digest: "sha256:1b7c00d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9"}
+    plugin-check:     {repo: opencharly/plugin-check,     release: v2026.276.1100, digest: "sha256:5a9000d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9"}
+
 labtools-charts:
     description: The charts the lab cluster installs, declared where content is declared.
     package:
@@ -1555,6 +1579,9 @@ A source has exactly one origin and names its `os` node. The nodes of the `arch`
 
 <!-- example: os-repository -->
 ```yaml
+plugin:
+    plugin-build:     {repo: opencharly/plugin-build,     release: v2026.276.1100, digest: "sha256:1b7c00d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9"}
+
 arch-image:
     source:
         description: The official Arch Linux container image.
@@ -2370,6 +2397,10 @@ lab-workstation:
 
 <!-- example: protocol-verbs -->
 ```yaml
+plugin:
+    plugin-build:     {repo: opencharly/plugin-build,     release: v2026.276.1100, digest: "sha256:1b7c00d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9"}
+    plugin-android:   {repo: opencharly/plugin-android,   release: v2026.276.1100, digest: "sha256:9d3400d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9"}
+
 browser-venue:
     description: A browser venue, its tool server and its session bus.
     package: [curl]
@@ -2701,6 +2732,10 @@ installed, running, mounted, resolvable, up, listening), and a matcher for each 
 
 <!-- example: fact-verbs -->
 ```yaml
+plugin:
+    plugin-build:     {repo: opencharly/plugin-build,     release: v2026.276.1100, digest: "sha256:1b7c00d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9"}
+    plugin-check:     {repo: opencharly/plugin-check,     release: v2026.276.1100, digest: "sha256:5a9000d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9"}
+
 sshd-account:
     description: The SSH server's account, its group, and the host facts it relies on.
     package: [openssh-server]

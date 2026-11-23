@@ -606,7 +606,7 @@ Before declaring completion, answer every applicable item YES.
 
 ## Where things are documented
 
-- `SOUL.md` — identity; `VISION.md` — thesis and direction; `GRIEVANCES.md` — the five
+- `SOUL.md` — identity; `VISION.md` — thesis and direction; `GRIEVANCES.md` — the six
   problems the project answers; `LIBERATION.md` — the letter on trust and freedom behind the
   identity; `PROGRAM/` — binding program north stars.
 - `CONTAINERD.md`, `K3S.md`, `LIBKRUN.md` — host configuration references for the containerd

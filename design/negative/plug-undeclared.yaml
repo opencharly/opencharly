@@ -1,0 +1,17 @@
+# rule: D-VAL-16
+# expect: writes the word pod, but plugin: declares neither opencharly/plugin-container
+import:
+    distro-cachyos: {repo: opencharly/distro-cachyos, release: v2026.327.0930, digest: "sha256:d32aa5fae9181727628f2f32b056ca2f7d4e0893d61474e2ccf80387b4fca814"}
+plugin:
+    plugin-build: {repo: opencharly/plugin-build, release: v2026.276.1100, digest: "sha256:1b7c00d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9"}
+
+web-box:
+    description: A box with Python on CachyOS.
+    from: distro-cachyos.cachyos
+    package:
+        - python
+
+web-pod:
+    pod:
+        description: Writes the pod word without declaring the plugin that owns it.
+        from: web-box
