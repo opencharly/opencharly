@@ -1723,3 +1723,7 @@
 	path = pod-kde-vnc
 	url = https://github.com/opencharly/pod-kde-vnc.git
 	branch = main
+[submodule "layer-example"]
+	path = layer-example
+	url = https://github.com/opencharly/layer-example.git
+	branch = main

@@ -101,6 +101,18 @@ _check: [for x in _refs {
 	}
 }]
 
+// The endpoints each candy provides, with their address (D-CAP-8): port, transport (default
+// tcp), protocol, host and path; an absent field contributes an empty segment.
+_endpoints: [
+	for c in _candies for f, p in c.value if f == "provide" for t, m in p if t == "endpoint" for ep, e in m {
+		at:   c.at
+		name: ep
+		key: strings.Join([for k in ["port", "transport", "protocol", "host", "path"] {
+			[for g, v in e if g == k {"\(v)"}, if k == "transport" {"tcp"}, ""][0]
+		}], " ")
+	},
+]
+
 violation: [
 	// D-VAL-8: a candy has substance
 	for c in _candies
@@ -123,5 +135,9 @@ violation: [
 	for c in _candies for f, nd in c.value if f == "need" for t, m in nd for name, _ in m
 	for g, ud in c.value if g == "use" for u, um in ud if u == t for uname, _ in um if uname == name {
 		{rule: "D-VAL-14", node: c.at, message: "names \(t) \(name) under both need: and use:"}
+	},
+	// D-VAL-15: two endpoints of one stack never share a whole address
+	for i, a in _endpoints for j, b in _endpoints if i < j && a.at == b.at && a.key == b.key {
+		{rule: "D-VAL-15", node: a.at, message: "endpoints \(a.name) and \(b.name) have the same address (\(a.key))"}
 	},
 ]
