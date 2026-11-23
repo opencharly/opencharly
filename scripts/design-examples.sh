@@ -1,15 +1,16 @@
 #!/usr/bin/env bash
-# design-examples.sh — validate every example of DESIGN.md and every negative case against
+# design-examples.sh — validate every example of DESIGN.md and GRIEVANCES.md and every negative case against
 # DESIGN.cue with CUE v0.18.0-rc.1 (DESIGN.md Appendix A, D-PAT-4).
 #
-# Examples. Every ```yaml block in DESIGN.md is preceded by a marker line:
+# Examples. Every ```yaml block in DESIGN.md and GRIEVANCES.md is preceded by a marker line:
 #   <!-- example: <id> -->               a complete document
 #   <!-- example: <id> context -->       part of the shared project context (also validated alone)
 #   <!-- example: <id> uses-context -->  a fragment of the shared project
 #   <!-- example: <id> user-config -->   a user configuration, validated by cue vet -d '#UserConfig' alone
+#   <!-- example: <id> labels -->        an artifact's decoded labels, validated by cue vet -d '#Labels' alone
 # An unmarked block, a ```yml fence or an indented yaml fence fails the check, so no example
-# escapes validation. The context blocks and every uses-context block form ONE project, validated
-# as one document (so project-wide rules see all of it). Each document must pass
+# escapes validation. DESIGN.md's context blocks and every uses-context block of a document form
+# that document's project, validated as one document (so project-wide rules see all of it). Each document must pass
 #   1. shape, as the loader checks it (§11.2 rule 3): each node against the one definition its
 #      kind key selects —  cue vet -c DESIGN.cue load.cue -l '"doc"' <doc>
 #   2. the same verdict from the root union —  cue vet -d '#Document' DESIGN.cue <doc>
@@ -63,91 +64,117 @@ shape() {
 }
 
 # ── extract ──────────────────────────────────────────────────────────────────
-# Writes $work/<id>.yaml and $work/<id>.mode; reports unmarked blocks and duplicate ids.
-awk -v out="$work" '
-	function flush() { close(file) }
-	# a fence that is not a yaml block (```text, ```bash, …) is skipped whole: markers shown in
-	# it are illustrations, not markers
-	/^[ \t]*```[ \t]*(yaml|yml)/ && !/^```yaml[ \t]*$/ && inblock == 0 && !other {
-		printf "BADFENCE DESIGN.md:%d\n", NR; next
-	}
-	/^```/ && !/^```yaml[ \t]*$/ && inblock == 0 { other = !other; next }
-	other { next }
-	/^<!-- example: / {
-		n = split($0, w, " "); id = w[3]; mode = (w[4] == "-->") ? "alone" : w[4]
-		marked = NR; prev_nonblank = NR; next
-	}
-	/^```yaml[ \t]*$/ {
-		if (marked != prev_nonblank) { printf "UNMARKED DESIGN.md:%d\n", NR; inblock = 2; next }
-		if (seen[id]++) { printf "DUPLICATE DESIGN.md:%d %s\n", NR, id }
-		file = out "/" id ".yaml"; printf "" > file
-		print mode > (out "/" id ".mode"); close(out "/" id ".mode")
-		printf "%d\n", NR > (out "/" id ".line"); close(out "/" id ".line")
-		inblock = 1; next
-	}
-	/^```[ \t]*$/ && inblock { if (inblock == 1) flush(); inblock = 0; next }
-	inblock == 1 { print > file }
-	NF { prev_nonblank = NR }
-' "$root/DESIGN.md" > "$work/extract.log"
+# The documents whose yaml blocks are examples. DESIGN.md holds the shared project's `context`
+# blocks; every other document is a second project of its own uses-context blocks plus those
+# context blocks (A.5), so its examples are held to this design without colliding with its names.
+docs=(DESIGN.md GRIEVANCES.md)
+# The definition a single-definition mode is validated against alone (A.5).
+declare -A mode_def=([user-config]='#UserConfig' [labels]='#Labels')
 
-while read -r kind where id; do
-	case "$kind" in
-	UNMARKED) bad "$where: a yaml block without an <!-- example: … --> marker" ;;
-	BADFENCE) bad "$where: a yaml example starts with \`\`\`yaml at the start of a line" ;;
-	DUPLICATE) bad "$where: example id '$id' is used twice" ;;
-	esac
-done < "$work/extract.log"
+# extract <document> <dir>: writes <dir>/<id>.yaml, .mode and .line; reports unmarked blocks,
+# bad fences and duplicate ids under the document's own name.
+extract() {
+	local src="$1" dir="$2"
+	mkdir -p "$dir"
+	awk -v out="$dir" -v src="$src" '
+		function flush() { close(file) }
+		# a fence that is not a yaml block (```text, ```bash, …) is skipped whole: markers shown in
+		# it are illustrations, not markers
+		/^[ \t]*```[ \t]*(yaml|yml)/ && !/^```yaml[ \t]*$/ && inblock == 0 && !other {
+			printf "BADFENCE %s:%d\n", src, NR; next
+		}
+		/^```/ && !/^```yaml[ \t]*$/ && inblock == 0 { other = !other; next }
+		other { next }
+		/^<!-- example: / {
+			n = split($0, w, " "); id = w[3]; mode = (w[4] == "-->") ? "alone" : w[4]
+			marked = NR; prev_nonblank = NR; next
+		}
+		/^```yaml[ \t]*$/ {
+			if (marked != prev_nonblank) { printf "UNMARKED %s:%d\n", src, NR; inblock = 2; next }
+			if (seen[id]++) { printf "DUPLICATE %s:%d %s\n", src, NR, id }
+			file = out "/" id ".yaml"; printf "" > file
+			print mode > (out "/" id ".mode"); close(out "/" id ".mode")
+			printf "%d\n", NR > (out "/" id ".line"); close(out "/" id ".line")
+			inblock = 1; next
+		}
+		/^```[ \t]*$/ && inblock { if (inblock == 1) flush(); inblock = 0; next }
+		inblock == 1 { print > file }
+		NF { prev_nonblank = NR }
+	' "$root/$src" > "$dir/extract.log"
+	while read -r kind where id; do
+		case "$kind" in
+		UNMARKED) bad "$where: a yaml block without an <!-- example: … --> marker" ;;
+		BADFENCE) bad "$where: a yaml example starts with \`\`\`yaml at the start of a line" ;;
+		DUPLICATE) bad "$where: example id '$id' is used twice" ;;
+		esac
+	done < "$dir/extract.log"
+}
 
 shopt -s nullglob
-: > "$work/project.yaml"
-for m in "$work"/*.mode; do
-	[[ "$(cat "$m")" == context ]] && cat "${m%.mode}.yaml" >> "$work/project.yaml"
-done
-for m in "$work"/*.mode; do
-	[[ "$(cat "$m")" == uses-context ]] && cat "${m%.mode}.yaml" >> "$work/project.yaml"
-done
-echo shared > "$work/project.mode"
-echo "the shared project" > "$work/project.line"
+for src in "${docs[@]}"; do extract "$src" "$work/$src"; done
+
+# project <dir>: the document's project — DESIGN.md's context blocks, then the document's own
+# context and uses-context blocks.
+project() {
+	local dir="$1" m
+	: > "$dir/project.yaml"
+	for m in "$work/DESIGN.md"/*.mode; do
+		[[ "$(cat "$m")" == context ]] && cat "${m%.mode}.yaml" >> "$dir/project.yaml"
+	done
+	for m in "$dir"/*.mode; do
+		[[ "$dir" != "$work/DESIGN.md" && "$(cat "$m")" == context ]] && cat "${m%.mode}.yaml" >> "$dir/project.yaml"
+		[[ "$(cat "$m")" == uses-context ]] && cat "${m%.mode}.yaml" >> "$dir/project.yaml"
+	done
+	echo shared > "$dir/project.mode"
+	echo "the shared project" > "$dir/project.line"
+}
 
 # ── validate examples ───────────────────────────────────────────────────────────
 count=0
-for y in "$work"/*.yaml; do
-	id="$(basename "$y" .yaml)"
-	[[ -f "$work/$id.mode" ]] || continue
-	mode="$(cat "$work/$id.mode")"
-	line="$(cat "$work/$id.line")"
-	doc="$y"
-	case "$mode" in
-	alone | context | shared) ;;
-	uses-context) continue ;; # validated as part of the shared project
-	user-config)
+for src in "${docs[@]}"; do
+	dir="$work/$src"
+	project "$dir"
+	for y in "$dir"/*.yaml; do
+		id="$(basename "$y" .yaml)"
+		[[ -f "$dir/$id.mode" ]] || continue
+		mode="$(cat "$dir/$id.mode")"
+		line="$(cat "$dir/$id.line")"
+		doc="$y"
+		case "$mode" in
+		alone | context | shared) ;;
+		uses-context) continue ;; # validated as part of its document's project
+		*)
+			if [[ -z "${mode_def[$mode]:-}" ]]; then
+				bad "$src:$line: example '$id' has unknown mode '$mode'"
+				continue
+			fi
+			count=$((count + 1))
+			if ! out="$("$cue" vet -c -d "${mode_def[$mode]}" "$schema" "$doc" 2>&1)"; then
+				bad "$src:$line: example '$id' does not validate:"
+				echo "$out" | sed -n '1,20s/^/    /p'
+			fi
+			continue
+			;;
+		esac
 		count=$((count + 1))
-		if ! out="$("$cue" vet -c -d '#UserConfig' "$schema" "$doc" 2>&1)"; then
-			bad "DESIGN.md:$line: example '$id' does not validate:"
+		if ! out="$(shape "$doc")"; then
+			bad "$src:$line: example '$id' does not validate:"
 			echo "$out" | sed -n '1,20s/^/    /p'
+			continue
 		fi
-		continue
-		;;
-	*) bad "DESIGN.md:$line: example '$id' has unknown mode '$mode'"; continue ;;
-	esac
-	count=$((count + 1))
-	if ! out="$(shape "$doc")"; then
-		bad "DESIGN.md:$line: example '$id' does not validate:"
-		echo "$out" | sed -n '1,20s/^/    /p'
-		continue
-	fi
-	if ! out="$("$cue" vet -d '#Document' "$schema" "$doc" 2>&1)"; then
-		bad "DESIGN.md:$line: example '$id' passes the loader dispatch but not #Document:"
-		echo "$out" | sed -n '1,20s/^/    /p'
-		continue
-	fi
-	if ! v="$(loader_cue export "$schema" "$load" "$rules" -l '"doc"' "$doc" -e violation 2>&1)"; then
-		bad "DESIGN.md:$line: example '$id': rules.cue failed:"
-		echo "$v" | sed -n '1,20s/^/    /p'
-	elif [[ "$v" != "[]" ]]; then
-		bad "DESIGN.md:$line: example '$id' breaks a whole-document rule:"
-		echo "$v" | sed 's/^/    /'
-	fi
+		if ! out="$("$cue" vet -d '#Document' "$schema" "$doc" 2>&1)"; then
+			bad "$src:$line: example '$id' passes the loader dispatch but not #Document:"
+			echo "$out" | sed -n '1,20s/^/    /p'
+			continue
+		fi
+		if ! v="$(loader_cue export "$schema" "$load" "$rules" -l '"doc"' "$doc" -e violation 2>&1)"; then
+			bad "$src:$line: example '$id': rules.cue failed:"
+			echo "$v" | sed -n '1,20s/^/    /p'
+		elif [[ "$v" != "[]" ]]; then
+			bad "$src:$line: example '$id' breaks a whole-document rule:"
+			echo "$v" | sed 's/^/    /'
+		fi
+	done
 done
 echo "examples: $count validated"
 

@@ -10,7 +10,8 @@
 #
 #   1. the NORMATIVE PAIR — DESIGN.md and DESIGN.cue, at the repository root (A.1,
 #      A.4). The consistency control compares them; nothing else in the tree may
-#      restate what they say.
+#      restate what they say. Beside them, GRIEVANCES.md, whose examples the example
+#      control validates against the pair (A.5).
 #   2. the DESIGN TREE — design/: the parity and dulling ledgers and their admission
 #      table (A.8), the example and negative fixtures (A.5), and the baselines the
 #      gates record their known debt through (A.11, A.12, A.13).
@@ -45,9 +46,10 @@
 #
 # Sourced, not executed: it defines the list and the tests, and runs nothing.
 
-# The NORMATIVE pair, at the root: DESIGN.md is the document, DESIGN.cue the single
-# copy of the schema, and the consistency control exists to keep the two agreeing.
-DESIGN_GATE_ROOT_FILES=(DESIGN.md DESIGN.cue)
+# The root files: the NORMATIVE pair — DESIGN.md is the document, DESIGN.cue the single
+# copy of the schema, and the consistency control exists to keep the two agreeing — and
+# GRIEVANCES.md, whose examples the example control validates against that pair (A.5).
+DESIGN_GATE_ROOT_FILES=(DESIGN.md DESIGN.cue GRIEVANCES.md)
 
 # The design tree: the ledgers, the fixtures, the censuses. A prefix, not a list —
 # a new ledger or a new negative case is in the class the moment it is committed,

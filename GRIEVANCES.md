@@ -6,7 +6,10 @@ what OpenCharly does instead — with the mechanism, not the marketing.
 
 [The vision](VISION.md) says where the project is going. This says what it is running away from.
 The examples are written in the grammar [DESIGN.md](https://github.com/opencharly/opencharly/blob/main/DESIGN.md)
-defines, on CachyOS; the released candy repositories are migrating to that grammar.
+defines — the target architecture, not every part of it implemented yet — on CachyOS, and the design
+check validates every one of them against DESIGN.cue. They are written in full block YAML; the only
+`{}` left is an entry that carries nothing but its name, because YAML has no other way to write an
+empty mapping.
 
 ---
 
@@ -14,17 +17,19 @@ defines, on CachyOS; the released candy repositories are migrating to that gramm
 
 ### The status quo
 
-A Containerfile describes one image. If two images need the same three tools, you write those tools
-twice, or you invent a shared base image and inherit from it. The usual escapes each cost something:
+A Containerfile describes exactly one image. When two images need the same three tools, you either
+copy those install steps into both files, or you build a shared base image and make both inherit
+from it. Every way out of that choice costs something:
 
 | Escape | What it costs |
 |---|---|
-| A shared base image | Inheritance is a chain, not a set: one parent, and everything in it. |
-| Multi-stage `COPY --from` | Works for build output, not for "a package, its config and its service". |
-| A shell script both images run | Opaque to the build cache, the linter, and the question "what is in this image?". |
-| Templating (Jinja, Helm, `envsubst`) | A program that emits configuration; errors move from build time to render time. |
+| A shared base image | Inheritance is a chain, not a set: an image has one parent and gets everything in it, whether it needs it or not. |
+| Multi-stage `COPY --from` | It copies build output well, but not "a package, its configuration and its service" as one unit. |
+| A shell script both images run | The build cache, the linter and anyone asking "what is in this image?" see an opaque script, not what it installs. |
+| Templating (Jinja, Helm, `envsubst`) | You now maintain a program that writes configuration, and its errors show up when it renders, not when you build. |
 
-None of these is wrong. They are what you do when the unit of configuration is the *artifact*.
+None of these is wrong. They are what you do when the unit of configuration is the *artifact*
+rather than the concern.
 
 ### What OpenCharly does
 
@@ -32,11 +37,14 @@ The unit of configuration is a **candy** — one concern, with its own packages,
 checks. A **box** is a candy with a `from:` starting point, and it composes other candies with
 `require:`. Composition is a set, not a chain:
 
+<!-- example: grievance-compose uses-context -->
 ```yaml
 tutorial-shell:
     description: A CachyOS shell with search tools and an SSH server.
     from: cachyos.cachyos-image
-    require: [devtool.ripgrep, devtool.sshd]
+    require:
+        - devtool.ripgrep
+        - devtool.sshd
 ```
 
 Any box may require any subset of candies, in any combination, without either candy knowing the
@@ -54,22 +62,28 @@ commutativity.
 
 ### The status quo
 
-`pacman -S ripgrep` and `dnf install ripgrep` differ by more than a verb. Package names drift
-(`python-gobject` vs `python3-gobject`), some packages exist in one ecosystem only, and the init
-system, the default user and the filesystem layout vary underneath. A project that supports two
-distributions ends up with two diverged Containerfiles, `if [ -f /etc/debian_version ]` branches in
-shell, or a configuration-management layer (Ansible, Chef) whose purpose is papering over this — the
-honest solution, and a large dependency for "the package is called something else over there".
+Installing the same tool on two Linux distributions is rarely the same command with a different
+package manager. `pacman -S ripgrep` and `dnf install ripgrep` happen to agree, but package names
+often drift (`python-gobject` on Arch is `python3-gobject` on Fedora), some packages exist in only
+one ecosystem, and the init system, the default user and the filesystem layout differ underneath.
+
+A team that supports two distributions usually ends up with one of three things: two Containerfiles
+that slowly diverge, shell scripts full of `if [ -f /etc/debian_version ]` branches, or a
+configuration-management layer such as Ansible or Chef. The last is the honest solution — but it is
+a large dependency to take on when the real problem is "the package has a different name over
+there".
 
 ### What OpenCharly does
 
 A candy declares a package once. When the name is the same everywhere, that is the whole
 declaration, and it works on CachyOS, Arch, Fedora, Debian and Ubuntu:
 
+<!-- example: grievance-package uses-context -->
 ```yaml
 ripgrep:
     description: ripgrep, the recursive search tool.
-    package: {ripgrep: {}}
+    package:
+        ripgrep: {}
     step:
         - check: ripgrep runs
           command: rg --version
@@ -78,28 +92,40 @@ ripgrep:
 When names differ, `os_override:` replaces only the part that differs. A key is an operating
 system's **family** or its **node name**, and the most specific key wins:
 
+<!-- example: grievance-os-override uses-context -->
 ```yaml
 a11y-tools:
     description: The AT-SPI accessibility bindings for the system Python.
-    package: {python-atspi: {}, python-gobject: {}}
+    package:
+        python-atspi: {}
+        python-gobject: {}
     os_override:
         fedora:
-            package: {python3-pyatspi: {}, python3-gobject: {}}
+            package:
+                python3-pyatspi: {}
+                python3-gobject: {}
         debian:
-            package: {python3-pyatspi: {}, python3-gi: {}}
+            package:
+                python3-pyatspi: {}
+                python3-gi: {}
     step:
         - check: the system Python imports pyatspi
           command: python3 -c "import pyatspi"
 
 nvidia-open:
     description: The NVIDIA open kernel module and its user space.
-    package: {nvidia-open: {}, nvidia-utils: {}}
+    package:
+        nvidia-open: {}
+        nvidia-utils: {}
     os_override:
         cachyos:
-            package: {linux-cachyos-nvidia-open: {}, nvidia-utils: {}}
+            package:
+                linux-cachyos-nvidia-open: {}
+                nvidia-utils: {}
     step:
         - check: the NVIDIA user space is installed
-          package: {name: nvidia-utils}
+          package:
+              name: nvidia-utils
 ```
 
 CachyOS and Arch take the default; Ubuntu matches the `debian` family. Where CachyOS genuinely
@@ -123,29 +149,41 @@ than diffuse.
 
 ### The status quo
 
-You describe a container with a Containerfile, a VM guest with Packer, cloud-init, a Kickstart file
-or a golden image someone built by hand two years ago, and a configured host with Ansible. Three
-languages, three execution models, three definitions of "done", usually owned by different people —
-so the container and the VM drift, invisibly, until something behaves differently in one of them.
+Most teams describe the same environment several times over, in different tools. A container image
+is a Containerfile. A virtual machine is a Packer template, a cloud-init file, a Kickstart file, or a
+golden image someone built by hand two years ago. A configured host is an Ansible playbook. That is
+three languages, three ways of running them and three definitions of "done", usually owned by
+different people — so the container and the VM drift apart, quietly, until something behaves
+differently in one of them.
 
-"Use containers for everything" stops working the moment you need a different kernel, nested
-virtualization, a device that will not pass through, or a full systemd not worth fighting.
+"Just use containers for everything" stops working the moment you need a different kernel, nested
+virtualization, a device that will not pass through to a container, or a full systemd that is not
+worth fighting inside one.
 
 ### What OpenCharly does
 
 A box is target-neutral; the deployment decides what is built from it. `pod:` and `vm:` are written
-identically:
+identically, and a pod is a rootless container:
 
+<!-- example: grievance-pod-and-vm uses-context -->
 ```yaml
 my-app:
     description: A CachyOS box with an SSH server.
     from: cachyos.cachyos-image
-    require: [devtool.sshd]
+    require:
+        - devtool.sshd
 
 my-app-pod:
-    pod: {description: The box as a rootless container., from: my-app}
+    pod:
+        description: The box as a rootless container.
+        from: my-app
+        disposable: true
+
 my-app-vm:
-    vm: {description: The same box as a virtual machine., from: my-app}
+    vm:
+        description: The same box as a virtual machine.
+        from: my-app
+        disposable: true
 ```
 
 Changing the kind is the whole change. `local:` and `android:` apply the same candies to a host or a
@@ -168,49 +206,84 @@ across three toolchains.
 
 ### The status quo
 
-**Running as root because it is easier.** Rootless containers have real friction — uid mapping,
-subuid ranges, storage drivers, images that assume uid 0 — so much tooling still runs privileged,
-and the isolation you believe you have is thinner than advertised.
+**Containers run as root because it is easier.** Running containers without root privileges is
+possible, but it has real friction: user-ID mapping, subordinate UID ranges, storage drivers that
+behave differently, and images that quietly assume they run as UID 0. So a lot of tooling still runs
+its containers as root, and the isolation you think you have is thinner than it looks.
 
-**Nesting that does not work.** A container that builds containers meets `--privileged` or a
-bind-mounted Docker socket — a root shell on the host wearing a costume. A VM inside a container, or
-a container inside a VM, usually gets the answer "don't".
+**Nesting does not really work.** When a container needs to build or run other containers — a CI
+runner is the usual example — the common answers are `--privileged` or bind-mounting the host's
+Docker socket into it. Both amount to handing the container a root shell on the host. Ask for a VM
+inside a container, or a container inside a VM, and the usual answer is "don't".
 
-So the moment you want a genuinely disposable environment — one an agent can be handed, destroyed and
-rebuilt without thought — the boundary is either too weak to trust or too rigid to nest.
+So the moment you want a genuinely disposable environment — one you can hand to an automated agent,
+then destroy and rebuild without a second thought — the boundary is either too weak to trust or too
+rigid to nest.
 
 ### What OpenCharly does
 
-Nesting is a declared need, and the deployment grants the least that satisfies it:
+**Rootless is the default.** Every pod runs on a rootless engine as the box's own user, every VM
+under your own hypervisor session, with no `--privileged` and no host socket. Root is never
+implicit: the one way to get it is a `need:` for `privilege: rootful` somewhere in the deployment's
+stack, and the host must be able to grant it.
 
+**Nesting is where you write it.** A deployment that runs inside another one is written *inside*
+it, and that position is the whole declaration. The outer deployment receives exactly what the
+inner one needs to run — derived from where it is written, never typed by hand:
+
+<!-- example: grievance-candybox uses-context -->
 ```yaml
-nested-podman:
-    description: Rootless podman inside a rootless container.
-    package: {podman: {}, fuse-overlayfs: {}}
-    need:
-        nesting: {container: {}}
+agent-box:
+    description: A CachyOS box with a container engine and a hypervisor for an agent's work.
+    from: cachyos.cachyos-image
+    package:
+        podman: {}
+        qemu-base: {}
+        libvirt: {}
     step:
-        - check: an inner container runs
-          phase: deployment
-          command: podman run --rm quay.io/libpod/alpine true
+        - check: the container engine and the hypervisor are installed
+          command: podman --version && qemu-system-x86_64 --version
+
+agent-sandbox:
+    pod:
+        description: A rootless pod an agent is handed, with a VM running inside it.
+        from: agent-box
+        disposable: true
+        guest-vm:
+            vm:
+                description: A VM on the pod's hypervisor, with a container on the VM's engine.
+                from: agent-box
+                worker:
+                    pod:
+                        description: A rootless container inside the VM inside the pod.
+                        from: agent-box
+                        step:
+                            - check: the innermost container runs CachyOS
+                              command: cat /etc/os-release
+                              stdout:
+                                  contains: ID=cachyos
 ```
 
-`nesting: {container: {}}` gets `/dev/fuse`, `/dev/net/tun` and user namespaces; `nesting: {vm: {}}`
-gets `/dev/kvm`; `nesting: {userns: {}}` gets a seccomp profile that admits user-namespace sandboxes
-and nothing wider, never `unconfined`. Boxes run rootless at uid 1000 by default, so a VM can run
-inside a container and a container inside a VM — **candyboxing**.
+Because the `vm` is written inside the `pod`, the pod gets `/dev/kvm` and `/dev/vhost-net` and
+nothing wider; because a `pod` is written inside the `vm`, the VM is given what a rootless container
+engine needs — `/dev/fuse`, `/dev/net/tun` and user-namespace sandboxes. A VM inside a
+container and a container inside a VM are both ordinary trees — **candyboxing**. `need:` stays what
+it says: what a node needs *from other nodes or the host* in order to run, such as an endpoint, a
+secret or a GPU — never where it runs.
 
 **Why this is the load-bearing one.** It lets the security model be *"secure the box, not the
-candy"*. If the boundary is kernel-enforced and it nests, you can hand an agent the entire toolset
-inside a disposable environment instead of whitelisting the commands it may run. Command allowlists
-fail because the interesting attacks are compositions of boring commands. A wall does not care.
+candy"*. If the boundary is kernel-enforced, rootless and nests, you can hand an agent the entire
+toolset inside a disposable environment instead of whitelisting the commands it may run. Command
+allowlists fail because the interesting attacks are compositions of boring commands. A wall does not
+care.
 
 ### The honest limits
 
 Rootless nesting needs kernel support — user namespaces, and `/dev/kvm` for VMs — and is not free:
-there are performance costs, and some device classes cannot pass through. The claim is that nesting
-and rootlessness are the *default* the boxes are built against, not an exotic configuration you are
-on your own with.
+there are performance costs, and some device classes cannot pass through. Some workloads genuinely
+need root, such as checkpointing a running process; they get it only by declaring it. The claim is
+that nesting and rootlessness are the *default* the boxes are built against, not an exotic
+configuration you are on your own with.
 
 ---
 
@@ -218,40 +291,97 @@ on your own with.
 
 ### The status quo
 
-Unit tests run on a developer's machine, acceptance tests in a CI pipeline that builds its own copy
-of the artifact, and live checks somewhere else again — a staging host, a smoke script, an uptime
-probe — each with its own idea of "pass". The build CI tested and the image that ships come from
-different code paths, so "it passed CI" is a claim about a build you are not running. The checks live
-in a file in the repository, not in the image: the artifact you pull from a registry is unverified,
-and you cannot re-verify it, because the proof did not travel with it.
+In most pipelines the tests and the thing they test live in different places. Unit tests run on a
+developer's laptop. Acceptance tests run in a CI pipeline that builds its own copy of the artifact.
+Live checks — a smoke script, a staging host, an uptime probe — live somewhere else again, and each
+has its own idea of what "pass" means.
+
+Two problems follow. First, the image CI tested and the image you ship are often built separately,
+so "it passed CI" is a claim about a build you are not actually running. Second, the checks live in
+a file in the repository, not in the image: when you pull an image from a registry, nothing in it
+tells you how to verify it, and you cannot re-verify it, because the proof did not travel with it.
 
 ### What OpenCharly does
 
 The checks are part of the candy, and the artifact carries them. Every check has a **phase** — what
 it observes:
 
+<!-- example: grievance-checks uses-context -->
 ```yaml
 hello-web:
     description: A web server whose page is in the artifact and is served once it runs.
-    package: {python: {}}
+    from: cachyos.cachyos-image
+    package:
+        python: {}
     file:
-        /srv/hello/index.html: {content: hello}
+        /srv/hello/index.html:
+            content: hello
     service:
-        hello-web: {exec: python -m http.server 8080 --directory /srv/hello}
+        hello-web:
+            exec: python -m http.server 8080 --directory /srv/hello
+    provide:
+        endpoint:
+            hello:
+                port: 8080
+                protocol: http
     step:
         - check: the page is in the artifact
-          file: {path: /srv/hello/index.html, content: {contains: hello}}
+          file:
+              path: /srv/hello/index.html
+              content:
+                  contains: hello
         - check: the server answers
-          http: {url: "http://127.0.0.1:8080/", body: {contains: hello}}
-          retry: {until: 30s}
+          http:
+              url: http://127.0.0.1:8080/
+              body:
+                  contains: hello
+          retry:
+              until: 30s
 ```
 
 An `artifact` check runs inside the built image, in a disposable container, before the image is
 stored; a `ready` check holds a deployment back until it passes; a `deployment` check runs against
 the live deployment — its real ports, services and environment. The phase follows from what the
 check can observe, so the `file` check above runs on the artifact and the `http` check on the
-deployment. The image's labels carry the resolved checks, so anyone who pulls it can run them
-without the source repository:
+deployment.
+
+The build writes the resolved stack into the image's OCI labels — one label per concern, named
+`ai.opencharly.<word>`, each value the JSON form of the same schema the source was written in. These
+are the labels `hello-web` carries, decoded and listed by their word (`box` is the label
+`ai.opencharly.box`, `step` is `ai.opencharly.step`):
+
+<!-- example: grievance-labels labels -->
+```yaml
+box: hello-web
+os: cachyos.cachyos
+service:
+    hello-web:
+        exec: python -m http.server 8080 --directory /srv/hello
+provide:
+    endpoint:
+        hello:
+            port: 8080
+            protocol: http
+step:
+    - check: the page is in the artifact
+      phase: artifact
+      file:
+          path: /srv/hello/index.html
+          content:
+              contains: hello
+    - check: the server answers
+      phase: deployment
+      http:
+          url: http://127.0.0.1:8080/
+          body:
+              contains: hello
+      retry:
+          until: 30s
+```
+
+Every phase is written out, so a reader needs neither the source nor the defaults to know where a
+check runs. `charly check box` and `charly deploy from-box` read these labels and nothing else, so
+anyone who pulls the image can verify it and deploy it without the source repository:
 
 ```bash
 charly check box <box>          # the artifact checks, on the built image
@@ -273,12 +403,14 @@ system you must not destroy is a smaller, different claim.
 ## What this adds up to
 
 Each grievance is survivable alone. Together they produce an environment nobody can reproduce,
-described in a different language per target, whose proof does not travel with it, that only one
-person can rebuild, and that nobody dares hand to an automated agent.
+described in a different language per target, running as root because nesting was too hard, whose
+proof does not travel with it, that only one person can rebuild, and that nobody dares hand to an
+automated agent.
 
 The five answers compose into one property — **a described environment that is disposable**. You can
-destroy it because you can rebuild it; you can rebuild it because the description is complete; and
-the description is complete because it is composed of candies that each carry their own proof.
+destroy it because you can rebuild it; you can rebuild it because the description is complete; you
+can hand it over because it is rootless and nests; and the description is complete because it is
+composed of candies that each carry their own proof.
 
 For where that leads, see [the vision](VISION.md). For how it works, see
 [DESIGN.md](https://github.com/opencharly/opencharly/blob/main/DESIGN.md), the

@@ -1,0 +1,7 @@
+# rule: D-CAP-7
+# expect: need.nesting: field not allowed
+x:
+  description: A candy that declares where it runs as a need.
+  need:
+    nesting:
+      container: {}

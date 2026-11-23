@@ -1,0 +1,9 @@
+# rule: D-NEST-7
+# expect: x.host: a pod admits inside it exactly one of
+x:
+  pod:
+    description: A pod that writes the grant its inner VM derives.
+    from: y
+    host:
+      device:
+        kvm: {}
