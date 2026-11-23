@@ -257,8 +257,8 @@ R10. A discovery that changes the contract needs operator direction. *Detail:*
 
 ## Agent Driven Evaluation (ADE)
 
-*Enforces: R7.* Each candy's `plan:` is its acceptance test, with at least one deterministic
-`check:`. Each item carries one intent — `run:` changes state, `check:` probes idempotently,
+*Enforces: R7.* A candy's `plan:` is its acceptance test. Check steps are optional (D-VAL-1): a
+candy without one is proven by the checks of the stacks that compose it. Each item carries one intent — `run:` changes state, `check:` probes idempotently,
 `agent-run:` may mutate, `agent-check:` assesses read-only, `include:` composes. Parse errors,
 timeouts and failed grading fail the step. *Detail:* `/charly-check:check`.
 

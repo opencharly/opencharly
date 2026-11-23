@@ -1,0 +1,6 @@
+# rule: D-CANDY-2
+# expect: node.x.package: conflicting values {ripgrep:{}} and [...(#Package|#ManagedPackage)]
+x:
+  description: A candy that writes its packages as a map of empty entries.
+  package:
+    ripgrep: {}

@@ -5,7 +5,7 @@ x:
   from: b
   need:
     parameter: {size: {description: any size}}
-  package: {jq: {}}
+  package: [jq]
   step:
     - check: jq runs
       command: jq --version

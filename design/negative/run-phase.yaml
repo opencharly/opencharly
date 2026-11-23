@@ -2,7 +2,7 @@
 # expect: node.x.step.0.phase: field not allowed
 x:
   description: A candy.
-  package: {curl: {}}
+  package: [curl]
   step:
     - run: install the tool
       command: "true"

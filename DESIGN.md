@@ -510,7 +510,7 @@ nothing between calls: its records, its content and its secrets go through the h
 `need:` and `use:` list every api and word it relies on (§5). The OS packages it needs to run are
 its `package:` (D-CANDY-6).
 
-**7. Prove it.** The plugin candy carries checks (D-VAL-1); the repository runs the sdk
+**7. Prove it.** The plugin candy's checks are its acceptance (D-VAL-1); the repository runs the sdk
 conformance harness (§4.7); a deployment kind is proven by deployments of it whose checks pass, and
 every box it can realize runs in every form it claims (D-DEP-1).
 
@@ -717,7 +717,7 @@ shared access to any GPU the host has (D-HW-9).
 ```yaml
 gpu-stream:
     description: Video encoding that runs on the CPU and uses a shared GPU when the host has one.
-    package: {gst-plugins-good: {}}
+    package: [gst-plugins-good]
     need:
         memory: {shm: {size: 1Gi}}
     use:
@@ -742,7 +742,7 @@ The boundary a deployment runs behind is a need too — never a runtime setting 
 ```yaml
 browser-sandbox:
     description: A browser whose own sandbox runs in user namespaces, never unconfined.
-    package: {chromium: {}}
+    package: [chromium]
     need:
         isolation: {userns: {}}
     step:
@@ -751,7 +751,7 @@ browser-sandbox:
 
 untrusted-build:
     description: A toolchain for untrusted code, run behind a guest kernel of its own.
-    package: {make: {}}
+    package: [make]
     need:
         isolation: {microvm: {}}
     step:
@@ -760,7 +760,7 @@ untrusted-build:
 
 checkpoint-ready:
     description: The checkpoint tool a process capture needs, on a rootful engine.
-    package: {criu: {}}
+    package: [criu]
     need:
         privilege: {rootful: {}}
     step:
@@ -817,7 +817,7 @@ same box gets the right lease on every kind and driver.
 ```yaml
 cuda-runtime:
     description: The CUDA runtime, checked against the GPU it is granted.
-    package: {cuda-toolkit: {}}
+    package: [cuda-toolkit]
     need:
         gpu: {nvidia: {}}
     step:
@@ -857,7 +857,7 @@ is never bent.
 | S2 | **Named scalar** | `#Name`, `#Word`, `#Port`, `#Size`, `#Base64` | every constrained scalar; never an inline constraint at the use site |
 | S3 | **Vocabulary table** | `_phase: {artifact: {}, ready: {}, deployment: {}} @vocab(core)`, `_phaseWord: [for w, _ in _phase {w}]`, used as `or(_phaseWord)` | every closed set of words. The table is keyed by word and its rows carry the word's data (`#NativeRow`, `#ManagerRow`, …); the word list is derived and the enum is `or()` of it. `@vocab` names the owner (§3.1): `core` or a plugin owner for a set compiled into that owner, `registry` for a set composed from the loaded plugins. The only inline enum is a two-value default such as `*false \| bool`. |
 | S4 | **Key-tagged union** | `#SourceAlt: {oci: {oci!: #ImageRef, #SourceFields...}, …}`, `#Source: or([for _, a in #SourceAlt {a}])` | every "exactly one of". The alternatives live in one tag table whose keys are the tags — the keys the author writes — and the union is derived from it. One entry may be the default, selected when no tag is written; it admits none of the tags. |
-| S5 | **Named collection** | `service?: {[#Name]: #Service}` | everything a node defines, keyed by its name, even when its entry is empty (`package: {ripgrep: {}}`); a list holds only references (`#RefSet`), plain values, or ordered data |
+| S5 | **Named collection** | `service?: {[#Name]: #Service}` | everything a node defines with a body of its own, keyed by its name, even when its entry is empty (`user: {app: {}}`); a list holds only references (`#RefSet`), plain values — package names among them (`#PackageSet`), where a manager package with config is a mapping that names itself — or ordered data |
 | S6 | **Shared shape, inlined by the generator** | `#StepFields: {id?: #Name, …}` — the fields several definitions have in common, stated once and spread into each definition that has them (`{#StepFields..., timeout?: #Duration}`); the enclosing definition closes the result | fields shared by several definitions. The spread is the one way in, and it is not an extension: measured on the pinned CUE, an embedding beside further fields, a unification with a literal and a unification with another definition each report `field not allowed`, while a spread composes the closed definition's fields and the result still refuses an undeclared one — and only an open definition admits a field nobody declared. Closure therefore wins: every definition is closed and complete as the spread leaves it, and a plugin spreads the shared definition it imports rather than restating its fields (D-SCH-2). Where the arms of an S4 table have fields in common, the generator inlines them onto the one-of struct (§13, C4), and the union itself stays derived from its tag table (S4), because core's generator is what emits it. Never a validator. |
 | S7 | **Conditional field** | `if from != _\|_ {#BoxFields}` | fields declared only when another field is present; closedness rejects them otherwise. It adds fields to one concept (a box is a candy, §2); it never defines a second one. |
 | S8 | **Reserved-name pattern** | `[#InnerNodeName]: …` where `#InnerNodeName` excludes field names and kind words | bodies that hold named inner or beside nodes; what a body admits is its kind's row in `_deploymentKind` (`admit`, `beside`), never a hand-written table |
@@ -1003,7 +1003,7 @@ owner's tests.
 
 | ID | Rule | Owner | Design check |
 |---|---|---|---|
-| D-VAL-1 | A candy with content of its own — any field besides `description`, `from`, `require` and the box build settings — carries at least one `check:` step. A box that only composes other nodes, and a capture, are proven by the steps of their stack. | build plugin | `rules.cue` |
+| D-VAL-1 | A `check:` step is optional: a candy with content and no check is valid, and no loader, validator or build rejects it for having none. A candy's checks, when it has them, are its acceptance; a candy without them is proven only by the checks of the stacks that compose it. | build plugin | — |
 | D-VAL-2 | Every reference names a node of a kind its `@ref` attribute admits: `from:` of a candy names a source, box, `pod` or `vm` (a capture); `from:` of a `pod` or `vm` a box or source; `require:` candies; a source's `os:` an `os` node; an `os` node's inits `init` nodes; a bootstrap `builder` a `builder` node; a builder's `box` boxes; `build_with` `builder` nodes; `harness` references `harness` nodes; a stage's `deployment` and a check's `on: {node}` name `pod`, `vm`, `local`, `android` or `kubernetes` nodes, and a stage's `pipeline` a `pipeline` node. A namespaced reference resolves through its import. | core | `rules.cue` **Its proof is split:** this row is the **local** half, proven by `rules.cue` and fired only for a reference that is not namespaced; the **namespaced** half is D-VAL-9, proven by core's tests because the examples carry no second repository. |
 | D-VAL-3 | References form no cycle. | core | — |
 | D-VAL-4 | Namespaces and top-level node names are disjoint. | core | `rules.cue` |
@@ -1174,7 +1174,7 @@ deployment lock (D-DEP-4); no command has a private path.
 | D-IR-4 | A `file:` entry has exactly one effect — `content`, `copy`, `dir`, `link`, `download` or `extract` — and a `download` or `extract` is pinned by `sha256`. |
 | D-IR-5 | A foreign system enters the IR only as a **manager word** (`_managerWord`), a **venue** (`#VenueAlt`) or a **deployment kind**, and its own command line never becomes charly vocabulary: no foreign subcommand, flag or chart-CLI string is an authored field, a verb word or an intent (§2). |
 | D-IR-6 | An action for a manager that declares a config carries it as its `config` (`#Opaque`, S10), validated against the owning plugin's schema at **authoring** time, never at execution. |
-| D-IR-7 | A manager word's **work is done at its time**: a build-time manager's package is built by a `builder` node, so a `build_with` key must be a build-time manager (`#BuildManager`); an apply-time manager's package is applied by the deployment kind. A body may **declare** a package of either time — `#PackageMap` is unscoped — because the time decides who does the work, never what may be written. |
+| D-IR-7 | A manager word's **work is done at its time**: a build-time manager's package is built by a `builder` node, so a `build_with` key must be a build-time manager (`#BuildManager`); an apply-time manager's package is applied by the deployment kind. A body may **declare** a package of either time — `#PackageSet` is unscoped — because the time decides who does the work, never what may be written. |
 
 ## 15. Kinds and directives
 
@@ -1368,11 +1368,11 @@ release:
 | `description` | what the candy is and what its steps prove (required) |
 | `from` | boxes only: the starting point (§14.1) |
 | `step` | the candy's steps |
-| `require` | candies this one is built from, by reference |
+| `require` | candies this one is built from, by reference: each a whole concern with its own packages, files, services, per-OS names and checks (D-CANDY-2) |
 | `need` | capabilities that MUST be set (§8); a `parameter` it needs is a bounded choice (D-SCH-7) |
 | `use` | capabilities that CAN be set (§8); a `parameter` it uses is a bounded choice with a default |
 | `provide` | capabilities it sets (§8), among them `env` for its own content and the parameters of the candy it is `from:` |
-| `package` | packages by name — an OS name, or a `<manager>:<locator>` that may carry its manager's `config` (D-IR-6); on a plugin candy, the OS packages the plugin needs in order to run (D-CANDY-6) |
+| `package` | the packages this candy installs itself, a list of names (`#PackageSet`): an OS package name, or a `<manager>:<locator>`; a manager package with config is written `{name, config}` (D-IR-6); on a plugin candy, the OS packages the plugin needs in order to run (D-CANDY-6) |
 | `os_override` | the same content fields (`#Content`) per `os` family or `os` node name; the most specific key wins |
 | `file` | files by literal absolute path, one effect each |
 | `package_repo` | package repositories by name |
@@ -1390,10 +1390,39 @@ release:
 | `tag` | boxes only: the image tag |
 | `capture` | boxes only, on a capture: `filesystem` or `process` (D-CAPTURE-4) |
 
+#### `package:` or `require:`
+
+Both put software into a box, at different sizes, and each has one job:
+
+- **`package:` installs packages and nothing else** — a list of names the package manager installs.
+  It is right when installing the package is the whole concern: one name on every operating system
+  the candy targets, no file, service or user of its own, and no other node that needs the same.
+- **`require:` composes another candy**, and with it everything that candy carries — its packages,
+  files, services and users, its per-OS names under `os_override:`, and its checks. It is right as
+  soon as the concern is more than a package name (it brings configuration, a service, or a name that
+  differs between operating systems), or when more than one node needs it, so it is written once.
+
+A concern starts as a `package:` line and becomes a candy the moment a second node, a file, a service
+or a per-OS name joins it; a candy is never restated as the packages it installs (D-CANDY-2).
+
+<!-- example: require-or-package uses-context -->
+```yaml
+jq-tools:
+    description: A box that needs jq and the shared SSH server.
+    from: arch.arch-image
+    package:
+        - jq
+    require:
+        - devtool.sshd
+```
+
+`jq` is one package with one name everywhere, so the box names it. The SSH server is a package, its
+configuration, a service and its checks, shared by many boxes, so it is a candy the box requires.
+
 | ID | Requirement |
 |---|---|
 | D-CANDY-1 | The candy definition is the only gate on candy fields; fields marked "boxes only" are an error on a candy without `from:`. |
-| D-CANDY-2 | `require:` holds only candy references. A box's stack is, in order: its `from:` chain, its `require:`d candies, its inner candies, its own fields. An inner candy (a keyless node inside the body) defines content in place and never has `from:`. |
+| D-CANDY-2 | `require:` holds only candy references, and `package:` only package names: a concern that is more than a package to install is a candy, required by reference, never restated as packages. A box's stack is, in order: its `from:` chain, its `require:`d candies, its inner candies, its own fields. An inner candy (a keyless node inside the body) defines content in place and never has `from:`. |
 | D-CANDY-3 | A candy never names an init system: service strings and environment values are init-neutral (no `%`-specifiers). The init comes from the `os` (§3.1). |
 | D-CANDY-4 | An artifact's labels carry its stack's resolved checks, provides, needs and uses, so a pulled artifact can be checked and wired without its project (§16.6). |
 | D-CANDY-5 | A candy has no authored version: its digest addresses its content, and its human-readable coordinate is its repository release. |
@@ -1409,14 +1438,14 @@ A candy, and a box built on the Arch source of the `arch` repository (imported a
 labtools-charts:
     description: The charts the lab cluster installs, declared where content is declared.
     package:
-        "helm:labtools-charts/monitoring":
-            config:
-                release: web-pushgateway
-                namespace: web
-                version: 2.5.0
-                wait: 5m
-                values:
-                    replicaCount: 2
+        - name: "helm:labtools-charts/monitoring"
+          config:
+              release: web-pushgateway
+              namespace: web
+              version: 2.5.0
+              wait: 5m
+              values:
+                  replicaCount: 2
     step:
         - check: the release is installed in its namespace
           command: helm list --namespace web --filter web-pushgateway
@@ -1429,7 +1458,7 @@ runtime-sizes:
     from: arch.arch-image
     need:
         parameter: {size: {one_of: [small, medium, large]}}
-    package: {ripgrep: {}}
+    package: [ripgrep]
     step:
         - check: the tools are present
           command: command -v ripgrep
@@ -1487,10 +1516,10 @@ lab-app:
 ```yaml
 redis:
     description: A Redis-compatible server on 127.0.0.1:6379 that answers PING.
-    package: {redis: {}}
+    package: [redis]
     os_override:
         arch:
-            package: {valkey: {}}
+            package: [valkey]
     file:
         /var/lib/redis: {dir: true, owner: redis}
     service:
@@ -1543,7 +1572,7 @@ arch-root:
         description: An Arch root filesystem bootstrapped with pacstrap.
         bootstrap:
             builder: pacstrap
-            package: {base: {}}
+            package: [base]
         os: arch
 
 arch:
@@ -1631,7 +1660,7 @@ A check observes either the artifact a box builds or a deployment brought to lif
 ```yaml
 web-server:
     description: A web server whose page is in the artifact and is served once it runs.
-    package: {python3: {}}
+    package: [python3]
     file:
         /srv/web/index.html: {content: hello}
     service:
@@ -1906,11 +1935,8 @@ sandbox-box:
     description: An Arch box with a container engine and a hypervisor.
     from: arch.arch-image
     package:
-        podman: {}
-        qemu-base: {}
-    step:
-        - check: the container engine and the hypervisor are installed
-          command: podman --version && qemu-system-x86_64 --version
+        - podman
+        - qemu-base
 
 sandbox-pod:
     pod:
@@ -2178,7 +2204,7 @@ check-kind-workload:
 ```yaml
 fdroid:
     description: The F-Droid app store.
-    package: {"android:https://f-droid.org/F-Droid.apk": {}}
+    package: ["android:https://f-droid.org/F-Droid.apk"]
     step:
         - check: F-Droid is installed
           package: {name: "android:https://f-droid.org/F-Droid.apk"}
@@ -2278,7 +2304,7 @@ which serves `display`, `console` and `power` but no `exec`:
 ```yaml
 desk-session:
     description: A Wayland desktop session, ready once its display answers.
-    package: {sway: {}, foot: {}}
+    package: [sway, foot]
     step:
         - check: the compositor's display answers
           phase: ready
@@ -2337,7 +2363,7 @@ lab-workstation:
 ```yaml
 browser-venue:
     description: A browser venue, its tool server and its session bus.
-    package: {curl: {}}
+    package: [curl]
     step:
         - check: the browser is up
           cdp: {status: {}}
@@ -2496,7 +2522,7 @@ fedora-43-image:
 
 hello-web:
     description: A tiny web server on port 8080 that serves a greeting.
-    package: {python3: {}}
+    package: [python3]
     file:
         /srv/hello/index.html: {content: hello from charly}
     service:
@@ -2562,7 +2588,7 @@ hello-vm-next:
                 description: Adds jq to the running guest.
                 jq:
                     description: The jq JSON processor.
-                    package: {jq: {}}
+                    package: [jq]
                     step:
                         - check: jq runs
                           command: jq --version
@@ -2668,7 +2694,7 @@ installed, running, mounted, resolvable, up, listening), and a matcher for each 
 ```yaml
 sshd-account:
     description: The SSH server's account, its group, and the host facts it relies on.
-    package: {openssh-server: {}}
+    package: [openssh-server]
     user:
         sshd: {group: [sshd]}
     step:

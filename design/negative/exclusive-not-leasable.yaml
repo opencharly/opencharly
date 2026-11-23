@@ -2,7 +2,7 @@
 # expect: node.x.need.env.TOKEN.exclusive: field not allowed
 x:
   description: A candy whose env need asks for sole use.
-  package: {jq: {}}
+  package: [jq]
   need:
     env: {TOKEN: {exclusive: true}}
   step:

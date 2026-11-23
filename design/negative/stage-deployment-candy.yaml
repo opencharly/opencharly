@@ -2,7 +2,7 @@
 # expect: pipeline.stage.checks.deployment: c is a candy, want pod or vm or local or android or kubernetes
 c:
   description: A candy, not a deployment.
-  package: {jq: {}}
+  package: [jq]
   step:
     - check: jq runs
       command: jq --version
