@@ -1,0 +1,17 @@
+# rule: D-VERB-8
+# expect: http
+web:
+    description: An http check that names both a url and an endpoint.
+    package:
+        - python
+    provide:
+        endpoint:
+            hello:
+                port: 8080
+                protocol: http
+                path: /hello
+    step:
+        - check: the server answers
+          http:
+              url: http://127.0.0.1:8080/hello
+              endpoint: hello

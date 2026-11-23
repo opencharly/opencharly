@@ -6,9 +6,10 @@ what OpenCharly does instead — with the mechanism, not the marketing.
 
 [The vision](VISION.md) says where the project is going. This says what it is running away from.
 The examples are written in the grammar [DESIGN.md](https://github.com/opencharly/opencharly/blob/main/DESIGN.md)
-defines — the target architecture, not every part of it implemented yet — on CachyOS, and the design
-check validates every one of them against DESIGN.cue. They are written in plain block YAML, and only
-the examples of §5 carry check steps: checks are optional, and §5 is where they are the point.
+defines — the target architecture, not every part of it implemented yet — on CachyOS. Each one is a
+complete `charly.yml` on its own, importing every repository it uses, and the design check validates
+every one of them against DESIGN.cue. They are written in plain block YAML, and only the examples of
+§5 carry check steps: checks are optional, and §5 is where they are the point.
 
 ---
 
@@ -32,46 +33,74 @@ rather than the concern.
 
 ### What OpenCharly does
 
-The unit of configuration is a **candy** — one concern, with its own packages, files, services and
-checks. A **box** is a candy with a `from:` starting point, and it composes other candies with
-`require:`. Composition is a set, not a chain:
+The unit of configuration is a **candy**: one concern, with its own packages, files, services and
+checks. A **box** is a candy with a `from:` starting point. Two fields put software into either of
+them, and they work at different sizes: `package:` installs packages, and `require:` adds a whole
+candy. The two examples below build on each other.
 
-<!-- example: grievance-compose uses-context -->
+#### `package:` installs packages, and nothing else
+
+`package:` is a list of names the package manager installs. Use it when installing the package
+*is* the whole concern: the name is the same on every distribution you target, and it needs no
+configuration file, no service and no user. The
+[opencharly/layer-example](https://github.com/opencharly/layer-example) repository ships this candy:
+
+<!-- example: grievance-package -->
 ```yaml
-tutorial-shell:
-    description: A CachyOS shell with an SSH server and search tools.
-    from: cachyos.cachyos-image
-    require:
-        - devtool.sshd
+search-tools:
+    description: Two command-line search tools, installed as packages and nothing else.
     package:
         - ripgrep
         - jq
 ```
 
+`ripgrep` and `jq` have one name everywhere and nothing else to them, so the candy lists them and
+is done.
+
+#### `require:` adds a candy, with everything it carries
+
+`require:` adds another candy to a box: its packages, its files, its services and users, its
+per-distribution package names (`os_override:`, §2) and its checks when it has them. This box
+reuses the `search-tools` candy above instead of repeating its package list. `import:` names the
+two repositories it builds on, each at a release and the digest of that release:
+
+<!-- example: grievance-require -->
+```yaml
+import:
+    distro-cachyos:
+        repo: opencharly/distro-cachyos
+        release: v2026.327.0930
+        digest: sha256:d32aa5fae9181727628f2f32b056ca2f7d4e0893d61474e2ccf80387b4fca814
+    layer-example:
+        repo: opencharly/layer-example
+        release: v2026.327.1257
+        digest: sha256:49af625d74b01c751c8dc1e73dc0e0c5d3cc46faf0a4983092e3f5cbff973289
+
+my-box:
+    description: A CachyOS box with the example search tools.
+    from: distro-cachyos.cachyos
+    require:
+        - layer-example.search-tools
+```
+
+A namespace is the repository's own name, and a reference walks into it: `layer-example.search-tools`
+is the `search-tools` candy of the repository imported as `layer-example`. A repository on GitHub
+is written `owner/name`, so `opencharly/layer-example` means `github.com/opencharly/layer-example`;
+a repository on any other host keeps its host, as in `gitlab.com/owner/name`. The same form names a
+repository everywhere, in a `charly.yml` and on the command line alike.
+
 Any box may require any subset of candies, in any combination, without either candy knowing the
-other exists.
+other exists. Composition is a set, not a chain.
 
-### When to write `package:`, and when `require:`
+#### When to write which
 
-Both put software into a box, so they can look like two ways of doing one thing. They are not: they
-work at different sizes, and each has one job.
+Use `package:` when the concern is the package and nothing more. Use `require:` as soon as the
+concern is more than a package name (it brings configuration, a service, or a name that differs
+between distributions), or when more than one box needs it, so that it is written once and shared.
 
-- **`package:` installs packages, and nothing else.** It is a list of names the package manager
-  installs. Use it when installing the package *is* the whole concern: the name is the same on every
-  distribution you target, it needs no configuration file, no service and no user, and only this box
-  needs it.
-- **`require:` adds another candy, with everything that candy carries.** A candy is a whole concern:
-  its packages, its files, its services and users, its per-distribution package names
-  (`os_override:`, §2) and its checks when it has them. Use `require:` as soon as the concern is more
-  than a package name — it brings configuration, a service, or a name that differs between
-  distributions — or when more than one box needs it, so it is written once and shared.
-
-The example above uses both. `devtool.sshd` is a package plus its configuration, a service and a
-user, and many boxes need it, so the box requires the candy. `ripgrep` and `jq` are one package each,
-with one name everywhere and nothing else to them, so the box lists them under `package:`.
-
-When in doubt, start with `package:`. The moment you find yourself wanting the same package line, a
-config file or a per-distribution name in a second place, move it into a candy and `require:` it.
+When in doubt, start with `package:`. The moment you find yourself wanting the same package list, a
+config file or a per-distribution name in a second place, move it into a candy, as `search-tools`
+did, and `require:` it.
 
 ### The honest limits
 
@@ -107,7 +136,7 @@ for the operating systems where it differs. The Python GObject bindings are `pyt
 and CachyOS, `python3-gobject` on Fedora and `python3-gi` on Debian and Ubuntu; a box that needs them
 requires the candy and never thinks about the name again:
 
-<!-- example: grievance-os-override uses-context -->
+<!-- example: grievance-os-override -->
 ```yaml
 python-gobject:
     description: The GObject bindings for the system Python.
@@ -157,27 +186,35 @@ worth fighting inside one.
 ### What OpenCharly does
 
 A box is target-neutral; the deployment decides what is built from it. `pod:` and `vm:` are written
-identically, and a pod is a rootless container:
+identically, and a pod is a rootless container. `my-box` is the box of §1:
 
-<!-- example: grievance-pod-and-vm uses-context -->
+<!-- example: grievance-pod-and-vm -->
 ```yaml
-my-app:
-    description: A CachyOS box with an SSH server.
-    from: cachyos.cachyos-image
-    require:
-        - devtool.sshd
+import:
+    distro-cachyos:
+        repo: opencharly/distro-cachyos
+        release: v2026.327.0930
+        digest: sha256:d32aa5fae9181727628f2f32b056ca2f7d4e0893d61474e2ccf80387b4fca814
+    layer-example:
+        repo: opencharly/layer-example
+        release: v2026.327.1257
+        digest: sha256:49af625d74b01c751c8dc1e73dc0e0c5d3cc46faf0a4983092e3f5cbff973289
 
-my-app-pod:
+my-box:
+    description: A CachyOS box with the example search tools.
+    from: distro-cachyos.cachyos
+    require:
+        - layer-example.search-tools
+
+my-pod:
     pod:
         description: The box as a rootless container.
-        from: my-app
-        disposable: true
+        from: my-box
 
-my-app-vm:
+my-vm:
     vm:
         description: The same box as a virtual machine.
-        from: my-app
-        disposable: true
+        from: my-box
 ```
 
 Changing the kind is the whole change. `local:` and `android:` apply the same candies to a host or a
@@ -225,11 +262,17 @@ stack, and the host must be able to grant it.
 it, and that position is the whole declaration. The outer deployment receives exactly what the
 inner one needs to run — derived from where it is written, never typed by hand:
 
-<!-- example: grievance-candybox uses-context -->
+<!-- example: grievance-candybox -->
 ```yaml
+import:
+    distro-cachyos:
+        repo: opencharly/distro-cachyos
+        release: v2026.327.0930
+        digest: sha256:d32aa5fae9181727628f2f32b056ca2f7d4e0893d61474e2ccf80387b4fca814
+
 agent-box:
     description: A CachyOS box with a container engine and a hypervisor for an agent's work.
-    from: cachyos.cachyos-image
+    from: distro-cachyos.cachyos
     package:
         - podman
         - qemu-base
@@ -239,7 +282,6 @@ agent-sandbox:
     pod:
         description: A rootless pod an agent is handed, with a VM running inside it.
         from: agent-box
-        disposable: true
         guest-vm:
             vm:
                 description: A VM on the pod's hypervisor, with a container on the VM's engine.
@@ -293,16 +335,24 @@ The checks are part of the candy, and the artifact carries them. They are option
 examples above needs one — but a candy that has them takes them everywhere it goes. Every check has a
 **phase** — what it observes:
 
-<!-- example: grievance-checks uses-context -->
+<!-- example: grievance-checks -->
 ```yaml
+import:
+    distro-cachyos:
+        repo: opencharly/distro-cachyos
+        release: v2026.327.0930
+        digest: sha256:d32aa5fae9181727628f2f32b056ca2f7d4e0893d61474e2ccf80387b4fca814
+
 hello-web:
     description: A web server whose page is in the artifact and is served once it runs.
-    from: cachyos.cachyos-image
+    from: distro-cachyos.cachyos
     package:
         - python
     file:
-        /srv/hello/index.html:
+        /srv/hello/hello:
             content: hello
+        /srv/hello/health:
+            content: ok
     service:
         hello-web:
             exec: python -m http.server 8080 --directory /srv/hello
@@ -311,20 +361,30 @@ hello-web:
             hello:
                 port: 8080
                 protocol: http
+                path: /hello
+            health:
+                port: 8080
+                protocol: http
+                path: /health
     step:
         - check: the page is in the artifact
           file:
-              path: /srv/hello/index.html
+              path: /srv/hello/hello
               content:
                   contains: hello
-        - check: the server answers
+        - check: the server answers at the hello endpoint
           http:
-              url: http://127.0.0.1:8080/
+              endpoint: hello
               body:
                   contains: hello
           retry:
               until: 30s
 ```
+
+The two endpoints share port 8080 and protocol `http`, and their paths tell them apart. The `http`
+check names the `hello` endpoint instead of restating its address, so the port and the path are
+written once, where the endpoint is provided, and the check follows them when they change. Where the
+check runs outside the deployment, the endpoint resolves to the port the deployment publishes.
 
 An `artifact` check runs inside the built image, in a disposable container, before the image is
 stored; a `ready` check holds a deployment back until it passes; a `deployment` check runs against
@@ -340,7 +400,7 @@ are the labels `hello-web` carries, decoded and listed by their word (`box` is t
 <!-- example: grievance-labels labels -->
 ```yaml
 box: hello-web
-os: cachyos.cachyos
+os: distro-cachyos.cachyos-os
 service:
     hello-web:
         exec: python -m http.server 8080 --directory /srv/hello
@@ -349,17 +409,22 @@ provide:
         hello:
             port: 8080
             protocol: http
+            path: /hello
+        health:
+            port: 8080
+            protocol: http
+            path: /health
 step:
     - check: the page is in the artifact
       phase: artifact
       file:
-          path: /srv/hello/index.html
+          path: /srv/hello/hello
           content:
               contains: hello
-    - check: the server answers
+    - check: the server answers at the hello endpoint
       phase: deployment
       http:
-          url: http://127.0.0.1:8080/
+          endpoint: hello
           body:
               contains: hello
       retry:
