@@ -229,9 +229,7 @@ _device: {
 	kfd:       {native: "/dev/kfd"}
 } @vocab(spec)
 _deviceWord: [for w, _ in _device {w}]
-_nesting: {container: {}, vm: {}, userns: {}} @vocab(spec)
-_nestingWord: [for w, _ in _nesting {w}]
-_isolation: {microvm: {}} @vocab(spec)
+_isolation: {microvm: {}, userns: {}} @vocab(spec)
 _isolationWord: [for w, _ in _isolation {w}]
 _privilege: {rootful: {}} @vocab(spec)
 _privilegeWord: [for w, _ in _privilege {w}]
@@ -482,6 +480,7 @@ _reserved: strings.Join(list.Concat([_kindWord, _deploymentKindWord]), "|")
 	dst?:      #AbsPath // where the value lands in the venue
 	optional?: bool     // a missing source does not fail the deployment
 }
+// D-CAP-7: a type says what a node is given, never where it runs; nesting is tree position (D-NEST-7).
 _capability: [#Word]: #CapabilityRow
 _capability: {
 	env:        {key: #EnvName, need: {}, use: #EnvUse, provide: #EnvProvide}
@@ -496,7 +495,6 @@ _capability: {
 	memory:     {key: or(_memoryWord), need: #SizeNeed, use: #SizeNeed, lease: true}
 	storage:    {key: or(_storageWord), need: #SizeNeed, use: #SizeNeed, lease: true}
 	mount:      {key: #Name, need: #MountNeed, use: #MountNeed, lease: true}
-	nesting:    {key: or(_nestingWord), need: {}, use: {}}
 	isolation:  {key: or(_isolationWord), need: {}, use: {}} // D-HW-7: a boundary is a need, never a runtime setting
 	privilege:  {key: or(_privilegeWord), need: {}, use: {}}
 	driver_api: {key: or(_driverWord), need: {}, use: {}}
@@ -654,6 +652,27 @@ _leasableWord: [for w, r in _capability if r.lease {w}]
 	harness_run:   {harness_run!: #Text, #HarnessStepFields...}
 }
 #Step: or([for _, a in #StepAlt {a}])
+
+// ── the OCI label contract (§16.6) ────────────────────────────────────────────
+// D-CANDY-8: an artifact carries one label per concern: each field below is the label
+// `ai.opencharly.<field>`, and its value is the JSON encoding of that concern's authoring definition,
+// so the contract restates no shape (D-SCH-1).
+// D-CANDY-9: a label step is a check, never an install step.
+#LabelStepAlt: {
+	check:         #StepAlt.check
+	harness_check: #StepAlt.harness_check
+}
+#LabelStep: or([for _, a in #LabelStepAlt {a}])
+#Labels: {
+	box!:     #Ref            // the box's identity (D-NEST-4)
+	release?: #Release        // the release of the project it was built from, when it has one
+	os!:      #Ref            // the `os` node its content was resolved against (§16.4)
+	service?: {[#Name]: #Service}
+	need?:    #Need
+	use?:     #Use
+	provide?: #Provide
+	step?:    [...#LabelStep]
+}
 // D-DEP-8: a deployment's checks observe the deployment.
 #DeploymentStepAlt: {
 	run:           #StepAlt.run
@@ -1065,7 +1084,9 @@ _permissionWord: [for w, _ in _permission {w}]
 // `connect` the venues it may be reached through instead (D-DEP-6); `top` how a top-level or
 // alongside node of it is placed — created, connected or either (D-NEST-6); an inner node is always
 // created where it is written. `admit` is what its body holds inside it, `beside` what may stand
-// beside it, and `content` whether it takes `require:` candies.
+// beside it, and `content` whether it takes `require:` candies. `host` is what an inner node of the
+// kind needs from the deployment it is written in: written inside one, it is that deployment's need,
+// derived from tree position and never authored (D-NEST-7).
 _placement: {create: {}, connect: {}} @vocab(core)
 _placementWord: [for w, _ in _placement {w}]
 #DeploymentKindRow: {
@@ -1075,15 +1096,20 @@ _placementWord: [for w, _ in _placement {w}]
 	admit:    *[] | [...string]
 	beside:   *[] | [...string]
 	content:  *false | bool
+	host?:    #Need // D-NEST-7: host capabilities only
 	// A connected deployment that ALSO carries the fields its kind defines for creating it: a local
 	// deployment installs onto the host it reached, so its install gates are not a create-only matter.
 	connect_create: *false | bool
 }
+// D-NEST-7: what a container engine and a hypervisor need from the deployment they run in. An
+// inner `kubernetes` is always created, so it runs its nodes on a container engine there.
+_#EngineHost:     {device: {fuse: _, tun: _}, isolation: {userns: _}}
+_#HypervisorHost: {device: {kvm: _, vhost_net: _}}
 _deploymentKind: [#Word]: #DeploymentKindRow
 _deploymentKind: {
-	pod:        {create: #MachineFields, top: ["create"], admit: ["pod", "vm", "local", "kubernetes", "android", "agent"], beside: ["pod", "vm", "local"]}
-	vm:         {create: #MachineFields, top: ["create"], admit: ["pod", "vm", "local", "kubernetes", "android", "agent"], beside: ["pod", "vm", "local"]}
-	kubernetes: {create: #KubernetesFields, connect: ["kube"], top: ["create", "connect"], admit: ["pod", "vm", "agent"]}
+	pod:        {create: #MachineFields, top: ["create"], admit: ["pod", "vm", "local", "kubernetes", "android", "agent"], beside: ["pod", "vm", "local"], host: _#EngineHost}
+	vm:         {create: #MachineFields, top: ["create"], admit: ["pod", "vm", "local", "kubernetes", "android", "agent"], beside: ["pod", "vm", "local"], host: _#HypervisorHost}
+	kubernetes: {create: #KubernetesFields, connect: ["kube"], top: ["create", "connect"], admit: ["pod", "vm", "agent"], host: _#EngineHost}
 	local:      {create: #LocalFields, connect: ["shell", "ssh", "kvm"], top: ["connect"], admit: ["candy", "kubernetes", "android"], content: true, connect_create: true}
 	android:    {create: #AndroidFields, connect: ["adb"], top: ["create", "connect"], admit: ["candy"], content: true}
 	agent:      {create: #AgentFields, top: []}

@@ -1,0 +1,8 @@
+# rule: D-CANDY-9
+# def: #Labels
+# expect: step.0.run: field not allowed
+box: web-shell
+os: arch.arch
+step:
+  - run: install the page
+    command: install -D /dev/null /srv/web/index.html

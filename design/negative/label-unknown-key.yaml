@@ -1,0 +1,6 @@
+# rule: D-CANDY-8
+# def: #Labels
+# expect: field not allowed
+box: web-shell
+os: arch.arch
+env_require: OPENAI_API_KEY
