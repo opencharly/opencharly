@@ -35,6 +35,7 @@
   "enabledPlugins": {
     "charly-agent@charly-plugins": true,
     "charly-agentteams@charly-plugins": true,
+    "charly-ai-toolkit@charly-plugins": true,
     "charly-authoring@charly-plugins": true,
     "charly-automation@charly-plugins": true,
     "charly-bpf@charly-plugins": true,

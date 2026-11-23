@@ -126,8 +126,17 @@ const MUST_NOT_AUTO_ALLOW = [
 // (opencharly/marketplace#644): `134/358 corpus skills routed, 224 unrouted` (358 − 134 = 224).
 // The corpus lost `immich-ml` and `immich-ml-layer` to the retirement list, the routed rows did
 // not move, and at 226 the self-test's own dropping-a-row arm went green again — exactly the
-// slack this ratchet exists to forbid. The ceiling tightens to the measurement.
-const MAX_UNROUTED = 224;
+// slack this ratchet exists to forbid. The ceiling tightened to 224.
+//
+// MEASURED AGAIN the same day on the NEXT corpus (`135/361`, opencharly/marketplace#644 was
+// followed by a corpus that publishes three more skills — `ai-toolkit`, `ai-toolkit-layer`,
+// `cachyos-coder-tools` — and one more routing row): `135/361 corpus skills routed, 226
+// unrouted` (361 − 135 = 226). This is the ONE direction the comment above forbids taking
+// silently, so it is stated: the ceiling rises to follow a corpus that GREW, not to excuse a
+// routing regression — the routed set grew too, and the self-test's dropping-a-row arm still
+// fails at 227 (227 > 226), which is the property the ceiling exists to preserve. A ceiling
+// that cannot follow corpus growth would either block every corpus addition or be bypassed.
+const MAX_UNROUTED = 226;
 
 // ── --self-test: prove the discriminating/structural split by executing it ──────────
 // Copies every surface this gate reads into a temp tree, asserts the gate is GREEN there

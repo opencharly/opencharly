@@ -95,6 +95,7 @@ compact_ratio = 0.70
 paths = [
     "marketplace/agent/skills",
     "marketplace/agentteams/skills",
+    "marketplace/ai-toolkit/skills",
     "marketplace/authoring/skills",
     "marketplace/automation/agents",
     "marketplace/automation/skills",

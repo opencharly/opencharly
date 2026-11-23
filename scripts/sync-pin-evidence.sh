@@ -177,7 +177,7 @@ is_gitlink_path() {
 }
 
 # is_removed_path <root> <path> — true when the INDEX records NO entry for <path> while
-# HEAD still records one: this diff DELETES the path.
+# HEAD OR THE BASE records one: this diff DELETES the path.
 #
 # Why this needs its own predicate. The body is generated AFTER `git add -A` and BEFORE
 # the commit, so a deletion is STAGED-but-not-COMMITTED: the index has no entry for the
@@ -188,9 +188,30 @@ is_gitlink_path() {
 # pin the diff DELETES against the remote's default-branch HEAD and flagged it `!` — a
 # false finding that read as a divergence. A removal and a divergence are different facts
 # and the row must be able to tell them apart.
+#
+# TWO WINDOWS, and the base covers the second. Generating the body STAGED-but-uncommitted
+# makes HEAD the pre-change tree, and `head_entry` answers. Generating it for an ALREADY
+# PUSHED branch (every review round re-renders the WHOLE branch diff) leaves the deletion
+# in BOTH the index and HEAD, and only the BASE — `SYNC_BASE`, default `origin/main`, the
+# tree the branch left — still records the path. Without that half a committed deletion
+# rendered as a `(file)` row with NO blob and was counted as a moved file (measured on
+# opencharly/opencharly#1252 round 1: `.dsh/skills/immich-ml  (file)`, counted among
+# "3 non-gitlink changed path(s) moved" when two of them were deletions).
 is_removed_path() {
   local root="$1" p="$2"
-  [ -z "$(index_entry "$root" "$p")" ] && [ -n "$(head_entry "$root" "$p")" ]
+  [ -z "$(index_entry "$root" "$p")" ] \
+    && { [ -n "$(head_entry "$root" "$p")" ] || [ -n "$(base_entry "$root" "$p")" ]; }
+}
+
+# base_entry <root> <path> — the BASE tree's recorded entry for <path> (`SYNC_BASE`,
+# default `origin/main`), or empty. It is what lets `is_removed_path` see a deletion the
+# branch has ALREADY COMMITTED; a base that does not resolve leaves it empty rather than
+# failing, so a fixture repo with no `origin/main` still runs.
+base_entry() {
+  local root="$1" p="$2" base="${SYNC_BASE:-origin/main}"
+  unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES
+  git -C "$root" rev-parse --verify -q "${base}^{commit}" >/dev/null 2>&1 || return 0
+  git -C "$root" ls-tree "$base" -- ":(literal)$p" 2>/dev/null | awk 'NR==1{print $1" "$3}'
 }
 
 # file_row <path> <blob_sha> — ONE evidence row for a changed NON-gitlink path. A plain file
@@ -330,6 +351,8 @@ evidence_legend() {
   echo '        plain file has no remote default-branch HEAD to compare, so it carries no flag;'
   echo '        its blob is the index blob this PR stages and is never `!`-flagged.)'
   echo '        (a path this diff REMOVES is rendered `  <path>  (removed)` — it is in HEAD'
+  echo '        or in the base the branch left, and in neither the index nor HEAD when the body'
+  echo '        renders a pushed branch, so a deletion is never counted as a moved file); the old'
   echo '        but no longer in the index, so this PR records no pin and no blob for it:'
   echo '        there is nothing to compare, and it is never `=`/`!`-flagged.)'
 }
@@ -517,6 +540,30 @@ charly.yml" "" || fail "a manifest edit among plain files must still touch an in
     && fail "is_removed_path must be FALSE for a path the index records"
   is_removed_path "$tmp" absent-path \
     && fail "is_removed_path must be FALSE for a path neither the index nor HEAD records"
+  # A COMMITTED removal — the pushed-branch window. The path is absent from BOTH the index
+  # and HEAD, so only the BASE testifies that this diff deletes it. Without this arm a
+  # branch's own body rendered a deletion as a `(file)` row with no blob
+  # (measured on opencharly/opencharly#1252).
+  # ITS OWN SCRATCH REPO: committing into the shared `tmp` would fold `sub2`'s staged
+  # removal into this fixture's next commit, and the render arm below (which needs HEAD to
+  # still record `sub2`) would then fail — a fixture must never mutate another arm's repo.
+  scratch t3
+  fixture3() (
+    unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES
+    cd "$t3"
+    git init -q
+    git config user.email t@t; git config user.name t
+    printf 'tracked\n' > plain3
+    git add plain3
+    git commit -qm three
+    git rm -q plain3
+    git commit -qm "drop plain3"
+  )
+  fixture3 >/dev/null
+  SYNC_BASE=HEAD~1 is_removed_path "$t3" plain3 \
+    || fail "is_removed_path must be TRUE for a path the BASE records and index+HEAD do not (a committed removal)"
+  SYNC_BASE=HEAD~1 is_removed_path "$t3" absent-path \
+    && fail "is_removed_path must be FALSE for a path no window records"
 
   # THE READERS MUST READ THE SAME PATH SET (opencharly/opencharly#740).
   #
@@ -682,7 +729,7 @@ charly.yml" "" || fail "a manifest edit among plain files must still touch an in
   printf '%s\n' "$LEGEND" | grep -q 'is rendered `  <path>  (removed)`' \
     || fail "legend must keep the removed-row clause (a removal is not a divergence)"
 
-  echo "sync-pin-evidence: self-test OK (compact <path> <staged> <remote> <flag> rows both ways; coverage both directions; bounded_rows emits all under budget and >=1 + elision notice over budget; staged-gitlink reads the index + falls back to HEAD; a REMOVED gitlink renders a (removed) row and NO comparison row; evidence_legend states BOTH readings of a non-distro-* ! and the check that tells them apart)"
+  echo "sync-pin-evidence: self-test OK (compact <path> <staged> <remote> <flag> rows both ways; coverage both directions; bounded_rows emits all under budget and >=1 + elision notice over budget; staged-gitlink reads the index + falls back to HEAD; a REMOVED gitlink renders a (removed) row and NO comparison row, and so does a COMMITTED removal seen only through the base; evidence_legend states BOTH readings of a non-distro-* ! and the check that tells them apart)"
   exit 0
 fi
 
