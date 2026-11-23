@@ -183,6 +183,7 @@ git-workflow-skill:
         owner: opencharly-guidance
         triggers:
             - "Git/`gh` workflow \u2014 `feat/` branch, commit, PR-only landing (NO direct push to main), branch protection, the `pr-validator` fresh-evaluator gate, native auto-merge + tag-on-merge CalVer-at-merge, worktree, sync-to-upstream, branch/worktree prune, cross-repo R10 landing"
+            - "Filing an issue (its mandatory `category:` + `type:` labels) / triaging or backfilling issue labels / a close-time or org-wide label audit"
 repo-setup-skill:
     skill:
         name: repo-setup
@@ -191,6 +192,7 @@ repo-setup-skill:
         triggers:
             - "Set up a new repository in the opencharly org (required workflows, ruleset, auto-merge, CalVer tags)"
             - "How the org ruleset / dotgithub workflows / native auto-merge / tag-on-merge CalVer work"
+            - "Issue labels for a new repository (the org form, the bootstrap label sync, the four mandatory fields, no repo-specific labels)"
 strict-policy-skill:
     skill:
         name: strict-policy

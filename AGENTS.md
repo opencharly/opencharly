@@ -164,7 +164,7 @@ the generated table has no row for. *Detail:* `/charly-internals:skills`,
 
 | Trigger (what the user said or you're about to do) | Skill(s) to load |
 |---|---|
-| Git/`gh` workflow — `feat/` branch, commit, PR-only landing (no direct push to `main`), the `pr-validator` gate, native auto-merge + tag-on-merge CalVer, worktrees, sync-to-upstream, branch/worktree prune (`charly task prune`), cross-repo R10 landing / claim-or-track an issue / coordination comments (`CLAIM`…`RESOLVED`) / the session footer | `/charly-internals:git-workflow` |
+| Git/`gh` workflow — `feat/` branch, commit, PR-only landing (no direct push to `main`), the `pr-validator` gate, native auto-merge + tag-on-merge CalVer, worktrees, sync-to-upstream, branch/worktree prune (`charly task prune`), cross-repo R10 landing / claim-or-track an issue / coordination comments (`CLAIM`…`RESOLVED`) / the session footer / filing an issue with its `category:`+`type:` / triaging or backfilling issue labels | `/charly-internals:git-workflow` |
 | Pinning / gitlink policy / the pin contract — a pin's INTENT (leaf vs edge) and whether the umbrella is CURRENT / `charly task sync` / `charly task verify` | `/charly-internals:git-workflow` |
 | Adding or reshaping a field / shape / kind / verb / capability / mechanism / editing `DESIGN.md`, `DESIGN.cue` or `design/` / citing a `D-<AREA>-<n>` id / `charly task design-check` (R11) | `/charly-internals:design` |
 | New repo in the org / org ruleset / dotgithub config + workflows | `/charly-internals:repo-setup` |
@@ -293,6 +293,34 @@ may hold (DESIGN §24). **Bare names** are for core/contract repos (`charly`, `s
 `layer-<family>` repo. A repo whose only content is skills is not a class. A repo that does not
 fit its class is a defect to fix. The class → may-hold map is `README.md` ("The org map"),
 verified by `charly task org-map`. *Detail:* `/charly-internals:repo-setup`.
+
+## Issue categories and types
+
+*Enforces: R1, R2, R6.* Every issue carries exactly one `category:` and exactly one
+`type:` from the org-wide closed sets, set at creation through the org issue form or
+the `scripts/gh/cli.ts issue` wrapper, which refuses to create without them. There is
+**no fallback value**. The category follows the capability the remedy changes or
+exercises, decided by the remedy's primary action and the files it will touch; the
+type follows the remedy — a named defect, a new capability, a design-contract
+amendment, a declaration-only contract change, prose, or upkeep. **The repository
+name is never a signal: every category is available in every repository.** A
+code/config violation of an existing design-contract requirement or an org-rulebook
+rule is a `fix` on the violating component (a code/config violation takes that
+component's category; a skill is `experience`), citing the decision or rule;
+`design` is only the design-contract amendment itself, and editing the org rulebook
+is governance/docs. The category names the work; it
+never names, reserves or predicts a session, owner or assignee — ownership is the
+assignee plus the latest `CLAIM`/`OWNING` comment, and there is no status or ownership
+label. **Labels state reproducible facts only**, so there are no severity, priority,
+size, effort or status labels and no repo, product or one-off names. An issue that
+names neither a defect/addition nor its remedy/files is under-specified (R1) or spans
+two categories and must be split into two per-category issues that reference each
+other; it is not labelled with a guess. The sets are
+canonical in `opencharly/.github/labels/taxonomy.json`, the generic path/action
+rules in `labels/category-rules.json`, and the tests, precedence rules, **design/
+rulebook violation table** and held-out cold-reader protocol in
+`/charly-internals:git-workflow` (`references/issue-labels.md`). The
+close-time verifier compares the merged PR's paths and subject to the issue's labels.
 
 ## Disposable-Only Autonomy
 
@@ -466,6 +494,9 @@ Before declaring completion, answer every applicable item YES.
   (D-STORE-1, D-STORE-11, D-STORE-12).
 - **Review:** every validator result and every comment was read in full before each push.
 - **Identity:** every body, comment and commit you authored ends with your session footer.
+- **Labels:** every issue you filed carries exactly one `category:` and one `type:` from
+  the org-wide closed sets, with its remedy/files named; any issue you closed had its labels
+  confirmed against the merged PR; a two-category issue was split, never double-labelled.
 - **Cutover:** the approved plan completed, with no hidden phase, TODO or substitute.
 - **Landing:** every repository landed through one attributed squash commit, a fresh
   independent validator, a protected merge and an immutable merge-time tag; every resolved issue
