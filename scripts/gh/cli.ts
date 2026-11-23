@@ -7,6 +7,9 @@
  *   node scripts/gh/cli.ts status  <item>…
  *   node scripts/gh/cli.ts footer  [--agent A] [--model M] [--confidence T] [--parent P] [--harness H --session S]
  *   node scripts/gh/cli.ts comment <VERB> <item> [--body T | --body-file F] [--assign] [--dry-run] [identity flags]
+ *   node scripts/gh/cli.ts issue   --repo O/R --title T --category category:<v> --type type:<v>
+ *                                  --remedy "files/behaviour the remedy will touch" [--cited "<rule|none>"]
+ *                                  [--body extra] [--dry-run] [identity flags]
  *
  * WHICH WATCH TO ARM — by what you wait for:
  *   your own PR's verdict and landing (also after a REST re-run)   --events verdict,merged,closed,conflict   (the default)
@@ -37,7 +40,7 @@
  */
 import { readFileSync, realpathSync } from "node:fs";
 import { pathToFileURL } from "node:url";
-import { GhError, RateLimitedError, rateLimitMessage } from "./lib/github.ts";
+import { GhError, RateLimitedError, ghJson, rateLimitMessage } from "./lib/github.ts";
 import {
   DEFAULT_CHECK,
   DEFAULT_EVENTS,
@@ -249,6 +252,55 @@ async function cmdComment(argv: string[], out: (s: string) => void): Promise<num
   return EXIT.OK;
 }
 
+const ISSUE_SECTIONS = [
+  ["Category", "category"],
+  ["Type", "type"],
+  ["Remedy / files the remedy will touch", "remedy"],
+  ["Cited design decision or org-rulebook rule (or `none`)", "cited"],
+] as const;
+
+/**
+ * Compose an issue body in the ORG FORM's answer shape (`### <field>` then the value), so the
+ * audit's form parser reads a CLI-filed issue exactly like a form-filed one — plus the session
+ * footer. Neither axis value is validated against a second copy of the taxonomy here: the
+ * labels are passed straight to the API, and only the labels that exist in every repo are the
+ * two closed sets, so an unknown value is refused at the boundary that owns it.
+ */
+function issueBody(flags: Record<string, string>, footer: string): string {
+  const parts = ISSUE_SECTIONS.map(([heading, key]) => `### ${heading}\n\n${(flags[key] ?? "").trim()}`);
+  const extra = (flags.body ?? "").trim();
+  if (extra) parts.push(extra);
+  return parts.join("\n\n") + "\n\n" + footer;
+}
+
+async function cmdIssue(argv: string[], out: (s: string) => void): Promise<number> {
+  const { flags, pos } = parseArgs(argv, ["dry-run"]);
+  onlyFlags(flags, [...IDENTITY_FLAGS, "repo", "title", "category", "type", "remedy", "cited", "body", "dry-run"]);
+  if (pos.length) throw new UsageError(`issue takes no positional argument (got '${pos[0]}')`);
+  if (!/^[^/\s]+\/[^/\s]+$/.test(flags.repo ?? "")) throw new UsageError("--repo must be owner/repo");
+  if (!(flags.title ?? "").trim()) throw new UsageError("--title is required");
+  for (const axis of ["category", "type"] as const) {
+    const v = (flags[axis] ?? "").trim();
+    if (!v) throw new UsageError(`--${axis} is required (one ${axis}: value from the closed set)`);
+    if (!v.startsWith(`${axis}:`) || v === `${axis}:`) throw new UsageError(`--${axis} must be '${axis}:<value>', got '${v}'`);
+  }
+  if (!(flags.remedy ?? "").trim()) {
+    throw new UsageError("--remedy is required (the files/behaviour the remedy will touch) — an issue that names neither its remedy nor its files is under-specified");
+  }
+  if (!(flags.cited ?? "").trim()) flags.cited = "none";
+  const body = issueBody(flags, buildFooter(identityFrom(flags)));
+  if (flags["dry-run"]) {
+    out(body);
+    return EXIT.OK;
+  }
+  const res = await ghJson<{ html_url?: string; number?: number }>(`/repos/${flags.repo}/issues`, {
+    method: "POST",
+    body: { title: flags.title.trim(), body, labels: [flags.category, flags.type] },
+  });
+  out(String(res?.html_url ?? ""));
+  return EXIT.OK;
+}
+
 /** Run the CLI; returns the exit code. */
 export async function main(
   argv: string[],
@@ -266,6 +318,8 @@ export async function main(
         return cmdFooter(rest, out);
       case "comment":
         return await cmdComment(rest, out);
+      case "issue":
+        return await cmdIssue(rest, out);
       case "-h":
       case "--help":
       case "help":
@@ -273,7 +327,7 @@ export async function main(
         return EXIT.OK;
       default:
         err(usage());
-        err(`gh: unknown command '${cmd ?? ""}' — watch | status | footer | comment`);
+        err(`gh: unknown command '${cmd ?? ""}' — watch | status | footer | comment | issue`);
         return EXIT.USAGE;
     }
   } catch (e: any) {

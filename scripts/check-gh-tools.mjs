@@ -17,7 +17,9 @@
 //        * MERGED at arm, TIMEOUT (4), a sub-floor interval (5), a rate limit (7), a failed
 //          initial poll (8), and a second watch of the same items TAKING OVER the first
 //          (the first exits 143);
-//        * `status`, `footer`, `comment --dry-run`, and a real `comment` POST.
+//        * `status`, `footer`, `comment --dry-run`, a real `comment` POST, and `issue`
+//          (both axes + the remedy are mandatory; the four form fields and the footer are
+//          emitted; an API label rejection surfaces as exit 5).
 //   C. THE OPENCODE BINDING: `coord_footer`, `coord_comment` (dry run and POST) and
 //      `coord_watch` run in-process against the same server.
 //   D. THE FOOTER IS THE LINTER'S SHAPE: the CLI's session line matches
@@ -218,6 +220,7 @@ process.env.GITHUB_TOKEN = "test-token";
 let scenario = () => ({});
 let gqlCalls = 0;
 const posts = [];
+const created = [];
 const server = createServer((req, res) => {
   let body = "";
   req.on("data", (c) => (body += c));
@@ -256,6 +259,12 @@ const server = createServer((req, res) => {
     if (req.method === "POST" && /\/comments$/.test(req.url)) {
       posts.push(JSON.parse(body).body);
       return json({ html_url: "https://github.com/acme/widget/issues/1#issuecomment-9" }, 201);
+    }
+    if (req.method === "POST" && /\/issues$/.test(req.url)) {
+      const payload = JSON.parse(body);
+      created.push(payload);
+      if (payload.title === "reject") return json({ message: "Validation Failed", errors: [{ resource: "Issue", field: "labels" }] }, 422);
+      return json({ html_url: "https://github.com/acme/widget/issues/7", number: 7 }, 201);
     }
     if (/\/user$/.test(req.url)) return json({ login: "tester" });
     return json({ message: "not found" }, 404);
@@ -399,6 +408,31 @@ try {
   expect(r.code === 0 && /issuecomment-9/.test(r.out) && posts.at(-1)?.startsWith("STATUS\n\nposted\n\n*Agent:"), "comment POSTs the coordination comment and prints its URL");
   r = await cli(["comment", "BLOCKS", "acme/widget#1", ...idArgs]);
   expect(r.code === 5 && /invalid verb/.test(r.err), "comment refuses a verb outside the closed set (exit 5)");
+
+  // ── B2. `issue`: both axes, the remedy, and the footer are mandatory ─────────────
+  const issueArgs = ["issue", "--repo", "acme/widget", "--title", "a defect", "--category", "category:runtime", "--type", "type:fix", "--remedy", "candy/x/charly.yml run: step", "--cited", "R7"];
+  r = await cli([...issueArgs, "--dry-run", ...idArgs]);
+  expect(
+    r.code === 0 &&
+      r.out.includes("### Category\n\ncategory:runtime") &&
+      r.out.includes("### Type\n\ntype:fix") &&
+      r.out.includes("### Remedy / files the remedy will touch\n\ncandy/x/charly.yml run: step") &&
+      r.out.includes("### Cited design decision or org-rulebook rule (or `none`)\n\nR7") &&
+      r.out.trimEnd().endsWith("*Assisted-by: OpenCode M (documentation reviewed)*"),
+    "issue --dry-run emits the four form fields and the session footer",
+  );
+  eq(created.length, 0, "issue --dry-run writes nothing");
+  r = await cli([...issueArgs, ...idArgs]);
+  expect(
+    r.code === 0 && r.out.includes("/issues/7") && created.at(-1)?.labels?.join(",") === "category:runtime,type:fix" && created.at(-1)?.body?.includes("### Remedy"),
+    "issue POSTs both axes as labels and the four-field body",
+  );
+  r = await cli(["issue", "--repo", "acme/widget", "--title", "t", "--category", "category:runtime", "--type", "type:fix", ...idArgs]);
+  expect(r.code === 5 && /--remedy is required/.test(r.err), "issue refuses without --remedy (exit 5)");
+  r = await cli(["issue", "--repo", "acme/widget", "--title", "t", "--category", "runtime", "--type", "type:fix", "--remedy", "x", ...idArgs]);
+  expect(r.code === 5 && /must be 'category:<value>'/.test(r.err), "issue refuses a category without its axis prefix (exit 5)");
+  r = await cli(["issue", "--repo", "acme/widget", "--title", "reject", "--category", "category:runtime", "--type", "type:fix", "--remedy", "x", ...idArgs]);
+  expect(r.code === 5 && /Validation Failed/.test(r.err), "issue surfaces an API label rejection as exit 5 (never a silent create)");
 
   // ── C. the OpenCode binding, in process ──────────────────────────────────────────
   const plugin = (await import(pathToFileURL(join(root, ".opencode/plugins/coord.ts")).href)).default;

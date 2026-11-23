@@ -754,7 +754,7 @@ TOUCHED_INPUTS=""
 TOUCHED_COUNT=0
 while IFS= read -r p; do
   [ -n "$p" ] || continue
-  if pin_contract_is_declaration_input "$p" || printf '%s\n' "$GITLINK_PATHS" | grep -qxF -- "$p"; then
+  if pin_contract_is_declaration_input "$p" || grep -qxF -- "$p" <<<"$GITLINK_PATHS"; then
     TOUCHED_COUNT=$((TOUCHED_COUNT + 1))
     TOUCHED_INPUTS="${TOUCHED_INPUTS}${TOUCHED_INPUTS:+, }${p}"
   fi
