@@ -143,7 +143,6 @@ plugin-matching/candy/plugin-matching/schema/matching.cue	union	#MatchingMatcher
 plugin-matching/candy/plugin-matching/schema/matching.cue	union	#MatchingMatchOp: {equals: _} | {not_equals: _} | {contains: _} | {not_contains: _} | {matches: _} | {not_matches: _} | {lt: _} | {le: _} | {gt: _} | {ge: _}	1
 plugin-mcp/candy/plugin-mcp/schema/mcp.cue	union	method: "ping" | "servers" | "list-tools" | "list-resources" | "list-prompts" | "call" | "read"	1
 plugin-migrate/candy/plugin-migrate/schema/migration.cue	union	#Scope: "root" | "any" @go(-)	1
-plugin-migrate/candy/plugin-migrate/schema/migration.cue	union	#MigrationOp: #RenameKey | #DeleteKey | #RemapScalar | #MoveKey @go(-)	1
 plugin-migrate/candy/plugin-migrate/schema/migration.cue	close	#RenameKey: close({op: "rename_key", from: string, to: string, scope: #Scope | *"any", under_kind?: string}) @go(-)	1
 plugin-migrate/candy/plugin-migrate/schema/migration.cue	close	#DeleteKey: close({op: "delete_key", key: string, scope: #Scope | *"any", under_kind?: string}) @go(-)	1
 plugin-migrate/candy/plugin-migrate/schema/migration.cue	close	#RemapScalar: close({op: "remap_scalar", key: string, from: string, to: string, under_kind?: string}) @go(-)	1

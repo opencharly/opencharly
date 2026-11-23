@@ -53,7 +53,7 @@ command:containerd	plugin-nerdctl/candy/plugin-containerd/charly.yml	43-47	-	a91
 command:cp	plugin-pod/candy/plugin-pod/pod_cmd.go	410-415	CpCmd	c7144d6f4f27c137
 command:deploy	plugin-fleet/candy/plugin-fleet/deploy_cmd.go	28-38	DeployCmd	7ba64c193df1fe85
 command:docs	plugin-docs/candy/plugin-docs/command.go	14-14	docsCLI	ab027eafd5be402f
-command:generate-packages	plugin-generate-packages/candy/generate-packages/cli.go	17-29	cli	cd58e47493850dda
+command:generate-packages	plugin-generate-packages/candy/generate-packages/cli.go	18-32	cli	99a285f4f02ce4b6
 command:gh	plugin-gh/candy/plugin-gh/cli.go	34-34	CliMain	669c46569ad203c7
 command:pipeline	plugin-pipeline/candy/plugin-pipeline/cli.go	20-26	-	913e238ae782131f
 command:preempt	plugin-preempt/candy/plugin-preempt/command.go	24-33	runPreemptCLI	b2a7ae8bc09a277c
@@ -136,8 +136,8 @@ verb:adb	plugin-adb/candy/plugin-adb/schema/adb.cue	38-38	#AdbInput	39210d3fc366
 verb:addr	plugin-addr/candy/plugin-addr/schema/addr.cue	2-4	-	f279eddc3b4c4905
 verb:bpf	plugin-bpf/candy/plugin-bpf/schema/bpf.cue	1-8	-	df150ea835ea0129
 verb:command	plugin-command/candy/plugin-command/schema/command.cue	1-45	#CommandInput	dafb060905e8ed54
-verb:credential	charly/charly.yml	479-479	-	c50a1805e8b53d6a
-verb:credential	charly/charly.yml	479-508	-	93321deccfa29aae
+verb:credential	charly/charly.yml	499-499	-	c50a1805e8b53d6a
+verb:credential	charly/charly.yml	499-521	-	8ca3f01b3d83786f
 verb:cua	plugin-cua/candy/plugin-cua/schema/cua.cue	167-167	#CuaMethod	8060061f696fdc62
 verb:dbus	plugin-dbus/candy/plugin-dbus/schema/dbus.cue	28-28	#DbusInput	fe3d6164b9155b40
 verb:dns	plugin-dns/candy/plugin-dns/schema/dns.cue	1-12	-	f00a37be51239e61
