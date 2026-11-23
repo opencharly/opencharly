@@ -62,7 +62,7 @@ pin_contract_touches_input() {
   done <<< "$changed"
   while IFS= read -r path; do
     [ -n "$path" ] || continue
-    if printf '%s\n' "$changed" | grep -qxF -- "$path"; then
+    if grep -qxF -- "$path" <<<"$changed"; then
       return 0
     fi
   done <<< "$gitlinks"

@@ -279,7 +279,7 @@ async function cmdIssue(argv: string[], out: (s: string) => void): Promise<numbe
   if (pos.length) throw new UsageError(`issue takes no positional argument (got '${pos[0]}')`);
   if (!/^[^/\s]+\/[^/\s]+$/.test(flags.repo ?? "")) throw new UsageError("--repo must be owner/repo");
   if (!(flags.title ?? "").trim()) throw new UsageError("--title is required");
-  for (const [axis, flag] of [["category", "category"] as const, ["type", "type"] as const]) {
+  for (const axis of ["category", "type"] as const) {
     const v = (flags[axis] ?? "").trim();
     if (!v) throw new UsageError(`--${axis} is required (one ${axis}: value from the closed set)`);
     if (!v.startsWith(`${axis}:`) || v === `${axis}:`) throw new UsageError(`--${axis} must be '${axis}:<value>', got '${v}'`);
