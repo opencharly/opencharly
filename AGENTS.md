@@ -243,6 +243,20 @@ the generated table has no row for. *Detail:* `/charly-internals:skills`,
 Locating an error's owner in the module cache, and asking DeepWiki for architecture (a pointer
 to read, never the truth): `/charly-internals:git-workflow`, `/charly-internals:agents`.
 
+## Rootless deployments
+
+*Enforces: R7, R11.* **No charly pod runs as container root** (D-HW-10: a deployment is rootless
+unless its stack declares `privilege: rootful`, and no field, setting or default makes it
+privileged). A unit with a bind mount runs as the image user under
+`UserNS=keep-id:uid=<uid>,gid=<gid>` — under keep-id that user is the invoking host user, so a
+host-owned bind or a gocryptfs plaintext directory is writable as-is, with no chown. The GPU stays a
+CDI device (`AddDevice=nvidia.com/gpu=all`) on every GPU unit: what keep-id rejects is a CDI spec's
+`mounts` (crun `mount_setattr … EPERM`, exit 126), never the device, so the deployment points the
+engine at a derived **devices-only** spec (`deviceNodes` only, `--cdi-spec-dir`) and binds the
+driver libraries read-only to their SONAME paths. `userns=host` with `User=0:0` is a blocking defect
+wherever it appears, and `HOME`/`XDG_*` are never pinned to compensate for it. *Detail:*
+`/charly-distros:cdi`, `/charly-automation:enc`, `/charly-internals:xdg`.
+
 ## Candyboxing
 
 *Enforces: R3, R10.* Secure the candybox boundary, not its toolset: people and agents use the
