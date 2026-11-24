@@ -212,9 +212,9 @@ the generated table has no row for. *Detail:* `/charly-internals:skills`,
 | Local-target or SSH-host deploy (`target: local`, `host:`, `user:`, `ssh_arg:`) | `/charly-internals:local-infra`, `/charly-local:local-deploy` |
 | Editing `local.yml` / authoring `kind: local` templates | `/charly-local:local-spec` |
 | CachyOS images / `cachyos*` / `charly-cachyos` profile / `box/cachyos` | `/charly-distros:cachyos`, `/charly-local:charly-cachyos`, `/charly-vm:cachyos-bootstrap-vm` |
-| Debian images / `debian*` / `box/debian` | `/charly-distros:debian`, `/charly-distros:debian-builder`, `/charly-distros:debian-debootstrap`, `/charly-coder:debian-coder`, `/charly-vm:debian-debootstrap-vm` |
-| Fedora images / `fedora*` / `box/fedora` (incl. `nvidia` / `python-ml` / `sway-browser-vnc`) | `/charly-distros:fedora`, `/charly-distros:charly-fedora`, `/charly-distros:fedora-builder`, `/charly-distros:fedora-nonfree`, `/charly-distros:fedora-test`, `/charly-distros:nvidia`, `/charly-coder:fedora-coder` |
-| Ubuntu images / `ubuntu*` / `box/ubuntu` | `/charly-distros:ubuntu`, `/charly-distros:ubuntu-builder`, `/charly-distros:ubuntu-debootstrap`, `/charly-coder:ubuntu-coder`, `/charly-vm:ubuntu-debootstrap-vm` |
+| Debian images / `debian*` / `box/debian` | `/charly-distros:debian`, `/charly-distros:debian-builder`, `/charly-distros:debian-debootstrap`, `/charly-vm:debian-debootstrap-vm` |
+| Fedora images / `fedora*` / `box/fedora` (incl. `nvidia` / `python-ml` / `sway-browser-vnc`) | `/charly-distros:fedora`, `/charly-distros:charly-fedora`, `/charly-distros:fedora-builder`, `/charly-distros:fedora-nonfree`, `/charly-distros:nvidia` |
+| Ubuntu images / `ubuntu*` / `box/ubuntu` | `/charly-distros:ubuntu`, `/charly-distros:ubuntu-builder`, `/charly-distros:ubuntu-debootstrap`, `/charly-vm:ubuntu-debootstrap-vm` |
 | nested-podman-socket / a rootless podman API socket at uid 1000 inside a pod | `/charly-distros:nested-podman-socket` |
 | `kind: android` / `target: android` / `apk:` packages / adb endpoints / nested `pod → android` | `/charly-check:android`, `/charly-core:deploy` |
 | The `adb:` check verb | `/charly-check:adb`, `/charly-check:check` |
