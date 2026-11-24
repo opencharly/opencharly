@@ -221,6 +221,7 @@ let scenario = () => ({});
 let gqlCalls = 0;
 const posts = [];
 const created = [];
+const assigned = [];
 const server = createServer((req, res) => {
   let body = "";
   req.on("data", (c) => (body += c));
@@ -255,6 +256,10 @@ const server = createServer((req, res) => {
         };
       }
       return json({ data });
+    }
+    if (req.method === "POST" && /\/issues\/\d+\/assignees$/.test(req.url)) {
+      assigned.push({ url: req.url, assignees: JSON.parse(body).assignees });
+      return json({}, 201);
     }
     if (req.method === "POST" && /\/comments$/.test(req.url)) {
       posts.push(JSON.parse(body).body);
@@ -409,29 +414,109 @@ try {
   r = await cli(["comment", "BLOCKS", "acme/widget#1", ...idArgs]);
   expect(r.code === 5 && /invalid verb/.test(r.err), "comment refuses a verb outside the closed set (exit 5)");
 
-  // ── B2. `issue`: both axes, the remedy, and the footer are mandatory ─────────────
-  const issueArgs = ["issue", "--repo", "acme/widget", "--title", "a defect", "--category", "category:runtime", "--type", "type:fix", "--remedy", "candy/x/charly.yml run: step", "--cited", "R7"];
-  r = await cli([...issueArgs, "--dry-run", ...idArgs]);
+  // ── B2. `issue`: both axes, the remedy, the RCA, the classification and the footer are mandatory ──
+  const rcaArgs = [
+    "--mechanism", "the run: step writes before its parent exists",
+    "--missed-control", "no check: step probes the parent",
+    "--blast-radius", "every box composing candy x",
+    "--root-fix", "create the parent in the same step",
+    "--evidence", "$ charly box build x\nmkdir: cannot create directory '/opt/x/y': No such file or directory\nexit=1",
+    "--spike", "none: reproduced directly by the build above",
+  ];
+  const issueBase = ["issue", "--repo", "acme/widget", "--title", "a defect", "--category", "category:runtime", "--type", "type:fix", "--remedy", "candy/x/charly.yml run: step", "--cited", "R7"];
+  const issueArgs = [...issueBase, ...rcaArgs];
+  r = await cli([...issueArgs, "--non-blocking", "--dry-run", ...idArgs]);
   expect(
     r.code === 0 &&
       r.out.includes("### Category\n\ncategory:runtime") &&
       r.out.includes("### Type\n\ntype:fix") &&
       r.out.includes("### Remedy / files the remedy will touch\n\ncandy/x/charly.yml run: step") &&
       r.out.includes("### Cited design decision or org-rulebook rule (or `none`)\n\nR7") &&
+      r.out.includes("### Classification\n\n**Non-blocking**") &&
+      r.out.includes("### Evidence (verified: commands with output, file:line, measurements)\n\n$ charly box build x") &&
+      r.out.includes("### Mechanism\n\nthe run: step writes") &&
+      r.out.includes("### Missed control\n\nno check: step") &&
+      r.out.includes("### Blast radius\n\nevery box") &&
+      r.out.includes("### Root fix\n\ncreate the parent") &&
+      r.out.includes("### Spike (its result, or `none` with the reason)\n\nnone: reproduced") &&
+      !r.out.includes("CLAIM") &&
       r.out.trimEnd().endsWith("*Assisted-by: OpenCode M (documentation reviewed)*"),
-    "issue --dry-run emits the four form fields and the session footer",
+    "issue --dry-run emits the form fields, the classification, every RCA section and the session footer",
   );
   eq(created.length, 0, "issue --dry-run writes nothing");
-  r = await cli([...issueArgs, ...idArgs]);
+
+  // non-blocking: created with both labels, and left UNCLAIMED (no comment, no assignee)
+  let postsBefore = posts.length;
+  let assignedBefore = assigned.length;
+  r = await cli([...issueArgs, "--non-blocking", ...idArgs]);
   expect(
-    r.code === 0 && r.out.includes("/issues/7") && created.at(-1)?.labels?.join(",") === "category:runtime,type:fix" && created.at(-1)?.body?.includes("### Remedy"),
-    "issue POSTs both axes as labels and the four-field body",
+    r.code === 0 && r.out.includes("/issues/7") && created.at(-1)?.labels?.join(",") === "category:runtime,type:fix" && created.at(-1)?.body?.includes("### Root fix"),
+    "issue --non-blocking POSTs both axes as labels and the RCA body",
   );
-  r = await cli(["issue", "--repo", "acme/widget", "--title", "t", "--category", "category:runtime", "--type", "type:fix", ...idArgs]);
+  expect(posts.length === postsBefore && assigned.length === assignedBefore, "issue --non-blocking posts no CLAIM and assigns no one (left for a later session)");
+
+  // blocking: created, then CLAIMED by the filer and assigned to it
+  postsBefore = posts.length;
+  assignedBefore = assigned.length;
+  r = await cli([...issueArgs, "--blocking", ...idArgs]);
+  expect(
+    r.code === 0 && r.out.includes("/issues/7") && r.out.includes("issuecomment-9") && created.at(-1)?.body?.includes("### Classification\n\n**Blocking**"),
+    "issue --blocking creates the issue and prints the CLAIM comment's URL",
+  );
+  expect(
+    posts.length === postsBefore + 1 && posts.at(-1)?.startsWith("CLAIM\n\n") && posts.at(-1)?.includes("*Agent: `slug-x`"),
+    "issue --blocking posts a CLAIM with the session footer on the new issue",
+  );
+  expect(
+    assigned.length === assignedBefore + 1 && /\/issues\/7\/assignees$/.test(assigned.at(-1).url) && assigned.at(-1).assignees.join(",") === "tester",
+    "issue --blocking assigns the filer on the new issue",
+  );
+
+  // the classification is mandatory and exclusive
+  r = await cli([...issueArgs, ...idArgs]);
+  expect(r.code === 5 && /exactly one of --blocking \| --non-blocking/.test(r.err), "issue refuses without a classification (exit 5)");
+  r = await cli([...issueArgs, "--blocking", "--non-blocking", ...idArgs]);
+  expect(r.code === 5 && /exactly one of --blocking \| --non-blocking/.test(r.err), "issue refuses both classifications at once (exit 5)");
+
+  // every RCA field is mandatory
+  for (const field of ["mechanism", "missed-control", "blast-radius", "root-fix", "evidence", "spike"]) {
+    const argv = [...issueBase, "--non-blocking"];
+    for (let i = 0; i < rcaArgs.length; i += 2) if (rcaArgs[i] !== `--${field}`) argv.push(rcaArgs[i], rcaArgs[i + 1]);
+    const before = created.length;
+    r = await cli([...argv, ...idArgs]);
+    expect(
+      r.code === 5 && new RegExp(`full, verified RCA.*--${field}`).test(r.err) && created.length === before,
+      `issue refuses without --${field} and creates nothing (exit 5)`,
+    );
+  }
+
+  // evidence must carry an instrument's trace; a hypothesis is refused
+  const noTrace = [...issueBase, "--non-blocking", ...rcaArgs.map((v, i) => (rcaArgs[i - 1] === "--evidence" ? "it probably fails because the dir seems missing" : v))];
+  r = await cli([...noTrace, ...idArgs]);
+  expect(r.code === 5 && /--evidence carries no verified trace/.test(r.err), "issue refuses evidence with no command, output or path:line (exit 5)");
+  for (const [trace, label] of [
+    ["see candy/x/charly.yml:42", "a path:line reference"],
+    ["```\nexit=1\n```", "a fenced block"],
+  ]) {
+    const argv = [...issueBase, "--non-blocking", ...rcaArgs.map((v, i) => (rcaArgs[i - 1] === "--evidence" ? trace : v)), "--dry-run"];
+    r = await cli([...argv, ...idArgs]);
+    expect(r.code === 0, `issue accepts evidence carrying ${label}`);
+  }
+
+  // --evidence-file reads the pasted output; both forms at once are refused
+  const evFile = join(mkdtempSync(join(tmpdir(), "check-gh-tools-ev-")), "evidence.md");
+  writeFileSync(evFile, "$ grep -n x a.go\na.go:3: x\n");
+  const fileArgv = [...issueBase, "--non-blocking", ...rcaArgs.filter((v, i) => v !== "--evidence" && rcaArgs[i - 1] !== "--evidence"), "--evidence-file", evFile];
+  r = await cli([...fileArgv, "--dry-run", ...idArgs]);
+  expect(r.code === 0 && r.out.includes("$ grep -n x a.go"), "issue --evidence-file reads the evidence from the file");
+  r = await cli([...fileArgv, "--evidence", "$ x", "--dry-run", ...idArgs]);
+  expect(r.code === 5 && /--evidence or --evidence-file, not both/.test(r.err), "issue refuses --evidence together with --evidence-file (exit 5)");
+
+  r = await cli(["issue", "--repo", "acme/widget", "--title", "t", "--category", "category:runtime", "--type", "type:fix", "--non-blocking", ...rcaArgs, ...idArgs]);
   expect(r.code === 5 && /--remedy is required/.test(r.err), "issue refuses without --remedy (exit 5)");
-  r = await cli(["issue", "--repo", "acme/widget", "--title", "t", "--category", "runtime", "--type", "type:fix", "--remedy", "x", ...idArgs]);
+  r = await cli(["issue", "--repo", "acme/widget", "--title", "t", "--category", "runtime", "--type", "type:fix", "--remedy", "x", "--non-blocking", ...rcaArgs, ...idArgs]);
   expect(r.code === 5 && /must be 'category:<value>'/.test(r.err), "issue refuses a category without its axis prefix (exit 5)");
-  r = await cli(["issue", "--repo", "acme/widget", "--title", "reject", "--category", "category:runtime", "--type", "type:fix", "--remedy", "x", ...idArgs]);
+  r = await cli(["issue", "--repo", "acme/widget", "--title", "reject", "--category", "category:runtime", "--type", "type:fix", "--remedy", "x", "--non-blocking", ...rcaArgs, ...idArgs]);
   expect(r.code === 5 && /Validation Failed/.test(r.err), "issue surfaces an API label rejection as exit 5 (never a silent create)");
 
   // ── C. the OpenCode binding, in process ──────────────────────────────────────────
