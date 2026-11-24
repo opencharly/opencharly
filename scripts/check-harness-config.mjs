@@ -137,14 +137,10 @@ const MUST_NOT_AUTO_ALLOW = [
 // fails at 227 (227 > 226), which is the property the ceiling exists to preserve. A ceiling
 // that cannot follow corpus growth would either block every corpus addition or be bypassed.
 //
-// MEASURED AGAIN 2026-11-24 after the retired-card sweep (opencharly/marketplace#650):
-// `130/352 corpus skills routed, 222 unrouted` (352 − 130 = 222). NINE skills left the corpus
-// (`herdr`, `fedora-coder`, `debian-coder`, `ubuntu-coder`, `fedora-test` and the four
-// `openclaw-*` variants) and FOUR of them were the only routing rows the umbrella's dispatcher
-// carried for them, so routed rows fell 135 → 130 alongside the corpus's 361 → 352. The ceiling
-// DECREASES, which is the direction this comment always requires: at 226 the self-test's
-// dropping-a-row arm had four rows of slack and went green, which is the same slack-vs-arm
-// defect measured twice above.
+// MEASURED AGAIN 2026-11-24 when the pins advanced to the corpus after opencharly/marketplace#648
+// and #650 retired nine cards (opencharly/opencharly#1266): `130/352 corpus skills routed, 222
+// unrouted` (352 − 130 = 222). With the ceiling left at 226 the self-test's dropping-a-row arm
+// went green again (223 ≤ 226), the slack this ratchet forbids, so the ceiling tightens to 222.
 const MAX_UNROUTED = 222;
 
 // ── --self-test: prove the discriminating/structural split by executing it ──────────
