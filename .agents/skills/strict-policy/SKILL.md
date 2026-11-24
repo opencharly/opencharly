@@ -12,7 +12,7 @@ R1–R5 in the project rulebook (`AGENTS.md`) are the **engineering-discipline g
 
 This skill is the operational reference for R1–R5. Each section below restates the rule, lists what it forbids precisely, lists what it permits, explains why it matters, and notes how it interacts with the other rules. The rules exist because these specific failure modes actually happened — see `CHANGELOG/` for the commit-referenced incidents that motivated each one.
 
-A violation of any R1–R5 rule (or any of R6–R10, or the "Prioritize Clean Architecture Above All Else" section in the project rulebook) FORBIDS the push. Local commits before the first push are free (the project rulebook "Commit, push, land"), but nothing with a known violation is ever pushed, at any tier. There is no "downgrade tier and ship anyway" path. The agent fixes the violation in the same working tree and re-runs all verification, OR escalates to the operator and STOPS. See the project rulebook "AI Attribution" section.
+A violation of any R1–R5 rule (or any of R6–R11, or the "Prioritize Clean Architecture Above All Else" section in the project rulebook) FORBIDS the push. Local commits before the first push are free (the project rulebook "Commit, push, land"), but nothing with a known violation is ever pushed, at any tier. There is no "downgrade tier and ship anyway" path. The agent fixes the violation in the same working tree and re-runs all verification, OR escalates to the operator and STOPS. See the project rulebook "AI Attribution" section.
 
 ## Gate before push + no re-run against a root-caused defect (R1; the project rulebook "Commit, push, land")
 
