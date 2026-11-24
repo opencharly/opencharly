@@ -340,6 +340,15 @@ pin-check:
           task: pins
           param: [MODE=verify]
         context: [runtime]
+        # THE WRAPPER DECLARES ITS INNER STEP'S CEILING TOO. Without this, the
+        # runner's 90 s per-attempt never-hang floor cuts the check short while
+        # the `pins` run below is legitimately still auditing: measured 593 s for
+        # MODE=verify over this clone's 399 declared paths (68 materialized
+        # checkouts) on 2026-11-24, and the hook reports it as a FAILED pin check
+        # (opencharly/opencharly#1262). The inner step already declares 30m for
+        # exactly this reason; a wrapping `check` that does not inherits the
+        # floor and kills a passing audit.
+        timeout: 30m
 
 # -----------------------------------------------------------------------------
 # self-test — exercise the two committed CI-body builder scripts (their --self-test
