@@ -136,7 +136,12 @@ const MUST_NOT_AUTO_ALLOW = [
 // routing regression — the routed set grew too, and the self-test's dropping-a-row arm still
 // fails at 227 (227 > 226), which is the property the ceiling exists to preserve. A ceiling
 // that cannot follow corpus growth would either block every corpus addition or be bypassed.
-const MAX_UNROUTED = 226;
+//
+// MEASURED AGAIN 2026-11-24 when the pins advanced to the corpus after opencharly/marketplace#648
+// and #650 retired nine cards (opencharly/opencharly#1266): `130/352 corpus skills routed, 222
+// unrouted` (352 − 130 = 222). With the ceiling left at 226 the self-test's dropping-a-row arm
+// went green again (223 ≤ 226), the slack this ratchet forbids, so the ceiling tightens to 222.
+const MAX_UNROUTED = 222;
 
 // ── --self-test: prove the discriminating/structural split by executing it ──────────
 // Copies every surface this gate reads into a temp tree, asserts the gate is GREEN there
