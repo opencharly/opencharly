@@ -49,7 +49,7 @@ its change class, and by an independent fresh `charly/pr-validator` after the pu
 
 ## This repo: one clone of the whole org
 
-`opencharly/opencharly` is the org-level **umbrella**: every OpenCharly repo (399 today) is pinned
+`opencharly/opencharly` is the org-level **umbrella**: every OpenCharly repo (400 today) is pinned
 here as a git submodule — a "gitlink" — flat at the root, so the submodule path equals the repo
 name for all but one alias: `.github` is pinned at the `dotgithub/` path.
 
@@ -289,10 +289,11 @@ a scannable index. Their themes:
 
 ### Product and tooling
 
-13 repos — appliances, the org's review action, and the vendored upstream forks.
+14 repos — appliances, the org's review action, and the vendored upstream forks.
 
 | path | repo | role |
 |---|---|---|
+| `Qwen3-TTS/` | [Qwen3-TTS](https://github.com/opencharly/Qwen3-TTS) | Vendored fork of QwenLM/Qwen3-TTS: the speech library the `qwen3-tts` pod serves (patched: honest 0.6B `instruct` handling, a real `__version__`, a PEP-440 post-release). |
 | `action-review/` | [action-review](https://github.com/opencharly/action-review) | The org's AI PR-review gate: dual-runner workflow, env/secret contract, review plan. |
 | `charly-jetkvm/` | [charly-jetkvm](https://github.com/opencharly/charly-jetkvm) | Provisions the appliance-resident `charly` on a JetKVM (armv7) over ssh. |
 | `charly-streamer/` | [charly-streamer](https://github.com/opencharly/charly-streamer) | cstream — Hyprland desktops streamed to a browser over WebRTC (Rust streamer + leader). |
