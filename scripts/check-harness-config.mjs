@@ -226,16 +226,37 @@ if (argv.includes("--self-test")) {
       // large). The gate tests only EXISTENCE of `<family>/skills/<name>/SKILL.md`, so an
       // empty file is a faithful stand-in — and without it check 12 would find zero skills
       // in the staged tree and no mutation could ever turn it red (a test that cannot fail).
+      //
+      // A SKILL IS A DIRECTORY THAT HOLDS A SKILL.md — the gate's own definition (check 12) —
+      // never a directory that merely exists. A corpus retirement deletes the SKILL.md and can
+      // leave the now-empty directory behind in a working checkout (git tracks no empty dirs,
+      // so nothing reports it), and a directory-name oracle turns that leftover into a skill
+      // the corpus does not have: nine such leftovers made the staged tree carry 361 skills
+      // (measured 2026-11-24) against the real 352, so the unmutated copy was RED (ratchet
+      // 231 > 226, and the stale `.dsh/skills` derivation) while the live tree was GREEN.
+      // The guard below is what keeps this oracle faithful; `stage()` also plants one
+      // deliberate empty directory so the base-green assertion keeps proving it.
       for (const fam of readdirSync(mkt, { withFileTypes: true })) {
         if (!fam.isDirectory()) continue;
         const sk = join(mkt, fam.name, "skills");
         if (!existsSync(sk)) continue;
         for (const s of readdirSync(sk, { withFileTypes: true })) {
-          if (!s.isDirectory()) continue;
+          if (!s.isDirectory() || !existsSync(join(sk, s.name, "SKILL.md"))) continue;
           const dst = join(tree, "marketplace", fam.name, "skills", s.name, "SKILL.md");
           mkdirSync(dirname(dst), { recursive: true });
           writeFileSync(dst, "");
         }
+      }
+      // The CONTROL for the guard above: an empty skill directory that no source produced. It
+      // must never reach the gate's skill inventory, so the unmutated-copy assertion goes RED if
+      // the oracle ever goes back to counting directories. It sits inside a REAL family, because
+      // a phantom FAMILY would legitimately demand its own reasonix path and turn the unrelated
+      // derivation arm red for the wrong reason.
+      const withSkills = readdirSync(mkt, { withFileTypes: true }).filter(
+        (f) => f.isDirectory() && existsSync(join(mkt, f.name, "skills")),
+      );
+      if (withSkills.length) {
+        mkdirSync(join(tree, "marketplace", withSkills[0].name, "skills", "zzz-phantom"), { recursive: true });
       }
     }
     // Check 3 derives from the corpus's Claude catalog, so the staged tree carries the real one — a
