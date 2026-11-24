@@ -73,9 +73,16 @@ the violation and rerun the gate, or stop and ask the operator. *Detail:*
   radius, and the root fix. Zero warnings is the only pass. A **blocking** finding (this
   change introduces it, its gate is red because of it, or its claim is false without the
   fix — and if you are unsure, it is blocking) is fixed in this change. A **non-blocking**
-  finding is **filed** in the owning repo and listed under `## Filed issues`. A finding raised
-  on your own PR is fixed or rebutted with evidence, never filed away. "Pre-existing", "out of
-  scope", "flake" and "follow-up" without an issue number are violations. *Detail:*
+  finding is **filed** in the owning repo, left unclaimed for a later session, and listed
+  under `## Filed issues`. **A blocker is never handed off:** an issue a session files for
+  something that blocks its own progress is CLAIMED by that session at filing and fixed by it,
+  in this change or producer-first in the owning repo. **An issue is filed only after a full,
+  verified RCA:** its body states verified facts (commands with their output, file:line
+  references, measurements) and the RCA's conclusion (mechanism, missed control, blast radius,
+  root fix), with a spike for any high-risk claim. A guess, a hypothesis or an unrun claim is
+  not an issue. A finding raised on your own PR is fixed or rebutted with evidence, never
+  filed away. "Pre-existing", "out of scope", "flake" and "follow-up" without an issue number
+  are violations. *Detail:*
   `/charly-internals:root-cause-analyzer`, `/charly-internals:strict-policy` ("R1, applied").
 - **R2 — No duplication.** One canonical implementation or rule per behavior. Extract on
   the second occurrence, and delete the copies in the same cutover.
@@ -111,10 +118,6 @@ the violation and rerun the gate, or stop and ask the operator. *Detail:*
   `HOME`/`XDG_*`/`CHARLY_*` or builds a base-directory path does not conform. *Detail:*
   `/charly-internals:design`,
   `/charly-internals:xdg`.
-
-*Old citations.* Rule references written before 2026-10-09 use the old numbering: old
-R3/R4/R4a/R7a are now R2/R3/R4/R8, old R2 is part of [Hard Cutover by
-Default](#hard-cutover-by-default), and old R8 is part of R7.
 
 ## What the validator checks
 
@@ -164,7 +167,8 @@ the generated table has no row for. *Detail:* `/charly-internals:skills`,
 
 | Trigger (what the user said or you're about to do) | Skill(s) to load |
 |---|---|
-| Git/`gh` workflow — `feat/` branch, commit, PR-only landing (no direct push to `main`), the `pr-validator` gate, native auto-merge + tag-on-merge CalVer, worktrees, sync-to-upstream, branch/worktree prune (`charly task prune`), cross-repo R10 landing / claim-or-track an issue / coordination comments (`CLAIM`…`RESOLVED`) / the session footer / filing an issue with its `category:`+`type:` / triaging or backfilling issue labels | `/charly-internals:git-workflow` |
+| Git/`gh` workflow — `feat/` branch, commit, PR-only landing (no direct push to `main`), the `pr-validator` gate, native auto-merge + tag-on-merge CalVer, worktrees, sync-to-upstream, branch/worktree prune (`charly task prune`), cross-repo R10 landing / claim-or-track an issue / coordination comments (`CLAIM`…`RESOLVED`) / the session footer / triaging or backfilling issue labels | `/charly-internals:git-workflow` |
+| Filing an issue (its RCA, its `category:`+`type:`, blocking or non-blocking) | `/charly-internals:root-cause-analyzer`, `/charly-internals:strict-policy`, `/charly-internals:git-workflow` |
 | Pinning / gitlink policy / the pin contract — a pin's INTENT (leaf vs edge) and whether the umbrella is CURRENT / `charly task sync` / `charly task verify` | `/charly-internals:git-workflow` |
 | Adding or reshaping a field / shape / kind / verb / capability / mechanism / editing `DESIGN.md`, `DESIGN.cue` or `design/` / citing a `D-<AREA>-<n>` id / `charly task design-check` (R11) | `/charly-internals:design` |
 | New repo in the org / org ruleset / dotgithub config + workflows | `/charly-internals:repo-setup` |
@@ -299,7 +303,8 @@ verified by `charly task org-map`. *Detail:* `/charly-internals:repo-setup`.
 *Enforces: R1, R2.* Every issue carries exactly one `category:` and exactly one
 `type:` from the org-wide closed sets, whose two-axis classification is mandatory at
 creation — through the org issue form (whose answers the `label-audit` workflow applies) or
-the `scripts/gh/cli.ts issue` wrapper, which refuses to create without them. There is
+the `scripts/gh/cli.ts issue` wrapper, which refuses to create without them, without the RCA
+fields R1 requires, or without a blocking/non-blocking classification. There is
 **no fallback value**. The category follows the capability the remedy changes or
 exercises, decided by the remedy's primary action and the files it will touch; the
 type follows the remedy — a named defect, a new capability, a design-contract
@@ -348,7 +353,7 @@ required action is `BLOCKED`. *Detail:* `/charly-internals:cutover-policy` ("The
 `/charly-internals:git-workflow`.
 
 1. **Branch.** A `feat/` branch off fresh `origin/main`, in a session worktree (Part II #2),
-   after filing or claiming the issue (Part II #6).
+   after filing and claiming the issue for this work, or claiming the existing one (Part II #6).
 2. **Commit locally, freely.** Before the first push a local commit may carry any honest
    tier, and amending it is fine.
 3. **Gate the committed tree.** Run the change-class R10 gate on exactly the commit you will
@@ -481,8 +486,9 @@ Before declaring completion, answer every applicable item YES.
 
 - **R0:** every skill the dispatcher selects was loaded before the first tool action.
 - **R1:** every anomaly received a fresh RCA before remediation; every blocking finding is
-  fixed, every non-blocking one is under `## Filed issues`, and every finding raised on the PR
-  is fixed or rebutted.
+  fixed, and every blocker you filed is claimed by you; every non-blocking one is under
+  `## Filed issues`, RCA-complete and unclaimed; and every finding raised on the PR is fixed
+  or rebutted.
 - **R2–R5:** no duplication, no workaround, the product fixed before the prose, and no legacy
   path or stale current documentation left (with the grep pasted).
 - **R6:** no unrelated or foreign work touched; no destructive git action, bypass or force-push.
@@ -496,8 +502,9 @@ Before declaring completion, answer every applicable item YES.
 - **Review:** every validator result and every comment was read in full before each push.
 - **Identity:** every body, comment and commit you authored ends with your session footer.
 - **Labels:** every issue you filed carries exactly one `category:` and one `type:` from
-  the org-wide closed sets, with its remedy/files named; any issue you closed had its labels
-  confirmed against the merged PR; a two-category issue was split, never double-labelled.
+  the org-wide closed sets, with its remedy/files named and its verified RCA; any issue you
+  closed had its labels confirmed against the merged PR; a two-category issue was split,
+  never double-labelled.
 - **Cutover:** the approved plan completed, with no hidden phase, TODO or substitute.
 - **Landing:** every repository landed through one attributed squash commit, a fresh
   independent validator, a protected merge and an immutable merge-time tag; every resolved issue
@@ -556,9 +563,15 @@ Before declaring completion, answer every applicable item YES.
 
 6. **Session-scoped ownership; issue-first coordination.** *(R6)* A file, branch, worktree or
    PR you did not author belongs to another session: never edit, revert, stage or commit it.
-   Before non-trivial work, search the org for an existing issue or PR and add to it; otherwise
-   file ONE issue and CLAIM it (comment + assign) before branching. Replacing a PR or issue means
-   commenting on the old one. Close each issue when its PR merges. *Detail:*
+   Before non-trivial work, search the org for an existing issue or PR. **An existing issue that
+   fits the work is ALWAYS claimed, so no work is duplicated:** add to it and CLAIM it (comment +
+   assign) before branching. If it has a live owner (a `CLAIM`/`OWNING` with progress inside
+   the takeover window of #7), never claim over it: coordinate on the thread, then claim a named
+   slice or take over per #7. If none exists, file ONE RCA-complete issue for the work and CLAIM
+   it before branching. **Blocking and non-blocking issues stay apart:** an issue that blocks your
+   own progress is claimed and fixed by you; a non-blocking finding is filed for a later session
+   and left unclaimed. Replacing a PR or issue means commenting on the old one. Close each issue
+   when its PR merges. *Detail:*
    `/charly-internals:git-workflow` (B2b).
 
 7. **Agent identity and the coordination verb grammar.** *(R6)*

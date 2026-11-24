@@ -9,7 +9,15 @@
  *   node scripts/gh/cli.ts comment <VERB> <item> [--body T | --body-file F] [--assign] [--dry-run] [identity flags]
  *   node scripts/gh/cli.ts issue   --repo O/R --title T --category category:<v> --type type:<v>
  *                                  --remedy "files/behaviour the remedy will touch" [--cited "<rule|none>"]
+ *                                  --blocking | --non-blocking
+ *                                  --mechanism M --missed-control C --blast-radius B --root-fix F
+ *                                  --evidence E | --evidence-file FILE   --spike "<result|none: reason>"
  *                                  [--body extra] [--dry-run] [identity flags]
+ *
+ * An issue is the OUTPUT of a finished RCA (AGENTS.md R1): `issue` refuses to file without the
+ * RCA's conclusion and its verified evidence, and without a classification. `--blocking` (the
+ * issue blocks the filer's own progress) assigns the filer and posts the CLAIM — the filer fixes
+ * it; `--non-blocking` leaves it unclaimed for a later session.
  *
  * WHICH WATCH TO ARM — by what you wait for:
  *   your own PR's verdict and landing (also after a REST re-run)   --events verdict,merged,closed,conflict   (the default)
@@ -257,7 +265,27 @@ const ISSUE_SECTIONS = [
   ["Type", "type"],
   ["Remedy / files the remedy will touch", "remedy"],
   ["Cited design decision or org-rulebook rule (or `none`)", "cited"],
+  ["Classification", "classification"],
+  ["Evidence (verified: commands with output, file:line, measurements)", "evidence"],
+  ["Mechanism", "mechanism"],
+  ["Missed control", "missed-control"],
+  ["Blast radius", "blast-radius"],
+  ["Root fix", "root-fix"],
+  ["Spike (its result, or `none` with the reason)", "spike"],
 ] as const;
+
+/** The RCA fields R1 requires before an issue exists; each must be non-empty. */
+const RCA_FIELDS = ["mechanism", "missed-control", "blast-radius", "root-fix", "evidence", "spike"] as const;
+
+/**
+ * Evidence is VERIFIED only when it carries an instrument's trace: a fenced block of pasted
+ * output, a `$ ` command line, or a `path:line` reference. Prose alone ("it seems to fail") is a
+ * hypothesis, which means the RCA is not finished. Deliberately minimal: it refuses evidence
+ * with no trace at all; it cannot certify that a trace is true — that bar stays the author's.
+ */
+export function evidenceHasTrace(evidence: string): boolean {
+  return /```/.test(evidence) || /^\s*\$ \S/m.test(evidence) || /[\w./-]+\.\w+:\d+/.test(evidence);
+}
 
 /**
  * Compose an issue body in the ORG FORM's answer shape (`### <field>` then the value), so the
@@ -274,8 +302,12 @@ function issueBody(flags: Record<string, string>, footer: string): string {
 }
 
 async function cmdIssue(argv: string[], out: (s: string) => void): Promise<number> {
-  const { flags, pos } = parseArgs(argv, ["dry-run"]);
-  onlyFlags(flags, [...IDENTITY_FLAGS, "repo", "title", "category", "type", "remedy", "cited", "body", "dry-run"]);
+  const { flags, pos } = parseArgs(argv, ["dry-run", "blocking", "non-blocking"]);
+  onlyFlags(flags, [
+    ...IDENTITY_FLAGS,
+    "repo", "title", "category", "type", "remedy", "cited", "body", "dry-run",
+    "blocking", "non-blocking", ...RCA_FIELDS, "evidence-file",
+  ]);
   if (pos.length) throw new UsageError(`issue takes no positional argument (got '${pos[0]}')`);
   if (!/^[^/\s]+\/[^/\s]+$/.test(flags.repo ?? "")) throw new UsageError("--repo must be owner/repo");
   if (!(flags.title ?? "").trim()) throw new UsageError("--title is required");
@@ -288,9 +320,38 @@ async function cmdIssue(argv: string[], out: (s: string) => void): Promise<numbe
     throw new UsageError("--remedy is required (the files/behaviour the remedy will touch) — an issue that names neither its remedy nor its files is under-specified");
   }
   if (!(flags.cited ?? "").trim()) flags.cited = "none";
-  const body = issueBody(flags, buildFooter(identityFrom(flags)));
+  const blocking = flags.blocking === "1";
+  if (blocking === (flags["non-blocking"] === "1")) {
+    throw new UsageError(
+      "exactly one of --blocking | --non-blocking is required — a blocker of your own progress is claimed and fixed by you; a non-blocking finding is left unclaimed (AGENTS.md R1)",
+    );
+  }
+  flags.classification = blocking
+    ? "**Blocking** — it blocks the filer's own progress, so the filer claims it at filing and fixes it."
+    : "**Non-blocking** — genuinely separable; left unclaimed for a later session to pick up.";
+  if (flags["evidence-file"]) {
+    if ((flags.evidence ?? "").trim()) throw new UsageError("pass --evidence or --evidence-file, not both");
+    flags.evidence = readFileSync(flags["evidence-file"], "utf8");
+  }
+  const missing = RCA_FIELDS.filter((f) => !(flags[f] ?? "").trim());
+  if (missing.length) {
+    throw new UsageError(
+      `an issue is filed only after a full, verified RCA (AGENTS.md R1) — missing ${missing.map((m) => "--" + m).join(", ")}`,
+    );
+  }
+  if (!evidenceHasTrace(flags.evidence)) {
+    throw new UsageError(
+      "--evidence carries no verified trace — paste the command and its output (a ``` fence or a '$ ' line) or a path:line reference; a claim no instrument produced is a hypothesis, not an issue",
+    );
+  }
+  const id = identityFrom(flags);
+  const body = issueBody(flags, buildFooter(id));
+  const claim = blocking
+    ? buildComment("CLAIM", "Filed as **blocking**: it blocks this session's own progress, so this session claims it at filing and fixes it.", id)
+    : "";
   if (flags["dry-run"]) {
     out(body);
+    if (claim) out("--- CLAIM (posted after the issue is created) ---\n" + claim);
     return EXIT.OK;
   }
   const res = await ghJson<{ html_url?: string; number?: number }>(`/repos/${flags.repo}/issues`, {
@@ -298,6 +359,11 @@ async function cmdIssue(argv: string[], out: (s: string) => void): Promise<numbe
     body: { title: flags.title.trim(), body, labels: [flags.category, flags.type] },
   });
   out(String(res?.html_url ?? ""));
+  if (blocking) {
+    if (typeof res?.number !== "number") throw new GhError(0, "the issue was created but the API returned no number — CLAIM it by hand with `comment CLAIM <item> --assign`");
+    const [item] = items([`${flags.repo}#${res.number}`]);
+    out(await postComment(item, claim, { assign: true }));
+  }
   return EXIT.OK;
 }
 
