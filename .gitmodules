@@ -1727,3 +1727,7 @@
 	path = layer-example
 	url = https://github.com/opencharly/layer-example.git
 	branch = main
+[submodule "Qwen3-TTS"]
+	path = Qwen3-TTS
+	url = https://github.com/opencharly/Qwen3-TTS.git
+	branch = main
