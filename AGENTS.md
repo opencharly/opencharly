@@ -407,9 +407,26 @@ chat or a memory note is never a coordination channel. *Detail:*
 *Enforces: R1, R7.* **When:** work is bounded and independent, or you must wait. **Do:**
 delegate it to addressable agents and stay responsible for the briefs, the integration and the
 evidence; R1 uses a fresh root-cause-analyzer and landing a fresh independent `pr-validator`,
-never impersonated. Every wait has exactly one watcher, `node scripts/gh/cli.ts watch`, run as a
-managed background command; **re-arming it after a wake is MANDATORY, and the session continues from
-that wake** (see [Continuous operation](#continuous-operation)). **Done when:**
+never impersonated. Every wait has exactly one watcher — `node scripts/gh/cli.ts watch` — run as a
+managed background command, armed **before** the wait with **every event that wait requires**, and
+**re-armed after every wake, from which the session continues** (see
+[Continuous operation](#continuous-operation)). The event set is closed (`scripts/gh/lib/watch.ts`)
+and **all of it is mandatory wherever it applies**:
+
+| Event | Fires on | Arm it for |
+|---|---|---|
+| `verdict` | the validator's `PASS`/`BLOCK`/`INCONCLUSIVE` on the head | every PR you own |
+| `merged` | the PR merged | every PR you own; a producer leg you depend on |
+| `closed` | closed without merging — find its successor | every PR you own; a blocker that may die |
+| `conflict` | the PR conflicts with its base, so the validator cannot run | every PR you own |
+| `comment` | a new comment on the PR or issue | any thread you must answer, and every item you coordinate on |
+| `stall` | no progress for N minutes (open, unmerged) | another session's item that blocks you — the takeover candidate |
+
+So an **own PR** arms the default `verdict,merged,closed,conflict`; add `comment` whenever a reply is
+owed; a **blocking item owned elsewhere** arms `merged,closed,stall` (plus `comment` if it needs a
+reply); **several items** go in ONE watch; a **bed or a long command** is its own managed background
+job; a **file, log or stream** is the harness's Monitor. A wait without its watcher is not a wait, and
+a watcher that fired is re-armed, never left to lapse. **Done when:**
 every delegated result came back as verbatim commands, outputs and exit codes. *Detail:*
 `/charly-internals:git-workflow` (`references/watch-and-wake.md`, "Which watcher to arm"),
 `/charly-internals:agents`.
@@ -420,8 +437,9 @@ every delegated result came back as verbatim commands, outputs and exit codes. *
 verdict, a merge or close, a check run, a delegated result, a monitor event. **Do:** act on the wake
 and keep working the approved plan without waiting to be prompted: read the result in full, fix or
 file what it names, then arm the next wait. **A report is never the end of a task, and a session does
-not idle while actionable work remains.** Setting the watcher **before** the wait and re-arming it
-after every wake is **MANDATORY** (see [Agents, Workflows & Teams](#agents-workflows--teams)).
+not idle while actionable work remains.** Arming the watcher **before** the wait with **every event
+the wait requires**, and re-arming it after every wake, is **MANDATORY** (the closed event set is in
+[Agents, Workflows & Teams](#agents-workflows--teams)).
 **Done when:** the goal is complete and landed, or — and only then — a blocking question that the
 automatic RCA + spike loop (R1 + R12) could not settle has been put to the operator with the
 harness's operator-question tool (in Claude Code, `AskUserQuestion`), naming what was tried and the
@@ -494,9 +512,10 @@ Before declaring completion, answer every applicable item YES.
   closed had its labels confirmed against the merged PR; a two-category issue was split,
   never double-labelled.
 - **Cutover:** the approved plan completed, with no hidden phase, TODO or substitute.
-- **Continuity:** every wake was acted on and the next wait armed; no task ended in a report or an
-  idle stop; any stop was the harness's operator-question tool, backed by an automatic RCA + spike
-  loop that could not settle the question.
+- **Continuity:** every wait was armed with its matching watcher events (the closed set in
+  [Agents, Workflows & Teams](#agents-workflows--teams)), every wake was acted on, and the next wait
+  armed; no task ended in a report or an idle stop; any stop was the harness's operator-question tool,
+  backed by an automatic RCA + spike loop that could not settle the question.
 - **Landing:** every repository landed through one attributed squash commit, a fresh
   independent validator, a protected merge and an immutable merge-time tag; every resolved issue
   is closed, and every coordination thread you opened ends with `RESOLVED`.
