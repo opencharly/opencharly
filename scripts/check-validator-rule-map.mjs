@@ -11,7 +11,12 @@
 //   1. the check ids the committed rulebook defines == the ids the AGENTS.md table lists;
 //   2. every skill a table row cites resolves to a SKILL.md in the marketplace corpus;
 //   3. the committed rulebook == the LIVE org variable (R8: run against the real variable, or
-//      SKIP visibly when `gh` is not authenticated, never a mock).
+//      SKIP visibly when `gh` is not authenticated, never a mock). ONE difference is REPORTED
+//      rather than failed: a live variable that equals the rulebook at the umbrella's PREVIOUS
+//      `action-review` pin. That is the producer-first window — the pin has advanced to a merged
+//      rulebook and the operator has not yet re-synced the variable — so it is a re-sync
+//      pending, the way a `behind` pin passes and is reported. Any other difference (a second
+//      advance with no re-sync, a hand-edited variable, a drifted committed copy) still FAILS.
 //
 // A surface that is not checked out (`action-review/`, `marketplace/` in a session worktree)
 // SKIPS visibly; a silent pass is forbidden.
@@ -37,6 +42,7 @@ const fail = (m) => {
 };
 const ok = (m) => console.log(`  PASS  ${m}`);
 const skip = (m) => console.log(`  SKIP  ${m}`);
+const report = (m) => console.log(`  PASS  ${m} (REPORTED: re-sync pending)`);
 
 const CHECK_ID = "(?:T\\d|A\\d|R\\d+|HC|PIL|CONC|ARCH|DISP|QUAL|COORD)";
 
@@ -82,6 +88,45 @@ export function committedPrompt(yml) {
 export function promptIds(prompt) {
   const re = new RegExp(`^(${CHECK_ID}) — `, "gm");
   return [...prompt.matchAll(re)].map((m) => m[1]);
+}
+
+/**
+ * How the live variable relates to the committed rulebook: "equal"; "pending" when it equals
+ * the rulebook at the previous `action-review` pin (the producer-first window); else "differs".
+ */
+export function judgeLive(live, committed, previous) {
+  if (live === committed) return "equal";
+  if (previous !== null && previous !== undefined && live === previous) return "pending";
+  return "differs";
+}
+
+const git = (cwd, args) => {
+  const r = spawnSync("git", ["-C", cwd, ...args], { encoding: "utf8" });
+  return r.status === 0 ? r.stdout.trim() : null;
+};
+
+/**
+ * The rulebook at the umbrella's PREVIOUS `action-review` pin, or null when it cannot be read.
+ * An index that moved the gitlink makes HEAD's gitlink the previous one; otherwise it is the
+ * gitlink before the last commit that moved it (on a PR branch, the branch's own advance; on
+ * `main`, the squash that landed it).
+ */
+export function previousPrompt(dir) {
+  const index = git(dir, ["ls-files", "-s", "--", ":(literal)action-review"]);
+  const indexLink = index ? index.split(/\s+/)[1] : null;
+  const headLink = git(dir, ["rev-parse", "HEAD:action-review"]);
+  let prev = null;
+  if (indexLink && headLink && indexLink !== headLink) {
+    prev = headLink;
+  } else {
+    const moved = git(dir, ["log", "-1", "--format=%H", "--", ":(literal)action-review"]);
+    if (moved) prev = git(dir, ["rev-parse", `${moved}^:action-review`]);
+  }
+  if (!prev) return null;
+  const yml = git(join(dir, "action-review"), ["show", `${prev}:charly.yml`]);
+  if (yml === null) return null;
+  const prompt = committedPrompt(yml);
+  return prompt === null ? null : { sha: prev, prompt };
 }
 
 function check(dir) {
@@ -142,9 +187,16 @@ function check(dir) {
     if (gh.error || gh.status !== 0) {
       skip(`live AI_REVIEW_PROMPT not readable (gh unauthenticated or no org access): the committed-vs-live comparison did not run`);
     } else {
-      gh.stdout.replace(/\n+$/, "") === prompt
-        ? ok("the committed rulebook equals the live AI_REVIEW_PROMPT org variable")
-        : fail("the committed rulebook (action-review/charly.yml) differs from the live AI_REVIEW_PROMPT org variable");
+      const live = gh.stdout.replace(/\n+$/, "");
+      const previous = live === prompt ? null : previousPrompt(dir);
+      const verdict = judgeLive(live, prompt, previous ? previous.prompt : null);
+      if (verdict === "equal") ok("the committed rulebook equals the live AI_REVIEW_PROMPT org variable");
+      else if (verdict === "pending")
+        report(
+          `the live AI_REVIEW_PROMPT is the rulebook at the previous action-review pin ${previous.sha.slice(0, 12)}; ` +
+            "set the org variable to the committed rulebook once this pin has merged",
+        );
+      else fail("the committed rulebook (action-review/charly.yml) differs from the live AI_REVIEW_PROMPT org variable, and from the rulebook at the previous action-review pin");
     }
   }
 }
@@ -179,6 +231,67 @@ function selfTest() {
       rmSync(dir, { recursive: true, force: true });
     }
   }
+  // The live judgement, on its own: the window is REPORTED, everything else still decides.
+  const judged = [
+    ["live equals the committed rulebook", "B", "B", "A", "equal"],
+    ["live is the previous pin's rulebook (re-sync pending)", "A", "B", "A", "pending"],
+    ["live is neither the committed nor the previous rulebook", "X", "B", "A", "differs"],
+    ["live differs and no previous pin is readable", "A", "B", null, "differs"],
+  ];
+  for (const [name, live, committed, previous, want] of judged) {
+    const got = judgeLive(live, committed, previous);
+    if (got === want) console.log(`  PASS  self-test '${name}' is ${want}`);
+    else {
+      bad += 1;
+      console.error(`  FAIL  self-test '${name}' expected ${want}, got ${got}`);
+    }
+  }
+
+  // previousPrompt on a REAL git fixture: an umbrella whose action-review gitlink moved from a
+  // first rulebook to a second, both in the index and in a commit.
+  const fx = mkdtempSync(join(tmpdir(), "check-validator-rule-map-git-"));
+  try {
+    const run = (cwd, ...args) => {
+      const r = spawnSync("git", ["-C", cwd, "-c", "user.name=t", "-c", "user.email=t@t", ...args], { encoding: "utf8" });
+      if (r.status !== 0) throw new Error(`git ${args.join(" ")}: ${r.stderr}`);
+      return r.stdout.trim();
+    };
+    const ar = join(fx, "action-review");
+    mkdirSync(ar);
+    run(ar, "init", "-q");
+    writeFileSync(join(ar, "charly.yml"), rulebook(["R1"]));
+    run(ar, "add", "charly.yml");
+    run(ar, "commit", "-qm", "one");
+    const first = run(ar, "rev-parse", "HEAD");
+    writeFileSync(join(ar, "charly.yml"), rulebook(["R1", "R12"]));
+    run(ar, "commit", "-qam", "two");
+    const second = run(ar, "rev-parse", "HEAD");
+    run(fx, "init", "-q");
+    writeFileSync(join(fx, "f"), "x\n");
+    run(fx, "add", "f");
+    run(fx, "update-index", "--add", "--cacheinfo", `160000,${first},action-review`);
+    run(fx, "commit", "-qm", "pin one");
+    const firstPrompt = committedPrompt(rulebook(["R1"]));
+    // the index moved the gitlink: HEAD's pin is the previous one
+    run(fx, "update-index", "--cacheinfo", `160000,${second},action-review`);
+    const fromIndex = previousPrompt(fx);
+    // committed: the commit that moved the gitlink has the previous pin as its parent's
+    run(fx, "commit", "-qm", "pin two");
+    const fromCommit = previousPrompt(fx);
+    for (const [name, got] of [
+      ["previous pin read from an index that moved the gitlink", fromIndex],
+      ["previous pin read from the commit that moved the gitlink", fromCommit],
+    ]) {
+      if (got && got.sha === first && got.prompt === firstPrompt) console.log(`  PASS  self-test '${name}'`);
+      else {
+        bad += 1;
+        console.error(`  FAIL  self-test '${name}': got ${JSON.stringify(got)}`);
+      }
+    }
+  } finally {
+    rmSync(fx, { recursive: true, force: true });
+  }
+
   console.log(`check-validator-rule-map --self-test: ${bad === 0 ? "OK" : `FAIL (${bad})`}`);
   process.exit(bad === 0 ? 0 : 1);
 }

@@ -122,7 +122,7 @@ others rather than copied.
 | file | what it is |
 |---|---|
 | `README.md` | This file: the user-facing overview of the umbrella and of the org. |
-| `AGENTS.md` | The rulebook — R0–R11, the umbrella rules, the acceptance checklist, the skill dispatcher. The one harness-neutral source every harness reads directly. |
+| `AGENTS.md` | The rulebook — R0–R12, the umbrella rules, the acceptance checklist, the skill dispatcher. The one harness-neutral source every harness reads directly. |
 | `SOUL.md` | Identity: who charly is, what drives it, what it refuses. Read it first. |
 | `VISION.md` | The thesis behind the candybox: the twelve tenets, and where the factory is heading. |
 | `GRIEVANCES.md` | The six grievances the project answers, and the one property their answers compose into. |

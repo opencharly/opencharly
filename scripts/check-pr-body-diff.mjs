@@ -1563,6 +1563,7 @@ ${fence}
 - **R9 — binary equals source:** fixture.
 - **R10 — fresh disposable proof:** fixture.
 - **R11 — conform to DESIGN:** fixture.
+- **R12 — spike before implementing:** fixture.
 
 ## Change classification
 ${claim || "Test fixture, not a real change."}

@@ -20,12 +20,12 @@
  *   - a direct push to `main`
  *
  * Attribution identity/confidence, change class, CHANGELOG coverage,
- * architecture, and R0–R11 proof are judged once by the fresh pr-validator,
+ * architecture, and R0–R12 proof are judged once by the fresh pr-validator,
  * never here. Hooks guard mechanics; agents judge policy and evidence.
  *
  * ## System prompt injection (before_agent_start)
  *
- * Injects the rulebook sections (R1–R11, "Commit, push, land", the attribution
+ * Injects the rulebook sections (R1–R12, "Commit, push, land", the attribution
  * tiers) READ from the project-root AGENTS.md every turn — AND the full SOUL.md identity
  * (read from the project root) at every turn, so the injected text is the
  * soul itself, not a pointer to it. This survives compaction because it is
@@ -97,7 +97,7 @@ const REQUIRED_WORKTREE_MODULES = ["charly", "marketplace"];
  * hand-copied block this replaces had drifted to a retired numbering).
  */
 const INJECTED_SECTIONS = [
-  "The ground-truth rules R1–R11",
+  "The ground-truth rules R1–R12",
   "Commit, push, land",
   "AI Attribution (Fedora Policy Compliant)",
 ];
