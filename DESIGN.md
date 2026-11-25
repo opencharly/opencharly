@@ -3350,8 +3350,15 @@ still reporting success.
 | `changelog-tip` | is one commit above a tag, and that commit's subject is `docs: add CHANGELOG …` | the structure every merge produces |
 | `changelog-chain` | is a `docs: add CHANGELOG …` commit, and every commit between it and the first tagged ancestor is one too | `tag-on-merge` re-ran for an earlier merge out of order; the untagged-ness is still only CHANGELOG commits |
 | `pre-release-process` | is the commit that ADDS `.github/workflows/tag-on-merge.yml` to a repository that did not have it | its parent could not mint a tag; the absence is the repository's birth |
-| `not-applicable` | sits in a tree that has no tag-on-merge caller at all | a fork, a vendored mirror or a repository holding captured output mints no release tag; the question does not apply, and the pin is counted |
+| `not-applicable` | sits in a tree that has no tag-on-merge caller at all | a repository with no caller — an un-onboarded fork, a vendored mirror, an archived repo, or one holding captured output — mints no release tag; the question does not apply, and the pin is counted |
 | `untagged` | is none of the above, and its module runs tag-on-merge at the pin and at its parent | a merge above a tag wrote no CHANGELOG commit — the signal, and a finding unless the census records it |
+
+**A first-party fork is tagged like any other landing repo.** Every active fork carries the
+tag-on-merge caller, installed and kept canonical by `opencharly/.github`'s `SCOPE=forks`
+reconcile, so a fork pin classifies as `pre-release-process` at the commit that ADDS the caller,
+then as `changelog-tip` or `tagged` above it. `not-applicable` therefore describes a repository
+with NO caller — an un-onboarded fork, a vendored mirror, an archived repo, or a captured-output
+branch — and it does not describe forks in general.
 
 **The split: what the offline reading sees, and what it does not.** A positive needs no network: a
 tag ref in the module store that points at the pin, or at the first-parent ancestor the walk
