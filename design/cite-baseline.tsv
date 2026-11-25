@@ -48,9 +48,9 @@ command:alias	plugin-alias/candy/plugin-alias/alias.go	213-218	AliasCmd	a7b88dcd
 command:cache	plugin-cache/candy/plugin-cache/plugin.go	101-108	CacheCmd	cb7759b02fea03d2
 command:candy	plugin-candy/candy/plugin-candy/params.go	40-47	paramsUsage	bc7bee9cdd4451c5
 command:clean	plugin-clean/candy/plugin-clean/charly.yml	6-9	-	d03834f47e9b76de
-command:config	plugin-pod/candy/plugin-pod/pod_cmd.go	420-450	ConfigSetupCmd	a7752f4f12b9b522
+command:config	plugin-pod/candy/plugin-pod/pod_cmd.go	440-469	ConfigSetupCmd	4818fd419363b104
 command:containerd	plugin-nerdctl/candy/plugin-containerd/charly.yml	43-47	-	a91feb5e0950136f
-command:cp	plugin-pod/candy/plugin-pod/pod_cmd.go	410-415	CpCmd	c7144d6f4f27c137
+command:cp	plugin-pod/candy/plugin-pod/pod_cmd.go	412-424	CpCmd	4e74dea0ebf893ba
 command:deploy	plugin-fleet/candy/plugin-fleet/deploy_cmd.go	28-38	DeployCmd	7ba64c193df1fe85
 command:docs	plugin-docs/candy/plugin-docs/command.go	14-14	docsCLI	ab027eafd5be402f
 command:generate-packages	plugin-generate-packages/candy/generate-packages/cli.go	18-32	cli	99a285f4f02ce4b6

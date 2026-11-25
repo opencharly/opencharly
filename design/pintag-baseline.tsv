@@ -35,3 +35,4 @@
 # tracked-by: opencharly/.github#192 — the tag-on-merge breakage that wrote no CHANGELOG commit
 module	commit	state	reason
 pi-asciinema	2938ef8d00de3752553ba6128756f79d7ffb41df	untagged	a human commit merged on top of the CHANGELOG tip, untagged, and no CHANGELOG commit follows it while tag-on-merge is present at the pin and at its parent — the merge that produced the pin wrote no CHANGELOG record (opencharly/.github#286)
+lobster	f318da9700320fc391c05b2839e0dcbcabb69cbf	untagged	a CI-reconciliation commit (opencharly/.github#192, the canonical tag-on-merge caller) sits above the v2026.288.1701 release tag — it is not a merge, so tag-on-merge had no CHANGELOG to write above it
