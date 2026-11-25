@@ -422,6 +422,17 @@ that table: the validator only enforces what the rulebook states.
 A parent that spawns a worker MUST embed it in the brief (see
 `/charly-internals:agents`), and the worker MUST run it before its first push.
 
+## The default loop — the landing half
+
+The rulebook's default loop (its "The default loop" section) has a landing half that is this
+skill's: after the RCA and the spike round, the session **claims or files the issue before
+branching** (Part II #6, B2b), lands the fix in the owning repo producer-first (B6), advances the
+consumer's pin through its declared mechanism after the producer merges, and **closes the issue with
+the merged PR plus `RESOLVED` on every coordination thread** ("Commit, push, land" #7). It is
+automatic and continuous: the next wait is armed rather than the session stopping. A blocking
+finding is never parked; a non-blocking one is filed, described in `## Filed issues`, and left
+unclaimed.
+
 ## Waiting — the ONE watcher
 
 Every wait on GitHub — your PR's verdict, its merge, another session's blocker, a reply — is

@@ -22,9 +22,12 @@ submodules, each a real repo owned elsewhere. A subrepo's own `AGENTS.md` adds o
 specific to that repo (`charly/AGENTS.md`: the charly core); it never replaces this file.
 History belongs only in `CHANGELOG/`.
 
-**The order of every change:** load the skills (R0) → RCA what you found (R1) → spike every
-candidate solution (R12) → write the schema first if a shape changes (SDD) → implement the
-winning candidate → prove it (R7, ADE, R10) → land it.
+**The order of every change — the DEFAULT loop, run automatically:** load the skills (R0) → RCA what
+you found (R1) → spike every candidate solution (R12) → file or claim the issue (Part II #6) → write
+the schema first if a shape changes (SDD) → implement the winning candidate → prove it (R7, ADE, R10)
+→ land it producer-first in the owning repo (Part II #3) → upstream the pins → close the issue with
+the merged PR ("Commit, push, land" #7). It runs on every anomaly and every solution without waiting
+to be prompted; the only stop is the operator-question tool (see **Continuous operation**).
 
 ## You are charly
 
@@ -126,6 +129,23 @@ the violation and rerun the gate, or stop and ask the operator. *Detail:*
   pasted as `### Spike` under `## How tested`, or the body names the exemption that applies.
   A spike never ships and never replaces R10. *Detail:* `/charly-internals:strict-policy`
   ("Spike-first").
+
+## The default loop — RCA → spike → issue → fix → upstream → close
+
+*Enforces: R1, R12.* **When:** every anomaly or divergence (R1), and every solution about to be
+implemented (R12). **Do:** run the whole loop without being prompted: (1) RCA the mechanism, the
+missed control, the blast radius and the root fix (R1); (2) spike every plausible candidate on a
+live target or against the real artifact, and keep the winner (R12); (3) file or claim the ONE issue
+that carries the RCA (Part II #6, "fix it or file it"); (4) fix it in the repo that owns the defect,
+producer-first, then advance the consumer's pin (Part II #3); (5) close the issue with the merged PR
+and post `RESOLVED` on any coordination thread. A blocking finding is fixed by you, never parked; a
+non-blocking one is filed and listed under `## Filed issues`. **Done when:** the issue is closed by
+the merged PR — or an RCA-complete issue is filed unclaimed and the blocker it names is fixed or
+escalated. This is the DEFAULT, not a special procedure: it never waits for a prompt, and the only
+stop is the operator-question tool after the loop itself could not settle the question (see
+[Continuous operation](#continuous-operation)). *Detail:* `/charly-internals:root-cause-analyzer`
+(the 8 steps), `/charly-internals:strict-policy` ("R1, applied", "Spike-first"),
+`/charly-internals:git-workflow` (B2b issue-first, the producer-first legs, the close-out).
 
 ## What the validator checks
 
@@ -497,6 +517,9 @@ Before declaring completion, answer every applicable item YES.
 - **Continuity:** every wake was acted on and the next wait armed; no task ended in a report or an
   idle stop; any stop was the harness's operator-question tool, backed by an automatic RCA + spike
   loop that could not settle the question.
+- **Loop:** every anomaly and every solution ran RCA → spike → issue → fix → upstream → close,
+  automatically; every blocking finding was fixed and its issue closed by the merged PR, and every
+  non-blocking one was filed, described and left unclaimed.
 - **Landing:** every repository landed through one attributed squash commit, a fresh
   independent validator, a protected merge and an immutable merge-time tag; every resolved issue
   is closed, and every coordination thread you opened ends with `RESOLVED`.

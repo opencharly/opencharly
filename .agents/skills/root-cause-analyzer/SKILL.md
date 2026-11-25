@@ -33,6 +33,13 @@ The last step decides the path (the project rulebook R1, *fix it or file it*; `/
 
 **An issue is the RCA's OUTPUT, never a substitute for it.** It is filed only once the process has run to its end: its body states verified facts (commands with output, `file:line`, measurements) and the conclusion — mechanism, missed control, blast radius, root fix, and the R12 spike round's result (or `none`, with the reason). `node scripts/gh/cli.ts issue` refuses to file without those fields. An untested hypothesis means the RCA is unfinished, so nothing is filed yet.
 
+**The loop continues after classification, automatically.** The RCA is step 1 of the rulebook's
+default loop (its "The default loop" section): spike every candidate (R12), file or claim the issue,
+fix it in the owning repo producer-first, advance the consumer's pin, and close the issue with the
+merged PR. Do not stop at "an issue was filed": a blocking finding is yours to fix unless it needs
+the operator, and the only stop is the operator-question tool after the loop itself cannot settle
+the question (`/charly-internals:strict-policy`, "The default loop").
+
 ## Failure-signature enumeration and measurement discipline
 
 A full RCA is not one named cause. A visible symptom is usually a CONJUNCTION of independent issues, so naming a single cause and moving on is repeatedly wrong while the others stay live — the field failure this section exists to prevent (a single cause named three times in a row, each time wrong, and once declared fixed from a measurement taken inside a downtime window). Three rules bind every RCA:

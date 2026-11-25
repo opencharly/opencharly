@@ -239,6 +239,28 @@ manufactures exactly the confident-but-wrong reports R1 exists to prevent, while
 
 **Interaction with other rules.** This covers both approved-plan phasing AND issues surfaced incidentally mid-session. There is no unfiled deferral, planned or incidental. "Finish the whole cutover" (the project rulebook "Hard Cutover by Default") applies the same rule to the change's own scope: every in-scope occurrence and every sibling with the same mechanism lands, and only a genuinely separable finding is filed.
 
+## The default loop — from RCA to a closed issue
+
+The rulebook makes one loop the DEFAULT for every anomaly and every solution (the project
+rulebook's "The default loop" section); this is the how. Run it end to end without waiting for a
+prompt:
+
+1. **RCA** — the mechanism, the missed control, the blast radius and the root fix (the 8 steps in
+   `/charly-internals:root-cause-analyzer`).
+2. **Spike** — every plausible candidate on a live target or against the real artifact; keep the
+   winner ("Spike-first" above). If none works, the RCA is wrong; redo it.
+3. **Issue** — search the org, then CLAIM the fitting issue or file ONE RCA-complete issue. A
+   blocking one is claimed by you at filing; a non-blocking one is filed unclaimed.
+4. **Fix** — in the repo that owns the defect, producer-first, with the winning candidate.
+5. **Upstream** — after the producer merges, advance the consumer's pin through that repo's
+   declared mechanism.
+6. **Close** — close the issue with the merged PR, and post `RESOLVED` on every coordination
+   thread you claimed.
+
+A blocking finding is never parked. A non-blocking one is filed, described under
+`## Filed issues`, and left unclaimed. The loop is automatic — it never waits to be asked, and the
+only stop is the operator-question tool after the loop itself cannot settle the question.
+
 ## R2. No code duplication; generic, reusable solutions over ad-hoc patches
 
 **The rule (AGENTS.md R2).** On the first surface where the same pattern, predicate, filter, transform, or guard appears in two places, refactor to one shared abstraction in the same working tree — applied to every surface it logically covers, not just the one that prompted the report.
