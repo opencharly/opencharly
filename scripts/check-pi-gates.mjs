@@ -349,13 +349,13 @@ export default { Type };
     //       "changed shape" marker may appear — a renamed AGENTS.md heading turns this red.
     const agentsMd = existsSync(join(fireRoot, "AGENTS.md")) ? readFileSync(join(fireRoot, "AGENTS.md"), "utf8") : "";
     const prompt = started?.systemPrompt ?? "";
-    const wanted = ["## The ground-truth rules R1–R11", "## Commit, push, land", "## AI Attribution (Fedora Policy Compliant)"];
+    const wanted = ["## The ground-truth rules R1–R12", "## Commit, push, land", "## AI Attribution (Fedora Policy Compliant)"];
     expect(
       agentsMd.length > 0 &&
         wanted.every((h) => agentsMd.includes(`\n${h}\n`) && prompt.includes(h)) &&
         prompt.includes("**R1 — RCA every anomaly") &&
         !prompt.includes("the rulebook changed shape"),
-      `${rel} FIRED: before_agent_start injects the R1–R11, "Commit, push, land" and attribution sections READ from AGENTS.md`,
+      `${rel} FIRED: before_agent_start injects the R1–R12, "Commit, push, land" and attribution sections READ from AGENTS.md`,
     );
 
     // 3. Fixtures — one real repository per state the tool must tell apart.

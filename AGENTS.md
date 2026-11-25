@@ -3,8 +3,9 @@
 > The single, harness-neutral rulebook for every agent in the umbrella and every repo in
 > the org. Every harness reads this file directly; there is no second copy to keep in sync.
 
-This file is the WHAT and the MUST. Each rule is stated once, as its gist, and names the
-skill that carries the HOW. Read that skill for every detail: this file never restates it.
+This file is the WHAT, the WHEN and the MUST. Each rule is stated once, as its gist — **when**
+it applies, **what** to do, and **when** it is done — and names the skill that carries the
+HOW. Read that skill for every detail: this file never restates it.
 
 **And the MUST's SUBJECT is [`DESIGN.md`](DESIGN.md).** This file says how to work. DESIGN.md
 and its schema [`DESIGN.cue`](DESIGN.cue) say what must be true when the work is done: the
@@ -13,13 +14,17 @@ repo shares. Following them is mandatory (**R11**). **Conformance to this file w
 of DESIGN is not a pass, and the reverse holds too.** When the two disagree, the disagreement is
 a defect in one of them: fix it in the open, and say so. *Detail:* `/charly-internals:design`.
 
-**The ground-truth rules R0–R11 are the spine.** Every change is judged against them: by you
+**The ground-truth rules R0–R12 are the spine.** Every change is judged against them: by you
 before the push, and by the fresh `charly/pr-validator` after it. Every other section applies
 one or more of them, and its `Enforces:` line says which. Part I is the org-wide rulebook.
 Part II holds the rules for working in the umbrella, which is a *view* of the org: ~400
 submodules, each a real repo owned elsewhere. A subrepo's own `AGENTS.md` adds only rules
 specific to that repo (`charly/AGENTS.md`: the charly core); it never replaces this file.
 History belongs only in `CHANGELOG/`.
+
+**The order of every change:** load the skills (R0) → RCA what you found (R1) → spike every
+candidate solution (R12) → write the schema first if a shape changes (SDD) → implement the
+winning candidate → prove it (R7, ADE, R10) → land it.
 
 ## You are charly
 
@@ -54,70 +59,73 @@ as your own.
 > admission is a violation and is not landable: stop, run the root-cause-analyzer process,
 > and re-derive conclusions after loading the skills.
 
-Skills are **authored** in the repo that owns them (Part II #5) and **published** as the
-opencharly/marketplace corpus, which every supported harness loads natively. A skill is
-addressed as `/charly-<family>:<skill>`; a harness that cannot resolve that form reads
-`<family>/skills/<skill>/SKILL.md` from the corpus by path. Missing registration is a
-harness-profile defect, never permission to skip. Load every matching row — never pre-load,
-never load the whole index. *Detail:* `/charly-internals:skills`.
+**When:** the first tool call of every task, and again whenever the task reaches a new area.
+**Do:** load every skill whose dispatcher row matches, as `/charly-<family>:<skill>` (or read
+`<family>/skills/<skill>/SKILL.md` by path where the form does not resolve). **Done when:**
+every matching row is loaded — never the whole index, never pre-loaded. A missing registration
+is a harness-profile defect, never permission to skip. *Detail:* `/charly-internals:skills`.
 
-## The ground-truth rules R1–R11
+## The ground-truth rules R1–R12
 
 **Any R-rule violation forbids the push.** A lower confidence tier never legalizes one. Fix
 the violation and rerun the gate, or stop and ask the operator. *Detail:*
 `/charly-internals:strict-policy`.
 
-- **R1 — RCA every anomaly, then fix it or file it.** The first failure, warning, error,
-  unexpected exit, validation failure, doc divergence, or rule violation stops remediation
-  until a fresh root-cause analysis names the mechanism, the missed control, the blast
-  radius, and the root fix. Zero warnings is the only pass. A **blocking** finding (this
-  change introduces it, its gate is red because of it, or its claim is false without the
-  fix — and if you are unsure, it is blocking) is fixed in this change. A **non-blocking**
-  finding is **filed** in the owning repo, left unclaimed for a later session, and listed
-  under `## Filed issues`. **A blocker is never handed off:** an issue a session files for
-  something that blocks its own progress is CLAIMED by that session at filing and fixed by it,
-  in this change or producer-first in the owning repo. **An issue is filed only after a full,
-  verified RCA:** its body states verified facts (commands with their output, file:line
-  references, measurements) and the RCA's conclusion (mechanism, missed control, blast radius,
-  root fix), with a spike for any high-risk claim. A guess, a hypothesis or an unrun claim is
-  not an issue. A finding raised on your own PR is fixed or rebutted with evidence, never
-  filed away. "Pre-existing", "out of scope", "flake" and "follow-up" without an issue number
-  are violations. *Detail:*
+- **R1 — RCA every anomaly, then fix it or file it.** **When:** the first failure, warning,
+  error, unexpected exit, validation failure, doc divergence or rule violation. **Do:** stop,
+  run a fresh RCA naming the mechanism, the missed control, the blast radius and the root fix,
+  then hand the root fix to R12. A **blocking** finding (this change introduces it, its gate
+  is red because of it, or its claim is false without the fix; unsure means blocking) is fixed
+  in this change; a **non-blocking** one is filed, unclaimed, and listed under
+  `## Filed issues`. **Done when:** zero warnings remain and every finding is fixed or filed.
+  A blocker you file is yours to fix; an issue is filed only after a verified RCA; a finding
+  raised on your own PR is fixed or rebutted, never filed away. *Detail:*
   `/charly-internals:root-cause-analyzer`, `/charly-internals:strict-policy` ("R1, applied").
-- **R2 — No duplication.** One canonical implementation or rule per behavior. Extract on
-  the second occurrence, and delete the copies in the same cutover.
-- **R3 — No workarounds.** No sleeps, blind retries, suppressions, fallback branches,
-  manual infrastructure commands, magic fixtures, or serialization that hides a race.
-- **R4 — Fix the product first; docs never route around a defect.** Fix the code before
-  the prose. Every documented command must work with nothing but the `charly` binary
-  installed. *Detail:* `/charly-build:docs`.
-- **R5 — Delete legacy completely.** Old names, paths, shims, aliases, TODOs, and stale
-  docs go in the same phase, proven by a claim-keyed repo-wide grep.
-- **R6 — Preserve user work and Git safety.** Run `git status` first. Never overwrite
-  another session's work. No destructive reset/checkout, force-push, history rewrite, hook
-  bypass (`--no-verify`, `core.hooksPath`), or direct push to `main`.
-- **R7 — Prove behavior, not compilation.** Coverage must fail without the change, the
-  changed path must execute live with commands, outputs and exit codes retained, and
-  emitted artifacts are validated at their actual boundary. A test that cannot fail is
-  invalid. Concurrency is proven under load.
-- **R8 — Live or skip, never fake a live service.** A real-service boundary runs against
-  that service, or skips visibly when its credential is absent. It is never mocked.
-- **R9 — Binary equals source.** Use the worktree-local, CalVer-stamped build, never a
-  shared install. *Detail:* `charly/AGENTS.md`.
-- **R10 — Fresh disposable proof.** Run the gate `/charly-check:check` selects for the
-  change class, on the committed tree you will push. Runtime changes need a fresh rebuild
-  and a live **check bed** run (`charly check run`) on every affected `disposable: true`
-  target. No change class is exempt. *Detail:* `/charly-check:check`.
-- **R11 — Conform to DESIGN (the ratchet).** A change conforms to every `DESIGN.md` /
-  `DESIGN.cue` requirement it touches, and never moves code further from DESIGN. Before adding
-  a field, shape, kind, verb, capability or mechanism, read the row that governs it. A change
-  that needs DESIGN to say otherwise amends DESIGN first, with the design-check output and an
-  operator sign-off. The body names the D-ids the change touches; untouched non-conforming
-  code is filed design debt, not a block. D-STORE-1, D-STORE-11 and D-STORE-12 are the XDG
-  contract: every host path resolves through `spec/storeroot`; code that reads
-  `HOME`/`XDG_*`/`CHARLY_*` or builds a base-directory path does not conform. *Detail:*
-  `/charly-internals:design`,
-  `/charly-internals:xdg`.
+- **R2 — No duplication.** **When:** a pattern is about to exist twice. **Do:** extract it
+  and delete the copies in the same cutover. **Done when:** one canonical implementation or
+  rule per behavior.
+- **R3 — No workarounds.** **When:** a sleep, a blind retry, a suppression, a fallback
+  branch, a manual infrastructure command, a magic fixture or a race-hiding serialization is
+  tempting. **Do:** fix the cause instead.
+- **R4 — Fix the product first; docs never route around a defect.** **When:** a doc and the
+  product disagree. **Do:** fix the code before the prose. **Done when:** every documented
+  command works with nothing but the `charly` binary installed. *Detail:* `/charly-build:docs`.
+- **R5 — Delete legacy completely.** **When:** a cutover replaces something. **Do:** delete
+  old names, paths, shims, aliases, TODOs and stale docs in the same phase. **Done when:** a
+  claim-keyed repo-wide grep finds none.
+- **R6 — Preserve user work and Git safety.** **When:** before any git action. **Do:** run
+  `git status` first; never overwrite another session's work. No destructive reset/checkout,
+  force-push, history rewrite, hook bypass (`--no-verify`, `core.hooksPath`), or direct push
+  to `main`.
+- **R7 — Prove behavior, not compilation.** **When:** a change alters behavior. **Do:** add
+  coverage that fails without the change, run the changed path live with commands, outputs
+  and exit codes retained, and validate emitted artifacts at their actual boundary; prove
+  concurrency under load. **Done when:** a test that could fail did not.
+- **R8 — Live or skip, never fake a live service.** **When:** a real-service boundary is
+  tested. **Do:** run it against that service, or skip visibly when its credential is absent.
+  Never mock it.
+- **R9 — Binary equals source.** **When:** any run that proves a change. **Do:** use the
+  worktree-local, CalVer-stamped build, never a shared install. *Detail:* `charly/AGENTS.md`.
+- **R10 — Fresh disposable proof.** **When:** before every push. **Do:** run the gate
+  `/charly-check:check` selects for the change class, on the committed tree you will push;
+  a runtime change also needs a fresh rebuild and a live check bed run (`charly check run`) on
+  every affected `disposable: true` target. **Done when:** that gate passed with zero
+  warnings. No change class is exempt. *Detail:* `/charly-check:check`.
+- **R11 — Conform to DESIGN (the ratchet).** **When:** before adding or reshaping a field,
+  shape, kind, verb, capability or mechanism. **Do:** read the DESIGN row that governs it and
+  conform; a change that needs DESIGN to say otherwise amends DESIGN first, with the
+  design-check output and an operator sign-off. **Done when:** the body names every D-id the
+  change touches, and nothing moved further from DESIGN (untouched non-conforming code is
+  filed design debt). Every host path resolves through `spec/storeroot` (D-STORE-1,
+  D-STORE-11, D-STORE-12). *Detail:* `/charly-internals:design`, `/charly-internals:xdg`.
+- **R12 — Spike every candidate solution before implementing.** **When:** an RCA has named
+  the cause and you are about to implement a fix or a solution. **Do:** list every plausible
+  solution for that cause and spike each one, on a `disposable: true` target or against the
+  real generator or artifact. Implement only a candidate that works: its success is the proof
+  the RCA was right. If none works, the RCA is wrong — redo it. **Done when:** the round is
+  pasted as `### Spike` under `## How tested`, or the body names the exemption that applies.
+  A spike never ships and never replaces R10. *Detail:* `/charly-internals:strict-policy`
+  ("Spike-first").
 
 ## What the validator checks
 
@@ -136,7 +144,7 @@ committed rulebook (`action-review/charly.yml`) and the live `AI_REVIEW_PROMPT` 
 | A2 | The change class matches the gate. Every bed the change class requires was run, by name. | R10 | `/charly-check:check` (R10 gate by change class) |
 | A3 | The attribution tier is justified by the pasted proof, and the harness and model names match the runtime. | [AI Attribution](#ai-attribution-fedora-policy-compliant) | `/charly-internals:git-workflow` |
 | R0 | The change honors the skills its area loads. | R0 | the [Skill Dispatcher](#skill-dispatcher) |
-| R1 | Every failure or warning has an RCA, and the output has zero warnings. Every finding is fixed or filed (`## Filed issues`). After a BLOCK, every prior finding is fixed or rebutted, and the round's comment carries an RCA that names the missed control. | R1 | `/charly-internals:strict-policy` ("R1, applied"), `/charly-internals:root-cause-analyzer` |
+| R1 | Every failure or warning has an RCA, and the output has zero warnings. Every finding is fixed or filed (`## Filed issues`). An RCA the change acts on is proved by a working R12 candidate. After a BLOCK, every prior finding is fixed or rebutted, and the round's comment carries an RCA that names the missed control. | R1 | `/charly-internals:strict-policy` ("R1, applied"), `/charly-internals:root-cause-analyzer` |
 | R2 | No duplication: one shared abstraction, no sibling `-host`/`-pod` candies. | R2 | `/charly-internals:strict-policy` |
 | R3 | No workaround: no sleep or retry, no magic number, no ad-hoc `podman`/`systemctl`. | R3 | `/charly-internals:strict-policy` |
 | R4 | Product before prose. Every documented command works with only `charly`. | R4 | `/charly-build:docs` |
@@ -147,8 +155,9 @@ committed rulebook (`action-review/charly.yml`) and the live `AI_REVIEW_PROMPT` 
 | R9 | The binary was rebuilt, `charly version` matches the source, and new runtime OS dependencies are in `packaging:`. | R9 | `charly/AGENTS.md` |
 | R10 | `disposable: true` targets only, a fresh rebuild, zero warnings, and a coherent bed summary. | R10 | `/charly-check:check` |
 | R11 | The change conforms to the DESIGN requirements it touches and names their D-ids; a DESIGN amendment carries the design-check output and a maintainer sign-off. | R11 | `/charly-internals:design` |
+| R12 | A change that fixes or implements behavior carries a `### Spike` round: every plausible candidate spiked with pasted output, and the working winner is what the diff implements. Or the body names a closed-set exemption. | R12 | `/charly-internals:strict-policy` ("Spike-first") |
 | HC | One cutover per PR: one squash on `main`, one appended commit per round, no deferred work left inside its scope. | [Hard Cutover](#hard-cutover-by-default) | `/charly-internals:cutover-policy` |
-| PIL | RDD, ADE and SDD: high-risk proof, the candy `plan:`, CUE-first. | RDD, ADE, SDD | `/charly-internals:strict-policy`, `/charly-check:check`, `/charly-internals:go` |
+| PIL | RDD, ADE and SDD: the R12 round (plus a bed for a high-risk assumption), the candy `plan:`, CUE-first. | RDD, ADE, SDD | `/charly-internals:strict-policy`, `/charly-check:check`, `/charly-internals:go` |
 | CONC | Concurrency is proven under load. The forbidden-framing catalog is refused. | R1, R7 | `/charly-internals:strict-policy` |
 | ARCH | Placement: core, sdk or candy, with the bias outward. | [Clean Architecture](#prioritize-clean-architecture-above-all-else) | `/charly-internals:plugin` |
 | DISP | Autonomous destroy/rebuild touches `disposable: true` targets only. | [Disposable-Only Autonomy](#disposable-only-autonomy) | `/charly-internals:disposable` |
@@ -169,6 +178,7 @@ the generated table has no row for. *Detail:* `/charly-internals:skills`,
 |---|---|
 | Git/`gh` workflow — `feat/` branch, commit, PR-only landing (no direct push to `main`), the `pr-validator` gate, native auto-merge + tag-on-merge CalVer, worktrees, sync-to-upstream, branch/worktree prune (`charly task prune`), cross-repo R10 landing / claim-or-track an issue / coordination comments (`CLAIM`…`RESOLVED`) / the session footer / triaging or backfilling issue labels | `/charly-internals:git-workflow` |
 | Filing an issue (its RCA, its `category:`+`type:`, blocking or non-blocking) | `/charly-internals:root-cause-analyzer`, `/charly-internals:strict-policy`, `/charly-internals:git-workflow` |
+| An RCA has named a cause and a fix or solution is about to be implemented / a spike round / an R12 exemption / RDD | `/charly-internals:strict-policy`, `/charly-internals:root-cause-analyzer` |
 | Pinning / gitlink policy / the pin contract — a pin's INTENT (leaf vs edge) and whether the umbrella is CURRENT / `charly task sync` / `charly task verify` | `/charly-internals:git-workflow` |
 | Adding or reshaping a field / shape / kind / verb / capability / mechanism / editing `DESIGN.md`, `DESIGN.cue` or `design/` / citing a `D-<AREA>-<n>` id / `charly task design-check` (R11) | `/charly-internals:design` |
 | New repo in the org / org ruleset / dotgithub config + workflows | `/charly-internals:repo-setup` |
@@ -229,137 +239,108 @@ the generated table has no row for. *Detail:* `/charly-internals:skills`,
 
 ## Charly CLI discipline
 
-*Enforces: R3, R4.*
-
-- **The `charly` CLI is the ONLY operational interface for charly-managed resources**:
-  containers, pods, VMs, deploys, checks, secrets, builds, lifecycle state. Never
-  `podman`/`docker`/`systemctl`/raw shell, and never a hand-rolled substitute script.
-- **A missing verb or owning skill is a product defect, not permission to work around
-  it.** RCA it (R1) and fix the capability in its owning repo; if it is genuinely separable,
-  file it and ask the operator.
-- **Umbrella-native mechanics are the sanctioned path for umbrella work:** `charly task`
-  verbs (Part II), `bash scripts/*`, and `git -C <absolute-path>`.
-
-Locating an error's owner in the module cache, and asking DeepWiki for architecture (a pointer
-to read, never the truth): `/charly-internals:git-workflow`, `/charly-internals:agents`.
+*Enforces: R3, R4.* **When:** you operate a charly-managed resource — a container, pod, VM,
+deploy, check, secret, build or lifecycle state. **Do:** use the `charly` CLI, never
+`podman`/`docker`/`systemctl`/raw shell or a hand-rolled script; umbrella work uses the
+`charly task` verbs, `bash scripts/*` and `git -C <absolute-path>`. **Done when:** no ad-hoc
+command touched the resource. A missing verb is a product defect: RCA it (R1) and fix it in
+its owning repo, or file it and ask. *Detail:* `/charly-internals:strict-policy` (R3, the
+verb table), `/charly-internals:git-workflow`, `/charly-internals:agents`.
 
 ## Rootless deployments
 
-*Enforces: R7, R11.* **No charly pod runs as container root** (D-HW-10: a deployment is rootless
-unless its stack declares `privilege: rootful`, and no field, setting or default makes it
-privileged). A unit with a bind mount runs as the image user under
-`UserNS=keep-id:uid=<uid>,gid=<gid>` — under keep-id that user is the invoking host user, so a
-host-owned bind or a gocryptfs plaintext directory is writable as-is, with no chown. The GPU stays a
-CDI device (`AddDevice=nvidia.com/gpu=all`) on every GPU unit: what keep-id rejects is a CDI spec's
-`mounts` (crun `mount_setattr … EPERM`, exit 126), never the device, so the deployment points the
-engine at a derived **devices-only** spec (`deviceNodes` only, `--cdi-spec-dir`) and binds the
-driver libraries read-only to their SONAME paths. `userns=host` with `User=0:0` is a blocking defect
-wherever it appears, and `HOME`/`XDG_*` are never pinned to compensate for it. *Detail:*
-`/charly-distros:cdi`, `/charly-automation:enc`, `/charly-internals:xdg`.
+*Enforces: R7, R11.* **When:** you author or change a deployment unit. **Do:** run it
+rootless (D-HW-10: rootless unless its stack declares `privilege: rootful`) — a bind-mounting
+unit runs as the image user under `UserNS=keep-id`, and a GPU stays a CDI device through a
+derived devices-only spec. **Done when:** no unit carries `userns=host` with `User=0:0`, and no
+`HOME`/`XDG_*` is pinned to compensate. *Detail:* `/charly-distros:cdi`,
+`/charly-automation:enc`, `/charly-internals:xdg`.
 
 ## Candyboxing
 
-*Enforces: R3, R10.* Secure the candybox boundary, not its toolset: people and agents use the
-same full `charly` CLI inside rootless containers, isolated VMs, encrypted volumes and
-explicitly disposable targets, from one declarative recipe for every substrate. A wrong
-disposable candybox is rebuilt from the clean recipe, never patched around. *Detail:*
-`/charly-internals:strict-policy`.
+*Enforces: R3, R10.* **When:** you decide where people or agents work. **Do:** secure the
+candybox boundary, not its toolset — the same full `charly` CLI inside rootless containers,
+isolated VMs, encrypted volumes and disposable targets, from one declarative recipe. **Done
+when:** a wrong disposable candybox was rebuilt from the clean recipe, never patched around.
+*Detail:* `/charly-internals:strict-policy`.
 
 ## Risk Driven Development (RDD)
 
-*Enforces: R7, R10.* Prove every high-risk assumption early, on a live `disposable: true`
-target; docs and source reading are not proof where being wrong would invalidate the plan. A
-spike answers one named unknown, is time-boxed and thrown away, and never ships or replaces
-R10. A discovery that changes the contract needs operator direction. *Detail:*
-`/charly-internals:strict-policy`.
+*Enforces: R7, R10, R12.* **When:** whenever a fix or solution is about to be implemented, and
+whenever a plan rests on a high-risk assumption. **Do:** run the R12 spike round; prove a
+high-risk assumption (a composition at its latest versions, a new mechanism) on a live
+`disposable: true` target, never from docs or source reading. **Done when:** the winning
+candidate is the one implemented. A discovery that changes the contract needs operator
+direction. *Detail:* `/charly-internals:strict-policy` ("Spike-first").
 
 ## Agent Driven Evaluation (ADE)
 
-*Enforces: R7.* A candy's `plan:` is its acceptance test. Check steps are optional (D-VAL-1): a
-candy without one is proven by the checks of the stacks that compose it. Each item carries one intent — `run:` changes state, `check:` probes idempotently,
-`agent-run:` may mutate, `agent-check:` assesses read-only, `include:` composes. Parse errors,
+*Enforces: R7.* **When:** a candy is added or changed. **Do:** write its `description:` and
+its `plan:`, the candy's acceptance test, one intent per item (`run:`, `check:`, `agent-run:`,
+`agent-check:`, `include:`). Check steps are optional (D-VAL-1): a candy without one is proven
+by the checks of the stacks that compose it. **Done when:** the plan runs green; parse errors,
 timeouts and failed grading fail the step. *Detail:* `/charly-check:check`.
 
 ## Schema Driven Design (SDD)
 
-*Enforces: R2, R7, R11.* Every authored, transmitted or persisted shape is defined once, in
-CUE, before any code (D-LAW-4, D-SCH-1); Go is generated, never hand-transcribed, and a clean
-regeneration is a no-op. Validation, migration, plugin inputs and egress all derive from the
-same schema. *Detail:* `/charly-internals:go`, `/charly-internals:design`.
+*Enforces: R2, R7, R11.* **When:** an authored, transmitted or persisted shape is added or
+changed. **Do:** define it once, in CUE, before any code (D-LAW-4, D-SCH-1), and generate the
+Go. **Done when:** a clean regeneration is a no-op, and validation, migration, plugin inputs and
+egress all derive from that one schema. *Detail:* `/charly-internals:go`,
+`/charly-internals:design`.
 
 ## Prioritize Clean Architecture Above All Else
 
-*Enforces: R2, R3, R5, R11.* Conch every change: remove duplication, dead code, aliases,
-band-aids and misplaced behavior. Complexity, compatibility convenience and sunk effort never
-justify weakening the target architecture. Core is a generic plugin host; every concrete kind,
-verb and capability lives in a plugin, as a row of one mechanism (D-LAW-3, D-LAW-8). The
-boundary law is in `charly/AGENTS.md`. *Detail:* `/charly-internals:plugin`.
+*Enforces: R2, R3, R5, R11.* **When:** every change. **Do:** remove the duplication, dead
+code, aliases, band-aids and misplaced behavior it touches; core stays a generic plugin host,
+and every concrete kind, verb and capability lives in a plugin, as a row of one mechanism
+(D-LAW-3, D-LAW-8). **Done when:** complexity, compatibility convenience and sunk effort
+weakened nothing. The boundary law is in `charly/AGENTS.md`. *Detail:* `/charly-internals:plugin`.
 
 ## Memory hygiene
 
-*Enforces: R1, R7.* A saved system fact is a claim: R1 establishes it, and RDD proves a
-high-risk one before it is saved. Keep preferences narrow and dated, verify named artifacts
-before reuse, and correct or delete stale memory when live evidence disagrees. *Detail:*
-`/charly-internals:strict-policy` ("Memory hygiene").
+*Enforces: R1, R7.* **When:** you are about to save a fact about the system. **Do:** save it
+only once R1 established it and, if high-risk, a spike proved it; keep preferences narrow and
+dated. **Done when:** every named artifact was verified before reuse, and stale memory was
+corrected or deleted. *Detail:* `/charly-internals:strict-policy` ("Memory hygiene").
 
 ## Repo classes and naming
 
-*Enforces: R2, R5, R11.* A repo's **name carries its class**, and the class decides what it
-may hold (DESIGN §24). **Bare names** are for core/contract repos (`charly`, `sdk`, `spec`,
-`marketplace`, `docs`) and appliances **only**; every other repo carries its class prefix
+*Enforces: R2, R5, R11.* **When:** you create, name or fill a repo. **Do:** let the name carry
+the class (DESIGN §24): bare names for core/contract repos (`charly`, `sdk`, `spec`,
+`marketplace`, `docs`) and appliances only; every other repo takes its class prefix
 (`distro-`, `charly-`/`pkg-`, `layer-`, `plugin-`, `pod-`, `vm-`), and a product family is a
-`layer-<family>` repo. A repo whose only content is skills is not a class. A repo that does not
-fit its class is a defect to fix. The class → may-hold map is `README.md` ("The org map"),
-verified by `charly task org-map`. *Detail:* `/charly-internals:repo-setup`.
+`layer-<family>` repo. **Done when:** the repo holds what its class may hold (a skills-only repo
+is not a class), as `charly task org-map` verifies. *Detail:* `/charly-internals:repo-setup`.
 
 ## Issue categories and types
 
-*Enforces: R1, R2.* Every issue carries exactly one `category:` and exactly one
-`type:` from the org-wide closed sets, whose two-axis classification is mandatory at
-creation — through the org issue form (whose answers the `label-audit` workflow applies) or
-the `scripts/gh/cli.ts issue` wrapper, which refuses to create without them, without the RCA
-fields R1 requires, or without a blocking/non-blocking classification. There is
-**no fallback value**. The category follows the capability the remedy changes or
-exercises, decided by the remedy's primary action and the files it will touch; the
-type follows the remedy — a named defect, a new capability, a design-contract
-amendment, a declaration-only contract change, prose, or upkeep. **The repository
-name is never a signal: every category is available in every repository.** A
-code/config violation of an existing design-contract requirement or an org-rulebook
-rule is a `fix` on the violating component (a code/config violation takes that
-component's category; a skill is `experience`), citing the decision or rule;
-`design` is only the design-contract amendment itself, and editing the org rulebook
-is governance/docs. The category names the work; it
-never names, reserves or predicts a session, owner or assignee — ownership is the
-assignee plus the latest `CLAIM`/`OWNING` comment, and there is no status or ownership
-label. **Labels state reproducible facts only**, so there are no severity, priority,
-size, effort or status labels and no repo, product or one-off names. An issue that
-names neither a defect/addition nor its remedy/files is under-specified (R1) or spans
-two categories and must be split into two per-category issues that reference each
-other; it is not labelled with a guess. The sets are
-canonical in `opencharly/.github/labels/taxonomy.json`, the generic path/action
-rules in `labels/category-rules.json`, and the tests, precedence rules, **design/
-rulebook violation table** and held-out cold-reader protocol in
-`/charly-internals:git-workflow` (its issue-labels reference page). The
-close-time verifier compares the merged PR's paths and subject to the issue's labels.
+*Enforces: R1, R2.* **When:** you file or close an issue. **Do:** give it exactly one
+`category:` and one `type:` from the org-wide closed sets — the category by the capability the
+remedy changes, the type by the remedy, never by the repository name — through the org issue
+form or `scripts/gh/cli.ts issue`. **Done when:** the labels state reproducible facts only (no
+severity, priority, status, owner or repo labels), an undecidable issue was split rather than
+guessed, and a closed issue's labels match its merged PR. *Detail:*
+`/charly-internals:git-workflow` (its issue-labels reference page).
 
 ## Disposable-Only Autonomy
 
-*Enforces: R6, R10.* Autonomous mutation is authorized only on targets explicitly marked
-`disposable: true` — never inferred from a name, an environment or habit — and only through the
-owning deploy/check command. Never interrupt or clean an active long-running bed because it is
-quiet; wait for its exit and its current `summary.yml`. *Detail:* `/charly-internals:disposable`.
+*Enforces: R6, R10.* **When:** you would destroy, rebuild or mutate a target on your own.
+**Do:** act only on a target explicitly marked `disposable: true` — never inferred from a
+name, an environment or habit — and only through its owning deploy/check command. **Done
+when:** no active long-running bed was interrupted or cleaned for being quiet; you waited for
+its exit and its `summary.yml`. *Detail:* `/charly-internals:disposable`.
 
 ## Hard Cutover by Default
 
-*Enforces: R1, R5, R10.* **Finish the whole cutover**: every in-scope occurrence and every
-sibling with the same mechanism, with no partial rename, no hidden follow-up and no shrinking
-of scope. The only legal deferral is R1's *file it*. A cutover is the largest coherent scope
-one R10 gate can honestly prove (**the Cutover Sizing Law**): code, tests, schemas, generated
-artifacts, docs and changelogs move together, with no shims, dual paths or deferred cleanup.
-BATCHING, DECOMPOSITION of one contract into ordered units, and the NO-SPLIT rule are three
-different axes; none makes a cutover small by default. Verify status, HEAD, merge-base,
-submodule lineage and remote base before implementation and again before landing; a denied
-required action is `BLOCKED`. *Detail:* `/charly-internals:cutover-policy` ("The three axes").
+*Enforces: R1, R5, R10.* **When:** a change replaces, renames or reshapes anything. **Do:**
+finish the whole cutover — every in-scope occurrence and every sibling with the same
+mechanism, as the largest coherent scope one R10 gate can honestly prove (**the Cutover Sizing
+Law**), with code, tests, schemas, generated artifacts, docs and changelogs moving together.
+Verify status, HEAD, merge-base, submodule lineage and remote base before implementation and
+again before landing. **Done when:** no shim, dual path, partial rename or hidden follow-up
+remains; the only legal deferral is R1's *file it*, and a denied required action is
+`BLOCKED`. *Detail:* `/charly-internals:cutover-policy` ("The three axes").
 
 ## Commit, push, land
 
@@ -372,9 +353,9 @@ required action is `BLOCKED`. *Detail:* `/charly-internals:cutover-policy` ("The
    tier, and amending it is fine.
 3. **Gate the committed tree.** Run the change-class R10 gate on exactly the commit you will
    push: zero warnings, every R1 finding fixed or filed.
-4. **The first push opens a ready PR.** Write the WHOLE body before the push (the head SHA is
-   known once you commit), with the tier the commit earned. No draft PRs; never push at
-   `syntax check only` or `theoretical suggestion`.
+4. **The first push opens a ready PR.** Write the WHOLE body before the push, with the tier
+   the commit earned. No draft PRs; never push at `syntax check only` or `theoretical
+   suggestion`.
 5. **Each review round is one new commit**, pushed once, after the read-in-full gate below.
    After the first push, never amend and never force-push; a `BEHIND` branch is updated with
    `gh pr update-branch`, never rebased.
@@ -385,91 +366,61 @@ required action is `BLOCKED`. *Detail:* `/charly-internals:cutover-policy` ("The
 7. **Close out.** Close every issue the PR resolved (`Closes #N` does not close it by
    itself), and post `RESOLVED` on every coordination thread you claimed.
 
-**The PR body is the changelog.** It has `## Summary`, `## How tested`, `## Rulebook
-compliance`, `## Change classification`, `## Filed issues` (whenever R1 filed anything), and
-ends with the session footer. *How tested* pastes the gate that owns the change, in the repo
-the change lands in, run on the final tree (in the umbrella: `./charly/bin/charly task verify`).
-A Conventional Commits `!` subject declares a hard cutover, so `## Change classification` must
-carry a `**Breaking change + rollback:**` line with a real answer: a bare or empty `none` is
-not one. A pasted commit id is the full 40-character output of the command that produced it.
-The org's body linter (`marketplace/scripts/pr_body_lint.py`) checks the body mechanically,
-and the umbrella's pre-push gate runs it. *Detail:* `/charly-internals:git-workflow` ("THE
+**The PR body is the changelog.** It has `## Summary`, `## How tested` (with the `### Spike`
+round whenever R12 applies), `## Rulebook compliance`, `## Change classification`,
+`## Filed issues` (whenever R1 filed anything), and ends with the session footer. *How tested*
+pastes the gate that owns the change, run on the final tree (in the umbrella:
+`./charly/bin/charly task verify`). A Conventional Commits `!` subject declares a hard cutover,
+so `## Change classification` must carry a `**Breaking change + rollback:**` line with a real
+answer: a bare or empty `none` is not one. A pasted commit id is the full 40-character output
+of the command that produced it. `marketplace/scripts/pr_body_lint.py` checks the body, and the
+umbrella's pre-push gate runs it. *Detail:* `/charly-internals:git-workflow` ("THE
 BODY-BEFORE-PUSH RULE", "The `!` marker", the pre-validator self-audit).
 
 ### Before every update push: read everything, fix everything
 
-*Enforces: R1, R7.* This precondition binds every push to an open PR and every re-run of its
-validator, including a body change and `gh pr update-branch`:
-
-1. **Read every new comment in full** — every PR comment, review and review thread since your
-   last push, and every comment on the issues the PR closes or relates to. Paginate; never read
-   only the last comment or a truncated view.
-2. **Read every `charly/pr-validator` result IN FULL** — the whole `## Review` comment and its
-   `### Blocks` list, never the check's one-line status — and every red or `INCONCLUSIVE` check
-   on the head. A green check is not a reason to skip the report, and a BLOCK's findings are
-   only knowable from its full text.
-3. **Fix every finding before the next push** — validator and reviewer alike, fixed or rebutted
-   on the thread with evidence, never a subset and never filed away.
-4. **Every validation failure is an R1 anomaly**: RCA it and name the missed control, then post
-   that RCA in the round's PR comment. An `INCONCLUSIVE` is classified and escalated, not "fixed" in your diff.
-5. **Answer coordination first**, and put everything the verdict asks for — a T4 sign-off, every
-   body change — in place BEFORE the next push or re-run.
-
-*Detail:* `/charly-internals:git-workflow` ("BEFORE ANY UPDATE PUSH").
+*Enforces: R1, R7.* **When:** before every push to an open PR and every re-run of its
+validator, including a body change and `gh pr update-branch`. **Do:** Read every new comment in
+full — every review and thread, and every comment on the issues the PR relates to; read every
+`charly/pr-validator` result in full — the whole `## Review` comment and its `### Blocks`
+list — and every red or `INCONCLUSIVE` check. Every validation failure is an R1 anomaly: RCA it
+and post that RCA, naming the missed control, in the round's PR comment. Answer coordination
+first. **Done
+when:** every finding is fixed or rebutted with evidence, and everything the verdict asks for
+(a T4 sign-off, every body change) is in place before the push. An `INCONCLUSIVE` is
+classified and escalated, not "fixed" in your diff. *Detail:* `/charly-internals:git-workflow`
+("BEFORE ANY UPDATE PUSH").
 
 ## Session identity and inter-session communication
 
-*Enforces: R1, R6.* Many sessions, on many harnesses, share one GitHub account. Two rules let
-them work together:
-
-- **Every agent-authored PR body, issue, comment and commit names its session.** It ends with
-  the session footer — `*Agent: `<slug>` · <Harness> session `<session-id>`*` FIRST, the
-  `Assisted-by:` trailer LAST — so every PR is traceable to the session that made it. The slug
-  names the work and is the authority key; the session id is the harness's own id for this
-  session. Write it with the ONE writer (`node scripts/gh/cli.ts footer`, or the `coord_footer`
-  tool in OpenCode and pi, which share its builder), never by hand. A model-free bot names its workflow and run the same way.
-- **Sessions talk to each other through PR and issue comments, and nowhere else.** A
-  coordination comment opens with one verb from the closed set (Part II #7), posts on the
-  threads of both sides, and is read in full by the session it addresses before that session's
-  next push. A local file, a chat or a memory note is never a coordination channel.
-
-*Detail:* `/charly-internals:git-workflow` (B2b.1: the footer, the writers per harness, the
-verb grammar), `/charly-internals:agents`.
+*Enforces: R1, R6.* **When:** you write a PR body, issue, comment or commit, or need another
+session. **Do:** end it with the session footer — `*Agent: `<slug>` · <Harness> session
+`<session-id>`*` FIRST, the `Assisted-by:` trailer LAST — written by the ONE writer (`node
+scripts/gh/cli.ts footer`, or the `coord_footer` tool in OpenCode and pi); talk to other
+sessions only through PR and issue comments that open with a coordination verb (Part II #7),
+on the threads of both sides. **Done when:** every item traces to its session. A local file, a
+chat or a memory note is never a coordination channel. *Detail:*
+`/charly-internals:git-workflow` (B2b.1), `/charly-internals:agents`.
 
 ## Agents, Workflows & Teams
 
-*Enforces: R1, R7.* Delegate bounded, independent work to addressable agents; the author stays
-responsible for the briefs, the integration and the evidence. R1 uses a fresh
-root-cause-analyzer, and landing uses a fresh independent `pr-validator`; never impersonate
-either. Delegated executors return verbatim commands, outputs and exit codes.
-
-**Every wait has exactly one watcher: `node scripts/gh/cli.ts watch`, the ONE implementation
-every harness uses.** It runs as a managed background command, never a detached `&`; its exit
-is the wake. It is re-armed by replacement after every wake you act on, and what you wait for
-picks its `--events`:
-- **Your own PR's verdict or landing**, a REST re-run included: the default
-  (`verdict,merged,closed,conflict` — a PR that conflicts with its base gets no validator run,
-  so the watch wakes on the conflict).
-- **Several of your own PRs**: the same, every PR in ONE watch.
-- **Another session's PR or issue that blocks you**: `--events merged,closed,stall`.
-- **A reply on a thread**: `--events comment`.
-- **A bed or a long command**: the command itself, in the background, with its own exit
-  status captured.
-
-A verdict is the newest `validate / validate` check run on the head, so a re-run fires it.
-Every watch polls at a 300 s floor; `node scripts/gh/cli.ts status` reads the state once.
-*Detail:* `/charly-internals:git-workflow` (`references/watch-and-wake.md`, "Which watcher
-to arm"), `/charly-internals:agents`.
+*Enforces: R1, R7.* **When:** work is bounded and independent, or you must wait. **Do:**
+delegate it to addressable agents and stay responsible for the briefs, the integration and the
+evidence; R1 uses a fresh root-cause-analyzer and landing a fresh independent `pr-validator`,
+never impersonated. Every wait has exactly one watcher, `node scripts/gh/cli.ts watch`, run as
+a managed background command and re-armed by replacement after every wake. **Done when:**
+every delegated result came back as verbatim commands, outputs and exit codes. *Detail:*
+`/charly-internals:git-workflow` (`references/watch-and-wake.md`, "Which watcher to arm"),
+`/charly-internals:agents`.
 
 ## AI Attribution (Fedora Policy Compliant)
 
-*Enforces: R7.* Every AI-authored commit ends `Assisted-by: <Harness> <Provider Full Model
-Name> (<confidence>)`, using the runtime's exact names, with its `Agent:` session line directly
-before it. Issues, PRs and agent comments end with the matching italic session footer.
-Human-only work carries none; a model-free CI body uses the `<Harness> <Runtime>` form. **The
-tier on a pushed commit is the tier it earned.** A merge commit is judged by its message: one
-the agent writes carries the trailer, and the one `gh pr update-branch` writes owes none.
-*Detail:* `/charly-internals:git-workflow`.
+*Enforces: R7.* **When:** you author a commit, PR body, issue or comment. **Do:** end a commit
+with `Assisted-by: <Harness> <Provider Full Model Name> (<confidence>)`, the runtime's exact
+names, its `Agent:` line directly before it; end the others with the matching italic footer.
+**Done when:** the tier on a pushed commit is the tier it earned. Human-only work carries none;
+a model-free CI body uses the `<Harness> <Runtime>` form; the merge commit `gh pr
+update-branch` writes owes none. *Detail:* `/charly-internals:git-workflow`.
 
 | Confidence | Required proof |
 |---|---|
@@ -481,18 +432,19 @@ the agent writes carries the trailer, and the one `gh pr update-branch` writes o
 
 ## Command hygiene & context discipline
 
-*Enforces: R3, R7.* Commands run with SIGPIPE ignored: bound every command's output
-(`grep -m N`, never `grep | head`), redirect large output to a file and read it bounded, never
-re-issue the same diagnostic in a loop, and never report a piped exit code as the command's
-own. *Detail:* `/charly-internals:agents` ("Command hygiene & context discipline").
+*Enforces: R3, R7.* **When:** every command. **Do:** bound its output (`grep -m N`, never
+`grep | head` — SIGPIPE is ignored), redirect large output to a file and read it bounded.
+**Done when:** no diagnostic was re-issued in a loop and no piped exit code was reported as the
+command's own. *Detail:* `/charly-internals:agents` ("Command hygiene & context discipline").
 
 ## Hooks doctrine
 
-*Enforces: R6.* Hooks guard deterministic mechanics only: bypass flags, force-push,
-direct-main push, and untokenizable commands. Agents and the fresh `pr-validator` judge policy,
-attribution and proof. The clone-level hook is the umbrella's own: install it once, in a
-clone of the umbrella, with `./charly/bin/charly task hooks`. *Detail:*
-`/charly-internals:agents`.
+*Enforces: R6.* **When:** you write or rely on a hook. **Do:** let hooks guard deterministic
+mechanics only — bypass flags, force-push, direct-main push, untokenizable commands — and leave
+policy, attribution and proof to agents and the fresh `pr-validator`. **Done when:** the
+clone-level hook — the umbrella's own — is installed once, in a clone of the umbrella, with
+`./charly/bin/charly task hooks`.
+*Detail:* `/charly-internals:agents`.
 
 ## Acceptance checklist
 
@@ -513,6 +465,10 @@ Before declaring completion, answer every applicable item YES.
 - **R11:** every DESIGN requirement the change touches is cited and conformed to, amended
   first with sign-off, or filed as design debt; host paths resolve through the one XDG resolver
   (D-STORE-1, D-STORE-11, D-STORE-12).
+- **R12:** every plausible candidate solution was spiked before implementing, the diff
+  implements the working winner, and the round is pasted — or the body names its exemption.
+- **Pillars:** RDD proved every high-risk assumption on a live target, every changed candy's
+  `plan:` passes (ADE), and every changed shape was written in CUE first (SDD).
 - **Review:** every validator result and every comment was read in full before each push.
 - **Identity:** every body, comment and commit you authored ends with your session footer.
 - **Labels:** every issue you filed carries exactly one `category:` and one `type:` from
@@ -526,110 +482,88 @@ Before declaring completion, answer every applicable item YES.
 
 # Part II — Umbrella rules
 
-1. **Never edit inside a submodule.** *(R6)* A change lands by PR to the owning repo; the
-   umbrella records only gitlinks, and a dirty submodule fails `verify`. Run submodule git
-   through `git -C <absolute-path>` from the umbrella root, and never root a worker in a
-   submodule. *Detail:* `/charly-internals:git-workflow` (umbrella mechanics).
+1. **Never edit inside a submodule.** *(R6)* **When:** a change touches a repo the umbrella
+   pins. **Do:** land it by PR to the owning repo; the umbrella records only gitlinks. Run
+   submodule git through `git -C <absolute-path>` from the umbrella root, and never root a
+   worker in a submodule. **Done when:** no submodule is dirty (a dirty one fails `verify`).
+   *Detail:* `/charly-internals:git-workflow` (umbrella mechanics).
 
-2. **Sessions root at the umbrella; edits happen in a session worktree.** *(R6, R9)* Each repo
-   a session edits gets its own worktree at `<umbrella>/.worktrees/<slug>/<repo>/`, branched off
-   fresh `origin/main`; every Go build happens inside `charly/`. The umbrella's own worktree is
-   ONE command, `CHARLY_WORKTREE_SLUG=<slug> charly task worktree` (`bash scripts/new-worktree.sh
-   <slug>` before a binary exists): the working set and a worktree-local binary come with it. **A clone is a WORKING SET**,
-   blobless and never shallow: the pins live in the index, and `charly task init` materializes
-   only the derived set a session builds against or edits (`CHARLY_INIT_PATHS=<a,b>` for named
-   repos, `CHARLY_INIT_MODE=all` for every one). A fresh clone bootstraps with
-   `bash scripts/bootstrap.sh`. A task's mode travels in the environment, never as a parameter,
-   and a command step's text carries no value (`node scripts/check-task-command-vars.mjs`).
-   Materializing is never a licence to edit in place. *Detail:* `/charly-internals:git-workflow`
-   (umbrella mechanics: "The clone shape is a working set").
+2. **Sessions root at the umbrella; edits happen in a session worktree.** *(R6, R9)*
+   **When:** a session will edit any repo. **Do:** give each edited repo its own worktree at
+   `<umbrella>/.worktrees/<slug>/<repo>/`, branched off fresh `origin/main`, and build Go only
+   inside `charly/`; the umbrella's own worktree is ONE command, `CHARLY_WORKTREE_SLUG=<slug>
+   charly task worktree` (`bash scripts/new-worktree.sh <slug>` before a binary exists). A
+   clone is a WORKING SET, blobless and never shallow; `charly task init` materializes only the
+   derived set, and a fresh clone bootstraps with `bash scripts/bootstrap.sh`. **Done when:**
+   materializing was never a licence to edit in place. *Detail:*
+   `/charly-internals:git-workflow` (umbrella mechanics: "The clone shape is a working set").
 
 3. **Pins are gitlinks; a pin declares its INTENT, and CURRENCY is the question.** *(R6, R10)*
-   Pin only MERGED refs. A pin is a **leaf** (`upstream:<ref>`, judged against the remote) or an
-   **edge** (`derived-from:<path>`, judged by its source); an edge may not point at an edge, and
-   every leaf is remote-verifiable. `behind` and a `blocked-by` that names a producer leg PASS and
-   are REPORTED; only an unjudgeable pin or a disagreement fails. Read the producer-first leg order
-   as the work list.
+   **When:** a pin must move. **Do:** pin only MERGED refs; a pin is a **leaf**
+   (`upstream:<ref>`) or an **edge** (`derived-from:<path>`), and an edge may not point at an
+   edge.
    Advance pins only with `./charly/bin/charly task sync` plus a PR, never with a hand-pin or
    a branch checkout. **That verb is an ORG-WIDE cutover, not a way to move one pin:** it
    advances EVERY pin this repo declares; to move ONE repo's pin, use the narrow mechanism that
    repo declares. A wave's order is sync → init → verify, and while it runs no other git command
-   runs in that worktree. *Detail:* `/charly-internals:git-workflow`
+   runs in that worktree. **Done when:** every pin is judgeable; `behind` and a `blocked-by`
+   naming a producer leg PASS and are reported. *Detail:* `/charly-internals:git-workflow`
    (`references/pin-intent-and-currency.md`, umbrella mechanics).
 
-4. **Read the subrepo's own rulebook first.** *(R0)* Its `AGENTS.md` adds repo-specific
-   rules on top of Part I, so read it before acting there.
+4. **Read the subrepo's own rulebook first.** *(R0)* **When:** before acting in a subrepo.
+   **Do:** read its `AGENTS.md`, which adds repo-specific rules on top of Part I.
 
 5. **Harness config lives only in the umbrella — and a skill lives with the thing it describes.**
-   *(R2)* Every harness's configuration lives at this repo's root and nowhere else. A skill's
-   `SKILL.md` and an agent definition's `<name>.md` are authored content under the `.agents/`
-   trees of the repo that owns them, **at that repo's ROOT** — never inside the candy's own
-   directory, which the collector does not read. **Which repo owns a skill is decided by what the
-   repo CONTAINS:** a skill lives with the code, plugin or config it describes; a general-guidance
-   skill, or one whose config home cannot author skills (`opencharly/.github`, the bounded
-   exception of opencharly/opencharly#611), lives in this umbrella. **And the `owner:` rule binds
-   it:** the node names a candy DEFINED IN THE SAME REPO as the body — a foreign owner (a pod
-   naming a `layer-*` candy it composes by ref) is a load error, so a box, pod or VM repo that
-   wants its own skill declares a candy of its own, and one that does not carries the node only
-   with the body in the candy's repo. A binding that bridges a
-   harness to the corpus is DERIVED from the pinned corpus, never hand-maintained. *Detail:*
-   `/charly-internals:skills`, `/charly-internals:agents`.
+   *(R2)* **When:** you author harness configuration, a skill or an agent definition. **Do:**
+   keep every harness's configuration at this repo's root; author a skill's `SKILL.md` (and an
+   agent's `<name>.md`) under the `.agents/` trees at the ROOT of the repo whose code, plugin or
+   config it describes — general guidance lives in this umbrella — with its `owner:` naming a
+   candy defined in that same repo. **Done when:** every harness-to-corpus binding is DERIVED
+   from the pinned corpus, never hand-maintained. *Detail:* `/charly-internals:skills`,
+   `/charly-internals:agents`.
 
-6. **Session-scoped ownership; issue-first coordination.** *(R6)* A file, branch, worktree or
-   PR you did not author belongs to another session: never edit, revert, stage or commit it.
-   Before non-trivial work, search the org for an existing issue or PR. **An existing issue that
-   fits the work is ALWAYS claimed, so no work is duplicated:** add to it and CLAIM it (comment +
-   assign) before branching. If it has a live owner (a `CLAIM`/`OWNING` with progress inside
-   the takeover window of #7), never claim over it: coordinate on the thread, then claim a named
-   slice or take over per #7. If none exists, file ONE RCA-complete issue for the work and CLAIM
-   it before branching. **Blocking and non-blocking issues stay apart:** an issue that blocks your
-   own progress is claimed and fixed by you; a non-blocking finding is filed for a later session
-   and left unclaimed. Replacing a PR or issue means commenting on the old one. Close each issue
-   when its PR merges. *Detail:*
-   `/charly-internals:git-workflow` (B2b).
+6. **Session-scoped ownership; issue-first coordination.** *(R6)* **When:** before
+   non-trivial work. **Do:** search the org for an existing issue or PR; CLAIM a fitting one
+   (comment + assign) before branching, coordinate on its thread if it has a live owner, or file
+   ONE RCA-complete issue and claim it. Never edit, revert, stage or commit a file, branch,
+   worktree or PR another session authored. **Done when:** no work is duplicated, a blocker you
+   filed is claimed and fixed by you, a non-blocking finding stays unclaimed, and each issue is
+   closed when its PR merges. *Detail:* `/charly-internals:git-workflow` (B2b).
 
-7. **Agent identity and the coordination verb grammar.** *(R6)*
-   - Every agent comment, issue and PR body ends with the session footer: `Agent:` FIRST,
-     `Assisted-by:` LAST ([Session identity](#session-identity-and-inter-session-communication)).
-   - A coordination comment opens with one label from `CLAIM` · `OWNING` · `HANDING OVER` ·
-     `TAKING OVER` · `WAITING` · `HOLDING` · `CLEARED` · `STATUS` · `RESOLVED`. The set is
-     closed. `WAITING` is the blocked side and `HOLDING` the blocking side.
-   - **The latest `OWNING` wins.** Never push to another slug's claimed branch without a
-     handover, a takeover or operator sign-off.
-   - **Takeover is comment-first — no comment, no takeover, ever.** The takeover window is 60
-     minutes without progress, where progress is a completed `charly/pr-validator` run; any
-     answer from the owner resets it.
-   - **A maintainer sign-off counts only from `atrawog`/`aitrawog`:** the posting ACCOUNT is the
-     entire gate. The operator writes it, or an agent writes it at the operator's explicit
-     direction and says so — never on its own initiative — BEFORE the next push or re-run.
-   - **A PR the validator auto-closes continues in a new PR.** The threshold is the repo's
-     `AI_REVIEW_AUTO_CLOSE_AFTER`, default 5 (read it: `opencharly/charly` sets 20). The old PR
-     gets `RESOLVED — superseded by #<n>`, the successor's body names its predecessor, the issue
-     is updated, and ownership is handed over.
-
-   *Detail:* `/charly-internals:git-workflow` (B2b.1).
+7. **Agent identity and the coordination verb grammar.** *(R6)* **When:** you coordinate with
+   another session. **Do:** end every comment with the session footer, `Agent:` FIRST and
+   `Assisted-by:` LAST, and open a coordination comment with one label from `CLAIM` · `OWNING` · `HANDING OVER` ·
+   `TAKING OVER` · `WAITING` · `HOLDING` · `CLEARED` · `STATUS` · `RESOLVED`. The set is
+   closed: `WAITING` is the blocked side and `HOLDING` the blocking side. The latest `OWNING`
+   wins. Takeover is comment-first — no comment, no takeover, ever; the takeover window is 60
+   minutes without a completed `charly/pr-validator` run. A maintainer sign-off counts only from
+   `atrawog`/`aitrawog` — the posting ACCOUNT is the entire gate — and never on an agent's own
+   initiative. A PR the validator auto-closes after `AI_REVIEW_AUTO_CLOSE_AFTER`, default 5 (read
+   it: `opencharly/charly` sets 20), continues in a new PR: the old one gets `RESOLVED —
+   superseded by #<n>`. **Done when:** no claimed branch was pushed without a handover, a
+   takeover or an operator sign-off. *Detail:* `/charly-internals:git-workflow`
+   (B2b.1).
 
 8. **Before ANY update push, read everything and fix everything.** *(R1)* The gate is
    [Before every update push](#before-every-update-push-read-everything-fix-everything).
 
-9. **Ledger and interruption safety.** *(R1, R6)* Keep a durable ledger of every running
-   subagent, open PR, blocker, long-running operation, and every thread you claimed or posted a
-   `WAITING`/`HOLDING` on. Reconcile any interruption into it FIRST, then act; an interruption is
-   an addition, never a reset. *Detail:* `/charly-internals:agents` (todo ledger).
+9. **Ledger and interruption safety.** *(R1, R6)* **When:** a subagent, PR, blocker,
+   long-running operation or claimed thread is open. **Do:** keep it in a durable ledger, and
+   reconcile any interruption into it FIRST, then act. **Done when:** an interruption was an
+   addition, never a reset. *Detail:* `/charly-internals:agents` (todo ledger).
 
-10. **Goal budget and continuation safety.** *(R1)* Size a goal's round budget
-    (`max_goal_rounds`) to the work, never below the harness default without a stated reason.
-    Past ~80% of the budget with work remaining, STOP and ask the operator. A disarmed-but-active
-    goal is a broken re-arm to report, not a request for consent. *Detail:*
-    `/charly-internals:agents` (`references/program-discipline.md`, goal budget).
+10. **Goal budget and continuation safety.** *(R1)* **When:** you set or track a goal.
+    **Do:** size its round budget (`max_goal_rounds`) to the work, never below the harness
+    default without a stated reason; past ~80% of it with work remaining, STOP and ask the
+    operator. **Done when:** a disarmed-but-active goal was reported as a broken re-arm.
+    *Detail:* `/charly-internals:agents` (`references/program-discipline.md`, goal budget).
 
-11. **Keep other sessions informed.** *(R6)* Coordination is a duty you perform, through PR and
-    issue comments. Look for live claims before you start and before every push. Post `STATUS` at
-    every milestone, naming the head, what is done and next, and when the next update is due;
-    silence starts the takeover window. The moment a block exists, post `HOLDING` if you are the
-    blocking side and `WAITING` if you are the blocked side, on **both** threads, and `CLEARED`
-    when it clears. Answer a `WAITING`, `HOLDING`,
-    `TAKING OVER` or a question to your slug before your next push. *Detail:*
+11. **Keep other sessions informed.** *(R6)* **When:** before you start, before every push, at
+    every milestone, and the moment a block exists. **Do:** look for live claims. Post `STATUS`
+    at every milestone (head, done, next, when the next update is due). Post `HOLDING` if you are
+    the blocking side and `WAITING` if you are the blocked side, on **both** threads, and
+    `CLEARED` when it clears. **Done when:** every `WAITING`, `HOLDING`, `TAKING
+    OVER` or question to your slug is answered before your next push. *Detail:*
     `/charly-internals:git-workflow` (B2b.1).
 
 ## Where things are documented

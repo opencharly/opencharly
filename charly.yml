@@ -847,10 +847,10 @@ verify:
       - check: the guidance-pathspec gate discriminates — each bare-path-argument fixture turns it RED, and each rev/pattern/fixed-name counter-instance leaves it GREEN (fixtures)
         command: node scripts/check-guidance-pathspec.mjs --self-test
         context: [runtime]
-      - check: the validator enforces only what the rulebook states — rulebook check ids == the AGENTS.md "What the validator checks" table, every cited skill resolves, and the committed rulebook == the live AI_REVIEW_PROMPT (opencharly/opencharly#446)
+      - check: the validator enforces only what the rulebook states — rulebook check ids == the AGENTS.md "What the validator checks" table, every cited skill resolves, and the committed rulebook == the live AI_REVIEW_PROMPT, where a live variable equal to the rulebook at the PREVIOUS action-review pin is REPORTED as a re-sync pending (opencharly/opencharly#446, #1278)
         command: node scripts/check-validator-rule-map.mjs
         context: [runtime]
-      - check: the validator rule-map gate discriminates — each mismatch fixture turns it RED
+      - check: the validator rule-map gate discriminates — each mismatch fixture turns it RED, the live judgement is equal / pending / differs as its cases name, and the previous pin is read from a real git fixture both from the index and from a commit
         command: node scripts/check-validator-rule-map.mjs --self-test
         context: [runtime]
       - check: the coordination closed set is the SAME nine labels on every surface that enumerates it (opencharly/opencharly#567)
