@@ -82,6 +82,16 @@ command; the worker discovers the value at run time. Full rule and the measured
 `.github#141` evidence: `references/program-discipline.md` ("Volatile facts are
 DISCOVERED, never baked into a brief").
 
+**A spike round can be delegated, one candidate per worker.** The R12 round spikes
+every plausible solution for a named cause, and the candidates are independent, so a
+parent may hand each one to its own worker. The brief names the RCA's cause, the one
+candidate, and the instrument (a `disposable: true` bed, or the real generator or
+artifact). The worker returns its commands, outputs and exit codes verbatim, plus a
+works / fails result — never a summary — and discards the spike code. The parent
+picks the winner and owns the `### Spike` block. A worker that changes the cause, or
+ships its spike, has left its brief. The round's form: `/charly-internals:strict-policy`
+("Spike-first").
+
 ## The harness-config LOCATION (umbrella-only; layer-charly-internals#49)
 
 ALL harness config lives in the **umbrella root** (`opencharly/opencharly`) and
