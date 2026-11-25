@@ -199,6 +199,22 @@ both body-only, and neither covered by classes 1-5.
 10. List every issue R1 filed or updated under `## Filed issues`
    (`<repo>#<n> — <one line>`), and post `STATUS` on your claimed thread
    (the project rulebook Part II #11).
+   **10b. Verify the required SECTION HEADERS line-anchored, never by
+   substring.** A body that discusses the section in prose satisfies
+   `'## Filed issues' in body` while shipping no such section: measured
+   2026-11-25 on opencharly/pod-qwen3-tts#14 round 2, whose R1 bullet said the
+   issue was "listed under `## Filed issues`" — the substring test passed, the
+   section was absent, and the validator BLOCKed on exactly that. Check
+   `grep -c '^## Filed issues$'` (and the other required headings) against the
+   LIVE body you are about to push, not the draft you assembled.
+   **10c. A successor's or a round's body is RE-DERIVED, never copied.** A body
+   inherited from an auto-closed predecessor describes the PREDECESSOR's branch:
+   its commit list, its "one commit plus re-freezes", its gate state. Copying it
+   and patching only where a finding pointed shipped three phantom-commit claims
+   and two missing A1 fields across one wave (2026-11-24/25, six successor PRs).
+   The mechanical pass: `git log --oneline origin/main..HEAD` against every
+   commit-history sentence, and A1's *How tested* field walk against the gate you
+   actually ran.
 11. **Read the PUSHED RANGE's trailers — the body's footer is not the branch's
     commits.** The linter below reads the BODY's last line, and no control reads
     the commits the branch is about to push, so a trailer-less commit can sit
