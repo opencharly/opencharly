@@ -407,11 +407,29 @@ chat or a memory note is never a coordination channel. *Detail:*
 *Enforces: R1, R7.* **When:** work is bounded and independent, or you must wait. **Do:**
 delegate it to addressable agents and stay responsible for the briefs, the integration and the
 evidence; R1 uses a fresh root-cause-analyzer and landing a fresh independent `pr-validator`,
-never impersonated. Every wait has exactly one watcher, `node scripts/gh/cli.ts watch`, run as
-a managed background command and re-armed by replacement after every wake. **Done when:**
+never impersonated. Every wait has exactly one watcher, `node scripts/gh/cli.ts watch`, run as a
+managed background command; **re-arming it after a wake is MANDATORY, and the session continues from
+that wake** (see [Continuous operation](#continuous-operation)). **Done when:**
 every delegated result came back as verbatim commands, outputs and exit codes. *Detail:*
 `/charly-internals:git-workflow` (`references/watch-and-wake.md`, "Which watcher to arm"),
 `/charly-internals:agents`.
+
+## Continuous operation
+
+*Enforces: R1, R10, R12.* **When:** a task has more than one step, and at every wake — a watcher's
+verdict, a merge or close, a check run, a delegated result, a monitor event. **Do:** act on the wake
+and keep working the approved plan without waiting to be prompted: read the result in full, fix or
+file what it names, then arm the next wait. **A report is never the end of a task, and a session does
+not idle while actionable work remains.** Setting the watcher **before** the wait and re-arming it
+after every wake is **MANDATORY** (see [Agents, Workflows & Teams](#agents-workflows--teams)).
+**Done when:** the goal is complete and landed, or — and only then — a blocking question that the
+automatic RCA + spike loop (R1 + R12) could not settle has been put to the operator with the
+harness's operator-question tool (in Claude Code, `AskUserQuestion`), naming what was tried and the
+options. A free-text question, a status report, or silence are never the substitute for that tool,
+and the goal budget's ~80% stop (Part II #10) is itself such a question. This is a session-behaviour
+rule, not a diff property, so no validator check observes it; the operator's loop is its control.
+*Detail:* `/charly-internals:agents` (the watcher and the todo ledger),
+`/charly-internals:strict-policy` (RCA and spike before any escalation).
 
 ## AI Attribution (Fedora Policy Compliant)
 
@@ -476,6 +494,9 @@ Before declaring completion, answer every applicable item YES.
   closed had its labels confirmed against the merged PR; a two-category issue was split,
   never double-labelled.
 - **Cutover:** the approved plan completed, with no hidden phase, TODO or substitute.
+- **Continuity:** every wake was acted on and the next wait armed; no task ended in a report or an
+  idle stop; any stop was the harness's operator-question tool, backed by an automatic RCA + spike
+  loop that could not settle the question.
 - **Landing:** every repository landed through one attributed squash commit, a fresh
   independent validator, a protected merge and an immutable merge-time tag; every resolved issue
   is closed, and every coordination thread you opened ends with `RESOLVED`.
@@ -565,6 +586,14 @@ Before declaring completion, answer every applicable item YES.
     `CLEARED` when it clears. **Done when:** every `WAITING`, `HOLDING`, `TAKING
     OVER` or question to your slug is answered before your next push. *Detail:*
     `/charly-internals:git-workflow` (B2b.1).
+
+12. **Continuous operation in umbrella sessions.** *(R1, R10)* **When:** a session works a multi-step
+    plan in the umbrella. **Do:** act on every wake (a watcher's verdict, a merge, a check run, a
+    delegated result) and arm the next wait; never end a task with a report while actionable work
+    remains; ask the operator with the harness's operator-question tool only when the automatic
+    RCA + spike loop cannot settle a blocking question. **Done when:** the plan is landed, or that
+    question has been asked and answered. *Detail:* [Continuous operation](#continuous-operation) in
+    Part I, `/charly-internals:agents`.
 
 ## Where things are documented
 
