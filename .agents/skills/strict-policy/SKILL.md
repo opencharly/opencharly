@@ -65,6 +65,43 @@ A violation of any R1–R5 rule (or any of R6–R11, or the "Prioritize Clean Ar
 
 **Interaction with other rules.** RDD precedes R1: validate forward so RCA is rarely needed, and so the RCA that does run reasons from a real bed, not a guess. It feeds R10 (`/charly-check:check`): the riskiest assumptions are proven on a disposable bed early, so the final fresh-rebuild gate confirms a design already de-risked. Each harness root rulebook contains the matching "Risk Driven Development (RDD)" mandate. Its enforcement surfaces are `testing-validator` standard #9, the `root-cause-analyzer` forbidden-rationalization, and the Acceptance checklist in each root rulebook's post-execution policy — never a blocking gate, because "highest-risk, validated early" is a judgment, not a mechanical invariant.
 
+## A diagnostic is an INSTRUMENT, not an answer — prove it observes before trusting it
+
+**The rule.** Before concluding anything from a probe, prove the probe can observe. An instrument that
+silently measures nothing produces the same output as a system that does nothing: zero, empty, absent. Reading
+that as a finding manufactures confident conclusions about the product from evidence about the instrument.
+
+**Two shapes, both measured in one session.**
+
+* **A silent instrument reads as a silent system.** A trace file carried zero events and read as "the element
+  received nothing"; the layer in the image carried no instrumentation at all — the branch was the fix branch,
+  the trace belonged to a diagnostic branch. Assert the instrument's liveness in the same run that reads it
+  (file exists, non-zero size, one line you KNOW must be there).
+* **The probe never ran.** A step the runner drops (an unsupported field on a `run:` step), a binary absent
+  from the execution PATH (`/usr/sbin` is not on the in-container PATH), a call in a stage where the endpoint
+  does not resolve (`cdp:` needs the `browser` stage), or a step that executes in a DIFFERENT container than
+  the one inspected. A `check:` step's venue is its TREE POSITION — a step in member `M`'s `plan:` runs on `M`
+  (`/charly-check:check`, `references/cross-deployment-probing.md`) — so a diagnostic placed at the wrong depth
+  measures the wrong member and reports its absence as the product's. Six consecutive probes died this way.
+
+**The procedure, in order.**
+1. **Copy a working instrument.** Author the diagnostic by copying a step already known to run in that bed
+   (a sync `cdp: eval` with a step-level `stdout:`), changing only the payload. `stdout:` is a SIBLING of
+   `cdp:`, never a child, and `run:` steps carry no assertions — both fail as "no data", not as an error.
+2. **Check the tool exists in the target image first**: `podman run … command -v <tool>` costs ten seconds; a
+   fifteen-minute bed run spent discovering it does not, and produces a wrong conclusion on the way.
+3. **Make the value impossible to miss.** A diagnostic whose value you need must FAIL on a sentinel
+   (`contains: ZZ-NEVER-MATCHES`) so the actual output lands in the summary's `reason`; a passing step reports
+   only `exit=0`. Mind the ~200-character truncation: print counts and the ONE deciding line, never `tail -12`.
+4. **Add a control.** The strongest discriminator is an A/B reading the same instrument with and without the
+   change under test. Two controlled runs settled what five un-controlled probes could not.
+5. **Report the instrument's failure as the instrument's failure**, in those words. Dressing a malformed probe
+   up as a product finding poisons every conclusion after it.
+
+**Why it matters.** This skill's value is trustworthy conclusions; an instrument that reports silence
+manufactures exactly the confident-but-wrong reports R1 exists to prevent, while looking like diligence.
+*Detail: `/charly-internals:root-cause-analyzer` (measurement discipline).*
+
 ## Memory hygiene — a saved memory is a CLAIM (the RDD/R1 bar applies to memory)
 
 **The rule.** A memory entry that asserts a fact about the system is a CLAIM, never ground truth. Save it ONLY after the same validation any claim requires: **R1** confirms it is real (an RCA — not a guess, a transient, or an "I think it works"), and any **HIGH-RISK** claim is proven on a `disposable: true` bed FIRST (**RDD**). This operationalizes the matching "Memory Hygiene" mandate in each harness root rulebook. *Never trust, verify — including your own future self.*
