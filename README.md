@@ -308,6 +308,12 @@ a scannable index. Their themes:
 | `pi-review-action/` | [pi-review-action](https://github.com/opencharly/pi-review-action) | Archived — the org PR-review gate now runs the charly engine (`action-review`). |
 | `pixelflux/` | [pixelflux](https://github.com/opencharly/pixelflux) | Patched pixelflux wl-screenshot/record library for the selkies desktops. |
 
+The vendored forks are gated like every other landing repo: the org's fork ruleset
+runs the same required `charly/pr-validator`, native auto-merge arms on PASS, and a
+merge mints a CalVer tag plus `CHANGELOG/<CalVer>.md`. Upstream sync runs through
+`opencharly/.github`'s `sync-forks.yml` (the App token), never a user-token
+`gh repo sync`.
+
 ### pi packages
 
 4 repos — vendored pi agent packages and extensions.

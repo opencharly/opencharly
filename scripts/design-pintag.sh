@@ -30,8 +30,10 @@
 #                        tag, so the absence of one here is the repository's birth, not a
 #                        missed release.
 #   not-applicable       the pinned tree has no tag-on-merge caller at all, so this
-#                        repository mints no release tag (a fork, a vendored mirror, an
-#                        artifact store). The question does not apply; the pin is counted.
+#                        repository mints no release tag (an un-onboarded fork, a vendored
+#                        mirror, an archived repo, an artifact store). A fork that CARRIES
+#                        the caller is tagged like any other landing repo; the question does
+#                        not apply only where there is none. The pin is counted.
 #   untagged             none of the above. This is the signal: a pin that is neither at a
 #                        tag nor explained by the structure of tag-on-merge, and whose
 #                        module runs tag-on-merge at the pin and at its parent — so a merge
