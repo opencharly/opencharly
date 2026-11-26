@@ -165,6 +165,7 @@ if (argv.includes("--self-test")) {
     ".claude/hooks/pre-push-gate.sh",
     ".mcp.json",
     ".pi/mcp.json",
+    ".pi/settings.json",
     "opencode.json",
     ".codex/config.toml",
     ".reasonix/settings.json",
@@ -175,6 +176,9 @@ if (argv.includes("--self-test")) {
     "design/REASONIX.md",
     ".pi/watch.items",
     ".pi/extensions/watch.ts",
+    ".pi/extensions/footer.ts",
+    ".pi/extensions/question.ts",
+    ".pi/extensions/github-pr-status.ts",
     "reasonix.toml",
     ".opencode/package.json",
     ".opencode/agent",
@@ -286,6 +290,30 @@ if (argv.includes("--self-test")) {
     }
     const pristine = readFileSync(join(root, "reasonix.toml"), "utf8");
     for (const m of pristine.matchAll(/"marketplace\/[^"]+"/g)) mkdirSync(join(tree, JSON.parse(m[0])), { recursive: true });
+
+    // CHECK 14's CURRENCY ARM NEEDS A TAGGED CORPUS TO JUDGE. On a tree where `marketplace/` is not
+    // a git checkout the currency assertion SKIPS VISIBLY — a legitimate state, and one a session
+    // worktree really has — so a scratch tree without one can never exercise the assertion's
+    // failure path at all, and an unprovable arm is exactly what the reviewer's BLOCK named. The
+    // scratch tree therefore carries a real one-commit repo tagged at the pin `.pi/settings.json`
+    // declares: that IS the pristine state check 14 must call GREEN, and the mutation table below
+    // moves the pin to make it RED.
+    const pinnedTag = (JSON.parse(readFileSync(join(tree, ".pi/settings.json"), "utf8")).packages ?? [])
+      .map((p) => /^git:github\.com\/opencharly\/marketplace@(.+)$/.exec(String(p)))
+      .find(Boolean)?.[1];
+    const corpusTree = join(tree, "marketplace");
+    mkdirSync(corpusTree, { recursive: true });
+    if (pinnedTag) {
+      // One file, so the commit is never empty on a checkout whose corpus was not staged.
+      writeFileSync(join(corpusTree, "corpus.gate"), "the corpus this tree pins\n");
+      const g = (...a) => spawnSync("git", a, { cwd: corpusTree, encoding: "utf8" });
+      g("init", "-q", "-b", "main");
+      g("config", "user.email", "gate@gate");
+      g("config", "user.name", "gate");
+      g("add", "-A");
+      g("commit", "-qm", "the corpus at the pin");
+      g("tag", pinnedTag);
+    }
   };
   const runGate = () => {
     const r = spawnSync(process.execPath, [fileURLToPath(import.meta.url), "--root", tree], {
@@ -336,6 +364,8 @@ if (argv.includes("--self-test")) {
     [".reasonix/plugin/sidecar.py", (p) => writeFileSync(p, readFileSync(p, "utf8").replace(/^\s*"name": MANIFEST_NAME,\n/m, "")), "carries every host-required field", "10 (handshake — a sidecar missing a host-required field must FAIL)"],
     [".reasonix/watch.items", (p) => rmSync(p), "(the reasonix watch binding) exists", "11"],
     [".pi/watch.items", (p) => rmSync(p), "(the pi watch binding) exists", "11 (pi arm — a harness with no watch binding must FAIL)"],
+    [".pi/settings.json", (p) => { const s = JSON.parse(readFileSync(p, "utf8")); s.extensions = s.extensions.filter((e) => !e.includes("footer")); writeFileSync(p, JSON.stringify(s)); }, "registers EXACTLY the committed .pi/extensions", "14 (registration — a dropped extension silently removes a tool AGENTS.md routes work through)"],
+    [".pi/settings.json", (p) => { const s = JSON.parse(readFileSync(p, "utf8")); s.packages = s.packages.map((x) => String(x).replace(/@v[0-9.]+$/, "@v1999.001.0001")); writeFileSync(p, JSON.stringify(s)); }, "marketplace package pin matches the corpus this tree pins", "14 (currency — the pin the pi package resolves must be the corpus THIS tree carries; the staged corpus is tagged at the real pin, so this is the drift the check exists for)"],
     // Check 12 has TWO arms that catch different defects, so it needs two mutations.
     // (a) INVARIANT: a row pointing at a skill that does not exist (a dangling
     //     `/charly-<family>:<skill>` ref — the docs build treats that as a hard error).
@@ -987,6 +1017,79 @@ ok(existsSync(join(root, ".dsh/watch.items")), ".dsh/watch.items (the DSH watch 
     if (gen13.rc !== 0) for (const l of gen13.out.trim().split("\n")) console.error(`        ${l}`);
   }
 
+}
+
+// 14. The pi PACKAGE — `.pi/settings.json`. It is what makes pi's skill corpus and every
+//     custom tool EXIST, and it was the one harness surface this gate did not read at all.
+//     Two defect classes, both measured on this tree:
+//
+//       (a) REGISTRATION. The extensions it declares must be EXACTLY the extensions committed
+//           in `.pi/extensions/`. AGENTS.md routes work through `charly_load_skills`,
+//           `charly_worktree_create`/`_remove`, `gh_pr_status`, `watch_arm`, `question` and
+//           `coord_footer`; dropping one line here removes a tool the rulebook depends on,
+//           silently, with no other symptom — `check-pi-gates.mjs` loads an extension directly
+//           and never reads `settings.json`, so the file stays green while pi never loads it.
+//
+//       (b) CURRENCY. The marketplace package pin must be the tag of the corpus the umbrella
+//           itself pins — the nearest tag `git describe` reaches from the submodule's HEAD.
+//           MEASURED: the pin sat at `v2026.278.1917` while the submodule had advanced to
+//           `v2026.329.1509`, so pi's `/skill:` listing was the 278 corpus while the rest of
+//           the tree read the 329 one. TWO dispatcher-routed skills were absent from THAT
+//           listing — `design` and `generate-podcast`; `design` was still listed from this
+//           repo's own `.agents/skills/`, so only `generate-podcast` was unlisted everywhere
+//           (reachable through `charly_load_skills`, which reads the corpus DIRECTLY, but
+//           unaddressable as a pi skill).
+//           Nothing read the pin, so nothing could notice. A harness cache is not a live
+//           source (`/charly-internals:marketplace` "Per-harness vendoring"): the pin is the
+//           ONLY thing that can hold it in step, so it needs a control.
+{
+  const settings = jsonOr(".pi/settings.json");
+  const declared = (Array.isArray(settings.extensions) ? settings.extensions : [])
+    .map((p) => String(p).replace(/^\.\/extensions\//, ""))
+    .sort();
+  const extensionsDir = join(root, ".pi/extensions");
+  const onDisk = existsSync(extensionsDir)
+    ? readdirSync(extensionsDir)
+        .filter((f) => f.endsWith(".ts"))
+        .sort()
+    : [];
+  ok(
+    onDisk.length > 0 && JSON.stringify(declared) === JSON.stringify(onDisk),
+    `.pi/settings.json registers EXACTLY the committed .pi/extensions (declared: ${
+      declared.join(", ") || "none"
+    }; on disk: ${onDisk.join(", ") || "none"})`,
+  );
+
+  const pin = (Array.isArray(settings.packages) ? settings.packages : [])
+    .map((p) => /^git:github\.com\/opencharly\/marketplace@(.+)$/.exec(String(p)))
+    .find(Boolean);
+  const corpus = join(root, "marketplace");
+  if (!pin) {
+    ok(false, ".pi/settings.json pins the marketplace skill corpus (a git package on `packages`)");
+  } else if (!existsSync(join(corpus, ".git"))) {
+    pass(
+      `marketplace/ is not checked out in ${root} — the pi package pin currency check skipped (the registration assertion above still holds)`,
+    );
+  } else {
+    // The corpus tag THIS tree pins: the nearest tag reachable from the submodule's HEAD. The
+    // remote is not asked — the pi package must be the corpus this tree carries, never the newest
+    // one published, and a gate that reaches the network is not a gate.
+    const described = spawnSync("git", ["describe", "--tags", "--abbrev=0", "HEAD"], {
+      cwd: corpus,
+      encoding: "utf8",
+    });
+    const tag = (described.stdout ?? "").trim();
+    if (described.status !== 0 || tag === "") {
+      pass(
+        `marketplace/ carries no reachable tag in ${root} — the pi package pin currency check skipped (the registration assertion above still holds)`,
+      );
+    } else {
+      ok(
+        pin[1] === tag,
+        `.pi/settings.json's marketplace package pin matches the corpus this tree pins (pin: ${pin[1]}, corpus tag: ${tag})`,
+      );
+    }
+  }
 }
 
 if (failures > 0) {

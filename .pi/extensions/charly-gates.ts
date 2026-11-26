@@ -44,7 +44,7 @@
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { writeFile, unlink, access, readFile } from "node:fs/promises";
-import { existsSync } from "node:fs";
+import { existsSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Type } from "typebox";
@@ -135,18 +135,59 @@ async function readRulesBlock(cwd: string): Promise<string> {
 }
 
 /**
+ * The WORD tokens of a phrase: lowercased runs of alphanumerics, so punctuation, backticks,
+ * `/` and `,` are all separators. Used by BOTH halves of trigger matching so a keyword and a
+ * dispatcher cell are compared on the same footing.
+ *
+ * WHY NOT SUBSTRINGS (R1, measured). Matching used to be a bidirectional substring test over
+ * chunks produced by splitting a dispatcher cell on `/` and `,`, so a chunk could be a single
+ * token taken out of a path: the cell of the `local:`/`vm` row contains `~/.config/charly/`, so
+ * splitting it yields the chunk `charly`, and `keyword.includes("charly")` is true for almost
+ * every keyword the rulebook uses. MEASURED against the shipped AGENTS.md: `charly box build`
+ * pulled in `charly-local:local-deploy` and `charly-vm:vm` on top of its own three refs. (Spiking
+ * the generated `marketplace/DISPATCHER.md` as an alternative table showed the same class one step
+ * further: a two-letter chunk `nc`, lifted out of a package list, matched the word `maintenance`.)
+ * Matching is now token-wise: every token of the caller's phrase must be a PREFIX of a token in
+ * the cell (see `phraseMatches`), so no fragment can stand in for a whole trigger.
+ */
+function tokens(phrase: string): string[] {
+  return phrase
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
+}
+
+/**
+ * Does a trigger PHRASE describe these TEXT tokens? True when every token of the phrase is a
+ * prefix of some token of the text, so `sweep` -> `sweeps`, `config` -> `configuration` and
+ * `session` -> `sessions`. The tolerance runs ONE way on purpose: the text is the reference
+ * spelling (the dispatcher column is what a caller copies a phrase out of), the phrase is what
+ * the caller typed. A phrase with no tokens never matches — otherwise the empty prefix would
+ * describe every row.
+ */
+function phraseMatches(phraseTokens: string[], textTokens: string[]): boolean {
+  return phraseTokens.length > 0 && phraseTokens.every((t) => textTokens.some((c) => c.startsWith(t)));
+}
+
+/**
  * Parse the curated skill dispatcher table from AGENTS.md.
  *
- * The curated table lives under `### Skill Dispatcher` (section `## R0. Skills first`)
- * and is deliberately OUTSIDE the `<!-- BEGIN/END GENERATED SKILL DISPATCHER -->`
- * markers — the markers exist only in the generated `marketplace/DISPATCHER.md`, whose
- * region is the FULL table, not this hand-curated subset (opencharly/opencharly#379).
- * So: prefer the marked region when present (a generated table), else the
- * `### Skill Dispatcher` section. A skill cell may hold SEVERAL `/charly-...` refs,
- * split on `,`.
+ * The curated table lives under a `Skill Dispatcher` heading and is deliberately OUTSIDE
+ * the `<!-- BEGIN/END GENERATED SKILL DISPATCHER -->` markers — the markers exist only in
+ * the generated `marketplace/DISPATCHER.md`, whose region is the FULL table, not this
+ * hand-curated subset (opencharly/opencharly#379). So: prefer the marked region when
+ * present (a generated table), else the `Skill Dispatcher` section.
+ *
+ * THE HEADING LEVEL IS NOT AN ASSUMPTION (R1, measured). This parse once matched the
+ * literal `### Skill Dispatcher` and the rulebook then promoted the table to a top-level
+ * `## Skill Dispatcher` section: every call answered "Could not parse the skill dispatcher
+ * table", so R0 could not be discharged through this tool at all, and no gate noticed
+ * (a text assertion over the extension cannot see a rulebook reshape; the missed control
+ * is the FIRED load-skills assertion in `scripts/check-pi-gates.mjs`). Match the heading
+ * at ANY level. A skill cell may hold SEVERAL `/charly-...` refs, split on `,`.
  */
-function parseDispatcherTable(content: string): Array<{ triggers: string[]; paths: string[] }> {
-  const result: Array<{ triggers: string[]; paths: string[] }> = [];
+function parseDispatcherTable(content: string): Array<{ trigger: string; paths: string[] }> {
+  const result: Array<{ trigger: string; paths: string[] }> = [];
 
   let table: string | null = null;
   const markerStart = content.indexOf("<!-- BEGIN GENERATED SKILL DISPATCHER -->");
@@ -154,10 +195,11 @@ function parseDispatcherTable(content: string): Array<{ triggers: string[]; path
   if (markerStart !== -1 && markerEnd !== -1 && markerEnd > markerStart) {
     table = content.slice(markerStart, markerEnd);
   } else {
-    // Fall back to the curated `### Skill Dispatcher` section. The section opens with a
+    // Fall back to the curated `Skill Dispatcher` section. The section opens with a
     // prose paragraph BEFORE its table, so skip to the first table row, then take rows
-    // until the first line that is neither a table row nor blank.
-    const heading = content.search(/^###\s+Skill Dispatcher\s*$/m);
+    // until the first line that is neither a table row nor blank. `#{1,6}` on purpose:
+    // see the function comment — a fixed level is what broke R0.
+    const heading = content.search(/^#{1,6}\s+Skill Dispatcher\s*$/m);
     if (heading === -1) return result;
     const lines = content.slice(heading).split("\n");
     let i = 1;
@@ -186,14 +228,7 @@ function parseDispatcherTable(content: string): Array<{ triggers: string[]; path
       .map((p) => p.trim().replace(/`/g, "").replace(/^\//, ""))
       .filter((p) => p.startsWith("charly-"));
     if (triggers && paths.length && !triggers.startsWith("<!--")) {
-      result.push({
-        triggers: triggers
-          .split("/")
-          .map((s) => s.trim())
-          .filter(Boolean)
-          .concat(triggers.split(",").map((s) => s.trim()).filter(Boolean)),
-        paths,
-      });
+      result.push({ trigger: triggers, paths });
     }
   }
   return result;
@@ -268,25 +303,30 @@ export default function (pi: ExtensionAPI) {
         };
       }
 
-      // Match trigger keywords against dispatcher
+      // Match trigger keywords against dispatcher entries. A row matches when EVERY token of
+      // the caller's phrase is a prefix of a token in its trigger cell — never on a fragment,
+      // which is what the retired bidirectional substring test did.
       const matchedPaths = new Set<string>();
-      const lowerTriggers = params.triggers.map((t) => t.toLowerCase());
+      const keywordTokens = params.triggers
+        .map((t) => t.trim())
+        .filter(Boolean)
+        .map((t) => tokens(t));
 
       for (const entry of dispatcher) {
-        for (const trigger of entry.triggers) {
-          const tl = trigger.toLowerCase();
-          for (const keyword of lowerTriggers) {
-            if (tl.includes(keyword) || keyword.includes(tl)) {
-              for (const p of entry.paths) matchedPaths.add(p);
-              break;
-            }
-          }
+        const cellTokens = tokens(entry.trigger);
+        if (keywordTokens.some((k) => phraseMatches(k, cellTokens))) {
+          for (const p of entry.paths) matchedPaths.add(p);
         }
       }
 
-      // Always include git-workflow when git operations are mentioned
+      // Always include git-workflow when git operations are mentioned. The vocabulary below is a
+      // CLOSED set of words, so the phrase must CARRY one of them as a word: `prepare a pull
+      // request` carries `pull` and `request`, while `improve`, `process` and `prepare` carry none
+      // of them — a PREFIX test here would force-load git-workflow for any phrase that merely
+      // begins with the two letters `pr`. An inflected form outside this list (`worktrees`) is not
+      // lost: the dispatcher row itself carries it, and the row matcher is where inflection lives.
       const gitKeywords = ["git", "push", "commit", "branch", "pr", "pull request", "merge", "worktree"];
-      const hasGit = lowerTriggers.some((t) => gitKeywords.some((g) => t.includes(g)));
+      const hasGit = keywordTokens.some((k) => gitKeywords.some((g) => tokens(g).every((t) => k.includes(t))));
       if (hasGit) {
         matchedPaths.add("charly-internals:git-workflow");
       }
@@ -575,6 +615,12 @@ export default function (pi: ExtensionAPI) {
       // two halves can disagree — `--force` over a non-writable subdirectory exits 255 having
       // already DROPPED the administrative entry while the directory survives. The report
       // therefore carries the OBSERVED effect, so what it says happened is what happened.
+      // The EFFECT is compared on REAL paths, because `git worktree list` reports them resolved
+      // while `ctx.cwd` may reach the same place through a symlink. `realpathSync` was CALLED
+      // here without ever being imported, and the try/catch below turned the resulting
+      // ReferenceError into a silent "use the path as given" — a fallback branch hiding a
+      // defect (R3), invisible to the syntax-only parse check its gate runs. The import is the
+      // fix; `check-pi-gates.mjs` now asserts every `node:fs` identifier the file CALLS is bound.
       const real = (p: string) => {
         try {
           return realpathSync(p);
