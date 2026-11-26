@@ -63,10 +63,11 @@ scratchpad/
 bin/
 *.sync-conflict-*
 
-# Python bytecode. The repo's Python tooling (the Codex plugin installer's test) is
-# Python, so running it leaves a `__pycache__/` directory behind. Left
-# untracked-but-unignored it shows up as dirt in `git status` and `verify`, a
-# self-inflicted failure with no tracked file to explain it.
+# Python bytecode. `scripts/test_install_codex_plugins.py` loads
+# `scripts/install-codex-plugins.py` through importlib, so running it writes
+# `scripts/__pycache__/install-codex-plugins.<py>.pyc`. Left untracked-but-unignored
+# it shows up as dirt in `git status` and `verify`, a self-inflicted failure with no
+# tracked file to explain it.
 __pycache__/
 *.pyc
 
