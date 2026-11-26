@@ -13,17 +13,15 @@
 // checkout>` is the measurement, and it is the one to re-run if `main` moves:
 //   * DISCRIMINATING — the assertion FAILS on `main`, so going green is evidence the
 //     surface is present and wired: check 4 in full, check 3's plugin-set arm (main
-//     enables 14 plugins, this branch 28), check 5's POSITIVE `charly status *` arm
-//     (main grants no `charly status *` entry and no `charly check *` entry; it DOES grant
-//     `charly task *` and `./charly/bin/charly task *`, which this check does not touch),
-//     and check 6 in full — `main` carries no `.mcp.json` at all and no `mcp`/`mcp_servers`
-//     entry in `opencode.json`/`.codex/config.toml`, so the DeepWiki assertion fails there.
+//     enables 14 plugins, this branch 28), check 5 in full (main carries the V1
+//     `permission` map, which GRANTS `gh pr merge *` and constrains nothing under V2's
+//     allow base policy; this tree carries the V2 `permissions` array with the denies the
+//     rulebook requires), and check 6 in full — `main` carries no `.mcp.json` at all and
+//     no `mcp`/`mcp_servers` entry in `opencode.json`/`.codex/config.toml`, so the
+//     DeepWiki assertion fails there.
 //   * STRUCTURAL — PASSES on `main` too, and NOT claimed to discriminate: check 1's four
 //     JSON-parse assertions, check 2's four assertions (both gate scripts pre-exist AND
-//     are already executable), check 3's hooks-block arm (main retains it), and check 5's
-//     NEGATIVE arms — which pass on `main` precisely BECAUSE `main` grants none of those
-//     three verbs, so a tree that grants none of them satisfies them vacuously. They are a
-//     regression guard on the positive arm, not evidence of this branch.
+//     are already executable), and check 3's hooks-block arm (main retains it).
 // `--self-test` proves that split by EXECUTING it rather than asserting it: every
 // mutation must turn the gate RED carrying the mutated check's own message. A surface that
 // is not materialized in THIS checkout — `marketplace/DISPATCHER.md`, absent in every
@@ -88,21 +86,26 @@ const argv = process.argv.slice(2);
 const rootIdx = argv.indexOf("--root");
 const root = rootIdx === -1 ? resolve(here, "..") : resolve(argv[rootIdx + 1]);
 
-// The verbs opencode.json must NOT auto-allow, each with the reason, quoted from charly's
-// OWN verb help so the characterization here and the product cannot drift apart:
-//   check run  — "Run a disposable check bed (R10 sequence)": the destructive gate; it
-//                builds, deploys, probes and tears down.
-//   check box  — "Pure-box check (disposable container, build-scope checks)": it starts a
-//                container (read-only about the PROJECT, but not a no-op on the host).
-//   check live — "Full-stack check against a running deployment": it executes checks
-//                against a live deployment.
-// Only the read-only `charly status *` report is granted. `check box *` is guarded here
-// too: an earlier revision claimed three verbs but asserted two, and a claim wider than
-// the assertion is the defect class this gate exists to catch.
-const MUST_NOT_AUTO_ALLOW = [
-  ["charly check run *", "the destructive R10 bed gate — it builds, deploys, probes and tears down"],
-  ["charly check box *", "it starts a disposable container to run build-scope checks"],
-  ["charly check live *", "it executes a full-stack check against a running deployment"],
+// The actions opencode.json must DENY, each with the reason, quoted from the rulebook.
+//
+// opencode V2's ordered base policy starts with `{action:"*", resource:"*", effect:"allow"}`
+// (https://opencode.ai/docs/permissions, "Defaults"), so an `allow` rule grants exactly what
+// the default already grants. The allow-only block this check used to assert was therefore
+// INERT — and it explicitly granted `gh pr merge *`, the one action AGENTS.md forbids
+// outright. Only `deny` and `ask` constrain, so this check asserts DENY rules:
+//   gh pr merge           — "No agent merges" (AGENTS.md, "Commit, push, land", step 6);
+//                           the glob also covers `--admin` and `--auto`, both forbidden by
+//                           the git-workflow skill.
+//   git push --force      — force-push is forbidden on every branch (R6). The pre-push gate
+//                           is the precise enforcement (it parses flags and refspecs); this
+//                           is the coarse second belt.
+//   git commit --no-verify — hooks are never bypassed (R6). The pre-commit gate parses the
+//                           flags precisely; this catches the plain form even if that hook
+//                           is not wired.
+const MUST_DENY = [
+  ["gh pr merge*", "no agent merges (AGENTS.md 'Commit, push, land' step 6); also covers --admin/--auto"],
+  ["git push *--force*", "force-push is forbidden on every branch (R6)"],
+  ["git commit *--no-verify*", "hooks are never bypassed (R6)"],
 ];
 
 // The dispatcher-coverage RATCHET (check 12). MEASURED on the tree this gate ships with:
@@ -174,6 +177,7 @@ if (argv.includes("--self-test")) {
     ".pi/extensions/watch.ts",
     "reasonix.toml",
     ".opencode/package.json",
+    ".opencode/agent",
     ".pi/extensions/charly-gates.ts",
     ".dsh/skills",
     ".dsh/watch.items",
@@ -247,6 +251,20 @@ if (argv.includes("--self-test")) {
           writeFileSync(dst, "");
         }
       }
+      // Check 12(d) asserts every `.opencode/agent/` pointer names an EXISTING corpus agent
+      // definition, so the staged tree carries one placeholder per real definition — the
+      // `agents/` trees are small, and without them the unmutated copy would be RED for a
+      // file it never staged.
+      for (const fam of readdirSync(mkt, { withFileTypes: true })) {
+        if (!fam.isDirectory()) continue;
+        const ag = join(mkt, fam.name, "agents");
+        if (!existsSync(ag)) continue;
+        for (const a of readdirSync(ag).filter((n) => n.endsWith(".md"))) {
+          const dst = join(tree, "marketplace", fam.name, "agents", a);
+          mkdirSync(dirname(dst), { recursive: true });
+          writeFileSync(dst, "");
+        }
+      }
       // The CONTROL for the guard above: an empty skill directory that no source produced. It
       // must never reach the gate's skill inventory, so the unmutated-copy assertion goes RED if
       // the oracle ever goes back to counting directories. It sits inside a REAL family, because
@@ -293,12 +311,12 @@ if (argv.includes("--self-test")) {
     [".claude/hooks/pre-commit-gate.sh", (p) => rmSync(p), "pre-commit-gate.sh exists", "2"],
     [".claude/settings.json", (p) => { const s = JSON.parse(readFileSync(p, "utf8")); delete s.hooks; writeFileSync(p, JSON.stringify(s)); }, "retains the PreToolUse hooks block", "3"],
     [".claude/workflows/audit-deploy-configs.js", (p) => rmSync(p), "audit-deploy-configs.js exists", "4"],
-    ["opencode.json", (p) => { const o = JSON.parse(readFileSync(p, "utf8")); o.permission.bash["charly check run *"] = "allow"; writeFileSync(p, JSON.stringify(o)); }, 'does not auto-allow "charly check run *"', "5 (negative arm, run — the destructive R10 gate)"],
-    ["opencode.json", (p) => { const o = JSON.parse(readFileSync(p, "utf8")); o.permission.bash["charly check box *"] = "allow"; writeFileSync(p, JSON.stringify(o)); }, 'does not auto-allow "charly check box *"', "5 (negative arm, box — the arm an earlier revision claimed but did not assert)"],
+    ["opencode.json", (p) => { const o = JSON.parse(readFileSync(p, "utf8")); o.permissions = o.permissions.filter((r) => r.resource !== "gh pr merge*"); writeFileSync(p, JSON.stringify(o)); }, 'denies "gh pr merge*"', "5 (a dropped deny must FAIL — the forbidden-merge arm)"],
+    ["opencode.json", (p) => { const o = JSON.parse(readFileSync(p, "utf8")); o.permissions.push({ action: "shell", resource: "gh pr merge*", effect: "allow" }); writeFileSync(p, JSON.stringify(o)); }, "does not allow a forbidden action", "5 (an allow appended after the deny must FAIL)"],
     [".claude/hooks/pre-push-gate.sh", (p) => chmodSync(p, 0o644), "pre-push-gate.sh is executable", "2 (a lost exec bit must FAIL, not pass)"],
     [".claude/settings.json", (p) => { const s = JSON.parse(readFileSync(p, "utf8")); s.permissions.allow.push("Bash(gh pr merge:*)"); writeFileSync(p, JSON.stringify(s, null, 2)); }, "does not auto-allow `gh pr merge`", "3 (the forbidden-merge arm)"],
     [".claude/settings.json", (p) => { const t = readFileSync(p, "utf8"); const k = t.match(/^\s*"charly-[^"]+@charly-plugins": true,\n/m); if (!k) throw new Error("no charly plugin key to drop"); writeFileSync(p, t.replace(k[0], "")); }, "enabledPlugins match their derivation", "3 (plugin-set arm — one dropped plugin must FAIL, which the old `>= 20` floor never could)", true],
-    ["opencode.json", (p) => { const o = JSON.parse(readFileSync(p, "utf8")); delete o.permission.bash["charly status *"]; writeFileSync(p, JSON.stringify(o)); }, 'grants "charly status *"', "5 (positive arm)"],
+    ["opencode.json", (p) => { const o = JSON.parse(readFileSync(p, "utf8")); o.permission = { bash: { "charly check run *": "allow" } }; writeFileSync(p, JSON.stringify(o)); }, "uses the V2 `permissions` array", "5 (a lingering V1 permission map must FAIL)"],
     [".mcp.json", (p) => { const m = JSON.parse(readFileSync(p, "utf8")); delete m.mcpServers.deepwiki; writeFileSync(p, JSON.stringify(m)); }, ".mcp.json declares the DeepWiki server", "6"],
     [".pi/mcp.json", (p) => { const m = JSON.parse(readFileSync(p, "utf8")); delete m.mcpServers.deepwiki; writeFileSync(p, JSON.stringify(m)); }, ".pi/mcp.json declares the DeepWiki server", "6"],
     ["opencode.json", (p) => { const o = JSON.parse(readFileSync(p, "utf8")); delete o.mcp.deepwiki; writeFileSync(p, JSON.stringify(o)); }, "opencode.json declares the DeepWiki server", "6"],
@@ -327,6 +345,7 @@ if (argv.includes("--self-test")) {
     ["marketplace/DISPATCHER.md", (p) => writeFileSync(p, readFileSync(p, "utf8").replace(/^\| .+ \| `\/charly-check:check` \|$\n/m, "")), "dispatcher coverage ratchet holds", "12 (the ratchet — dropping a row must FAIL, or the gate cannot notice coverage loss)", true],
     // (c) INVARIANT: a skill the hand-curated AGENTS.md table routes to must exist in the corpus.
     ["AGENTS.md", (p) => writeFileSync(p, readFileSync(p, "utf8").replace("`/charly-internals:git-workflow`", "`/charly-internals:no-such-skill`")), "every skill a root .md routes to resolves", "12 (a root-document route must resolve — the hand-curated-table arm)", true],
+    [".opencode/agent/root-cause-analyzer.md", (p) => writeFileSync(p, readFileSync(p, "utf8").replace("marketplace/internals/agents/root-cause-analyzer.md", "marketplace/internals/agents/no-such-agent.md")), "every opencode agent pointer names an existing corpus definition", "12 (a dangling corpus-agent pointer must FAIL)"],
     // The DSH arm has three surfaces, so it needs three mutations plus the
     // corpus-level collision arm (the property a flat name-keyed farm can lose).
     [".dsh/watch.items", (p) => rmSync(p), "(the DSH watch binding) exists", "11 (DSH arm — a harness with no watch binding must FAIL)"],
@@ -584,17 +603,19 @@ for (const h of [".claude/hooks/pre-commit-gate.sh", ".claude/hooks/pre-push-gat
 // 4. The Claude workflow exists (invoked by name — nothing lists it).
 ok(existsSync(join(root, ".claude/workflows/audit-deploy-configs.js")), ".claude/workflows/audit-deploy-configs.js exists");
 
-// 5. opencode.json auto-allows the read-only status report and NOTHING that runs code an
-//    operator would want to approve. The negative arm is the point: an auto-allow on
-//    `charly check run` would let an agent run the destructive R10 bed gate with no
-//    approval prompt, and one on `check box` would let it start containers unprompted.
+// 5. opencode.json DENIES the actions the rulebook forbids. Under V2's allow base policy
+//    only deny/ask constrain, so this asserts the denies themselves — and that the migrated
+//    V1 `permission` map (which granted `gh pr merge *`) is gone rather than lingering.
 {
   const o = jsonOr("opencode.json");
-  const bash = o.permission?.bash ?? {};
-  ok(Object.hasOwn(bash, "charly status *"), 'opencode.json grants "charly status *" (read-only)');
-  for (const [g, why] of MUST_NOT_AUTO_ALLOW) {
-    ok(!Object.hasOwn(bash, g), `opencode.json does not auto-allow "${g}" — ${why}`);
+  ok(!Object.hasOwn(o, "permission"), "opencode.json uses the V2 `permissions` array, not the migrated V1 `permission` map");
+  const rules = Array.isArray(o.permissions) ? o.permissions : [];
+  for (const [resource, why] of MUST_DENY) {
+    ok(rules.some((r) => r?.action === "shell" && r?.resource === resource && r?.effect === "deny"),
+      `opencode.json denies "${resource}" — ${why}`);
   }
+  const granted = rules.filter((r) => r?.effect === "allow" && MUST_DENY.some(([res]) => res === r?.resource));
+  ok(granted.length === 0, `opencode.json does not allow a forbidden action (offenders: ${granted.map((r) => r.resource).join(", ") || "none"})`);
 }
 
 // 6. Every harness surface that supports MCP declares the DeepWiki server. DISCRIMINATING:
@@ -857,8 +878,16 @@ ok(existsSync(join(root, ".dsh/watch.items")), ".dsh/watch.items (the DSH watch 
     //     The R0 table in AGENTS.md is hand-curated OUTSIDE the generated markers, so (a) never
     //     reads it: `/charly-tools:generate-podcast` sat in that table for six weeks while the
     //     pinned corpus had no such skill (opencharly/opencharly#1226).
+    // The harness-authored documents that route to skills: the root narrative AND the
+    // opencode agent pointers. The pointers are hand-authored (`.opencode/agent/*.md`),
+    // so their `/charly-…` refs need the same dangling-ref arm as the root table.
+    const agentDir = join(root, ".opencode/agent");
+    const agentFiles = existsSync(agentDir)
+      ? readdirSync(agentDir).filter((n) => n.endsWith(".md")).sort().map((n) => `.opencode/agent/${n}`)
+      : [];
+    const routedDocs = [...readdirSync(root).filter((n) => n.endsWith(".md")).sort(), ...agentFiles];
     const rootRefs = [];
-    for (const f of readdirSync(root).filter((n) => n.endsWith(".md")).sort()) {
+    for (const f of routedDocs) {
       readFileSync(join(root, f), "utf8").split("\n").forEach((line, i) => {
         for (const m of line.matchAll(/\/charly-([a-z0-9-]+):([a-z0-9-]+)/g)) {
           rootRefs.push({ where: `${f}:${i + 1}`, family: m[1], name: m[2] });
@@ -872,6 +901,23 @@ ok(existsSync(join(root, ".dsh/watch.items")), ".dsh/watch.items (the DSH watch 
       unresolved.length === 0,
       `every skill a root .md routes to resolves in the pinned corpus (${rootRefs.length} refs; ` +
         `dangling: ${unresolved.map((d) => `${d.where} /charly-${d.family}:${d.name}`).join(", ") || "none"})`,
+    );
+
+    // (d) every opencode agent pointer that delegates to a corpus agent definition names a
+    //     file that EXISTS. The pointer is thin by design, so a renamed or retired corpus
+    //     agent would otherwise leave it delegating to nothing — silently, since no other
+    //     check reads `.opencode/agent/`.
+    const agentTargets = [];
+    for (const f of agentFiles) {
+      for (const m of readFileSync(join(root, f), "utf8").matchAll(/marketplace\/([a-z0-9-]+)\/agents\/([a-z0-9-]+)\.md/g)) {
+        agentTargets.push({ where: f, path: `marketplace/${m[1]}/agents/${m[2]}.md` });
+      }
+    }
+    const missingTargets = agentTargets.filter((t) => !existsSync(join(root, t.path)));
+    ok(
+      missingTargets.length === 0,
+      `every opencode agent pointer names an existing corpus definition ` +
+        `(${agentTargets.length} pointers; missing: ${missingTargets.map((t) => `${t.where} -> ${t.path}`).join(", ") || "none"})`,
     );
 
     // (b) the ratchet: unrouted corpus skills may not exceed the recorded ceiling.
