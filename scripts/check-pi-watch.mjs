@@ -130,7 +130,17 @@ function check() {
 
   // 5. the tool surface.
   if (!/name:\s*["'`]watch_arm["'`]/.test(code)) fail(`registers the watch_arm tool`);
-  if (!/isGithubItem/.test(code)) fail(`validates the item grammar (isGithubItem)`);
+  // THE ITEM GRAMMAR IS THE ENGINE'S (R2, opencharly/opencharly#1308). This assertion used to
+  // REQUIRE the binding to carry its own `isGithubItem` — i.e. the gate pinned the duplicate.
+  // MEASURED: that copy dropped `opencharly/opencharly/pull/1301#issuecomment-42` (the shape
+  // `gh pr comment` PRINTS), a scheme-less `github.com/...` and a trailing-slash URL that the
+  // engine accepts, while passing `#0` that the engine refuses. So the binding must IMPORT the
+  // engine reader and own no acceptance set of its own.
+  if (!/import\s*\{[^}]*\bparseItemsFile\b[^}]*\}\s*from\s*["'`]\.\.\/\.\.\/scripts\/gh\/lib\/watch\.ts["'`]/.test(code))
+    fail(`imports the engine's item reader (parseItemsFile from scripts/gh/lib/watch.ts)`);
+  for (const bad of ["isGithubItem", "function parseItems"])
+    if (new RegExp(`\\b${bad.replace(/ /g, "\\s+")}\\b`).test(code))
+      fail(`owns no item grammar of its own (found '${bad}' — the engine's parseItemsFile/parseItem is the ONE home)`);
 
   // 6. shipped inert + wired.
   if (!existsSync(join(root, REL_ITEMS))) {
@@ -202,7 +212,26 @@ if (argv.includes("--self-test")) {
     ["no restart supersede", REL_EXT, () => ext.replace(/gh\.gen\+\+;/, ""), "supersedes the running arm"],
     ["state events kept by hand", REL_EXT, () => ext.replace(/STATE_EVENTS\.has\(ev\.toLowerCase\(\)\)/, 'ev === "STALL"'), "STATE_EVENTS.has"],
     ["a terminal event named by hand", REL_EXT, () => ext.replace(/if \(STATE_EVENTS\.has\(ev\.toLowerCase\(\)\)\) gh\.retired\.add\(item\);/, 'if (STATE_EVENTS.has(ev.toLowerCase()) && ev !== "MERGED") gh.retired.add(item);'), "names no watcher event by hand"],
-    ["no engine import", REL_EXT, () => ext.replace(/import \{ STATE_EVENTS \} from "\.\.\/\.\.\/scripts\/gh\/lib\/watch\.ts";\n/, ""), "imports STATE_EVENTS"],
+    ["no engine import", REL_EXT, () => ext.replace(/import \{[^}]*\bSTATE_EVENTS\b[^}]*\} from "\.\.\/\.\.\/scripts\/gh\/lib\/watch\.ts";\n/, ""), "imports STATE_EVENTS"],
+    // THE ITEM GRAMMAR (opencharly/opencharly#1308): a private copy in the binding is the
+    // duplication the gate now forbids — the mutation puts back the exact shape that shipped
+    // (a local `isGithubItem` filter over the items lines).
+    [
+      "a private item grammar",
+      REL_EXT,
+      () =>
+        ext.replace(
+          "export function watcherEvent(",
+          'export function isGithubItem(raw: string): boolean {\n  return /^[^/\\s#]+\\/[^/\\s#]+#[0-9]+$/.test(raw);\n}\n\nexport function watcherEvent(',
+        ),
+      "owns no item grammar",
+    ],
+    [
+      "the engine reader is not imported",
+      REL_EXT,
+      () => ext.replace(/import \{ STATE_EVENTS, parseItemsFile \} from/, "import { STATE_EVENTS } from"),
+      "imports the engine's item reader",
+    ],
     ["lock loss is a failure", REL_EXT, () => ext.replace(/if \(code === 6\) \{/, "if (false) {"), "lock loss (exit 6)"],
     ["armed items", REL_ITEMS, () => "\nacme/widget#12\n", "ships INERT"],
     ["unwired", REL_SETTINGS, () => JSON.stringify({ extensions: ["./extensions/charly-gates.ts"] }), "lists ./extensions/watch.ts"],

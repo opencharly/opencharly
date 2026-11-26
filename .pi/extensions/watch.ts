@@ -39,7 +39,7 @@ import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { Type } from "typebox";
-import { STATE_EVENTS } from "../../scripts/gh/lib/watch.ts";
+import { STATE_EVENTS, parseItemsFile } from "../../scripts/gh/lib/watch.ts";
 
 // ── the neutral tooling this binding drives (relative to the project root) ─────
 /** The ONE GitHub watcher CLI (harness-neutral; this repo's `scripts/gh/`). */
@@ -116,29 +116,6 @@ const beds = new Map<string, BedRun>();
 
 // ── pure helpers (asserted statically by scripts/check-pi-watch.mjs) ───────────
 
-/**
- * Split a `.pi/watch.items` file into non-comment lines (order preserved). The grammar is
- * the SAME as `.opencode/pr-watch.items`, so a list is portable
- * between harnesses: `owner/repo#num`, `owner/repo/pull|issues/num`, or a full
- * `https://github.com/...` URL.
- */
-export function parseItems(text: string): string[] {
-  return text
-    .split("\n")
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0 && !s.startsWith("#") && isGithubItem(s));
-}
-
-/** True for a well-formed item in any of the three accepted forms. */
-export function isGithubItem(raw: string): boolean {
-  let s = raw.trim().replace(/^https?:\/\/github\.com\//i, "");
-  s = s.split("?")[0];
-  return (
-    /^[^/\s#]+\/[^/\s#]+#[0-9]+$/.test(s) ||
-    /^[^/\s]+\/[^/\s]+\/(?:pull|issues)\/[0-9]+$/.test(s)
-  );
-}
-
 /** The event token of a watcher line (`MERGED`, `COMMENT`, …), upper-cased. */
 export function watcherEvent(line: string): string {
   return (line.trim().split(/\s+/)[0] ?? "").toUpperCase();
@@ -194,7 +171,7 @@ function note(ctx: any, msg: string): void {
 /** Read `.pi/watch.items` (absent/comment-only => inert). */
 async function readItems(): Promise<string[]> {
   try {
-    return parseItems(await readFile(join(projectRoot, ITEMS_REL), "utf8"));
+    return parseItemsFile(await readFile(join(projectRoot, ITEMS_REL), "utf8"));
   } catch {
     return [];
   }

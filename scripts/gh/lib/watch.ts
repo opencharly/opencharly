@@ -84,6 +84,34 @@ export function parseItem(raw: unknown): Item | null {
   return { owner, repo, num, key: `${owner}/${repo}#${num}` };
 }
 
+/**
+ * Read the ITEMS FILE format — the one grammar every harness's watch list shares — into the
+ * item strings it carries, in order. A blank line or a `#` comment is skipped; EVERYTHING else
+ * is passed through VERBATIM and is NOT validated here.
+ *
+ * WHY THIS LIVES IN THE ENGINE (R2, measured). `parseItem` above is the item grammar, but there
+ * was no file reader beside it, so each harness binding wrote its own — `.pi/extensions/watch.ts`
+ * (`parseItems` + `isGithubItem`) and `.opencode/lib/watcher-loop.ts` (`parseItems`) — each with
+ * its OWN acceptance set, and they had
+ * already drifted: `opencharly/opencharly/pull/1301#issuecomment-42` (the shape `gh pr comment`
+ * PRINTS), `github.com/o/r/pull/1301` and a trailing-slash URL were accepted by the engine and
+ * SILENTLY DROPPED by pi, while `opencharly/opencharly#0` was refused by the engine
+ * and passed through by pi. A dropped item is a watcher that never wakes while the session
+ * believes it is armed.
+ *
+ * WHY IT DOES NOT VALIDATE. Validation has exactly ONE home already: `parseItem`, called by the
+ * CLI, which REFUSES a malformed item by name and exits 5 (measured: `gh watch: malformed item
+ * 'not-an-item' — want owner/repo#123 or a GitHub PR/issue URL`). A binding that pre-filtered
+ * turned that loud refusal into silence, which is the defect this reader ends: bindings DELIVER,
+ * the engine DECIDES.
+ */
+export function parseItemsFile(text: string): string[] {
+  return String(text ?? "")
+    .split("\n")
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0 && !s.startsWith("#"));
+}
+
 /** Parse a comma-separated event list; an unknown name is a usage error. */
 export function parseEvents(list: string | undefined, dflt: string = DEFAULT_EVENTS): Set<WatchEventName> {
   const out = new Set<WatchEventName>();
