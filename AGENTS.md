@@ -234,7 +234,6 @@ the generated table has no row for. *Detail:* `/charly-internals:skills`,
 | A punktfunk streaming host / `punktfunk-host` units / the punktfunk pacman repo | `/charly-punktfunk:punktfunk-host` |
 | The `kube:` check verb | `/charly-kubernetes:check-k8s` |
 | `step:helm-release` / `verb:helm` / `helm_charts:` / `--enable-helm` | `/charly-kubernetes:helm` |
-| `charly agentteams` controller / the `verb:agentteams` check verb / `charly agentteams apply -f` | `/charly-agentteams:agentteams-cli` |
 
 ## Charly CLI discipline
 
