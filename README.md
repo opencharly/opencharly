@@ -49,7 +49,7 @@ its change class, and by an independent fresh `charly/pr-validator` after the pu
 
 ## This repo: one clone of the whole org
 
-`opencharly/opencharly` is the org-level **umbrella**: every OpenCharly repo (325 today) is pinned
+`opencharly/opencharly` is the org-level **umbrella**: every OpenCharly repo (330 today) is pinned
 here as a git submodule — a "gitlink" — flat at the root, so the submodule path equals the repo
 name for all but one alias: `.github` is pinned at the `dotgithub/` path.
 
@@ -722,13 +722,25 @@ merge mints a CalVer tag plus `CHANGELOG/<CalVer>.md`. Upstream sync runs throug
 | `plugin-example-structkind/` | [opencharly/plugin-example-structkind](https://github.com/opencharly/plugin-example-structkind) |
 | `plugin-examplerunverb/` | [opencharly/plugin-examplerunverb](https://github.com/opencharly/plugin-examplerunverb) |
 
+### Pods: Browsers and UI automation
+
+1 repos — the CDP browser toolkit a desktop pod supervises.
+
+| path | repo |
+|---|---|
+| `pod-chrome-cdp/` | [opencharly/pod-chrome-cdp](https://github.com/opencharly/pod-chrome-cdp) |
+
 ### Pods: Desktops and compositors
 
-1 repos — the KDE Plasma desktop.
+5 repos — the KDE Plasma desktop, its wlroots compositor, its VNC transport, the shared nested session and the KDE-over-VNC pod.
 
 | path | repo |
 |---|---|
 | `pod-kde-desktop/` | [opencharly/pod-kde-desktop](https://github.com/opencharly/pod-kde-desktop) |
+| `pod-kde-nested/` | [opencharly/pod-kde-nested](https://github.com/opencharly/pod-kde-nested) |
+| `pod-kde-vnc/` | [opencharly/pod-kde-vnc](https://github.com/opencharly/pod-kde-vnc) |
+| `pod-sway/` | [opencharly/pod-sway](https://github.com/opencharly/pod-sway) |
+| `pod-wayvnc/` | [opencharly/pod-wayvnc](https://github.com/opencharly/pod-wayvnc) |
 
 ### Pods: Desktop fixings
 
