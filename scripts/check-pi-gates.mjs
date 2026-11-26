@@ -605,15 +605,25 @@ export default { Type };
     //       corpus symlinked so the ONLY difference is the heading level.
     const reshaped = join(scratch, "reshaped");
     mkdirSync(reshaped, { recursive: true });
-    writeFileSync(
-      join(reshaped, "AGENTS.md"),
-      agentsText.replace(/^## Skill Dispatcher$/m, "#### Skill Dispatcher"),
-    );
+    // A level that is NEITHER the one the rulebook ships NOR the `###` literal the retired parse
+    // hard-coded, so the assertion can never be satisfied by the very assumption it exists to
+    // remove — and the replacement is checked to have CHANGED the text, because a `replace` whose
+    // pattern no longer matches is a silent no-op that would degrade this into a copy of F8.
+    const headingMatch = /^(#{1,6})(\s+Skill Dispatcher\s*)$/m.exec(agentsText);
+    const shippedLevel = headingMatch ? headingMatch[1].length : 0;
+    const otherLevel = "#".repeat([1, 2, 4, 5, 6].find((n) => n !== shippedLevel) ?? 1);
+    const reshapedText = headingMatch
+      ? agentsText.replace(headingMatch[0], `${otherLevel}${headingMatch[2]}`)
+      : agentsText;
+    writeFileSync(join(reshaped, "AGENTS.md"), reshapedText);
     symlinkSync(join(root, "marketplace"), join(reshaped, "marketplace"));
     const reshapedLoad = await fireLoad(reshaped, [probe]);
     expect(
-      reshapedLoad.details?.dispatcherCount === dispatcherRows.length && (reshapedLoad.details?.count ?? 0) > 0,
-      `charly_load_skills FIRED: the heading level is not an assumption (a #### Skill Dispatcher still parses)`,
+      headingMatch !== null &&
+        reshapedText !== agentsText &&
+        reshapedLoad.details?.dispatcherCount === dispatcherRows.length &&
+        (reshapedLoad.details?.count ?? 0) > 0,
+      `charly_load_skills FIRED: the heading level is not an assumption (the section still parses when promoted to a level it does not ship at)`,
     );
   } catch (err) {
     fail(`loading and firing ${rel} (${err instanceof Error ? err.message : String(err)})`);

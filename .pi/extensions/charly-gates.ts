@@ -319,11 +319,14 @@ export default function (pi: ExtensionAPI) {
         }
       }
 
-      // Always include git-workflow when git operations are mentioned. Same rule, applied the
-      // other way round: the git keyword is the reference spelling, so the two-letter `pr`
-      // matches the WORD `pr`, not `improve` or `process`.
+      // Always include git-workflow when git operations are mentioned. The vocabulary below is a
+      // CLOSED set of words, so the phrase must CARRY one of them as a word: `prepare a pull
+      // request` carries `pull` and `request`, while `improve`, `process` and `prepare` carry none
+      // of them — a PREFIX test here would force-load git-workflow for any phrase that merely
+      // begins with the two letters `pr`. An inflected form outside this list (`worktrees`) is not
+      // lost: the dispatcher row itself carries it, and the row matcher is where inflection lives.
       const gitKeywords = ["git", "push", "commit", "branch", "pr", "pull request", "merge", "worktree"];
-      const hasGit = keywordTokens.some((k) => gitKeywords.some((g) => phraseMatches(tokens(g), k)));
+      const hasGit = keywordTokens.some((k) => gitKeywords.some((g) => tokens(g).every((t) => k.includes(t))));
       if (hasGit) {
         matchedPaths.add("charly-internals:git-workflow");
       }
