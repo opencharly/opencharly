@@ -95,7 +95,7 @@ async function identity(input: Record<string, any>, conf: Record<string, string>
   return id;
 }
 
-function identityError(tool: string, id: ReturnType<typeof identity>): string | null {
+function identityError(tool: string, id: Awaited<ReturnType<typeof identity>>): string | null {
   const missing = missingIdentity(id);
   if (missing.length) {
     return `${tool}: missing ${missing.map((m) => "--" + m).join(", ")} — pass them as tool args, set COORD_* env, or fill .opencode/coord.conf`;
