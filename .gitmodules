@@ -1413,3 +1413,7 @@
 	path = pod-chrome-cdp
 	url = https://github.com/opencharly/pod-chrome-cdp.git
 	branch = main
+[submodule "pod-kde-vnc-cdp"]
+	branch = main
+	path = pod-kde-vnc-cdp
+	url = https://github.com/opencharly/pod-kde-vnc-cdp.git
