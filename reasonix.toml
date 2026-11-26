@@ -94,6 +94,7 @@ compact_ratio = 0.70
 [skills]
 paths = [
     "marketplace/agent/skills",
+    "marketplace/agentteams/skills",
     "marketplace/ai-toolkit/skills",
     "marketplace/authoring/skills",
     "marketplace/automation/agents",
@@ -134,8 +135,10 @@ paths = [
     "marketplace/qdrant/skills",
     "marketplace/qwen3-tts/skills",
     "marketplace/review/skills",
+    "marketplace/selkies/skills",
     "marketplace/strata/skills",
     "marketplace/tools/skills",
+    "marketplace/versa/skills",
     "marketplace/vm/skills",
 ]
 

@@ -34,6 +34,7 @@
   },
   "enabledPlugins": {
     "charly-agent@charly-plugins": true,
+    "charly-agentteams@charly-plugins": true,
     "charly-ai-toolkit@charly-plugins": true,
     "charly-authoring@charly-plugins": true,
     "charly-automation@charly-plugins": true,
@@ -72,8 +73,10 @@
     "charly-qdrant@charly-plugins": true,
     "charly-qwen3-tts@charly-plugins": true,
     "charly-review@charly-plugins": true,
+    "charly-selkies@charly-plugins": true,
     "charly-strata@charly-plugins": true,
     "charly-tools@charly-plugins": true,
+    "charly-versa@charly-plugins": true,
     "charly-vm@charly-plugins": true,
     "claude-md-management@claude-plugins-official": true,
     "gopls-lsp@claude-plugins-official": true

@@ -22,3 +22,5 @@
 # tracked-by: opencharly/.github#192 — the tag-on-merge breakage that wrote no CHANGELOG commit
 #
 module	commit	state	reason
+layer-cdi	9fb95d687a7de5cc027acf46dc34c4350b94fda3	untagged	the pin wave advanced this pin to its merged default-branch HEAD, whose merge has no CHANGELOG commit yet — tag-on-merge has not run on it (opencharly/.github#286); the row heals when the bot writes that commit, and is lowered then
+lobster	f318da9700320fc391c05b2839e0dcbcabb69cbf	untagged	the pin wave advanced this pin to its merged default-branch HEAD, whose merge has no CHANGELOG commit yet — tag-on-merge has not run on it (opencharly/.github#286); the row heals when the bot writes that commit, and is lowered then
