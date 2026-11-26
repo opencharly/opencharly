@@ -23,6 +23,7 @@ import {
   DEFAULT_STALL_MIN,
   DEFAULT_WORKFLOW,
   checkInterval,
+  parseItemsFile,
   parseEvents,
   watchStream,
   type Item,
@@ -34,12 +35,6 @@ export function makeWarn(label: string): (message: string) => void {
 }
 
 /** Split a `pr-watch.items`-style file into non-comment lines (order preserved). */
-export function parseItems(text: string): string[] {
-  return text
-    .split("\n")
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0 && !s.startsWith("#"));
-}
 
 /** Read a file as text under both runtimes (Bun's `Bun.file`, else `node:fs`). */
 export async function readText(path: string): Promise<string> {

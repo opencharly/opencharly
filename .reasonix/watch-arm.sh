@@ -28,13 +28,12 @@ ITEMS_FILE="$ROOT/.reasonix/watch.items"
 WATCHER="$ROOT/scripts/gh/cli.ts"
 [ -f "$WATCHER" ] || exit 0
 
-# Collect armed items: strip comments and blank lines, keep only well-formed
-# entries. `grep -m` bounds the work (never pipe an unbounded grep into head).
-ITEMS="$(
-  grep -v '^[[:space:]]*#' "$ITEMS_FILE" 2>/dev/null \
-    | grep -v '^[[:space:]]*$' \
-    | grep -E -m 50 '^([A-Za-z0-9._-]+/[A-Za-z0-9._-]+(#|/(pull|issues)/)[0-9]+|https?://github\.com/[A-Za-z0-9._-]+/[A-Za-z0-9._-]+/(pull|issues)/[0-9]+)$'
-)"
+# Collect armed items through the ENGINE's reader — the ONE grammar (opencharly/opencharly#1308).
+# This used to carry its own `grep -E` acceptance set, which silently dropped
+# `#issuecomment-N` URLs (the shape `gh pr comment` prints), a scheme-less `github.com/...`
+# and a trailing-slash URL that the engine accepts. A malformed line is now refused by name
+# when the watcher starts (exit 5), never filtered out here into silence.
+ITEMS="$(node "$WATCHER" items "$ITEMS_FILE" 2>/dev/null | awk 'NR<=50')"
 
 # Inert by default: a comment-only items file prints nothing at all.
 [ -n "$ITEMS" ] || exit 0

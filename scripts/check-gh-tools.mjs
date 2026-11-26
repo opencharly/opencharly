@@ -404,6 +404,30 @@ try {
   r = await cli(["status", "acme/widget#1"]);
   expect(r.code === 0 && /^STATUS   acme\/widget#1  state=open  verdict=BLOCK  check=completed\/failure/.test(r.out), "status reads the verdict on the head");
 
+  // `items <file>` — the ONE reader for the watch-items grammar (opencharly/opencharly#1308).
+  // Every harness binding used to carry its own copy of this acceptance set, and they had
+  // drifted: pi and reasonix silently DROPPED `#issuecomment` URLs the engine accepts. The
+  // verb exists so a binding that cannot import TypeScript uses the engine's reader too, and
+  // it must PASS ITEM FORMS THROUGH VERBATIM — validation belongs to `watch`, by name, exit 5.
+  {
+    const { writeFileSync: wf, mkdtempSync: mkd } = await import("node:fs");
+    const { tmpdir: tdir } = await import("node:os");
+    const f = join(mkd(join(tdir(), "check-gh-tools-items-")), "items.txt");
+    wf(
+      f,
+      "# a comment\nopencharly/opencharly#1301\n  opencharly/opencharly/pull/1301#issuecomment-42  \n",
+      "utf8",
+    );
+    r = await cli(["items", f]);
+    eq(
+      r.out,
+      "opencharly/opencharly#1301\nopencharly/opencharly/pull/1301#issuecomment-42\n",
+      "`items <file>` prints the file's items verbatim (comments and blanks dropped, forms NOT filtered)",
+    );
+    r = await cli(["items"]);
+    expect(r.code === 5, `\`items\` without a file is a usage error (exit ${r.code})`);
+  }
+
   const idArgs = ["--agent", "slug-x", "--harness", "OpenCode", "--session", "ses_x", "--model", "M", "--confidence", "documentation reviewed"];
   r = await cli(["footer", ...idArgs]);
   eq(r.out, "*Agent: `slug-x` · OpenCode session `ses_x`*\n*Assisted-by: OpenCode M (documentation reviewed)*\n", "footer prints the session footer");

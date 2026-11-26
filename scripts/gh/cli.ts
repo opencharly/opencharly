@@ -5,6 +5,7 @@
  *
  *   node scripts/gh/cli.ts watch   [--events E] [--interval S] [--stallmin M] [--timeout S] [--no-arm-wake] <item>…
  *   node scripts/gh/cli.ts status  <item>…
+ *   node scripts/gh/cli.ts items   <file>      (print the items a watch-items file carries)
  *   node scripts/gh/cli.ts footer  [--agent A] [--model M] [--confidence T] [--parent P] [--harness H --session S]
  *   node scripts/gh/cli.ts comment <VERB> <item> [--body T | --body-file F] [--assign] [--dry-run] [identity flags]
  *   node scripts/gh/cli.ts issue   --repo O/R --title T --category category:<v> --type type:<v>
@@ -46,7 +47,7 @@
  * EXIT  0 event / success · 4 timeout · 5 usage or API error · 6 lock (a peer would not
  *       yield) · 7 rate limit (never retried) · 8 the initial poll failed · 143 terminated
  */
-import { readFileSync, realpathSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import { GhError, RateLimitedError, ghJson, rateLimitMessage } from "./lib/github.ts";
 import {
@@ -63,6 +64,7 @@ import {
   classify,
   parseEvents,
   parseItem,
+  parseItemsFile,
   runWatch,
   type Item,
 } from "./lib/watch.ts";
@@ -200,6 +202,22 @@ async function cmdWatch(argv: string[], out: (s: string) => void, err: (s: strin
     process.off("SIGINT", onTerm);
     release();
   }
+}
+
+/**
+ * Print the item strings a watch-items FILE carries, one per line — the ONE reader for the
+ * shared grammar (`parseItemsFile`), exposed so a binding that cannot import TypeScript (the
+ * reasonix shell arm) uses the engine's acceptance set instead of writing a fourth copy of it.
+ *
+ * It deliberately does NOT validate: `watch` does, by name, and exits 5. A reader that filtered
+ * would turn that refusal into the silence this verb exists to end (opencharly/opencharly#1308).
+ */
+function cmdItems(argv: string[], out: (s: string) => void): number {
+  const file = argv[0];
+  if (!file) throw new UsageError("items needs a file path");
+  if (!existsSync(file)) throw new UsageError(`items: no such file: ${file}`);
+  for (const item of parseItemsFile(readFileSync(file, "utf8"))) out(item);
+  return EXIT.OK;
 }
 
 async function cmdStatus(argv: string[], out: (s: string) => void): Promise<number> {
@@ -367,8 +385,7 @@ async function cmdIssue(argv: string[], out: (s: string) => void): Promise<numbe
   return EXIT.OK;
 }
 
-/** Run the CLI; returns the exit code. */
-export async function main(
+/** Run the CLI; returns the exit code. */export async function main(
   argv: string[],
   out: (s: string) => void = (s) => process.stdout.write(s + "\n"),
   err: (s: string) => void = (s) => process.stderr.write(s + "\n"),
@@ -380,6 +397,8 @@ export async function main(
         return await cmdWatch(rest, out, err);
       case "status":
         return await cmdStatus(rest, out);
+      case "items":
+        return cmdItems(rest, out);
       case "footer":
         return cmdFooter(rest, out);
       case "comment":
@@ -393,7 +412,7 @@ export async function main(
         return EXIT.OK;
       default:
         err(usage());
-        err(`gh: unknown command '${cmd ?? ""}' — watch | status | footer | comment | issue`);
+        err(`gh: unknown command '${cmd ?? ""}' — watch | status | items | footer | comment | issue`);
         return EXIT.USAGE;
     }
   } catch (e: any) {
