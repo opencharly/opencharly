@@ -32,6 +32,12 @@ If a skill is not exposed as a tool entry, read its procedure directly at
 `marketplace/<family>/skills/<skill>/SKILL.md` (the same fallback every harness
 uses).
 
+Bare-name addressing is GLOBAL to a session's catalog, so a name can be claimed only
+once. The corpus's `docs` (the `charly docs generate` skill, i.e. `/charly-build:docs`)
+shadows the user-level document-creation `docs` connector in this project; the
+corpus's description is the one listed, so every `AGENTS.md` `docs` reference resolves
+to the charly skill. The user-level one is unreachable here.
+
 ## Gate hooks
 
 `.opencode/plugins/umbrella-gates.ts` runs the root gate scripts
@@ -53,12 +59,12 @@ it loads and enforces under EITHER generation. Measured (2026-09-28, R1): a
 `setup`-only plugin was REJECTED by the then-installed **1.18.33** with
 `failed to load plugin … must default export an object with server()` on every
 startup, and the gates blocked nothing — the regression this rule prevents. The
-host has since been upgraded to **v2.0.18** (which loads `setup`), so the dual
-export is the portable form, not a host workaround. `scripts/check-opencode-plugin.mjs`
+host is **v2.4.2** (measured 2026-11-26), which loads `setup`; the dual export
+remains the portable form, not a host workaround. `scripts/check-opencode-plugin.mjs`
 requires BOTH entry points and, with `LIVE_OPENCODE=1`, drives the real binary end
 to end.
 
-### V2 custom tools (measured against v2.0.18)
+### V2 custom tools (measured against v2.0.18; re-verified on v2.4.2)
 
 A V2 `setup(ctx)` registers a custom tool through `ctx.tool.transform`:
 
@@ -84,8 +90,18 @@ types: besides `tool`, `options`, `location`, `agent`, `command`, `event`, `skil
 (`import type { Plugin } from "@opencode-ai/plugin/v2/promise"`) are erased at
 runtime, so a local plugin needs NO `node_modules` to load; the declared
 `@opencode-ai/plugin` version must nonetheless be one that ships the `./v2/promise`
-export. **Both 1.18.32 and 1.18.33 ship it** (verified against their published
-packages); the pin tracks **1.18.33**, the newest release on the `latest` tag.
+export. **1.18.32, 1.18.33 and 1.19.6 all ship it** (verified against their published
+packages); the pin tracks the newest release on the `latest` tag, **1.19.6**
+(measured 2026-11-26).
+
+RE-VERIFIED on the current host **v2.4.2** (2026-11-26), live: `setup`/`server` both
+load; `ctx.tool.transform` registers every tool (a plugin edit appears in the session's
+tool catalog without a restart); `ctx.tool.hook("execute.before", …)` still intercepts
+`shell` (a gate-blocked commit is denied with nothing created); `execute` still returns
+`{ content }`; and `opencode run --standalone` still binds the throwaway project. NOT
+re-measured on 2.4.2: `ctx.session.synthetic` (the `pr-watch.ts` delivery path) — no
+watch item was armed, so its wake never fired; the 2.0.18 measurement stands for it
+until a bed exercises a wake.
 
 ### Coordination tools (`.opencode/plugins/coord.ts`)
 
@@ -121,10 +137,17 @@ here) is the baseline per item, and a BLOCK or INCONCLUSIVE already on the head 
 arm, once. The wake lines, the event semantics and the decision table are the git-workflow
 skill's `references/watch-and-wake.md`.
 
-Identity (`agent`/`harness`/`model`/`confidence`) defaults from
-`.opencode/coord.conf` (git-ignored; copy `.opencode/coord.conf.example`) then
-`COORD_*` env; the `session` is always the live `toolCtx.sessionID`, so a stale
-config can never mislabel who is speaking.
+Identity (`agent`/`harness`/`model`/`confidence`) resolves highest-first from the tool
+arg, `COORD_*` env, then `.opencode/coord.conf` (git-ignored; copy
+`.opencode/coord.conf.example`); the `session` is always the live `toolCtx.sessionID`,
+so a stale config can never mislabel who is speaking.
+
+`agent` has NO config default: when no arg/env/conf names one, it is DERIVED per session
+as `<session_v2.slug>-<full session id>` (e.g. `eager-orchid-ses_de66902b9f…`), so every
+session's `Agent:` line is unique by construction. The slug is read through the same
+read-only store handle `agent-progress` uses; a session with no row degrades to the bare
+session id, never to an invented slug. An explicit `agent` still wins when a stable work
+slug is wanted (the `coord.conf.example` deliberately ships no `agent=` line).
 
 **API efficiency and rate limits.** ONE batched GraphQL request per poll for N items. The
 remaining quota is read from that response's header; below 200 the watch backs off (×2,
@@ -213,9 +236,9 @@ continuous loop in-process and delivers each wake IN-PROCESS — never an `openc
 subprocess (that starts a separate headless run, can race the live session, and
 interrupts the in-flight turn).
 
-**V2 delivery (opencode ≥ 2.0, MEASURED against v2.0.18).** The `setup(ctx)` context
-carries NO `client` (only 1.x's `server(input)` does). The V2 "inject context without
-starting a turn" primitive is the Session domain:
+**V2 delivery (opencode ≥ 2.0, MEASURED against v2.0.18; NOT re-measured on 2.4.2).**
+The `setup(ctx)` context carries NO `client` (only 1.x's `server(input)` does). The V2
+"inject context without starting a turn" primitive is the Session domain:
 
     await ctx.session.synthetic({ sessionID, text: alert });
 
