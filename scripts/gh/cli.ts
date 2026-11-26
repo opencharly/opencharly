@@ -385,7 +385,8 @@ async function cmdIssue(argv: string[], out: (s: string) => void): Promise<numbe
   return EXIT.OK;
 }
 
-/** Run the CLI; returns the exit code. */export async function main(
+/** Run the CLI; returns the exit code. */
+export async function main(
   argv: string[],
   out: (s: string) => void = (s) => process.stdout.write(s + "\n"),
   err: (s: string) => void = (s) => process.stderr.write(s + "\n"),

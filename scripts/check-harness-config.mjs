@@ -876,6 +876,11 @@ ok(existsSync(join(root, ".claude/workflows/audit-deploy-configs.js")), ".claude
       mkdir(join(fx, "scripts/gh"), { recursive: true });
       cp(join(root, "scripts/gh/cli.ts"), join(fx, "scripts/gh/cli.ts"));
       cp(join(root, "scripts/gh/lib"), join(fx, "scripts/gh/lib"), { recursive: true });
+      // The module TYPE is DECLARED, not inferred: `scripts/gh/package.json` carries
+      // `"type": "module"`, and a fixture without it would leave Node guessing whether the
+      // engine's `.ts` entrypoint is ESM — a property of the fixture, never of the shipped code.
+      if (existsSync(join(root, "scripts/gh/package.json")))
+        cp(join(root, "scripts/gh/package.json"), join(fx, "scripts/gh/package.json"));
       wf(
         join(fx, ".reasonix/watch.items"),
         "# a comment\nopencharly/opencharly#1301\ngithub.com/o/r/pull/5\no/r/pull/7#issuecomment-9\no/r/pull/8/\n",
