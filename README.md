@@ -49,7 +49,7 @@ its change class, and by an independent fresh `charly/pr-validator` after the pu
 
 ## This repo: one clone of the whole org
 
-`opencharly/opencharly` is the org-level **umbrella**: every OpenCharly repo (397 today) is pinned
+`opencharly/opencharly` is the org-level **umbrella**: every OpenCharly repo (325 today) is pinned
 here as a git submodule — a "gitlink" — flat at the root, so the submodule path equals the repo
 name for all but one alias: `.github` is pinned at the `dotgithub/` path.
 
@@ -210,12 +210,11 @@ rule, and the class prefix in the repo name states it. The rule itself is stated
 | core and contract | bare names | 6 | the product, the wire/IR contract, the SDK, the generated corpus, the site |
 | distro image families | `distro-` | 5 | a distro's base and builder, its OS-exclusive layers, its VMs and beds |
 | package repositories | `charly-`, `pkg-` | 10 | the published native package repos, the packaging sources they are built from, and the plugin that generates them |
-| candy layers | `layer-` | 162 | ONE candy with its own files beside it — and for a family, its box, VM and beds |
+| candy layers | `layer-` | 130 | ONE candy with its own files beside it — and for a family, its box, VM and beds |
 | plugins | `plugin-` | 119 | the provider candy: the words charly speaks — kinds, deploys, verbs, steps, builders, commands, engines |
-| pods | `pod-` | 74 | a candy with a `service:`, i.e. something that runs |
+| pods | `pod-` | 40 | a candy with a `service:`, i.e. something that runs |
 | virtual machines | `vm-` | 2 | `kind: vm` definitions for a family that has no image repo |
 | product and tooling | bare or product-specific | 13 | appliances, the org's review action, vendored upstream forks |
-| pi packages | `pi-`, `rpiv-` | 4 | vendored pi agent packages and extensions |
 
 Two repositories are deliberately **not** listed as their own-name submodules:
 
@@ -234,16 +233,14 @@ are grouped by theme instead, so the heading answers "what is this group for?" a
 a scannable index. Their themes:
 
 - **candy layers** — the OS and bootstrapping candies, kubernetes, language runtimes, GPU/ML,
-  notebooks and maps, AI agents, dev tooling, productivity CLIs, security and connectivity,
-  desktops and streaming, desktop fixings, Wayland capture, android, charly itself, the
-  AgentTeams family, the check/fixture layers, and the documentation site's toolchain with the
-  remote-execution client;
+  notebooks, AI agents, dev tooling, productivity CLIs, security and connectivity,
+  desktops and terminals, desktop fixings, charly itself, the check/fixture layers, and the
+  documentation site's toolchain with the remote-execution client;
 - **plugins** — boxes and authoring, deploy targets and substrates, check and control verbs,
   host and service primitives, core plumbing, agents and terminals, deployed-service
   management, and the examples;
-- **pods** — desktops and compositors, desktop fixings, browsers and UI automation, AI and ML
-  services, data and infrastructure services, maps and pipelines, the AgentTeams stack, charly's
-  own tooling, and the check-bed fixtures.
+- **pods** — desktops and compositors, desktop fixings, AI and ML services, data and
+  infrastructure services, charly's own tooling, and the check-bed fixtures.
 
 ### Core and contract
 
@@ -289,7 +286,7 @@ a scannable index. Their themes:
 
 ### Product and tooling
 
-14 repos — appliances, the org's review action, and the vendored upstream forks.
+13 repos — appliances, the org's review action, and the vendored upstream forks.
 
 | path | repo | role |
 |---|---|---|
@@ -305,7 +302,6 @@ a scannable index. Their themes:
 | `lobster/` | [lobster](https://github.com/opencharly/lobster) | Vendored fork of openclaw/lobster: the workflow shell behind `workflow:lobster`. |
 | `openclaw/` | [openclaw](https://github.com/opencharly/openclaw) | Vendored fork of openclaw/openclaw: the agent gateway the `layer-openclaw` family packages. |
 | `openclaw-enterprise/` | [openclaw-enterprise](https://github.com/opencharly/openclaw-enterprise) | Vendored fork of openclaw/openclaw-enterprise: the enterprise control plane for that gateway family. |
-| `pi-review-action/` | [pi-review-action](https://github.com/opencharly/pi-review-action) | Archived — the org PR-review gate now runs the charly engine (`action-review`). |
 | `pixelflux/` | [pixelflux](https://github.com/opencharly/pixelflux) | Patched pixelflux wl-screenshot/record library for the selkies desktops. |
 
 The vendored forks are gated like every other landing repo: the org's fork ruleset
@@ -314,26 +310,14 @@ merge mints a CalVer tag plus `CHANGELOG/<CalVer>.md`. Upstream sync runs throug
 `opencharly/.github`'s `sync-forks.yml` (the App token), never a user-token
 `gh repo sync`.
 
-### pi packages
-
-4 repos — vendored pi agent packages and extensions.
-
-| path | repo | role |
-|---|---|---|
-| `pi-asciinema/` | [pi-asciinema](https://github.com/opencharly/pi-asciinema) | pi agent extension: `cast_read` — read and analyse asciinema `.cast` recordings. |
-| `pi-fabric/` | [pi-fabric](https://github.com/opencharly/pi-fabric) | Vendored mirror of monotykamary/pi-fabric (npm 0.70.0). |
-| `pi-lsp/` | [pi-lsp](https://github.com/opencharly/pi-lsp) | Vendored mirror of pi-lsp (npm 0.1.7). |
-| `rpiv-todo/` | [rpiv-todo](https://github.com/opencharly/rpiv-todo) | Vendored mirror of juicesharp/rpiv-mono packages/rpiv-todo (npm 2.8.0). |
-
 ### Virtual machines
 
-3 repos — `kind: vm` definitions for a family, plus that family's VM skills.
+2 repos — `kind: vm` definitions for a family, plus that family's VM skills.
 
 | path | repo | role |
 |---|---|---|
 | `vm-k3s-agent/` | [vm-k3s-agent](https://github.com/opencharly/vm-k3s-agent) | `kind: vm` definition for the k3s worker node. |
 | `vm-k3s-server/` | [vm-k3s-server](https://github.com/opencharly/vm-k3s-server) | `kind: vm` definition for the k3s control-plane node. |
-| `vm-nvidia/` | [vm-nvidia](https://github.com/opencharly/vm-nvidia) | `kind: vm` definition: NVIDIA GPU runtime and CUDA toolkit baked into the guest — the VM counterpart of the CDI pod base |
 
 ### Candy layers: OS bases, bootstrapping and packaging
 
@@ -401,27 +385,22 @@ merge mints a CalVer tag plus `CHANGELOG/<CalVer>.md`. Upstream sync runs throug
 | `layer-unsloth/` | [opencharly/layer-unsloth](https://github.com/opencharly/layer-unsloth) |
 | `layer-whisper/` | [opencharly/layer-whisper](https://github.com/opencharly/layer-whisper) |
 
-### Candy layers: Notebooks, maps and data
+### Candy layers: Notebooks and data
 
-15 repos — marimo/Jupyter notebooks, the OSM tile pipeline and the vector-search extensions.
+10 repos — Jupyter notebooks and the vector-search extensions.
 
 | path | repo |
 |---|---|
 | `layer-jupyter-mcp/` | [opencharly/layer-jupyter-mcp](https://github.com/opencharly/layer-jupyter-mcp) |
-| `layer-maplibre-versatiles-styler/` | [opencharly/layer-maplibre-versatiles-styler](https://github.com/opencharly/layer-maplibre-versatiles-styler) |
 | `layer-notebook-finetuning/` | [opencharly/layer-notebook-finetuning](https://github.com/opencharly/layer-notebook-finetuning) |
 | `layer-notebook-graph/` | [opencharly/layer-notebook-graph](https://github.com/opencharly/layer-notebook-graph) |
 | `layer-notebook-llm-on-supercomputers/` | [opencharly/layer-notebook-llm-on-supercomputers](https://github.com/opencharly/layer-notebook-llm-on-supercomputers) |
 | `layer-notebook-ollama/` | [opencharly/layer-notebook-ollama](https://github.com/opencharly/layer-notebook-ollama) |
 | `layer-notebook-openrouter/` | [opencharly/layer-notebook-openrouter](https://github.com/opencharly/layer-notebook-openrouter) |
-| `layer-notebook-osm/` | [opencharly/layer-notebook-osm](https://github.com/opencharly/layer-notebook-osm) |
 | `layer-notebook-templates/` | [opencharly/layer-notebook-templates](https://github.com/opencharly/layer-notebook-templates) |
 | `layer-qdrant/` | [opencharly/layer-qdrant](https://github.com/opencharly/layer-qdrant) |
-| `layer-shortbread/` | [opencharly/layer-shortbread](https://github.com/opencharly/layer-shortbread) |
 | `layer-sqlite/` | [opencharly/layer-sqlite](https://github.com/opencharly/layer-sqlite) |
 | `layer-vectorchord/` | [opencharly/layer-vectorchord](https://github.com/opencharly/layer-vectorchord) |
-| `layer-versatiles-fonts/` | [opencharly/layer-versatiles-fonts](https://github.com/opencharly/layer-versatiles-fonts) |
-| `layer-versatiles-style/` | [opencharly/layer-versatiles-style](https://github.com/opencharly/layer-versatiles-style) |
 
 ### Candy layers: AI agents and assistant CLIs
 
@@ -447,17 +426,15 @@ merge mints a CalVer tag plus `CHANGELOG/<CalVer>.md`. Upstream sync runs throug
 
 ### Candy layers: Developer and ops tooling
 
-18 repos — the everyday CLI surface: git/gh, editors, search, tmux, cloud SDKs, observability, and the example candy the docs import.
+16 repos — the everyday CLI surface: git/gh, editors, search, tmux, cloud SDKs, observability, and the example candy the docs import.
 
 | path | repo |
 |---|---|
 | `layer-asciinema/` | [opencharly/layer-asciinema](https://github.com/opencharly/layer-asciinema) |
-| `layer-debug-tools/` | [opencharly/layer-debug-tools](https://github.com/opencharly/layer-debug-tools) |
 | `layer-dev-tools/` | [opencharly/layer-dev-tools](https://github.com/opencharly/layer-dev-tools) |
 | `layer-devops-tools/` | [opencharly/layer-devops-tools](https://github.com/opencharly/layer-devops-tools) |
 | `layer-direnv/` | [opencharly/layer-direnv](https://github.com/opencharly/layer-direnv) |
 | `layer-example/` | [opencharly/layer-example](https://github.com/opencharly/layer-example) |
-| `layer-fastfetch/` | [opencharly/layer-fastfetch](https://github.com/opencharly/layer-fastfetch) |
 | `layer-gh/` | [opencharly/layer-gh](https://github.com/opencharly/layer-gh) |
 | `layer-github-actions/` | [opencharly/layer-github-actions](https://github.com/opencharly/layer-github-actions) |
 | `layer-google-cloud/` | [opencharly/layer-google-cloud](https://github.com/opencharly/layer-google-cloud) |
@@ -501,32 +478,22 @@ merge mints a CalVer tag plus `CHANGELOG/<CalVer>.md`. Upstream sync runs throug
 | `layer-tailscale/` | [opencharly/layer-tailscale](https://github.com/opencharly/layer-tailscale) |
 | `layer-tailscale-up/` | [opencharly/layer-tailscale-up](https://github.com/opencharly/layer-tailscale-up) |
 
-### Candy layers: Desktops and streaming
+### Candy layers: Desktops and terminals
 
-16 repos — compositors, the browser-streaming desktops and the terminals/games an image ships.
+6 repos — the browser, the KDE shell, the punktfunk layers, the editors and the terminals an image ships.
 
 | path | repo |
 |---|---|
 | `layer-chrome/` | [opencharly/layer-chrome](https://github.com/opencharly/layer-chrome) |
-| `layer-chrome-sway/` | [opencharly/layer-chrome-sway](https://github.com/opencharly/layer-chrome-sway) |
-| `layer-cstream-desktop/` | [opencharly/layer-cstream-desktop](https://github.com/opencharly/layer-cstream-desktop) |
-| `layer-gst-wayland-display/` | [opencharly/layer-gst-wayland-display](https://github.com/opencharly/layer-gst-wayland-display) |
-| `layer-heroic/` | [opencharly/layer-heroic](https://github.com/opencharly/layer-heroic) |
 | `layer-kde-shell/` | [opencharly/layer-kde-shell](https://github.com/opencharly/layer-kde-shell) |
 | `layer-punktfunk/` | [opencharly/layer-punktfunk](https://github.com/opencharly/layer-punktfunk) |
 | `layer-punktfunk-client/` | [opencharly/layer-punktfunk-client](https://github.com/opencharly/layer-punktfunk-client) |
-| `layer-selkies-kde-desktop/` | [opencharly/layer-selkies-kde-desktop](https://github.com/opencharly/layer-selkies-kde-desktop) |
-| `layer-steam/` | [opencharly/layer-steam](https://github.com/opencharly/layer-steam) |
-| `layer-sway-desktop/` | [opencharly/layer-sway-desktop](https://github.com/opencharly/layer-sway-desktop) |
-| `layer-sway-desktop-vnc/` | [opencharly/layer-sway-desktop-vnc](https://github.com/opencharly/layer-sway-desktop-vnc) |
-| `layer-thunar/` | [opencharly/layer-thunar](https://github.com/opencharly/layer-thunar) |
 | `layer-vscode/` | [opencharly/layer-vscode](https://github.com/opencharly/layer-vscode) |
-| `layer-xfce4-terminal/` | [opencharly/layer-xfce4-terminal](https://github.com/opencharly/layer-xfce4-terminal) |
 | `layer-xterm/` | [opencharly/layer-xterm](https://github.com/opencharly/layer-xterm) |
 
 ### Candy layers: Desktop fixings
 
-8 repos — fonts, audio, codecs, notifications, portals and the workspace mount.
+6 repos — fonts, audio, codecs, notifications and the workspace mount.
 
 | path | repo |
 |---|---|
@@ -535,33 +502,7 @@ merge mints a CalVer tag plus `CHANGELOG/<CalVer>.md`. Upstream sync runs throug
 | `layer-ffmpeg/` | [opencharly/layer-ffmpeg](https://github.com/opencharly/layer-ffmpeg) |
 | `layer-fonts-extended/` | [opencharly/layer-fonts-extended](https://github.com/opencharly/layer-fonts-extended) |
 | `layer-libnotify/` | [opencharly/layer-libnotify](https://github.com/opencharly/layer-libnotify) |
-| `layer-pavucontrol/` | [opencharly/layer-pavucontrol](https://github.com/opencharly/layer-pavucontrol) |
 | `layer-workspace-mount/` | [opencharly/layer-workspace-mount](https://github.com/opencharly/layer-workspace-mount) |
-| `layer-xdg-portal/` | [opencharly/layer-xdg-portal](https://github.com/opencharly/layer-xdg-portal) |
-
-### Candy layers: Wayland automation and capture
-
-7 repos — the `wl:` verb's backing tools: input, screenshots, recording, overlays and the a11y tree.
-
-| path | repo |
-|---|---|
-| `layer-a11y-tools/` | [opencharly/layer-a11y-tools](https://github.com/opencharly/layer-a11y-tools) |
-| `layer-wf-recorder/` | [opencharly/layer-wf-recorder](https://github.com/opencharly/layer-wf-recorder) |
-| `layer-wl-overlay/` | [opencharly/layer-wl-overlay](https://github.com/opencharly/layer-wl-overlay) |
-| `layer-wl-record-pixelflux/` | [opencharly/layer-wl-record-pixelflux](https://github.com/opencharly/layer-wl-record-pixelflux) |
-| `layer-wl-screenshot-grim/` | [opencharly/layer-wl-screenshot-grim](https://github.com/opencharly/layer-wl-screenshot-grim) |
-| `layer-wl-screenshot-pixelflux/` | [opencharly/layer-wl-screenshot-pixelflux](https://github.com/opencharly/layer-wl-screenshot-pixelflux) |
-| `layer-wl-tools/` | [opencharly/layer-wl-tools](https://github.com/opencharly/layer-wl-tools) |
-
-### Candy layers: Android
-
-3 repos — the SDK, the emulator fixtures and the APK test apps a `kind: android` deploy drives.
-
-| path | repo |
-|---|---|
-| `layer-android-apidemos/` | [opencharly/layer-android-apidemos](https://github.com/opencharly/layer-android-apidemos) |
-| `layer-android-sdk/` | [opencharly/layer-android-sdk](https://github.com/opencharly/layer-android-sdk) |
-| `layer-android-test-apps/` | [opencharly/layer-android-test-apps](https://github.com/opencharly/layer-android-test-apps) |
 
 ### Candy layers: The charly toolchain itself
 
@@ -574,17 +515,6 @@ merge mints a CalVer tag plus `CHANGELOG/<CalVer>.md`. Upstream sync runs throug
 | `layer-charly-tools/` | [opencharly/layer-charly-tools](https://github.com/opencharly/layer-charly-tools) |
 | `layer-cue/` | [opencharly/layer-cue](https://github.com/opencharly/layer-cue) |
 | `layer-pod-addcandy-marker/` | [opencharly/layer-pod-addcandy-marker](https://github.com/opencharly/layer-pod-addcandy-marker) |
-
-### Candy layers: The AgentTeams family
-
-4 repos — the controller CLI, the OpenClaw bridge and the snapshot fixture of the agentteams stack.
-
-| path | repo |
-|---|---|
-| `layer-agentteams/` | [opencharly/layer-agentteams](https://github.com/opencharly/layer-agentteams) |
-| `layer-agentteams-cli/` | [opencharly/layer-agentteams-cli](https://github.com/opencharly/layer-agentteams-cli) |
-| `layer-agentteams-openclaw/` | [opencharly/layer-agentteams-openclaw](https://github.com/opencharly/layer-agentteams-openclaw) |
-| `layer-agentteams-snapshot/` | [opencharly/layer-agentteams-snapshot](https://github.com/opencharly/layer-agentteams-snapshot) |
 
 ### Candy layers: Check and fixture layers
 
@@ -794,24 +724,11 @@ merge mints a CalVer tag plus `CHANGELOG/<CalVer>.md`. Upstream sync runs throug
 
 ### Pods: Desktops and compositors
 
-14 repos — the streaming desktops and the bars/pickers/notifiers around them.
+1 repos — the KDE Plasma desktop.
 
 | path | repo |
 |---|---|
-| `pod-cstream/` | [opencharly/pod-cstream](https://github.com/opencharly/pod-cstream) |
-| `pod-hyprland/` | [opencharly/pod-hyprland](https://github.com/opencharly/pod-hyprland) |
 | `pod-kde-desktop/` | [opencharly/pod-kde-desktop](https://github.com/opencharly/pod-kde-desktop) |
-| `pod-kde-selkies/` | [opencharly/pod-kde-selkies](https://github.com/opencharly/pod-kde-selkies) |
-| `pod-kde-vnc/` | [opencharly/pod-kde-vnc](https://github.com/opencharly/pod-kde-vnc) |
-| `pod-labwc/` | [opencharly/pod-labwc](https://github.com/opencharly/pod-labwc) |
-| `pod-selkies/` | [opencharly/pod-selkies](https://github.com/opencharly/pod-selkies) |
-| `pod-selkies-core/` | [opencharly/pod-selkies-core](https://github.com/opencharly/pod-selkies-core) |
-| `pod-selkies-desktop/` | [opencharly/pod-selkies-desktop](https://github.com/opencharly/pod-selkies-desktop) |
-| `pod-sway/` | [opencharly/pod-sway](https://github.com/opencharly/pod-sway) |
-| `pod-swaync/` | [opencharly/pod-swaync](https://github.com/opencharly/pod-swaync) |
-| `pod-waybar/` | [opencharly/pod-waybar](https://github.com/opencharly/pod-waybar) |
-| `pod-waybar-labwc/` | [opencharly/pod-waybar-labwc](https://github.com/opencharly/pod-waybar-labwc) |
-| `pod-wayvnc/` | [opencharly/pod-wayvnc](https://github.com/opencharly/pod-wayvnc) |
 
 ### Pods: Desktop fixings
 
@@ -821,18 +738,6 @@ merge mints a CalVer tag plus `CHANGELOG/<CalVer>.md`. Upstream sync runs throug
 |---|---|
 | `pod-dbus/` | [opencharly/pod-dbus](https://github.com/opencharly/pod-dbus) |
 | `pod-pipewire/` | [opencharly/pod-pipewire](https://github.com/opencharly/pod-pipewire) |
-
-### Pods: Browsers and UI automation
-
-5 repos — Chrome over CDP, the DevTools MCP bridge, and the Android emulator stack.
-
-| path | repo |
-|---|---|
-| `pod-android-emulator-layer/` | [opencharly/pod-android-emulator-layer](https://github.com/opencharly/pod-android-emulator-layer) |
-| `pod-appium-server/` | [opencharly/pod-appium-server](https://github.com/opencharly/pod-appium-server) |
-| `pod-chrome-cdp/` | [opencharly/pod-chrome-cdp](https://github.com/opencharly/pod-chrome-cdp) |
-| `pod-chrome-devtools-mcp/` | [opencharly/pod-chrome-devtools-mcp](https://github.com/opencharly/pod-chrome-devtools-mcp) |
-| `pod-chrome-headless/` | [opencharly/pod-chrome-headless](https://github.com/opencharly/pod-chrome-headless) |
 
 ### Pods: AI and ML services
 
@@ -855,12 +760,11 @@ merge mints a CalVer tag plus `CHANGELOG/<CalVer>.md`. Upstream sync runs throug
 
 ### Pods: Data and infrastructure services
 
-13 repos — databases, caches, the reverse proxy and the VM/ssh plumbing.
+12 repos — databases, caches, the reverse proxy and the VM/ssh plumbing.
 
 | path | repo |
 |---|---|
 | `pod-cloud-init/` | [opencharly/pod-cloud-init](https://github.com/opencharly/pod-cloud-init) |
-| `pod-filebrowser/` | [opencharly/pod-filebrowser](https://github.com/opencharly/pod-filebrowser) |
 | `pod-nested-podman-socket/` | [opencharly/pod-nested-podman-socket](https://github.com/opencharly/pod-nested-podman-socket) |
 | `pod-postgresql/` | [opencharly/pod-postgresql](https://github.com/opencharly/pod-postgresql) |
 | `pod-qemu-guest-agent/` | [opencharly/pod-qemu-guest-agent](https://github.com/opencharly/pod-qemu-guest-agent) |
@@ -873,42 +777,14 @@ merge mints a CalVer tag plus `CHANGELOG/<CalVer>.md`. Upstream sync runs throug
 | `pod-valkey/` | [opencharly/pod-valkey](https://github.com/opencharly/pod-valkey) |
 | `pod-virtualization/` | [opencharly/pod-virtualization](https://github.com/opencharly/pod-virtualization) |
 
-### Pods: Maps, tiles and pipelines
-
-6 repos — the OSM vector-tile services and the DAG runner that feeds them.
-
-| path | repo |
-|---|---|
-| `pod-airflow/` | [opencharly/pod-airflow](https://github.com/opencharly/pod-airflow) |
-| `pod-maputnik/` | [opencharly/pod-maputnik](https://github.com/opencharly/pod-maputnik) |
-| `pod-osm-tools/` | [opencharly/pod-osm-tools](https://github.com/opencharly/pod-osm-tools) |
-| `pod-pmtiles-viewer/` | [opencharly/pod-pmtiles-viewer](https://github.com/opencharly/pod-pmtiles-viewer) |
-| `pod-versatiles/` | [opencharly/pod-versatiles](https://github.com/opencharly/pod-versatiles) |
-| `pod-versatiles-frontend/` | [opencharly/pod-versatiles-frontend](https://github.com/opencharly/pod-versatiles-frontend) |
-
-### Pods: The AgentTeams stack
-
-7 repos — the per-component pods of the AgentTeams deployment — matrix, minio, higress, controller and workers.
-
-| path | repo |
-|---|---|
-| `pod-agentteams-controller/` | [opencharly/pod-agentteams-controller](https://github.com/opencharly/pod-agentteams-controller) |
-| `pod-agentteams-element/` | [opencharly/pod-agentteams-element](https://github.com/opencharly/pod-agentteams-element) |
-| `pod-agentteams-higress/` | [opencharly/pod-agentteams-higress](https://github.com/opencharly/pod-agentteams-higress) |
-| `pod-agentteams-manager/` | [opencharly/pod-agentteams-manager](https://github.com/opencharly/pod-agentteams-manager) |
-| `pod-agentteams-matrix/` | [opencharly/pod-agentteams-matrix](https://github.com/opencharly/pod-agentteams-matrix) |
-| `pod-agentteams-minio/` | [opencharly/pod-agentteams-minio](https://github.com/opencharly/pod-agentteams-minio) |
-| `pod-agentteams-worker/` | [opencharly/pod-agentteams-worker](https://github.com/opencharly/pod-agentteams-worker) |
-
 ### Pods: charly and its own tooling
 
-7 repos — charly packaged as a service: the MCP gateway, the hooks pod, the runner and the coordinators.
+6 repos — charly packaged as a service: the MCP gateway, the hooks pod, the runner and the coordinators.
 
 | path | repo |
 |---|---|
 | `pod-charly-hooks/` | [opencharly/pod-charly-hooks](https://github.com/opencharly/pod-charly-hooks) |
 | `pod-charly-mcp/` | [opencharly/pod-charly-mcp](https://github.com/opencharly/pod-charly-mcp) |
-| `pod-charly-versa/` | [opencharly/pod-charly-versa](https://github.com/opencharly/pod-charly-versa) |
 | `pod-crabbox-coordinator/` | [opencharly/pod-crabbox-coordinator](https://github.com/opencharly/pod-crabbox-coordinator) |
 | `pod-dsh/` | [opencharly/pod-dsh](https://github.com/opencharly/pod-dsh) |
 | `pod-github-runner/` | [opencharly/pod-github-runner](https://github.com/opencharly/pod-github-runner) |

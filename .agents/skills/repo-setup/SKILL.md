@@ -98,8 +98,8 @@ the checklist below.
 4. **Name it by its class.** Bare names are for core/contract (`charly`, `sdk`,
    `spec`, `marketplace`, `docs`) and appliances **only**. Everything else carries
    its prefix — `distro-`, `charly-`/`pkg-`, `layer-`, `plugin-`, `pod-`, `vm-` —
-   and a **product family is a `layer-<family>` repo** (`layer-agentteams` is the
-   canonical example, `layer-openclaw` follows it). A family is never a bare name.
+   and a **product family is a `layer-<family>` repo** (`layer-openclaw` is the
+   canonical example). A family is never a bare name.
 
 The full class → name → "may hold" mapping is the umbrella `README.md`
 ("The org map"), verified by `charly task org-map`; the rule itself
@@ -242,7 +242,7 @@ Three DIFFERENT things sit outside the gate, and they are not one category:
   `av1`): consumed as a pin, not a landing target.
 - **An artifact-branch sink** — `omarchy-eval-artifacts` (default `runs`): a
   branch that receives published output, not a landing target.
-- **An archived repo** — `pi-review-action`: read-only, so GitHub rejects
+- **An archived repo** — `pod-immich-ml`: read-only, so GitHub rejects
   pushes and new PRs. `org-ruleset.sh verify` names any archived fork too.
 
 A first-party FORK is no longer in this set: ruleset B gates it, and it mints

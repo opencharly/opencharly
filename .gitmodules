@@ -78,10 +78,6 @@
 	path = plugin-generate-packages
 	url = https://github.com/opencharly/plugin-generate-packages.git
 	branch = main
-[submodule "pi-review-action"]
-	path = pi-review-action
-	url = https://github.com/opencharly/pi-review-action.git
-	branch = main
 [submodule "pixelflux"]
 	path = pixelflux
 	url = https://github.com/opencharly/pixelflux.git
@@ -122,10 +118,6 @@
 	path = layer-ffmpeg
 	url = https://github.com/opencharly/layer-ffmpeg.git
 	branch = main
-[submodule "pod-sway"]
-	path = pod-sway
-	url = https://github.com/opencharly/pod-sway.git
-	branch = main
 [submodule "layer-cuda"]
 	path = layer-cuda
 	url = https://github.com/opencharly/layer-cuda.git
@@ -137,10 +129,6 @@
 [submodule "layer-socat"]
 	path = layer-socat
 	url = https://github.com/opencharly/layer-socat.git
-	branch = main
-[submodule "pod-selkies"]
-	path = pod-selkies
-	url = https://github.com/opencharly/pod-selkies.git
 	branch = main
 [submodule "layer-chrome"]
 	path = layer-chrome
@@ -154,65 +142,6 @@
 	path = layer-gemini
 	url = https://github.com/opencharly/layer-gemini.git
 	branch = main
-[submodule "pod-chrome-cdp"]
-	path = pod-chrome-cdp
-	url = https://github.com/opencharly/pod-chrome-cdp.git
-	branch = main
-[submodule "layer-a11y-tools"]
-	path = layer-a11y-tools
-	url = https://github.com/opencharly/layer-a11y-tools.git
-	branch = main
-
-[submodule "layer-agentteams-cli"]
-	path = layer-agentteams-cli
-	url = https://github.com/opencharly/layer-agentteams-cli.git
-	branch = main
-
-[submodule "pod-agentteams-controller"]
-	path = pod-agentteams-controller
-	url = https://github.com/opencharly/pod-agentteams-controller.git
-	branch = main
-
-[submodule "pod-agentteams-element"]
-	path = pod-agentteams-element
-	url = https://github.com/opencharly/pod-agentteams-element.git
-	branch = main
-
-[submodule "pod-agentteams-higress"]
-	path = pod-agentteams-higress
-	url = https://github.com/opencharly/pod-agentteams-higress.git
-	branch = main
-
-[submodule "pod-agentteams-matrix"]
-	path = pod-agentteams-matrix
-	url = https://github.com/opencharly/pod-agentteams-matrix.git
-	branch = main
-
-[submodule "pod-agentteams-minio"]
-	path = pod-agentteams-minio
-	url = https://github.com/opencharly/pod-agentteams-minio.git
-	branch = main
-
-[submodule "layer-agentteams-openclaw"]
-	path = layer-agentteams-openclaw
-	url = https://github.com/opencharly/layer-agentteams-openclaw.git
-	branch = main
-
-[submodule "layer-agentteams-snapshot"]
-	path = layer-agentteams-snapshot
-	url = https://github.com/opencharly/layer-agentteams-snapshot.git
-	branch = main
-
-[submodule "layer-android-apidemos"]
-	path = layer-android-apidemos
-	url = https://github.com/opencharly/layer-android-apidemos.git
-	branch = main
-
-[submodule "layer-android-test-apps"]
-	path = layer-android-test-apps
-	url = https://github.com/opencharly/layer-android-test-apps.git
-	branch = main
-
 [submodule "layer-asciinema"]
 	path = layer-asciinema
 	url = https://github.com/opencharly/layer-asciinema.git
@@ -241,11 +170,6 @@
 [submodule "layer-charly-tools"]
 	path = layer-charly-tools
 	url = https://github.com/opencharly/layer-charly-tools.git
-	branch = main
-
-[submodule "pod-charly-versa"]
-	path = pod-charly-versa
-	url = https://github.com/opencharly/pod-charly-versa.git
 	branch = main
 
 [submodule "layer-check-base-layer"]
@@ -303,21 +227,6 @@
 	url = https://github.com/opencharly/pod-check-tier23-layer.git
 	branch = main
 
-[submodule "pod-chrome-devtools-mcp"]
-	path = pod-chrome-devtools-mcp
-	url = https://github.com/opencharly/pod-chrome-devtools-mcp.git
-	branch = main
-
-[submodule "pod-chrome-headless"]
-	path = pod-chrome-headless
-	url = https://github.com/opencharly/pod-chrome-headless.git
-	branch = main
-
-[submodule "layer-chrome-sway"]
-	path = layer-chrome-sway
-	url = https://github.com/opencharly/layer-chrome-sway.git
-	branch = main
-
 [submodule "layer-claude-code"]
 	path = layer-claude-code
 	url = https://github.com/opencharly/layer-claude-code.git
@@ -366,16 +275,6 @@
 [submodule "layer-examplebuilder-consumer"]
 	path = layer-examplebuilder-consumer
 	url = https://github.com/opencharly/layer-examplebuilder-consumer.git
-	branch = main
-
-[submodule "layer-fastfetch"]
-	path = layer-fastfetch
-	url = https://github.com/opencharly/layer-fastfetch.git
-	branch = main
-
-[submodule "pod-filebrowser"]
-	path = pod-filebrowser
-	url = https://github.com/opencharly/pod-filebrowser.git
 	branch = main
 
 [submodule "layer-forgecode"]
@@ -478,11 +377,6 @@
 	url = https://github.com/opencharly/layer-kubernetes.git
 	branch = main
 
-[submodule "pod-labwc"]
-	path = pod-labwc
-	url = https://github.com/opencharly/pod-labwc.git
-	branch = main
-
 [submodule "layer-libnotify"]
 	path = layer-libnotify
 	url = https://github.com/opencharly/layer-libnotify.git
@@ -491,16 +385,6 @@
 [submodule "layer-llama-cpp"]
 	path = layer-llama-cpp
 	url = https://github.com/opencharly/layer-llama-cpp.git
-	branch = main
-
-[submodule "layer-maplibre-versatiles-styler"]
-	path = layer-maplibre-versatiles-styler
-	url = https://github.com/opencharly/layer-maplibre-versatiles-styler.git
-	branch = main
-
-[submodule "pod-maputnik"]
-	path = pod-maputnik
-	url = https://github.com/opencharly/pod-maputnik.git
 	branch = main
 
 [submodule "pod-mcp-layer"]
@@ -526,11 +410,6 @@
 [submodule "layer-notebook-llm-on-supercomputers"]
 	path = layer-notebook-llm-on-supercomputers
 	url = https://github.com/opencharly/layer-notebook-llm-on-supercomputers.git
-	branch = main
-
-[submodule "layer-notebook-osm"]
-	path = layer-notebook-osm
-	url = https://github.com/opencharly/layer-notebook-osm.git
 	branch = main
 
 [submodule "layer-notebook-templates"]
@@ -568,19 +447,9 @@
 	url = https://github.com/opencharly/pod-os-layer.git
 	branch = main
 
-[submodule "pod-osm-tools"]
-	path = pod-osm-tools
-	url = https://github.com/opencharly/pod-osm-tools.git
-	branch = main
-
 [submodule "layer-pacstrap-builder"]
 	path = layer-pacstrap-builder
 	url = https://github.com/opencharly/layer-pacstrap-builder.git
-	branch = main
-
-[submodule "layer-pavucontrol"]
-	path = layer-pavucontrol
-	url = https://github.com/opencharly/layer-pavucontrol.git
 	branch = main
 
 [submodule "layer-pi-agent"]
@@ -596,11 +465,6 @@
 [submodule "layer-playwright"]
 	path = layer-playwright
 	url = https://github.com/opencharly/layer-playwright.git
-	branch = main
-
-[submodule "pod-pmtiles-viewer"]
-	path = pod-pmtiles-viewer
-	url = https://github.com/opencharly/pod-pmtiles-viewer.git
 	branch = main
 
 [submodule "layer-pod-addcandy-marker"]
@@ -663,11 +527,6 @@
 	url = https://github.com/opencharly/layer-sherpa-onnx.git
 	branch = main
 
-[submodule "layer-shortbread"]
-	path = layer-shortbread
-	url = https://github.com/opencharly/layer-shortbread.git
-	branch = main
-
 [submodule "layer-songsee"]
 	path = layer-songsee
 	url = https://github.com/opencharly/layer-songsee.git
@@ -691,11 +550,6 @@
 [submodule "layer-summarize"]
 	path = layer-summarize
 	url = https://github.com/opencharly/layer-summarize.git
-	branch = main
-
-[submodule "pod-swaync"]
-	path = pod-swaync
-	url = https://github.com/opencharly/pod-swaync.git
 	branch = main
 
 [submodule "layer-tailscale"]
@@ -733,26 +587,6 @@
 	url = https://github.com/opencharly/pod-valkey.git
 	branch = main
 
-[submodule "pod-versatiles"]
-	path = pod-versatiles
-	url = https://github.com/opencharly/pod-versatiles.git
-	branch = main
-
-[submodule "layer-versatiles-fonts"]
-	path = layer-versatiles-fonts
-	url = https://github.com/opencharly/layer-versatiles-fonts.git
-	branch = main
-
-[submodule "pod-versatiles-frontend"]
-	path = pod-versatiles-frontend
-	url = https://github.com/opencharly/pod-versatiles-frontend.git
-	branch = main
-
-[submodule "layer-versatiles-style"]
-	path = layer-versatiles-style
-	url = https://github.com/opencharly/layer-versatiles-style.git
-	branch = main
-
 [submodule "pod-virtualization"]
 	path = pod-virtualization
 	url = https://github.com/opencharly/pod-virtualization.git
@@ -768,24 +602,9 @@
 	url = https://github.com/opencharly/layer-wacli.git
 	branch = main
 
-[submodule "pod-waybar"]
-	path = pod-waybar
-	url = https://github.com/opencharly/pod-waybar.git
-	branch = main
-
-[submodule "pod-wayvnc"]
-	path = pod-wayvnc
-	url = https://github.com/opencharly/pod-wayvnc.git
-	branch = main
-
 [submodule "pod-web-layer"]
 	path = pod-web-layer
 	url = https://github.com/opencharly/pod-web-layer.git
-	branch = main
-
-[submodule "layer-wf-recorder"]
-	path = layer-wf-recorder
-	url = https://github.com/opencharly/layer-wf-recorder.git
 	branch = main
 
 [submodule "layer-whisper"]
@@ -793,37 +612,9 @@
 	url = https://github.com/opencharly/layer-whisper.git
 	branch = main
 
-[submodule "layer-wl-overlay"]
-	path = layer-wl-overlay
-	url = https://github.com/opencharly/layer-wl-overlay.git
-	branch = main
-
-[submodule "layer-wl-record-pixelflux"]
-	path = layer-wl-record-pixelflux
-	url = https://github.com/opencharly/layer-wl-record-pixelflux.git
-	branch = main
-
-[submodule "layer-wl-screenshot-grim"]
-	path = layer-wl-screenshot-grim
-	url = https://github.com/opencharly/layer-wl-screenshot-grim.git
-	branch = main
-
-[submodule "layer-wl-screenshot-pixelflux"]
-	path = layer-wl-screenshot-pixelflux
-	url = https://github.com/opencharly/layer-wl-screenshot-pixelflux.git
-	branch = main
-
-[submodule "layer-wl-tools"]
-	path = layer-wl-tools
-	url = https://github.com/opencharly/layer-wl-tools.git
-	branch = main
 [submodule "layer-direnv"]
 	path = layer-direnv
 	url = https://github.com/opencharly/layer-direnv.git
-	branch = main
-[submodule "layer-debug-tools"]
-	path = layer-debug-tools
-	url = https://github.com/opencharly/layer-debug-tools.git
 	branch = main
 [submodule "layer-desktop-fonts"]
 	path = layer-desktop-fonts
@@ -845,10 +636,6 @@
 	path = layer-workspace-mount
 	url = https://github.com/opencharly/layer-workspace-mount.git
 	branch = main
-[submodule "layer-xdg-portal"]
-	path = layer-xdg-portal
-	url = https://github.com/opencharly/layer-xdg-portal.git
-	branch = main
 [submodule "layer-xterm"]
 	path = layer-xterm
 	url = https://github.com/opencharly/layer-xterm.git
@@ -864,26 +651,6 @@
 [submodule "layer-agent-forwarding"]
 	path = layer-agent-forwarding
 	url = https://github.com/opencharly/layer-agent-forwarding.git
-	branch = main
-[submodule "layer-agentteams"]
-	path = layer-agentteams
-	url = https://github.com/opencharly/layer-agentteams.git
-	branch = main
-[submodule "pod-agentteams-manager"]
-	path = pod-agentteams-manager
-	url = https://github.com/opencharly/pod-agentteams-manager.git
-	branch = main
-[submodule "pod-agentteams-worker"]
-	path = pod-agentteams-worker
-	url = https://github.com/opencharly/pod-agentteams-worker.git
-	branch = main
-[submodule "pod-airflow"]
-	path = pod-airflow
-	url = https://github.com/opencharly/pod-airflow.git
-	branch = main
-[submodule "layer-android-sdk"]
-	path = layer-android-sdk
-	url = https://github.com/opencharly/layer-android-sdk.git
 	branch = main
 [submodule "layer-cachyos-extras"]
 	path = layer-cachyos-extras
@@ -929,10 +696,6 @@
 	path = pod-kde-desktop
 	url = https://github.com/opencharly/pod-kde-desktop.git
 	branch = main
-[submodule "pod-kde-selkies"]
-	path = pod-kde-selkies
-	url = https://github.com/opencharly/pod-kde-selkies.git
-	branch = main
 [submodule "layer-language-runtimes"]
 	path = layer-language-runtimes
 	url = https://github.com/opencharly/layer-language-runtimes.git
@@ -949,21 +712,9 @@
 	path = layer-python-ml
 	url = https://github.com/opencharly/layer-python-ml.git
 	branch = main
-[submodule "pod-selkies-core"]
-	path = pod-selkies-core
-	url = https://github.com/opencharly/pod-selkies-core.git
-	branch = main
 [submodule "layer-tailscale-up"]
 	path = layer-tailscale-up
 	url = https://github.com/opencharly/layer-tailscale-up.git
-	branch = main
-[submodule "pod-waybar-labwc"]
-	path = pod-waybar-labwc
-	url = https://github.com/opencharly/pod-waybar-labwc.git
-	branch = main
-[submodule "pod-appium-server"]
-	path = pod-appium-server
-	url = https://github.com/opencharly/pod-appium-server.git
 	branch = main
 [submodule "layer-helm-chart"]
 	path = layer-helm-chart
@@ -981,21 +732,9 @@
 	path = pod-openwebui
 	url = https://github.com/opencharly/pod-openwebui.git
 	branch = main
-[submodule "pod-selkies-desktop"]
-	path = pod-selkies-desktop
-	url = https://github.com/opencharly/pod-selkies-desktop.git
-	branch = main
-[submodule "layer-selkies-kde-desktop"]
-	path = layer-selkies-kde-desktop
-	url = https://github.com/opencharly/layer-selkies-kde-desktop.git
-	branch = main
 [submodule "layer-vectorchord"]
 	path = layer-vectorchord
 	url = https://github.com/opencharly/layer-vectorchord.git
-	branch = main
-[submodule "pod-android-emulator-layer"]
-	path = pod-android-emulator-layer
-	url = https://github.com/opencharly/pod-android-emulator-layer.git
 	branch = main
 [submodule "layer-container-nesting"]
 	path = layer-container-nesting
@@ -1024,30 +763,6 @@
 [submodule "layer-notebook-openrouter"]
 	path = layer-notebook-openrouter
 	url = https://github.com/opencharly/layer-notebook-openrouter.git
-	branch = main
-[submodule "layer-heroic"]
-	path = layer-heroic
-	url = https://github.com/opencharly/layer-heroic.git
-	branch = main
-[submodule "layer-steam"]
-	path = layer-steam
-	url = https://github.com/opencharly/layer-steam.git
-	branch = main
-[submodule "layer-sway-desktop"]
-	path = layer-sway-desktop
-	url = https://github.com/opencharly/layer-sway-desktop.git
-	branch = main
-[submodule "layer-sway-desktop-vnc"]
-	path = layer-sway-desktop-vnc
-	url = https://github.com/opencharly/layer-sway-desktop-vnc.git
-	branch = main
-[submodule "layer-thunar"]
-	path = layer-thunar
-	url = https://github.com/opencharly/layer-thunar.git
-	branch = main
-[submodule "layer-xfce4-terminal"]
-	path = layer-xfce4-terminal
-	url = https://github.com/opencharly/layer-xfce4-terminal.git
 	branch = main
 [submodule "plugin-adb"]
 	path = plugin-adb
@@ -1445,22 +1160,6 @@
 	path = plugin-cstream
 	url = https://github.com/opencharly/plugin-cstream.git
 	branch = main
-[submodule "layer-gst-wayland-display"]
-	path = layer-gst-wayland-display
-	url = https://github.com/opencharly/layer-gst-wayland-display.git
-	branch = main
-[submodule "pod-cstream"]
-	path = pod-cstream
-	url = https://github.com/opencharly/pod-cstream.git
-	branch = main
-[submodule "pod-hyprland"]
-	path = pod-hyprland
-	url = https://github.com/opencharly/pod-hyprland.git
-	branch = main
-[submodule "layer-cstream-desktop"]
-	path = layer-cstream-desktop
-	url = https://github.com/opencharly/layer-cstream-desktop.git
-	branch = main
 [submodule "plugin-bpf"]
 	path = plugin-bpf
 	url = https://github.com/opencharly/plugin-bpf.git
@@ -1621,22 +1320,6 @@
 	path = action-review
 	url = https://github.com/opencharly/action-review.git
 	branch = main
-[submodule "pi-asciinema"]
-	path = pi-asciinema
-	url = https://github.com/opencharly/pi-asciinema.git
-	branch = main
-[submodule "pi-fabric"]
-	path = pi-fabric
-	url = https://github.com/opencharly/pi-fabric.git
-	branch = main
-[submodule "pi-lsp"]
-	path = pi-lsp
-	url = https://github.com/opencharly/pi-lsp.git
-	branch = main
-[submodule "rpiv-todo"]
-	path = rpiv-todo
-	url = https://github.com/opencharly/rpiv-todo.git
-	branch = main
 [submodule "plugin-lobster"]
 	path = plugin-lobster
 	url = https://github.com/opencharly/plugin-lobster.git
@@ -1694,10 +1377,6 @@
 	path = pod-cdi
 	url = https://github.com/opencharly/pod-cdi.git
 	branch = main
-[submodule "vm-nvidia"]
-	path = vm-nvidia
-	url = https://github.com/opencharly/vm-nvidia.git
-	branch = main
 [submodule "layer-cdi"]
 	path = layer-cdi
 	url = https://github.com/opencharly/layer-cdi.git
@@ -1705,10 +1384,6 @@
 [submodule "pod-strata"]
 	path = pod-strata
 	url = https://github.com/opencharly/pod-strata.git
-	branch = main
-[submodule "pod-kde-vnc"]
-	path = pod-kde-vnc
-	url = https://github.com/opencharly/pod-kde-vnc.git
 	branch = main
 [submodule "layer-example"]
 	path = layer-example
