@@ -503,11 +503,6 @@
 	url = https://github.com/opencharly/pod-maputnik.git
 	branch = main
 
-[submodule "pod-marimo"]
-	path = pod-marimo
-	url = https://github.com/opencharly/pod-marimo.git
-	branch = main
-
 [submodule "pod-mcp-layer"]
 	path = pod-mcp-layer
 	url = https://github.com/opencharly/pod-mcp-layer.git
@@ -962,10 +957,6 @@
 	path = layer-tailscale-up
 	url = https://github.com/opencharly/layer-tailscale-up.git
 	branch = main
-[submodule "pod-unsloth-studio"]
-	path = pod-unsloth-studio
-	url = https://github.com/opencharly/pod-unsloth-studio.git
-	branch = main
 [submodule "pod-waybar-labwc"]
 	path = pod-waybar-labwc
 	url = https://github.com/opencharly/pod-waybar-labwc.git
@@ -981,10 +972,6 @@
 [submodule "pod-hermes"]
 	path = pod-hermes
 	url = https://github.com/opencharly/pod-hermes.git
-	branch = main
-[submodule "pod-jupyter-ml"]
-	path = pod-jupyter-ml
-	url = https://github.com/opencharly/pod-jupyter-ml.git
 	branch = main
 [submodule "layer-notebook-finetuning"]
 	path = layer-notebook-finetuning
