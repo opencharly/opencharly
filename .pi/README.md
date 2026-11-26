@@ -12,7 +12,7 @@ startup warnings (`pi --approve`).
 
 | Path | Purpose |
 |---|---|
-| `settings.json` | The marketplace skill corpus as a pi package, plus the two project extensions. |
+| `settings.json` | The marketplace skill corpus as a pi package (pinned to the corpus tag this tree's `marketplace` submodule records), plus the five project extensions. |
 | `mcp.json` | Native pi MCP: the remote `deepwiki` server. |
 | `extensions/charly-gates.ts` | The git gates (`pre-commit`/`pre-push`), SOUL + condensed-rule injection, and the `charly_load_skills` / worktree tools. |
 | `extensions/github-pr-status.ts` | `gh_pr_status` — a one-shot read of each PR's state and verdict, through the shared engine. |
@@ -88,6 +88,22 @@ wake binding: it spawns those scripts and turns each event line into a user turn
 (`pi.sendUserMessage`), because pi has no background-completion notification. GitHub scopes
 are armed from `.pi/watch.items`; an R10 bed is armed with the `watch_arm` tool. See
 `APPEND_SYSTEM.md`.
+
+## The package pin tracks the corpus pin
+
+The marketplace is a pi PACKAGE, and a package is a CACHE: pi checks the git ref out under
+`.pi/git/github.com/opencharly/` and lists whatever that ref carries, so a corpus landing stays
+invisible to pi until the pin in `settings.json` moves (`/charly-internals:marketplace`,
+"Per-harness vendoring — the corpus is a CACHE, not a live source"). The pin must therefore be the
+nearest tag of the corpus THIS TREE pins — `git -C marketplace describe --tags --abbrev=0 HEAD` —
+and `scripts/check-harness-config.mjs` fails when it is not. MEASURED before that check existed:
+the pin sat at `v2026.278.1917` while the submodule had advanced to `v2026.329.1509`, so pi's own
+`/skill:` listing was the 278 corpus while the rest of the tree read the 329 one, and two
+dispatcher-routed skills were absent from THAT listing — `design` and `generate-podcast`.
+`design` was still listed from this repo's own `.agents/skills/`, so only `generate-podcast` was
+unlisted everywhere: reachable through `charly_load_skills`, which reads
+`marketplace/<family>/skills/<skill>/SKILL.md` directly, but unaddressable as a pi skill.
+The two paths must read the SAME corpus, which is what the pin check holds.
 
 ## Trust
 

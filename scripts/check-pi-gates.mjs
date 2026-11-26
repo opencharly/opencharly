@@ -43,10 +43,24 @@
 //      worktree). A text assertion cannot see either: the call shape is text, the EFFECT
 //      is a materialized tree.
 //
+//   8. R0 READS THE RULEBOOK (opencharly/opencharly R0). `charly_load_skills` parses a
+//      HAND-MAINTAINED table out of AGENTS.md and is the ONLY way a pi session discharges R0.
+//      Its input is therefore a surface the extension does not own, and every assertion that
+//      reads the extension's TEXT is blind to a change there. MEASURED: the rulebook promoted
+//      the curated dispatcher to a top-level `## Skill Dispatcher` section while the parse still
+//      matched the literal `###`, so every call answered "Could not parse the skill dispatcher
+//      table" — R0 un-dischargeable — with every gate green. Asserted by FIRING the tool against
+//      the shipped AGENTS.md and corpus: the row count it reads must equal the count the gate
+//      parses independently, a caller's phrase must load EXACTLY its row's skills (the retired
+//      matcher let a `charly` path fragment drag the `local:`/`vm` row into `charly box build`),
+//      every matched ref must resolve, and the heading LEVEL must not matter.
+//
 // Usage: node scripts/check-pi-gates.mjs [--root <dir>] [--self-test]
 // exit 0 clean · 1 finding
 
-import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import * as fsModule from "node:fs";
+import * as fspModule from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -247,9 +261,28 @@ function check() {
   if (!/res\.code !== 0/.test(code))
     fail(`fails CLOSED when the nested level does not materialize (pi.exec RESOLVES on a non-zero exit)`);
 
+  // 8. EVERY `node:fs` IDENTIFIER THE CODE CALLS IS BOUND. Assertion 0 strips types and runs
+  //    `node --check`, which sees SYNTAX, never an UNBOUND identifier: `realpathSync` was
+  //    called inside a `try`/`catch` that swallowed the resulting ReferenceError, so the
+  //    shipped tree silently ran a different path from the one its own comment describes and
+  //    every gate stayed green. The candidate names are DERIVED from the builtin module (no
+  //    hand-kept list to drift): every `node:fs`/`node:fs/promises` export the code CALLS must
+  //    appear in an import from one of them.
+  const fsExportNames = new Set([...Object.keys(fsModule), ...Object.keys(fspModule)]);
+  const importedNames = new Set(
+    [...code.matchAll(/import\s*\{([^}]*)\}\s*from\s*["']node:fs(?:\/promises)?["']/g)]
+      .flatMap((m) => m[1].split(","))
+      .map((s) => s.trim().split(/\s+as\s+/)[0].trim())
+      .filter(Boolean),
+  );
+  const unbound = [...fsExportNames].filter((n) => new RegExp(`\\b${n}\\s*\\(`).test(code) && !importedNames.has(n));
+  if (unbound.length > 0)
+    fail(`binds every node:fs identifier it calls (unbound: ${unbound.join(", ")})`);
+
   if (failures === 0)
     ok(
       `${rel}: fails closed, rule-2 paths, gate wiring + SOUL injection present, ` +
+        `binds every node:fs identifier it calls, ` +
         `and the worktree materializes a scoped module set from the shared object cache, ` +
         `with each materialized module's own nested level`,
     );
@@ -494,6 +527,94 @@ export default { Type };
         !existsSync(join(broken.worktree, "charly", "box", "cachyos", "marker.txt")),
       `charly_worktree_create FIRED: a nested level that cannot materialize FAILS the tool (never a ready worktree)`,
     );
+
+    // ── F8 — R0 FIRED: `charly_load_skills` reads the REAL rulebook ─────────────────
+    // The tool is the ONLY way a pi session discharges R0, and its input is a HAND-MAINTAINED
+    // table inside AGENTS.md — a surface the extension does not own and every existing
+    // assertion above is blind to, because they all read the extension's own TEXT.
+    // MEASURED: the rulebook promoted the curated dispatcher to a top-level `## Skill
+    // Dispatcher` section (it had been `###`), the parse still matched the literal `###`, and
+    // from then on every call answered "Could not parse the skill dispatcher table" — R0
+    // could not be discharged through the tool at all, with every gate green. So these fire
+    // the tool against the SHIPPED AGENTS.md and the SHIPPED corpus.
+    const loadSkills = tools.get("charly_load_skills");
+    if (!loadSkills) {
+      fail(`${rel} registers charly_load_skills (loaded and fired)`);
+      return;
+    }
+    const fireLoad = (cwd, triggers) => loadSkills.execute("gate", { triggers }, undefined, undefined, { cwd });
+    const agentsText = existsSync(join(root, "AGENTS.md")) ? readFileSync(join(root, "AGENTS.md"), "utf8") : "";
+    // The dispatcher rows parsed HERE — the gate's own instrument, so the count the tool
+    // reports is compared against something the extension did not produce.
+    const dispatcherRows = (() => {
+      const at = agentsText.search(/^#{1,6}\s+Skill Dispatcher\s*$/m);
+      if (at === -1) return [];
+      const rows = [];
+      for (const line of agentsText.slice(at).split("\n")) {
+        if (!line.trim().startsWith("|")) {
+          if (rows.length > 0 && line.trim() !== "") break;
+          continue;
+        }
+        const cells = line.trim().split("|").slice(1, -1);
+        if (cells.length !== 2) continue;
+        const refs = cells[1]
+          .split(",")
+          .map((p) => p.trim().replace(/`/g, "").replace(/^\//, ""))
+          .filter((p) => p.startsWith("charly-"));
+        if (refs.length > 0) rows.push({ trigger: cells[0].trim(), refs });
+      }
+      return rows;
+    })();
+    const probe = "Skill authoring or maintenance";
+    const loaded = await fireLoad(root, [probe]);
+    expect(
+      dispatcherRows.length > 0 &&
+        loaded.details?.dispatcherCount === dispatcherRows.length &&
+        (loaded.details?.count ?? 0) > 0,
+      `charly_load_skills FIRED: parses the SHIPPED dispatcher table (the tool reads ` +
+        `${loaded.details?.dispatcherCount ?? "none"} rows, the gate counts ${dispatcherRows.length})`,
+    );
+
+    // F8b — the MATCH is exact. A row's skills are loaded when the caller's phrase describes
+    //       that row, and a phrase may never drag in a SIBLING row. MEASURED against the
+    //       retired substring matcher: its cells were split on `/` and `,`, so a path inside a
+    //       cell (`~/.config/charly/`) yielded the fragment `charly`, and `charly box build`
+    //       therefore loaded the `local:`/`vm` row as well (5 refs instead of 3).
+    const exactProbes = ["charly box build", probe].map((p) => ({
+      p,
+      row: dispatcherRows.find((r) => r.trigger.toLowerCase().includes(p.toLowerCase())),
+    }));
+    const exactResults = [];
+    for (const e of exactProbes) {
+      const res = await fireLoad(root, [e.p]);
+      exactResults.push({ ...e, matched: [...(res.details?.matched ?? [])].sort(), text: String(res.content?.[0]?.text ?? "") });
+    }
+    expect(
+      exactProbes.every((e) => e.row) &&
+        exactResults.every((x) => JSON.stringify(x.matched) === JSON.stringify([...x.row.refs].sort())),
+      `charly_load_skills FIRED: a trigger loads EXACTLY its row's skills — no fragment drags in a sibling row`,
+    );
+    expect(
+      exactResults.every((x) => x.matched.length > 0 && !x.text.includes("[SKILL NOT FOUND")),
+      `charly_load_skills FIRED: every matched ref resolves in the pinned corpus`,
+    );
+
+    // F8c — the heading LEVEL is not an assumption. The rulebook is a live document: a
+    //       section can be promoted or demoted between R0's subsection and a top-level one,
+    //       and that edit alone silently disabled R0. Fired against a reshaped copy, with the
+    //       corpus symlinked so the ONLY difference is the heading level.
+    const reshaped = join(scratch, "reshaped");
+    mkdirSync(reshaped, { recursive: true });
+    writeFileSync(
+      join(reshaped, "AGENTS.md"),
+      agentsText.replace(/^## Skill Dispatcher$/m, "#### Skill Dispatcher"),
+    );
+    symlinkSync(join(root, "marketplace"), join(reshaped, "marketplace"));
+    const reshapedLoad = await fireLoad(reshaped, [probe]);
+    expect(
+      reshapedLoad.details?.dispatcherCount === dispatcherRows.length && (reshapedLoad.details?.count ?? 0) > 0,
+      `charly_load_skills FIRED: the heading level is not an assumption (a #### Skill Dispatcher still parses)`,
+    );
   } catch (err) {
     fail(`loading and firing ${rel} (${err instanceof Error ? err.message : String(err)})`);
   } finally {
@@ -525,6 +646,10 @@ if (argv.includes("--self-test")) {
     mkdirSync(join(tmp, "scripts"), { recursive: true });
     cpSync(join(root, "scripts", "init-submodules.sh"), join(tmp, "scripts", "init-submodules.sh"));
   }
+  // The FIRED load-skills cases read the REAL corpus (and resolve skill bodies out of it), so
+  // the scratch root carries it too — symlinked, because the point of those cases is that the
+  // CORPUS is unchanged while the RULEBOOK's shape is.
+  if (existsSync(join(root, "marketplace"))) symlinkSync(join(root, "marketplace"), join(tmp, "marketplace"));
   const runGate = () => {
     const r = spawnSync(process.execPath, [fileURLToPath(import.meta.url), "--root", tmp], {
       encoding: "utf8",
@@ -640,6 +765,28 @@ if (argv.includes("--self-test")) {
       "the nested failure is swallowed (static checks stay green)",
       (s) => s.replace(/if \(res\.code !== 0\) \{/, "if (res.code !== 0 && false) {"),
       `FAILS the tool`,
+    ],
+    // F8's two defect classes, each invisible to every static assertion: the dispatcher's
+    // heading level is an ASSUMPTION about a document the extension does not own, and a
+    // FRAGMENT of a trigger used to stand in for the whole trigger.
+    [
+      "the dispatcher heading level is assumed (static checks stay green)",
+      (s) => s.replace(/#\{1,6\}\\s\+Skill Dispatcher/, "###\\s+Skill Dispatcher"),
+      `parses the SHIPPED dispatcher table`,
+    ],
+    [
+      "a fragment stands in for a whole trigger (static checks stay green)",
+      (s) =>
+        s.replace(
+          /phraseMatches\(k, cellTokens\)/,
+          '(phraseMatches(k, cellTokens) || k.some((t) => "charly".includes(t)))',
+        ),
+      `EXACTLY its row's skills`,
+    ],
+    [
+      "an unbound node:fs identifier (static + fired checks stay green)",
+      (s) => s.replace(/import \{ existsSync, realpathSync \} from "node:fs";/, 'import { existsSync } from "node:fs";'),
+      `binds every node:fs identifier`,
     ],
   ];
   let stFails = 0;
