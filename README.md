@@ -136,9 +136,6 @@ others rather than copied.
 | `.opencode/agent/pr-validator.md` | opencode's front-end to the fresh PR validator. |
 | `.pi/README.md` | pi project config: how pi loads the rulebook and the skill corpus. |
 | `.pi/APPEND_SYSTEM.md` | The umbrella context pi appends to its own system prompt. |
-| `.reasonix/README.md` | Why podman fails for a reasonix agent running charly, and the fix — the full RCA behind `reasonix.toml`. |
-| `.reasonix/plugin/README.md` | The Ollama Cloud web-search extension a reasonix session can call. |
-| `design/REASONIX.md` | reasonix harness instructions — the same rulebook binding, reasonix's mechanics. |
 
 ### Skills and agent definitions
 
@@ -147,7 +144,7 @@ trees, and published as the generated corpus in `opencharly/marketplace`. A skil
 describes code, a plugin or a config lives in the repo that holds that thing; a skill with no
 such home lives here, because this umbrella is the one repo every consumer shares.
 
-Harness configuration (`.claude/`, `.codex/`, `.opencode/`, `.pi/`, `.reasonix/`, `.dsh/`) lives
+Harness configuration (`.claude/`, `.codex/`, `.opencode/`, `.pi/`, `.dsh/`) lives
 at this umbrella root and nowhere else — one move-in, with no mirror and no parity gate to keep
 in sync. Skills live in none of them: they come from the `opencharly/marketplace` corpus, which
 each harness resolves by its own conventions.
@@ -915,8 +912,8 @@ export PATH="$PWD/charly/bin:$PATH"    # from here on this page reads `charly �
 | `bash scripts/init-submodules.sh --stores` | give every declared submodule its object store in the clone's common git dir — blobless, with no checkout (≈420 MB, measured 2026-11-19) — so the pre-push DESIGN gate can read every pin from any session worktree; and set `fetch.recurseSubmodules=false`, so a fetch never reaches into a path that has no checkout (opencharly/opencharly#1155) |
 | `./charly/scripts/bootstrap-charly.sh` | build `charly/bin/charly` from the checkout |
 | `charly task hooks` | install this clone's git hooks (pre-commit, pre-push) |
-| `node scripts/sync-skill-bindings.mjs --check --require-corpus` | assert that the committed harness skill bindings (the `.dsh/skills` farm, `reasonix.toml`'s `[skills] paths`, `.claude/settings.json`'s `enabledPlugins`) are the derivation of the pinned corpus |
-| harness install records | for each harness CLI on `PATH`: Claude Code registers the marketplaces `extraKnownMarketplaces` names and installs every `enabledPlugins` key at project scope; Codex registers or refreshes the `charly-plugins` marketplace, installs its declared default plugins, and verifies that each is enabled. opencode, pi, reasonix and DSH read the committed config and the corpus, so they need no install step |
+| `node scripts/sync-skill-bindings.mjs --check --require-corpus` | assert that the committed harness skill bindings (the `.dsh/skills` farm, `.claude/settings.json`'s `enabledPlugins`) are the derivation of the pinned corpus |
+| harness install records | for each harness CLI on `PATH`: Claude Code registers the marketplaces `extraKnownMarketplaces` names and installs every `enabledPlugins` key at project scope; Codex registers or refreshes the `charly-plugins` marketplace, installs its declared default plugins, and verifies that each is enabled. opencode, pi and DSH read the committed config and the corpus, so they need no install step |
 
 The last step exists because **enabling a plugin does not install it**. Claude Code loads a
 plugin's skills only when its per-user plugin registry also holds an install record for this

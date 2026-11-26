@@ -1136,7 +1136,7 @@ function runSelfTest(readme, script, manifest, samples, measure, shapes) {
       "it was measured with, and no other");
     // The CORPUS's shape is a collection that grows like the pin count, and the
     // noun list is what decides whether a count of it is seen at all. It was not
-    // seen: `reasonix.toml` stated "42 directories" against the 45 the list
+    // seen: a harness config stated "42 directories" against the 45 the list
     // below it names (measured 2026-10-28), and the family was green on both.
     expect("a shape count of the CORPUS's shape is reported",
       () => withShape(`${shapeTarget.text}\n\nThe corpus holds ${count} skills.\n`),

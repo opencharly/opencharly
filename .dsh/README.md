@@ -2,13 +2,13 @@
 
 `AGENTS.md` Part II rule 5: every harness's configuration lives at this repo's root and
 nowhere else, and authored content is not harness config. This directory is DSH's
-repo-local arm, alongside `.claude/`, `.opencode/`, `.codex/`, `.pi/`, `.reasonix/` and
+repo-local arm, alongside `.claude/`, `.opencode/`, `.codex/`, `.pi/` and
 `opencode.json`.
 
 | Path | What it is |
 |---|---|
-| `skills/` | **The R0 skill-corpus binding — DERIVED, never hand-made.** DSH's `dsh-skill-filesystem` scans `<projectRoot>/.dsh/skills` at rank 100 and discovers only depth-1 `<name>/SKILL.md` bundles. The `opencharly/marketplace` corpus is three levels deep (`marketplace/<family>/skills/<name>/SKILL.md`), so each corpus skill is bound as a flat symlink `<name> -> ../../marketplace/<family>/skills/<name>`. `scripts/sync-skill-bindings.mjs` writes that farm, and `reasonix.toml`'s `[skills] paths`, from the corpus; `charly task sync` runs it as part of the pin advance, and `check-harness-config` asserts the artifacts ARE that derivation. The farm follows the `marketplace` gitlink — no generated copy and no second pin — and adding a family costs nobody a hand-made entry. |
-| `watch.items` | The portable watch item list (`owner/repo#num`, the same grammar `.pi/watch.items` and `.reasonix/watch.items` use). Inert by default; see the file header for how a DSH background job arms it. |
+| `skills/` | **The R0 skill-corpus binding — DERIVED, never hand-made.** DSH's `dsh-skill-filesystem` scans `<projectRoot>/.dsh/skills` at rank 100 and discovers only depth-1 `<name>/SKILL.md` bundles. The `opencharly/marketplace` corpus is three levels deep (`marketplace/<family>/skills/<name>/SKILL.md`), so each corpus skill is bound as a flat symlink `<name> -> ../../marketplace/<family>/skills/<name>`. `scripts/sync-skill-bindings.mjs` writes that farm from the corpus; `charly task sync` runs it as part of the pin advance, and `check-harness-config` asserts the artifact IS that derivation. The farm follows the `marketplace` gitlink — no generated copy and no second pin — and adding a family costs nobody a hand-made entry. |
+| `watch.items` | The portable watch item list (`owner/repo#num`, the same grammar `.pi/watch.items` uses). Inert by default; see the file header for how a DSH background job arms it. |
 | `ledger/` | The local catch-up ledger — `dsh-config-catchup.md` once a session has written it (R1 findings, gaps, work items, RDD probes). **The content is git-ignored**: the DIRECTORY is tracked via `.gitkeep`, so a fresh clone has the home but no stale ledger. Same class as the root `plan/` dir. |
 | `README.md` | This signpost. |
 
@@ -41,13 +41,12 @@ A harness that cannot resolve the `/charly-…` form reads that path directly �
 the fallback, never a second copy.
 
 The binding is guarded by DERIVATION rather than by coverage arithmetic.
-`scripts/check-harness-config.mjs` check 13 asserts the farm IS what
-`scripts/sync-skill-bindings.mjs --check --only farm` derives, and check 8 asserts the same for
-`reasonix.toml`'s `[skills] paths` — one derivation, two checks, so a family added upstream and
-never bound fails at `task verify` time instead of loading silently as zero skills. The
-collision rule is the farm's alone: a flat, name-keyed farm cannot hold two same-named skills,
-so the generator hard-fails on one rather than shadowing either. Check 11 asserts `watch.items`
-exists for DSH as it does for reasonix and pi.
+`scripts/check-harness-config.mjs` check 10 asserts the farm IS what
+`scripts/sync-skill-bindings.mjs --check --only farm` derives — one derivation, so a family
+added upstream and never bound fails at `task verify` time instead of loading silently as
+zero skills. The collision rule is the farm's alone: a flat, name-keyed farm cannot hold two
+same-named skills, so the generator hard-fails on one rather than shadowing either. Check 8
+asserts `watch.items` exists for DSH as it does for pi.
 
 ## What is NOT here (host-level `$DSH_HOME` config)
 

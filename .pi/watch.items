@@ -5,7 +5,7 @@
 # One item per line: `owner/repo#num`, `owner/repo/pull/num`,
 # `owner/repo/issues/num`, or a full https://github.com/owner/repo/(pull|issues)/num
 # URL. Blank lines and lines starting with `#` are ignored. This is the SAME grammar
-# `.reasonix/watch.items` and `.opencode/pr-watch.items` use, so an item list is portable
+# `.opencode/pr-watch.items` uses, so an item list is portable
 # between harnesses.
 #
 # This shipped file is comment-only, so the watcher is INERT by default. Add a line and

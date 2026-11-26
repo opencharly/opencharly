@@ -4,7 +4,7 @@
 # One item per line: `owner/repo#num`, `owner/repo/pull/num`,
 # `owner/repo/issues/num`, or a full https://github.com/owner/repo/(pull|issues)/num
 # URL. Blank lines and lines starting with `#` are ignored. This is the SAME
-# grammar `.pi/watch.items`, `.reasonix/watch.items` and `.opencode/pr-watch.items`
+# grammar `.pi/watch.items` and `.opencode/pr-watch.items`
 # use, so an item list is portable between harnesses.
 #
 # This shipped file is comment-only, so the watcher is INERT by default. Uncomment
@@ -12,7 +12,7 @@
 #
 # WHY A BACKGROUND JOB AND NOT A BESPOKE PLUGIN. DSH notifies the session when a
 # BACKGROUND COMMAND COMPLETES, so the neutral watcher's exit IS the wake — the
-# same constraint the `.pi` and `.reasonix` bindings are built around, with no
+# same constraint the `.pi` binding is built around, with no
 # bespoke plugin to write. Arm ONE watch over the items you act on:
 #
 #   node scripts/gh/cli.ts watch <owner>/<repo>#<pr> …                   # your PRs: verdict, merge, close

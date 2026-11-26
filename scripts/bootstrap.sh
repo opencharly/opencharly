@@ -27,7 +27,7 @@
 #
 # Codex registers the corpus, explicitly installs its declared default plugins and verifies
 # the resulting inventory against the catalog in this checkout.
-# opencode, pi, reasonix and DSH read committed config plus the materialized corpus, and need no
+# opencode, pi and DSH read committed config plus the materialized corpus, and need no
 # per-clone install step; the script says so instead of inventing one.
 #
 # A harness whose CLI is not on PATH is a visible SKIP, never a failure: the umbrella supports
@@ -158,5 +158,5 @@ if [ "$dirty_before" != "$dirty_after" ]; then
   die "a harness install rewrote tracked file(s): ${changed:-<an already-modified file>}— commit them in the form the harness writes (git diff shows it), so its install is a fixed point"
 fi
 
-say "opencode, pi, reasonix, dsh: nothing per clone — they read the committed config and the corpus"
+say "opencode, pi, dsh: nothing per clone — they read the committed config and the corpus"
 say "done — put the binary on PATH with: export PATH=\"$ROOT/charly/bin:\$PATH\""

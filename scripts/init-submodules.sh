@@ -24,8 +24,8 @@
 #   1. charly.yml's `import:` local paths — what the project loads from.
 #   2. charly.yml's pin contract — `pinned_from:` (the edge source) and the
 #      `pin_map:` keys (the umbrella paths of the edge pins).
-#   3. the harness corpus root — reasonix.toml's [skills] paths and the .dsh/skills
-#      symlink farm, which both point INTO the marketplace.
+#   3. the harness corpus root — the .dsh/skills symlink farm, which points INTO
+#      the marketplace.
 #   4. the repos the umbrella's OWN GATES read — a QUOTED path under scripts/ whose
 #      first segment is a declared submodule.
 # A derived path that is NOT a declared submodule FAILS LOUD: a drift is caught,
@@ -223,7 +223,7 @@ if ! ROOT="$(cd "$_root_arg" 2>/dev/null && pwd)"; then
 fi
 
 # REQUIREMENTS, checked and NAMED. `git` is the substrate; `python3` reads the
-# committed sources (charly.yml, reasonix.toml) and scans the gate scripts for
+# committed sources (charly.yml, the .dsh/skills farm) and scans the gate scripts for
 # the paths they quote, which is a text scan with a comment-aware rule — a shell
 # rewrite of it would be a second, weaker implementation of the same derivation
 # (R2). A missing requirement must be a LOUD failure that names it: the
@@ -308,17 +308,8 @@ for line in lines:
             continue
         in_map = False
 
-# 3. the harness corpus root: reasonix.toml's [skills] paths and the .dsh/skills
-#    symlink farm both point INTO the marketplace (a per-family root).
-toml_path = os.path.join(root, "reasonix.toml")
-if os.path.isfile(toml_path):
-    text = open(toml_path, encoding="utf-8").read()
-    m = re.search(r"(?ms)^\[skills\]\s*(.*?)(?=^\[|\Z)", text)
-    if m:
-        pm = re.search(r"(?ms)^paths\s*=\s*\[(.*?)\]", m.group(1))
-        if pm:
-            for entry in re.findall(r'"([^"]+)"', pm.group(1)):
-                add(entry.split("/")[0])
+# 3. the harness corpus root: the .dsh/skills symlink farm points INTO the
+#    marketplace (a per-family root).
 dsh = os.path.join(root, ".dsh", "skills")
 if os.path.isdir(dsh):
     for name in sorted(os.listdir(dsh)):
@@ -1211,12 +1202,6 @@ pins:
           pin_map:
             other: box/other
 YAML
-  cat >"$fixture/reasonix.toml" <<'TOML'
-[skills]
-paths = [
-    "corpus/agent/skills",
-]
-TOML
   mkdir -p "$fixture/.dsh/skills"
   ln -sf ../../corpus/agent/skills/one "$fixture/.dsh/skills/one"
 
@@ -1597,9 +1582,7 @@ other"
   cp -a "$fixture" "$broken_empty"
   printf 'repo: github.com/opencharly/fixture\n' >"$broken_empty/charly.yml"
   # Every OTHER source must go too, or the derivation is not empty: source 3
-  # reads reasonix.toml and the .dsh symlink farm, source 4 reads the gate
-  # scripts.
-  rm -f "$broken_empty/reasonix.toml"
+  # reads the .dsh symlink farm, source 4 reads the gate scripts.
   rm -rf "$broken_empty/.dsh" "$broken_empty/scripts"
   local derivation_bad=0
   for variant in absent empty; do

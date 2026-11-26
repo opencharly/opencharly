@@ -17,23 +17,19 @@
 //     too, and it drifted the same way: hand-maintained, it named 26 of the catalog's 44 plugins while
 //     the other three bindings saw every family (opencharly/opencharly#1100). Keys of OTHER
 //     marketplaces are not the corpus's to derive, so they are preserved as written.
-//   * A REFERENCE — `reasonix.toml`'s `[skills] paths` is a sorted list of one entry per
-//     `marketplace/<family>/{skills,agents}` directory, and `opencode.json`'s `skills.paths` is a
-//     single entry naming the corpus root. An enumeration of family directories is the same defect
-//     one level up; a single root entry cannot drift per family at all.
+//   * A REFERENCE — `opencode.json`'s `skills.paths` is a single entry naming the corpus root.
+//     A single root entry cannot drift per family at all, so it is verified rather than derived.
 //
-// So this script DERIVES the three enumerations — the farm, `reasonix.toml`'s list and Claude's plugin
-// set — and only VERIFIES the single-root reference. Nothing here is a count carried by hand: the numbers below are measured
+// So this script DERIVES the two enumerations — the farm and Claude's plugin set — and only
+// VERIFIES the single-root reference. Nothing here is a count carried by hand: the numbers below are measured
 // on every run. This is what makes the bindings derived rather than maintained, and a derived binding
 // has no parity burden — which is precisely what Part II #5's "no mirrors, no parity gate" is aimed at.
 // (The rule is not against bindings; it is against hand-maintained copies that drift.)
 //
-// MEASURED at the commit that first derived them (2026-10-16) — 353 corpus skills across 41 families
-// with no name collision, and 43 `marketplace/<family>/{skills,agents}` directories. The derivation
-// reproduced the hand-made farm EXACTLY — 0 entries only on disk, 0 only derivable, 0 with a different
-// target — and found exactly ONE defect in the hand-sorted list: `marketplace/pod/skills` was listed
-// before `marketplace/pod-verbs/skills`, which byte order reverses. Nothing could see it, because
-// nothing derived the order. That is the whole argument for this file.
+// MEASURED at the commit that first derived the farm (2026-10-16) — 353 corpus skills across 41
+// families with no name collision. The derivation reproduced the hand-made farm EXACTLY — 0
+// entries only on disk, 0 only derivable, 0 with a different target. That is the whole argument
+// for this file.
 //
 // Usage:
 //   node scripts/sync-skill-bindings.mjs              # write the derived bindings
@@ -63,14 +59,13 @@ const check = argv.includes("--check");
 const requireCorpus = argv.includes("--require-corpus");
 const selfTest = argv.includes("--self-test");
 // Each check in the harness-config gate asserts ONE binding, so each invokes the generator scoped to
-// it: the collision rule is a property of the FLAT farm only (reasonix enumerates family directories,
-// not skill names), and an unscoped run would report a farm defect under the reasonix check's name.
+// it: the collision rule is a property of the FLAT farm only, and an unscoped run would report a
+// farm defect under a check that is not about the farm.
 const onlyIdx = argv.indexOf("--only");
 const only = onlyIdx === -1 ? "all" : argv[onlyIdx + 1];
-if (!["all", "farm", "reasonix", "opencode", "claude"].includes(only)) fail(`--only takes all|farm|reasonix|opencode|claude, got ${only}`);
+if (!["all", "farm", "opencode", "claude"].includes(only)) fail(`--only takes all|farm|opencode|claude, got ${only}`);
 
 const FARM = ".dsh/skills";
-const REASONIX = "reasonix.toml";
 const OPENCODE = "opencode.json";
 const CLAUDE = ".claude/settings.json";
 
@@ -83,13 +78,8 @@ function fail(msg) {
  *
  *  A session worktree (Part II rule 2) has `marketplace/` present and EMPTY — `git worktree add`
  *  creates the mount point — so a derivation that treats that as a corpus derives ZERO skills and
- *  publishes the result as a state: it emptied the 353-entry farm and rewrote `reasonix.toml` to 0
- *  entries, reporting `exit=0 done` (opencharly/opencharly#508). Existence is not materialisation.
- *
- *  PER HALF, deliberately: `reasonix.toml` enumerates family DIRECTORIES while the flat farm enumerates
- *  skill FILES, and a tree can hold one input without the other — the gate's own staged tree does. A
- *  guard that stopped the whole run on the first unmet need would silently drop the half that could
- *  still derive, so each half reports its own SKIP and the other continues. */
+ *  publishes the result as a state: it emptied the 353-entry farm, reporting `exit=0 done`
+ *  (opencharly/opencharly#508). Existence is not materialisation. */
 function corpusRootOrSkip(r, need, parts) {
   if (!CORPUS_NEEDS[need](r)) {
     if (requireCorpus) fail(corpusSkipReason(r, need));
@@ -100,13 +90,6 @@ function corpusRootOrSkip(r, need, parts) {
 }
 
 // ---------------------------------------------------------------- derivation
-
-/** The corpus root, or a clean FAIL. ONE guard for BOTH derivations: the farm reads skill names and
- *  the reasonix list reads family directories, but neither has anything to say without the corpus, and
- *  two guards would drift — which is how `--only reasonix` came to crash with an ENOENT where
- *  `--only farm` reported cleanly. A session worktree that did not populate its submodules is the case
- *  this exists for. */
-
 
 /** Every corpus skill, keyed by its flat name. A name collision across families is a HARD failure:
  *  the farm is flat, so two families publishing one name cannot both be bound, and silently picking
@@ -147,45 +130,6 @@ function readFarm(r) {
     have.set(name, lstatSync(p).isSymbolicLink() ? readlinkSync(p) : null);
   }
   return have;
-}
-
-/** The reasonix list as it must be: one entry per EXISTING `marketplace/<family>/{skills,agents}`
- *  directory, in byte order. The set is what the corpus supports; the order is what makes the file
- *  stable, and byte order is the only order two runs can agree on without a convention. */
-function desiredReasonixPaths(r) {
-  const out = [];
-  for (const family of corpusFamilies(r)) {
-    for (const sub of ["agents", "skills"]) {
-      const rel = `${CORPUS_ROOT}/${family}/${sub}`;
-      if (existsSync(join(r, rel)) && lstatSync(join(r, rel)).isDirectory()) out.push(rel);
-    }
-  }
-  return out.sort();
-}
-
-/** The `paths = [ … ]` array as it is, plus the exact byte range of its BODY so the rewrite touches
- *  nothing else. Refuses rather than dropping a comment it cannot re-emit. */
-function readReasonix(r) {
-  const file = join(r, REASONIX);
-  if (!existsSync(file)) fail(`${REASONIX} not found in ${r}`);
-  const src = readFileSync(file, "utf8");
-  const table = src.match(/^\[skills\][^\n]*\n/m);
-  if (!table) fail(`${REASONIX} carries no [skills] table`);
-  const from = table.index + table[0].length;
-  const body = src.slice(from).match(/^([ \t]*)paths[ \t]*=[ \t]*\[([\s\S]*?)\n([ \t]*)\]/m);
-  if (!body) fail(`${REASONIX}: [skills] carries no \`paths = [ … ]\` array`);
-  const inner = body[2];
-  if (inner.includes("#")) fail(`${REASONIX}: the paths array carries a comment — refusing to rewrite it`);
-  const entries = [...inner.matchAll(/"([^"\n]*)"/g)].map((m) => m[1]);
-  const bodyStart = from + body.index + body[0].indexOf("[") + 1;
-  const bodyEnd = bodyStart + inner.length;
-  return { src, entries, bodyStart, bodyEnd };
-}
-
-function renderReasonixPaths(paths) {
-  // The body ends where the file's own newline before `]` begins: emitting one here too would
-  // leave a blank line inside the array, which is a diff the derivation invented.
-  return "\n" + paths.map((p) => `    "${p}",`).join("\n");
 }
 
 /** The Claude plugin set as it must be: the catalog's marketplace name, and one `<plugin>@<market>`
@@ -276,15 +220,6 @@ function syncFarm(r, want, { write }) {
   return { total: want.size, have: have.size, created, removed, retargeted, changes };
 }
 
-function syncReasonix(r, want, { write }) {
-  const { src, entries, bodyStart, bodyEnd } = readReasonix(r);
-  const same = entries.length === want.length && entries.every((e, i) => e === want[i]);
-  if (!same && write) {
-    writeFileSync(join(r, REASONIX), src.slice(0, bodyStart) + renderReasonixPaths(want) + src.slice(bodyEnd));
-  }
-  return { total: want.length, have: entries.length, same, orderOnly: !same && entries.length === want.length && [...entries].sort().join() === [...want].sort().join() };
-}
-
 function syncOpencode(r) {
   const file = join(r, OPENCODE);
   if (!existsSync(file)) return { present: false, namesRoot: false };
@@ -304,7 +239,6 @@ function run(r, { write, quiet }) {
   const parts = [];
   const stale = [];
   const wantFarm = only === "all" || only === "farm";
-  const wantReasonix = only === "all" || only === "reasonix";
   const wantOpencode = only === "all" || only === "opencode";
   const wantClaude = only === "all" || only === "claude";
 
@@ -326,15 +260,6 @@ function run(r, { write, quiet }) {
       for (const n of farm.removed) parts.push(`    - ${n}`);
       for (const n of farm.retargeted) parts.push(`    ~ ${n}`);
     }
-    }
-  }
-  if (wantReasonix) {
-    if (corpusRootOrSkip(r, "families", parts) === null) { /* SKIPPED — the notice is in parts */ }
-    else {
-    const want = desiredReasonixPaths(r);
-    const reasonix = syncReasonix(r, want, { write });
-    if (!reasonix.same) stale.push(`${REASONIX} [skills] paths (${reasonix.have} -> ${reasonix.total} entries${reasonix.orderOnly ? ", order only" : ""})`);
-    parts.push(`sync-skill-bindings: ${REASONIX} [skills] paths  ${reasonix.same ? `unchanged (${reasonix.total} entries)` : `STALE (${reasonix.have} -> ${reasonix.total} entries${reasonix.orderOnly ? ", order only" : ""})`}`);
     }
   }
   if (wantClaude) {

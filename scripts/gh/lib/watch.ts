@@ -2,7 +2,7 @@
  * watch.ts — the ONE GitHub watcher engine (opencharly/opencharly#1140).
  *
  * Every harness watches through this module: OpenCode and pi in-process, and Claude Code,
- * Codex, DeepSeek Harness and reasonix through `scripts/gh/cli.ts watch`. It replaced
+ * Codex and DeepSeek Harness through `scripts/gh/cli.ts watch`. It replaced
  * `marketplace/scripts/{gh_watch,pr_watch_many,pr_state_watch}.sh` and the OpenCode-only
  * engine, which disagreed with each other about what a verdict is.
  *
