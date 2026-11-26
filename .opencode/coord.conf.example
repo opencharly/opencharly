@@ -2,21 +2,23 @@
 #
 # Copy to `.opencode/coord.conf` (git-ignored) and fill in your project's values,
 # OR pass them as tool args, OR set the matching COORD_* environment variables.
-# Precedence: TOOL ARG > COORD_* ENV > this file. The session is always the live
-# session (`context.sessionID`) — it cannot be set here.
+# Precedence: TOOL ARG > COORD_* ENV > this file > the derived session default.
+# The session is always the live session (`context.sessionID`) — it is not set here.
 #
-#   agent       the work slug for the `Agent:` line (a stable kebab name for the
-#               work, e.g. `ocv2-coordination`; never a harness or account name).
 #   harness     the harness name, e.g. OpenCode.
 #   model       the provider + model name, e.g. `DeepSeek V4.1 Flash`.
 #   confidence  one of the five attribution tiers:
 #                 fully tested and validated | analysed on a live system |
 #                 documentation reviewed | syntax check only | theoretical suggestion
 #
+# There is deliberately NO `agent` default. When no arg, env or file names one, it is
+# derived from the live session as `<session slug>-<full session id>` (e.g.
+# `eager-orchid-ses_de66902b9ffenXaQPiMxDLRoOe`), so every session's `Agent:` line is
+# unique by construction. Pass `agent` explicitly only when a stable work slug is wanted.
+#
 # Every key is optional; a value supplied at the tool call or in the environment
 # wins over the one here.
 
-agent=
 harness=OpenCode
 model=
 confidence=
