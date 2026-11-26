@@ -49,7 +49,7 @@ its change class, and by an independent fresh `charly/pr-validator` after the pu
 
 ## This repo: one clone of the whole org
 
-`opencharly/opencharly` is the org-level **umbrella**: every OpenCharly repo (330 today) is pinned
+`opencharly/opencharly` is the org-level **umbrella**: every OpenCharly repo (331 today) is pinned
 here as a git submodule — a "gitlink" — flat at the root, so the submodule path equals the repo
 name for all but one alias: `.github` is pinned at the `dotgithub/` path.
 
@@ -732,13 +732,14 @@ merge mints a CalVer tag plus `CHANGELOG/<CalVer>.md`. Upstream sync runs throug
 
 ### Pods: Desktops and compositors
 
-5 repos — the KDE Plasma desktop, its wlroots compositor, its VNC transport, the shared nested session and the KDE-over-VNC pod.
+6 repos — the KDE Plasma desktop, its wlroots compositor, its VNC transport, the shared nested session, the KDE-over-VNC pod and the same desktop carrying the full CDP surface.
 
 | path | repo |
 |---|---|
 | `pod-kde-desktop/` | [opencharly/pod-kde-desktop](https://github.com/opencharly/pod-kde-desktop) |
 | `pod-kde-nested/` | [opencharly/pod-kde-nested](https://github.com/opencharly/pod-kde-nested) |
 | `pod-kde-vnc/` | [opencharly/pod-kde-vnc](https://github.com/opencharly/pod-kde-vnc) |
+| `pod-kde-vnc-cdp/` | [opencharly/pod-kde-vnc-cdp](https://github.com/opencharly/pod-kde-vnc-cdp) |
 | `pod-sway/` | [opencharly/pod-sway](https://github.com/opencharly/pod-sway) |
 | `pod-wayvnc/` | [opencharly/pod-wayvnc](https://github.com/opencharly/pod-wayvnc) |
 
