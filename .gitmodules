@@ -1393,3 +1393,23 @@
 	path = Qwen3-TTS
 	url = https://github.com/opencharly/Qwen3-TTS.git
 	branch = main
+[submodule "pod-kde-vnc"]
+	path = pod-kde-vnc
+	url = https://github.com/opencharly/pod-kde-vnc.git
+	branch = main
+[submodule "pod-kde-nested"]
+	path = pod-kde-nested
+	url = https://github.com/opencharly/pod-kde-nested.git
+	branch = main
+[submodule "pod-sway"]
+	path = pod-sway
+	url = https://github.com/opencharly/pod-sway.git
+	branch = main
+[submodule "pod-wayvnc"]
+	path = pod-wayvnc
+	url = https://github.com/opencharly/pod-wayvnc.git
+	branch = main
+[submodule "pod-chrome-cdp"]
+	path = pod-chrome-cdp
+	url = https://github.com/opencharly/pod-chrome-cdp.git
+	branch = main
