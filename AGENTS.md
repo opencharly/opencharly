@@ -17,7 +17,7 @@ a defect in one of them: fix it in the open, and say so. *Detail:* `/charly-inte
 **The ground-truth rules R0–R12 are the spine.** Every change is judged against them: by you
 before the push, and by the fresh `charly/pr-validator` after it. Every other section applies
 one or more of them, and its `Enforces:` line says which. Part I is the org-wide rulebook.
-Part II holds the rules for working in the umbrella, which is a *view* of the org: ~400
+Part II holds the rules for working in the umbrella, which is a *view* of the org: ~325
 submodules, each a real repo owned elsewhere. A subrepo's own `AGENTS.md` adds only rules
 specific to that repo (`charly/AGENTS.md`: the charly core); it never replaces this file.
 History belongs only in `CHANGELOG/`.
@@ -234,8 +234,6 @@ the generated table has no row for. *Detail:* `/charly-internals:skills`,
 | A punktfunk streaming host / `punktfunk-host` units / the punktfunk pacman repo | `/charly-punktfunk:punktfunk-host` |
 | The `kube:` check verb | `/charly-kubernetes:check-k8s` |
 | `step:helm-release` / `verb:helm` / `helm_charts:` / `--enable-helm` | `/charly-kubernetes:helm` |
-| `charly agentteams` controller / the `verb:agentteams` check verb / `charly agentteams apply -f` | `/charly-agentteams:agentteams-cli` |
-| The agentteams box / the AgentTeams stack / the `check-agentteams-vm` bed | `/charly-agentteams:agentteams` |
 
 ## Charly CLI discipline
 
