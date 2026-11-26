@@ -33,14 +33,6 @@ export function makeWarn(label: string): (message: string) => void {
   return (message: string) => console.warn(`${label}: ${message}`);
 }
 
-/** Split a `pr-watch.items`-style file into non-comment lines (order preserved). */
-export function parseItems(text: string): string[] {
-  return text
-    .split("\n")
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0 && !s.startsWith("#"));
-}
-
 /** Read a file as text under both runtimes (Bun's `Bun.file`, else `node:fs`). */
 export async function readText(path: string): Promise<string> {
   const bun = (globalThis as { Bun?: any }).Bun;

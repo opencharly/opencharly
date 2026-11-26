@@ -173,6 +173,8 @@ if (argv.includes("--self-test")) {
     ".reasonix/plugin/reasonix-plugin.json",
     ".reasonix/plugin/sidecar.py",
     ".reasonix/watch.items",
+    ".reasonix/watch-arm.sh",
+    "scripts/gh",
     "design/REASONIX.md",
     ".pi/watch.items",
     ".pi/extensions/watch.ts",
@@ -364,6 +366,22 @@ if (argv.includes("--self-test")) {
     [".reasonix/plugin/sidecar.py", (p) => writeFileSync(p, readFileSync(p, "utf8").replace(/^\s*"name": MANIFEST_NAME,\n/m, "")), "carries every host-required field", "10 (handshake — a sidecar missing a host-required field must FAIL)"],
     [".reasonix/watch.items", (p) => rmSync(p), "(the reasonix watch binding) exists", "11"],
     [".pi/watch.items", (p) => rmSync(p), "(the pi watch binding) exists", "11 (pi arm — a harness with no watch binding must FAIL)"],
+    [
+      ".reasonix/watch-arm.sh",
+      (p) => {
+        // Restore the retired shell grammar: keep only lines that match its own regex.
+        const t = readFileSync(p, "utf8");
+        writeFileSync(
+          p,
+          t.replace(
+            /ITEMS="\$\(node "\$WATCHER" items "\$ITEMS_FILE" 2>\/dev\/null \| awk 'NR<=50'\)"/,
+            'ITEMS="$(grep -E -m 50 \'^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+(#|/(pull|issues)/)[0-9]+$\' "$ITEMS_FILE" 2>/dev/null)"',
+          ),
+        );
+      },
+      "reads its items through the engine",
+      "10b (reasonix arm — a private acceptance set must FAIL, not silently drop the forms the engine accepts)",
+    ],
     [".pi/settings.json", (p) => { const s = JSON.parse(readFileSync(p, "utf8")); s.extensions = s.extensions.filter((e) => !e.includes("footer")); writeFileSync(p, JSON.stringify(s)); }, "registers EXACTLY the committed .pi/extensions", "14 (registration — a dropped extension silently removes a tool AGENTS.md routes work through)"],
     [".pi/settings.json", (p) => { const s = JSON.parse(readFileSync(p, "utf8")); s.packages = s.packages.map((x) => String(x).replace(/@v[0-9.]+$/, "@v1999.001.0001")); writeFileSync(p, JSON.stringify(s)); }, "marketplace package pin matches the corpus this tree pins", "14 (currency — the pin the pi package resolves must be the corpus THIS tree carries; the staged corpus is tagged at the real pin, so this is the drift the check exists for)"],
     // Check 12 has TWO arms that catch different defects, so it needs two mutations.
@@ -855,6 +873,72 @@ ok(existsSync(join(root, ".claude/workflows/audit-deploy-configs.js")), ".claude
       Array.isArray(result.tools) && result.tools.every((t) => typeof t === "string"),
       "the reasonix sidecar's InitializeResult.tools is an array of strings",
     );
+  }
+}
+
+// 10b. The reasonix watch ARM (`.reasonix/watch-arm.sh`) reads its items through the ENGINE.
+//      FIRED, not text-matched: the arm used to carry a shell `grep -E` acceptance set of its
+//      own, and it silently dropped `opencharly/opencharly/pull/1301#issuecomment-42` — the
+//      shape `gh pr comment` PRINTS — plus a scheme-less `github.com/...` and a trailing-slash
+//      URL, all of which the engine accepts (opencharly/opencharly#1308). The assertion runs the
+//      real script against a fixture items file and requires those forms to appear in what it
+//      prints, which no private acceptance set can satisfy.
+{
+  const armRel = ".reasonix/watch-arm.sh";
+  const arm = join(root, armRel);
+  // The arm drives the engine CLI, so the assertion needs the arm, the engine and an items file.
+  // A tree missing any of them (a session worktree without the script, the mutation that removes
+  // the items file) SKIPS VISIBLY — never crashes the gate and never reports a pass it did not take.
+  const missing = [armRel, "scripts/gh/cli.ts", "scripts/gh/lib/watch.ts", ".reasonix/watch.items"].filter(
+    (p) => !existsSync(join(root, p)),
+  );
+  if (missing.length > 0) {
+    pass(`${missing.join(", ")} not present in ${root} — the reasonix arm assertion skipped`);
+  } else {
+    const { mkdtempSync: mkd, writeFileSync: wf, mkdirSync: mkdir, cpSync: cp, rmSync: rm } = await import("node:fs");
+    const { tmpdir: tdir } = await import("node:os");
+    // A fixture umbrella the arm accepts: it self-gates on the commit/push hook and the CLI.
+    const fx = mkd(join(tdir(), "watch-arm-"));
+    try {
+      mkdir(join(fx, ".claude/hooks"), { recursive: true });
+      wf(join(fx, ".claude/hooks/pre-push-gate.sh"), "#!/bin/sh\n", "utf8");
+      mkdir(join(fx, ".reasonix"), { recursive: true });
+      mkdir(join(fx, "scripts/gh"), { recursive: true });
+      cp(join(root, "scripts/gh/cli.ts"), join(fx, "scripts/gh/cli.ts"));
+      cp(join(root, "scripts/gh/lib"), join(fx, "scripts/gh/lib"), { recursive: true });
+      // The module TYPE is DECLARED, not inferred: `scripts/gh/package.json` carries
+      // `"type": "module"`, and a fixture without it would leave Node guessing whether the
+      // engine's `.ts` entrypoint is ESM — a property of the fixture, never of the shipped code.
+      if (existsSync(join(root, "scripts/gh/package.json")))
+        cp(join(root, "scripts/gh/package.json"), join(fx, "scripts/gh/package.json"));
+      wf(
+        join(fx, ".reasonix/watch.items"),
+        "# a comment\nopencharly/opencharly#1301\ngithub.com/o/r/pull/5\no/r/pull/7#issuecomment-9\no/r/pull/8/\n",
+        "utf8",
+      );
+      const r = spawnSync("bash", [arm], { cwd: fx, encoding: "utf8" });
+      const printed = `${r.stdout ?? ""}${r.stderr ?? ""}`;
+      const kept = ["opencharly/opencharly#1301", "github.com/o/r/pull/5", "o/r/pull/7#issuecomment-9", "o/r/pull/8/"].filter(
+        (f) => printed.includes(f),
+      );
+      ok(
+        r.status === 0 && kept.length === 4,
+        `the reasonix watch arm reads its items through the engine (cli.ts items) — it printed ${
+          kept.length
+        }/4 item forms verbatim (missing: ${["opencharly/opencharly#1301", "github.com/o/r/pull/5", "o/r/pull/7#issuecomment-9", "o/r/pull/8/"]
+          .filter((f) => !printed.includes(f))
+          .join(", ") || "none"})`,
+      );
+      // A comment-only list must stay INERT — the arm prints nothing and exits 0.
+      wf(join(fx, ".reasonix/watch.items"), "# only comments\n\n", "utf8");
+      const inert = spawnSync("bash", [arm], { cwd: fx, encoding: "utf8" });
+      ok(
+        inert.status === 0 && (inert.stdout ?? "").trim() === "",
+        "a comment-only .reasonix/watch.items keeps the reasonix arm inert (no output, exit 0)",
+      );
+    } finally {
+      rm(fx, { recursive: true, force: true });
+    }
   }
 }
 

@@ -23,12 +23,12 @@
  * Defensive: if the session domain is unavailable or a poll fails transiently, the
  * plugin logs/skips and no-ops; opencode keeps running.
  */
-import { DEFAULT_WORKFLOW, parseItem, type Item } from "../../scripts/gh/lib/watch.ts";
-import { makeWarn, parseItems, readText, v2SessionSink, watchLoop } from "../lib/watcher-loop.ts";
+import { DEFAULT_WORKFLOW, parseItem, parseItemsFile, type Item } from "../../scripts/gh/lib/watch.ts";
+import { makeWarn, readText, v2SessionSink, watchLoop } from "../lib/watcher-loop.ts";
 
-// `parseItems` is the ONE shared config-line parser (R2) — re-exported from the
-// shared loop module under the historical name this plugin's own check asserts.
-export { parseItems };
+// The config-line grammar is the ENGINE's (`parseItemsFile`, over `parseItem`). This plugin
+// owns none of it: a private copy here silently dropped `#issuecomment` URLs the engine
+// accepts (opencharly/opencharly#1308).
 
 /**
  * The watcher event set delivered to the session. It MUST include `comment` (the
@@ -76,7 +76,7 @@ async function loadItems(dir: string): Promise<Item[]> {
     return []; // no config → watch nothing (inert by default)
   }
   const items: Item[] = [];
-  for (const line of parseItems(raw)) {
+  for (const line of parseItemsFile(raw)) {
     const it = parseItem(line);
     if (!it) {
       warn(`ignoring malformed item '${line}' (want owner/repo#num)`);
