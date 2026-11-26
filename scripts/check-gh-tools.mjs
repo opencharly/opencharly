@@ -69,6 +69,10 @@ if (argv.includes("--self-test")) {
     "scripts/gh/lib/coord.ts",
     "scripts/gh/lib/lock.ts",
     ".opencode/plugins/coord.ts",
+    // coord imports agent-progress's read-only store handle for the derived agent slug;
+    // a staged copy without it fails to load, which would make every arm red for the
+    // wrong reason.
+    ".opencode/plugins/agent-progress.ts",
     ".opencode/package.json",
   ];
   const original = new Map(files.map((p) => [p, readFileSync(join(root, p), "utf8")]));
@@ -546,6 +550,53 @@ try {
   eq(ftr.content, "*Agent: `slug-x` · OpenCode session `ses_live`*\n*Assisted-by: OpenCode M (documentation reviewed)*", "coord_footer names the live OpenCode session");
   const dry = await tools.coord_comment.execute({ verb: "claim", item: "acme/widget#1", dryRun: true, agent: "a", model: "M", confidence: "documentation reviewed" }, { sessionID: "ses_live" });
   expect(/^CLAIM\n\n\*Agent: `a` · OpenCode session `ses_live`\*/.test(dry.content), "coord_comment (dry run) builds the shared comment");
+
+  // The agent slug is DERIVED per session — `<session_v2.slug>-<full session id>` — read
+  // through agent-progress's read-only handle against a REAL database file, when no arg,
+  // COORD_AGENT or conf names one. The fixture uses the store's real column set, so a
+  // missing column cannot be mistaken for "no row" and silently pass the fallback arm.
+  {
+    const { DatabaseSync } = await import("node:sqlite");
+    const dir = mkdtempSync(join(tmpdir(), "check-gh-tools-derive-"));
+    const dbPath = join(dir, "opencode.db");
+    try {
+      const db = new DatabaseSync(dbPath);
+      db.exec(`
+        CREATE TABLE session_v2 (
+          id TEXT PRIMARY KEY, project_id TEXT, workspace_id TEXT, parent_id TEXT,
+          slug TEXT, title TEXT, directory TEXT, agent TEXT, model TEXT,
+          idle_outcome TEXT, time_created INTEGER, time_updated INTEGER
+        );
+        CREATE TABLE session_message (
+          id TEXT PRIMARY KEY, session_id TEXT, type TEXT, seq INTEGER,
+          time_created INTEGER, data TEXT
+        );
+      `);
+      db.prepare("INSERT INTO session_v2 (id,slug,title,parent_id,agent,model,idle_outcome,time_created,time_updated) VALUES (?,?,?,?,?,?,?,?,?)").run(
+        "ses_live", "eager-orchid", "derive fixture", null, "general", "m", null, 1, 1,
+      );
+      db.close();
+      const prev = process.env.OPENCODE_DB;
+      process.env.OPENCODE_DB = dbPath;
+      try {
+        const derived = await tools.coord_footer.execute({ model: "M", confidence: "documentation reviewed" }, { sessionID: "ses_live" });
+        eq(
+          derived.content,
+          "*Agent: `eager-orchid-ses_live` · OpenCode session `ses_live`*\n*Assisted-by: OpenCode M (documentation reviewed)*",
+          "coord_footer derives `<session slug>-<session id>` when no agent is given",
+        );
+        const absent = await tools.coord_footer.execute({ model: "M", confidence: "documentation reviewed" }, { sessionID: "ses_absent" });
+        expect(/^\*Agent: `ses_absent` ·/.test(absent.content), "coord_footer degrades to the bare session id when the store has no row (never invents a slug)");
+        const explicit = await tools.coord_footer.execute({ agent: "work-slug", model: "M", confidence: "documentation reviewed" }, { sessionID: "ses_live" });
+        expect(/^\*Agent: `work-slug` ·/.test(explicit.content), "an explicit agent still wins over the derived default");
+      } finally {
+        if (prev === undefined) delete process.env.OPENCODE_DB;
+        else process.env.OPENCODE_DB = prev;
+      }
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }
   process.env.ALLOW_FAST_POLL = "1";
   scenario = () => ({ run: failed, comments: [blockComment("h1")] });
   const w = await tools.coord_watch.execute({ items: ["acme/widget#1"], interval: 1, timeout: 5 }, {});
@@ -580,6 +631,9 @@ try {
     try {
       mkdirSync(join(proj, ".opencode/plugins"), { recursive: true });
       cpSync(join(root, ".opencode/plugins/coord.ts"), join(proj, ".opencode/plugins/coord.ts"));
+      // coord imports the read-only store handle from its sibling plugin (the derived
+      // agent slug), so the throwaway project carries that module too.
+      cpSync(join(root, ".opencode/plugins/agent-progress.ts"), join(proj, ".opencode/plugins/agent-progress.ts"));
       cpSync(join(root, "scripts/gh"), join(proj, "scripts/gh"), { recursive: true });
       expect(!existsSync(join(proj, "marketplace")), "real opencode: the throwaway project has NO marketplace checkout");
       // The DEFAULT agent with a plain request. A custom "test runner" agent that was told to

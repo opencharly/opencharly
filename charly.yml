@@ -48,6 +48,14 @@ import:
     # the operator's 2026-11-26 decision was to keep building on it, so the import and the
     # submodules come back. The namespace is THIS key; the version rides the GITLINK.
     - kde-vnc: ./pod-kde-vnc
+    # opencharly/pod-kde-vnc-cdp — the KDE-over-VNC desktop WITH the org's full CDP surface: the
+    # `kde-vnc-cdp` image (base `podcdi.pod-cdi`), a supervised maximized Chrome as a Plasma window,
+    # cdp-proxy on 9222, chrome-devtools-mcp on 9224, the `kde-web-subject` fixture image, and TWO
+    # beds: `kde-vnc-cdp.check-kde-vnc-cdp-pod` (the pod) and
+    # `kde-vnc-cdp.check-cross-kde-cdp-pod` (the pod-to-pod cross-deployment CDP mechanism, the
+    # successor to the retired Fedora check-cross-pod-cdp, opencharly/distro-fedora#140). Two
+    # entities here carry that namespace prefix, so the key stays `kde-vnc-cdp`.
+    - kde-vnc-cdp: ./pod-kde-vnc-cdp
 defaults:
     platform:
         - linux/amd64

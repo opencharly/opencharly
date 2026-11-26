@@ -17,13 +17,19 @@
  *                  PRs/issues (the engine's `runWatch`). The continuous background watch is
  *                  `pr-watch.ts`.
  *
- * CONFIG (optional; last wins: TOOL ARG > `COORD_*` ENV > `.opencode/coord.conf`)
+ * CONFIG (optional; highest first: TOOL ARG > `COORD_*` ENV > `.opencode/coord.conf`)
  *   `.opencode/coord.conf` — `key=value` lines, `#` comments:
- *       agent=<work slug>   model=<provider model>   confidence=<tier>
+ *       model=<provider model>   confidence=<tier>
+ *   `agent` has NO config default. Unless an arg/env/conf names one, it is DERIVED per
+ *   session as `<session slug>-<full session id>` (e.g. `eager-orchid-ses_de66902b9f…`),
+ *   so every session's `Agent:` line is unique by construction. The slug is read from the
+ *   same read-only store handle `agent-progress` uses (`session_v2.slug`); a session with
+ *   no row degenerates to the bare session id, never to an invented identity.
  *   The harness is `OpenCode` and the session is always the live session.
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { SQL, databasePath, openReadonly } from "./agent-progress.ts";
 import { rateLimitMessage } from "../../scripts/gh/lib/github.ts";
 import {
   DEFAULT_CHECK,
@@ -58,8 +64,35 @@ export const HARNESS = "OpenCode";
 /** The default `coord_watch` deadline (seconds) — a bounded, session-invoked wait. */
 export const DEFAULT_WATCH_TIMEOUT_S = 3600;
 
-function identity(input: Record<string, any>, conf: Record<string, string>, sessionID: string | undefined) {
-  return resolveIdentity(input, process.env, conf, sessionID ? { harness: HARNESS, session: sessionID } : undefined);
+/**
+ * The session-unique `Agent:` slug: `<session_v2.slug>-<full session id>`.
+ *
+ * AGENTS.md constrains the `Agent:` line to a backticked slug; opencode's own
+ * `session_v2.slug` ("eager-orchid") is the readable half and the live session id makes the
+ * whole token unique per session, so two sessions can never claim one identity. The read
+ * reuses `agent-progress`'s read-only handle — ONE store implementation, not a second
+ * sqlite open. Any failure degrades to the bare session id (still unique), never to an
+ * invented slug.
+ */
+export async function sessionAgentSlug(sessionID: string): Promise<string> {
+  try {
+    const db = await openReadonly(databasePath(process.env));
+    try {
+      const row = db.all(SQL.oneSession, sessionID)[0] as { slug?: string } | undefined;
+      const slug = String(row?.slug ?? "").trim();
+      return slug ? `${slug}-${sessionID}` : sessionID;
+    } finally {
+      db.close();
+    }
+  } catch {
+    return sessionID;
+  }
+}
+
+async function identity(input: Record<string, any>, conf: Record<string, string>, sessionID: string | undefined) {
+  const id = resolveIdentity(input, process.env, conf, sessionID ? { harness: HARNESS, session: sessionID } : undefined);
+  if (!id.agent && id.session) id.agent = await sessionAgentSlug(id.session);
+  return id;
 }
 
 function identityError(tool: string, id: ReturnType<typeof identity>): string | null {
@@ -96,7 +129,10 @@ export default {
             verb: { type: "string", description: `one of: ${VERBS.join(", ")}` },
             item: { type: "string", description: "owner/repo#num (or owner/repo/pull/num, or a full URL)" },
             body: { type: "string", description: "GitHub-Markdown body (optional)" },
-            agent: { type: "string", description: "work slug for the `Agent:` line" },
+            agent: {
+              type: "string",
+              description: "work slug for the `Agent:` line (default: this session's `<slug>-<session id>`)",
+            },
             parent: { type: "string", description: "the parent slug, for a subagent (optional)" },
             model: { type: "string", description: "provider model name" },
             confidence: { type: "string", description: `one of: ${TIERS.join(" | ")}` },
@@ -112,7 +148,7 @@ export default {
           if (!item) {
             return { content: `coord_comment: unrecognised target '${input.item}' — want owner/repo#num or owner/repo/pull/num` };
           }
-          const id = identity(input, conf, toolCtx?.sessionID);
+          const id = await identity(input, conf, toolCtx?.sessionID);
           const bad = identityError("coord_comment", id);
           if (bad) return { content: bad };
           const comment = buildComment(verb, input.body ? String(input.body) : undefined, id);
@@ -135,7 +171,10 @@ export default {
         input: {
           type: "object",
           properties: {
-            agent: { type: "string", description: "work slug for the `Agent:` line" },
+            agent: {
+              type: "string",
+              description: "work slug for the `Agent:` line (default: this session's `<slug>-<session id>`)",
+            },
             parent: { type: "string", description: "the parent slug, for a subagent (optional)" },
             model: { type: "string", description: "provider model name" },
             confidence: { type: "string", description: `one of: ${TIERS.join(" | ")}` },
@@ -143,7 +182,7 @@ export default {
           required: [],
         },
         execute: async (input: Record<string, any>, toolCtx: any) => {
-          const id = identity(input, conf, toolCtx?.sessionID);
+          const id = await identity(input, conf, toolCtx?.sessionID);
           const bad = identityError("coord_footer", id);
           return { content: bad ?? buildFooter(id) };
         },
