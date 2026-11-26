@@ -89,7 +89,7 @@ the checklist below.
 
 1. **What is the entity?** A candy or image, a VM, a plugin, a service bundle, a
    packaging repo, a distro family, or a whole product family — the KIND axis.
-2. **Which family does it belong to** (`openclaw`, `selkies`, `agentteams`, …)?
+2. **Which family does it belong to** (`openclaw`, `strata`, `punktfunk`, …)?
    The family word is also the skill namespace (`/charly-<family>:<skill>`) and
    the corpus directory.
 3. **Which repo owns it?** One canonical owner per behaviour (the rulebook's R2);

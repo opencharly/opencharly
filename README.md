@@ -302,7 +302,7 @@ a scannable index. Their themes:
 | `lobster/` | [lobster](https://github.com/opencharly/lobster) | Vendored fork of openclaw/lobster: the workflow shell behind `workflow:lobster`. |
 | `openclaw/` | [openclaw](https://github.com/opencharly/openclaw) | Vendored fork of openclaw/openclaw: the agent gateway the `layer-openclaw` family packages. |
 | `openclaw-enterprise/` | [openclaw-enterprise](https://github.com/opencharly/openclaw-enterprise) | Vendored fork of openclaw/openclaw-enterprise: the enterprise control plane for that gateway family. |
-| `pixelflux/` | [pixelflux](https://github.com/opencharly/pixelflux) | Patched pixelflux wl-screenshot/record library for the selkies desktops. |
+| `pixelflux/` | [pixelflux](https://github.com/opencharly/pixelflux) | Patched pixelflux wl-screenshot/record library; its `pixelflux-screenshot` binary is one of the capture tools the `wl:` check verb uses. |
 
 The vendored forks are gated like every other landing repo: the org's fork ruleset
 runs the same required `charly/pr-validator`, native auto-merge arms on PASS, and a
