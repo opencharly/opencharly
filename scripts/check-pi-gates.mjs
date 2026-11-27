@@ -769,29 +769,13 @@ if (argv.includes("--self-test")) {
     // The nested post-condition (opencharly/opencharly#710): the two ways a worktree can
     // be created WITHOUT the nested level its currency report needs — never initializing
     // it at all, and initializing it without reading the exit code.
-    // Restores the DEFECT in full: the pre-#1312 code read NEITHER the clone's exit code NOR the
-    // checkout's effect, so a failed module clone fell through to the build. Both guards go, or
-    // the second one would catch what the first was mutated to miss and the arm would prove
-    // nothing about the class that was filed.
-    [
-      "the build's exit code is discarded",
-      (s) => s.replace(/if \(built\.code !== 0\) \{/, "if (false) {"),
-      "a build that EXITS NON-ZERO",
-    ],
-    [
-      "a build that produces no binary is reported as built",
-      (s) => s.replace(/if \(!existsSync\(binaryPath\)\) \{/, "if (false) {"),
-      "a build that exits 0 WITHOUT the binary",
-    ],
+    // Restores the pre-#1312 defect EXACTLY: that code read no exit code at all. ONE replacement
+    // is enough — the empty-checkout effect guard this round-1 change added was itself DELETED, so
+    // there is nothing else to disable, and a `.replace` aimed at the deleted guard could never
+    // match (it was inert dead code, and claimed a guard that does not exist).
     [
       "the module clone's failure is not read",
-      (s) =>
-        s
-          .replace(/if \(cloned\.code !== 0\) \{/, "if (false) {")
-          .replace(
-            /if \(!existsSync\(join\(worktreePath, modulePath, "\.git"\)\) &&[^\n]*\n?[^\n]*\.gitmodules"\)\)\) \{/,
-            "if (false) {",
-          ),
+      (s) => s.replace(/if \(cloned\.code !== 0\) \{/, "if (false) {"),
       "a MODULE whose clone fails",
     ],
     [
