@@ -573,7 +573,7 @@ if [ "${1:-}" = "--self-test" ]; then
   grep -q 'MISSING from producer log' "$tmp/body4" && fail "the excerpt must never inject a MISSING line — the producer's words are pasted as-is"
 
   # THE MIXED LIST — the class the pre-fix builder got WRONG (measured: the real 45-gitlink
-  # sync carried `reasonix.toml`, and the builder reported "46 gitlink(s) moved", a hardcoded
+  # sync carried a hand-edited TOML file, and the builder reported "46 gitlink(s) moved", a hardcoded
   # `gitlink-only` class, and a false `!` against a remote that does not exist). A moved list
   # with BOTH a gitlink and a plain file must count the gitlink as a gitlink, name the file as
   # a file with NO `=`/`!` flag, and derive the change class from the split — never claim

@@ -2,7 +2,7 @@
  * watch.ts — the ONE GitHub watcher engine (opencharly/opencharly#1140).
  *
  * Every harness watches through this module: OpenCode and pi in-process, and Claude Code,
- * Codex, DeepSeek Harness and reasonix through `scripts/gh/cli.ts watch`. It replaced
+ * Codex and DeepSeek Harness through `scripts/gh/cli.ts watch`. It replaced
  * `marketplace/scripts/{gh_watch,pr_watch_many,pr_state_watch}.sh` and the OpenCode-only
  * engine, which disagreed with each other about what a verdict is.
  *
@@ -91,11 +91,11 @@ export function parseItem(raw: unknown): Item | null {
  *
  * WHY THIS LIVES IN THE ENGINE (R2, measured). `parseItem` above is the item grammar, but there
  * was no file reader beside it, so each harness binding wrote its own — `.pi/extensions/watch.ts`
- * (`parseItems` + `isGithubItem`), `.opencode/lib/watcher-loop.ts` (`parseItems`) and
- * `.reasonix/watch-arm.sh` (a shell `grep -E`) — each with its OWN acceptance set, and they had
+ * (`parseItems` + `isGithubItem`) and `.opencode/lib/watcher-loop.ts` (`parseItems`) — each with
+ * its OWN acceptance set, and they had
  * already drifted: `opencharly/opencharly/pull/1301#issuecomment-42` (the shape `gh pr comment`
  * PRINTS), `github.com/o/r/pull/1301` and a trailing-slash URL were accepted by the engine and
- * SILENTLY DROPPED by pi and reasonix, while `opencharly/opencharly#0` was refused by the engine
+ * SILENTLY DROPPED by pi, while `opencharly/opencharly#0` was refused by the engine
  * and passed through by pi. A dropped item is a watcher that never wakes while the session
  * believes it is armed.
  *

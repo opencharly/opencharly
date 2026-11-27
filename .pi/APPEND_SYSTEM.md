@@ -25,8 +25,8 @@ rows are in `AGENTS.md`; the full generated table is `marketplace/DISPATCHER.md`
 `extensions/charly-gates.ts` intercepts every `bash` call and runs the two committed gate
 scripts before `git commit` / `git push`, blocking the call when a gate fails
 (fail-closed). The canonical scripts stay `.claude/hooks/pre-commit-gate.sh` +
-`pre-push-gate.sh`; the extension is pi's binding of them, exactly as
-`.reasonix/settings.json` wires them for Kimi/reasonix.
+`pre-push-gate.sh`; the extension is pi's binding of them, alongside
+`~/.kimi-code/config.toml` for Kimi.
 
 ## Session worktrees (rule 2)
 

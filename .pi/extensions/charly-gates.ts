@@ -4,8 +4,8 @@
  *
  * ## Mechanical gates (tool_call interception)
  *
- * Pi has no hooks system (unlike Claude Code / reasonix / kimi). This
- * extension is the Pi equivalent of the `.reasonix`/kimi `PreToolUse(Bash)`
+ * Pi has no hooks system (unlike Claude Code / kimi). This
+ * extension is the Pi equivalent of the kimi `PreToolUse(Bash)`
  * wiring of `.claude/hooks/pre-commit-gate.sh` and `pre-push-gate.sh`. It
  * intercepts every `bash` tool call and runs both gate scripts against the
  * command, blocking the call when a gate exits 2.

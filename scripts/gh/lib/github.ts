@@ -1,7 +1,7 @@
 /**
  * github.ts — the ONE GitHub client of the umbrella's watcher and coordination tools
  * (opencharly/opencharly#1140). Every harness reaches GitHub through this module:
- * OpenCode and pi in-process, and Claude Code, Codex, DeepSeek Harness and reasonix
+ * OpenCode and pi in-process, and Claude Code, Codex and DeepSeek Harness
  * through `scripts/gh/cli.ts`.
  *
  * AUTH — `GITHUB_TOKEN` / `GH_TOKEN` when set, else the `gh` CLI's stored token

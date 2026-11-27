@@ -4,9 +4,9 @@
 // measured rather than theoretical: `git worktree add` creates the submodule MOUNT POINT, so a session
 // worktree (the layout AGENTS.md Part II rule 2 prescribes for every lane) has `marketplace/` PRESENT
 // and EMPTY. A derivation that accepts that derives ZERO skills and then publishes the result as if it
-// were a state — it emptied the 353-entry `.dsh/skills` farm and rewrote `reasonix.toml`'s `[skills]
-// paths` to 0 entries, reporting `exit=0 done`, while the gate's own arm turned RED on the same tree
-// (opencharly/opencharly#508). **Existence is not materialisation.**
+// were a state — it emptied the 353-entry `.dsh/skills` farm, reporting `exit=0 done`, while the gate's
+// own arm turned RED on the same tree (opencharly/opencharly#508).
+// **Existence is not materialisation.**
 //
 // One predicate, imported by the writer, by `--check`, and by the harness-config gate's skip tests.
 // The defect was one predicate with three implementations and only one honest one, so a second copy
@@ -27,14 +27,6 @@ export function corpusFamilies(root) {
   const market = join(root, CORPUS_ROOT);
   if (!existsSync(market)) return [];
   return readdirSync(market).filter((d) => !d.startsWith(".")).sort();
-}
-
-/** Does the corpus hold FAMILY directories — the input `reasonix.toml`'s `[skills] paths` derives from?
- *
- *  One entry per `marketplace/<family>/{skills,agents}` directory, so a family directory IS the input
- *  that derivation needs. */
-export function corpusHasFamilies(root) {
-  return corpusFamilies(root).length > 0;
 }
 
 /** Does the corpus hold a SKILL — the input the flat `.dsh/skills` farm derives from?
@@ -70,7 +62,6 @@ export function corpusHasCatalog(root) {
  *  notice, both gate skip tests and the selftest key on the same strings instead of four paraphrases. */
 export const CORPUS_NEEDS = {
   skills: (root) => corpusHasSkills(root),
-  families: (root) => corpusHasFamilies(root),
   catalog: (root) => corpusHasCatalog(root),
 };
 
