@@ -6,8 +6,7 @@
  * deliberately not installed), so a long wait — a PR's `charly/pr-validator` verdict, a
  * reviewer's BLOCK comment, a 40-minute R10 bed, an issue reply — is either hand-polled
  * (the R3 band-aid) or dropped. The sibling harnesses bind a watcher (opencode's
- * `pr-watch.ts` + `ctx.session.synthetic`, reasonix's `watch-arm.sh` hook); pi has
- * nothing. This extension is that binding.
+ * `pr-watch.ts` + `ctx.session.synthetic`); pi has nothing. This extension is that binding.
  *
  * IT IS DELIBERATELY THIN (R2). It contains NO watching logic: it SPAWNS the umbrella's
  * ONE watcher CLI and turns each line it prints into a user turn. All the real behaviour —
@@ -21,7 +20,7 @@
  * WAKE DELIVERY. The watcher prints one line per event and exits.
  * `pi.sendUserMessage(text, {deliverAs:"followUp"})` delivers that line as a USER TURN, so
  * the agent acts on it in a fresh turn — the pi equivalent of opencode's
- * `ctx.session.synthetic` and reasonix's SessionStart injection. The agent's own re-arm is
+ * `ctx.session.synthetic`. The agent's own re-arm is
  * replaced by the extension re-arming the one-shot watcher on its exit (the re-arm
  * invariant, `.agents/skills/git-workflow/references/watch-and-wake.md`).
  *

@@ -123,7 +123,7 @@ function allowFileTransportInEnv() {
  * level is observably NOT empty: a cloned-but-empty path reads as at-the-pin, which is
  * exactly the defect class this post-condition exists to end.
  */
-function buildUmbrellaFixture(base, { nestedBroken = false, scriptPath } = {}) {
+function buildUmbrellaFixture(base, { nestedBroken = false, moduleBroken = false, buildFails = false, buildNoBinary = false, scriptPath } = {}) {
   const git = (cwd, ...a) => {
     const r = spawnSync("git", a, { cwd, encoding: "utf8" });
     if (r.status !== 0) throw new Error(`git ${a.join(" ")} in ${cwd} failed: ${(r.stderr || "").trim()}`);
@@ -151,7 +151,21 @@ function buildUmbrellaFixture(base, { nestedBroken = false, scriptPath } = {}) {
 
   const charly = seed("charly");
   mkdirSync(join(charly, "scripts"), { recursive: true });
-  writeFileSync(join(charly, "scripts", "bootstrap-charly.sh"), "#!/usr/bin/env bash\nexit 0\n");
+  // The stub build must LAND a binary, as the real `charly/scripts/bootstrap-charly.sh` does:
+  // `charly_worktree_create` now refuses to report a ready worktree unless the file is there
+  // (opencharly/opencharly#1312), so an exit-0 stub that writes nothing is a FIXTURE that lies
+  // about what the build step does.
+  // The stub build can take three shapes, and each is a state the tool must tell apart:
+  //   - the REAL one (default): lands `bin/charly`, so a created worktree is genuinely usable;
+  //   - `buildFails`: exits non-zero — the step-4 exit code must be read;
+  //   - `buildNoBinary`: exits 0 and writes NOTHING — a build that "succeeds" without the artifact
+  //     its own report names (opencharly/opencharly#1312).
+  const stubBuild = buildFails
+    ? "#!/usr/bin/env bash\nexit 1\n"
+    : buildNoBinary
+      ? "#!/usr/bin/env bash\nexit 0\n"
+      : '#!/usr/bin/env bash\nset -e\nmkdir -p "$(dirname "$0")/../bin"\nprintf "#!/bin/sh\\nexit 0\\n" > "$(dirname "$0")/../bin/charly"\nchmod +x "$(dirname "$0")/../bin/charly"\n';
+  writeFileSync(join(charly, "scripts", "bootstrap-charly.sh"), stubBuild);
   git(charly, "submodule", "add", "-q", box, "box/cachyos");
   if (nestedBroken) {
     const gm = readFileSync(join(charly, ".gitmodules"), "utf8");
@@ -168,6 +182,12 @@ function buildUmbrellaFixture(base, { nestedBroken = false, scriptPath } = {}) {
   cpSync(scriptPath, join(origin, "scripts", "init-submodules.sh"));
   git(origin, "submodule", "add", "-q", charly, "charly");
   git(origin, "submodule", "add", "-q", marketplace, "marketplace");
+  if (moduleBroken) {
+    // A module whose remote cannot be cloned: its URL points nowhere, so `git submodule update
+    // --init` exits non-zero and leaves an EMPTY checkout (opencharly/opencharly#1312).
+    const gm = readFileSync(join(origin, ".gitmodules"), "utf8");
+    writeFileSync(join(origin, ".gitmodules"), gm.split(marketplace).join(join(base, "no-such-module-remote")));
+  }
   commit(origin, "the umbrella");
 
   const umbrella = join(base, "umbrella");
@@ -528,6 +548,53 @@ export default { Type };
       `charly_worktree_create FIRED: a nested level that cannot materialize FAILS the tool (never a ready worktree)`,
     );
 
+    // F7b — a MODULE whose clone fails. F6/F7 cover the NESTED post-condition, and both fixtures
+    //       clone their modules successfully — so the discarded exit codes at steps 3 and 4 were
+    //       unexercised in exactly the direction that broke three times
+    //       (opencharly/opencharly#1312: "--reference` cloning failed with `fetch-pack: invalid
+    //       index-pack output` and the tool reported `Modules materialized` + `Binary built at …`
+    //       for a worktree with 0 entries). The mutation that restores the discarded exit code
+    //       must turn THIS arm red.
+    const brokenModule = await fireCreate(join(scratch, "fx-broken-module"), {
+      slug: "fired-broken-module",
+      moduleBroken: true,
+    });
+    const brokenText = String(brokenModule.res.content?.[0]?.text ?? "");
+    expect(
+      typeof brokenModule.res.details?.error === "string" &&
+        /did not materialize/.test(brokenModule.res.details.error) &&
+        !/Binary built at/.test(brokenText) &&
+        !existsSync(join(brokenModule.worktree, "charly", "bin", "charly")),
+      `charly_worktree_create FIRED: a MODULE whose clone fails FAILS the tool and never claims a binary (the step-3/step-4 exit codes are read)`,
+    );
+
+    // F7c / F7d — the BUILD step's two ways to lie, each with its own fixture. The first round of
+    // this change shipped these two guards with NO fixture that could reach them: the only stub
+    // build was changed to always land a binary, which left `built.code !== 0` and
+    // `!existsSync(binaryPath)` unexercised — the review was right to block it
+    // (opencharly/opencharly#1313).
+    const failedBuild = await fireCreate(join(scratch, "fx-build-fails"), {
+      slug: "fired-build-fails",
+      buildFails: true,
+    });
+    expect(
+      typeof failedBuild.res.details?.error === "string" &&
+        /did not build/.test(failedBuild.res.details.error) &&
+        !/Binary built at/.test(String(failedBuild.res.content?.[0]?.text ?? "")),
+      `charly_worktree_create FIRED: a build that EXITS NON-ZERO fails the tool and never claims a binary`,
+    );
+
+    const noBinary = await fireCreate(join(scratch, "fx-build-no-binary"), {
+      slug: "fired-build-no-binary",
+      buildNoBinary: true,
+    });
+    expect(
+      typeof noBinary.res.details?.error === "string" &&
+        /produced no binary/.test(noBinary.res.details.error) &&
+        !/Binary built at/.test(String(noBinary.res.content?.[0]?.text ?? "")),
+      `charly_worktree_create FIRED: a build that exits 0 WITHOUT the binary fails the tool (the report names a file, so the file decides it)`,
+    );
+
     // ── F8 — R0 FIRED: `charly_load_skills` reads the REAL rulebook ─────────────────
     // The tool is the ONLY way a pi session discharges R0, and its input is a HAND-MAINTAINED
     // table inside AGENTS.md — a surface the extension does not own and every existing
@@ -702,6 +769,28 @@ if (argv.includes("--self-test")) {
     // The nested post-condition (opencharly/opencharly#710): the two ways a worktree can
     // be created WITHOUT the nested level its currency report needs — never initializing
     // it at all, and initializing it without reading the exit code.
+    // One mutation per guard the tool now reads, and one for the class that was filed. Each was
+    // DELETED once already by an over-broad replacement in this branch's own review rounds — which
+    // is why every one of them is named here rather than assumed.
+    [
+      "the build's exit code is discarded",
+      (s) => s.replace(/if \(built\.code !== 0\) \{/, "if (false) {"),
+      "a build that EXITS NON-ZERO",
+    ],
+    [
+      "a build that produces no binary is reported as built",
+      (s) => s.replace(/if \(!existsSync\(binaryPath\)\) \{/, "if (false) {"),
+      "a build that exits 0 WITHOUT the binary",
+    ],
+    // Restores the pre-#1312 defect EXACTLY: that code read no exit code at all. ONE replacement
+    // is enough — the empty-checkout effect guard this round-1 change added was itself DELETED, so
+    // there is nothing else to disable, and a `.replace` aimed at the deleted guard could never
+    // match (it was inert dead code, and claimed a guard that does not exist).
+    [
+      "the module clone's failure is not read",
+      (s) => s.replace(/if \(cloned\.code !== 0\) \{/, "if (false) {"),
+      "a MODULE whose clone fails",
+    ],
     [
       "the nested level is never materialized",
       (s) => s.replace(/"scripts", "init-submodules\.sh"/, '"scripts", "materialize.sh"'),

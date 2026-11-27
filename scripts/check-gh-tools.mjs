@@ -406,7 +406,7 @@ try {
 
   // `items <file>` — the ONE reader for the watch-items grammar (opencharly/opencharly#1308).
   // Every harness binding used to carry its own copy of this acceptance set, and they had
-  // drifted: pi and reasonix silently DROPPED `#issuecomment` URLs the engine accepts. The
+  // drifted: the pi binding silently DROPPED `#issuecomment` URLs the engine accepts. The
   // verb exists so a binding that cannot import TypeScript uses the engine's reader too, and
   // it must PASS ITEM FORMS THROUGH VERBATIM — validation belongs to `watch`, by name, exit 5.
   {
