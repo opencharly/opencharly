@@ -491,13 +491,11 @@ export default function (pi: ExtensionAPI) {
               `module ${modulePath} did not materialize: ${why} — a worktree whose module clone failed is not a session worktree`,
             );
           }
-          // The clone can also succeed while landing nothing (a shallow/alternates failure leaves an
-          // empty directory), so the EFFECT is checked, not just the exit code.
-          if (!existsSync(join(worktreePath, modulePath, ".git")) && !existsSync(join(worktreePath, modulePath, ".gitmodules"))) {
-            throw new Error(
-              `module ${modulePath} materialized to an EMPTY checkout (git exited 0) — its clone did not land`,
-            );
-          }
+          // NO effect-guard here, and that is MEASURED (CONC(a)): a clone that exits 0 always leaves
+          // a `.git` in the checkout, so `!existsSync(.git)` cannot hold while the exit code is 0.
+          // An empty module is exactly what a FAILED clone leaves behind, and the exit code above is
+          // what catches it — the same signal `charly_worktree_remove` uses. A guard that cannot fire
+          // is an unreachable arm; R5 deletes it rather than keeping it "just in case".
         }
 
         // Step 3b: the NESTED level of every materialized module.
