@@ -113,10 +113,10 @@ forms included). A registered term has one meaning; a second meaning gets its ow
 | **artifact** | the built form of a box: an **image** (OCI) or a **disk** | — |
 | **form** | which artifact a deployment needs: image for `pod` and Kubernetes workloads; for `vm`, the form its hypervisor boots — a disk, a root drive with the `os` kernel, or an image (§14.2) | — |
 | **capture** | a box whose `from:` names a deployment: that deployment's checked state | snapshot, golden image |
-| **deployment** | a node of a deployment kind: `pod`, `vm`, `kubernetes`, `local`, `android`, `agent` | fleet, member |
+| **deployment** | a node of a deployment kind: `pod`, `vm`, `kubernetes`, `local`, `agent` | fleet, member |
 | **host** | a machine charly applies to or runs on, reached by a `connect:` (the shell of the one charly runs on, ssh, or an IP-KVM) | — |
 | **guest** | the system inside a `pod` (container) or `vm` | — |
-| **venue** | where a deployment is reached: a container, ssh, the host shell, an IP-KVM, adb, or the cluster API; every interaction is one **access** it serves (§17.7) | substrate |
+| **venue** | where a deployment is reached: a container, ssh, the host shell, an IP-KVM, or the cluster API; every interaction is one **access** it serves (§17.7) | substrate |
 | **access** | one kind of interaction a venue serves: `exec`, `copy`, `log`, `console`, `display`, `forward`, `power` (§17.7) | — |
 | **driver** | a row of the driver table: the engine, hypervisor, cluster tool, agent runtime or secret backend that drives one pluggable subsystem, chosen by the user configuration (§17.6) | — |
 | **isolation** | the boundary a deployment runs behind, beyond the kind's own: `microvm`, a guest kernel of its own (§9.1) | — |
@@ -202,7 +202,7 @@ plugin; it reaches core through the host service (§4.6) and other plugins throu
 | D-MOD-1 | The import graph is exactly the arrows above; plugins never import core; core reaches plugins compiled into the binary only through the generated registry. |
 | D-MOD-2 | Every type, function and constant is defined in exactly one module; re-exports and aliases do not exist. |
 | D-SPEC-1 | `spec` contains the §10.2 packages and the code generated from them; no mechanism, no hand-written logic beyond behaviour methods on generated types. |
-| D-SDK-1 | `sdk` contains `Serve` (the one plugin entrypoint, D-PROTO-1), the role interfaces, the typed host client, the protocol conformance harness (§4.7), and the shared mechanisms: executors (shell, ssh, container, adb), the store (§20), locks, readiness waits, matchers, repository fetching, CalVer, check sessions and recording. |
+| D-SDK-1 | `sdk` contains `Serve` (the one plugin entrypoint, D-PROTO-1), the role interfaces, the typed host client, the protocol conformance harness (§4.7), and the shared mechanisms: executors (shell, ssh, container), the store (§20), locks, readiness waits, matchers, repository fetching, CalVer, check sessions and recording. |
 | D-SDK-2 | `sdk` contains no domain logic or domain type; each package owns one mechanism, has no package-level mutable state, and has tests that fail without it. |
 | D-CORE-1 | Core consists of: the CLI shell and its commands (§3.1), the loader and linker (§11–§12), the registry, one gRPC transport, schema composition and validation, the capability solver (§8), the stage driver (§14.3), the venue accesses (§17.7), leases, the store instance (built on the sdk store, §20) and its registry view, the protocol and host service (§4.3–§4.6), and the MCP server. |
 | D-CORE-2 | Core contains no domain data and no kind, verb or capability-type word. Its words are the directives, the intents, the phases, the modifiers and step-level matchers, the role words, and the command words §3.1 assigns to it. |
@@ -226,7 +226,6 @@ architecture, not a part of it. A new plugin adds rows; it never changes core's.
 | `pod` (and its grants, its venue, its captures, the container-engine driver rows `podman`, `docker`, `containerd`) | container plugin |
 | `vm`, `local` (and their grants, venues, captures, firmware, the hypervisor driver rows `libvirt`, `qemu`, `krun`, `firecracker`) | machine plugin |
 | `kubernetes` (clusters, workloads, the cluster driver rows `kind`, `k3s`, the `kube` protocol verb, the `helm:` manager) | kubernetes plugin |
-| `android` (devices, the `android:` manager, the `appium` protocol verb) | android plugin |
 | the fact verbs and the `http` protocol verb (§23), the phases each verb observes (D-VERB-7), `instrument`, the `check` command | check plugin |
 | the `display`, `cdp`, `dbus` and `mcp` protocol verbs | desktop plugin |
 | the `harness` kind, the `pipeline` kind (the one workflow kind, §15.1), the `agent`, `tui`, `pipeline` and `review` commands, the `harness` capability type, the binding of `mcp` endpoints, and the agent-runtime driver rows `pi`, `tmux` | agent plugin |
@@ -235,7 +234,7 @@ architecture, not a part of it. A new plugin adds rows; it never changes core's.
 | the capability table (`_capability`): the host capability types `gpu`, `device`, `cpu`, `memory`, `storage`, `mount`, `isolation`, `privilege`, `driver_api`, and the `endpoint`, `network` and `parameter` types | `spec` (envelope), granted by each deployment kind's `grant` |
 | every other word: an application's commands and checks, a site's own kinds | its non-first-party plugin, under its namespace (D-PLUG-7) |
 | which init runs services | the `os` node (container init for `pod`, system init for `vm`) |
-| a `<manager>:` package prefix | build-time managers (`npm`, `cargo`, `pip`, `aur`, `flatpak`): a `builder` node, run in its own `box`, which `build_with:` selects when several builders serve the manager; apply-time managers (`helm`, `android`): the deployment kind |
+| a `<manager>:` package prefix | build-time managers (`npm`, `cargo`, `pip`, `aur`, `flatpak`): a `builder` node, run in its own `box`, which `build_with:` selects when several builders serve the manager; apply-time managers (`helm`): the deployment kind |
 
 ## 4. Plugin contract and the core↔plugin protocol
 
@@ -393,7 +392,7 @@ writes it. `#StoreKey`, `#StoreValue` and `#PutInput` are derived from its rows.
 | ID | Requirement |
 |---|---|
 | D-PROTO-12 | Every host request carries the `call_id` of the core call it serves; core derives the caller's plugin from the socket the request arrives on and its permissions from that call, never from anything the plugin asserts. A request outside its permission is answered `denied`. |
-| D-PROTO-13 | A plugin reaches secrets, state, the store, the project and other plugins only through the host service, and venues of deployments other kinds own only through `venue_exec`. A deployment kind drives its own engine — the container engine, the hypervisor, the cluster API, adb — directly, at the endpoint its `config` store entry names (`get`, §4.6). |
+| D-PROTO-13 | A plugin reaches secrets, state, the store, the project and other plugins only through the host service, and venues of deployments other kinds own only through `venue_exec`. A deployment kind drives its own engine — the container engine, the hypervisor, the cluster API — directly, at the endpoint its `config` store entry names (`get`, §4.6). |
 
 ### 4.7 Conformance
 
@@ -554,10 +553,6 @@ plugin:
         repo: opencharly/plugin-kubernetes
         release: v2026.276.1100
         digest: sha256:6b1200d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9
-    plugin-android:
-        repo: opencharly/plugin-android
-        release: v2026.276.1100
-        digest: sha256:9d3400d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9
 ```
 
 | ID | Requirement |
@@ -796,18 +791,18 @@ instance is the same table with an authority capability on the left and the iden
 grant it across the top. Every instance uses one verb, `grant`, and one record (D-AUDIT-2); none is a
 second concept.
 
-| Host capability | `pod` | `vm` | `local` | `android` | `kubernetes` workload |
-|---|---|---|---|---|---|
-| `device: X` | that device node | the guest's virtio equivalent or passthrough; `kvm` and `vhost_net` through the nested-virtualization CPU mode | verified present | — (not grantable) | device-plugin request; `kvm` through KubeVirt nested virtualization |
-| `gpu` | the GPU through CDI, a `shared` lease | the GPU through VFIO passthrough, an `exclusive` lease; under `isolation: microvm`, see D-HW-7 | verified, a `shared` lease | — | a resource request |
-| `driver_api: D` | the API socket of driver D mounted | the socket forwarded through ssh | verified reachable | — | — |
-| `isolation: userns` | a seccomp profile that admits user-namespace sandboxes and the user-namespace capabilities and unmasked `/proc` they mount, nothing wider (never unconfined) | nothing: the guest has its own kernel | verified unprivileged user namespaces | — | the same profile in the pod security context |
-| `isolation: microvm` | the microVM runtime of the engine: the container gets a guest kernel of its own, and its venue serves no `exec` | nothing: the guest already has its own kernel | — | — | the microVM RuntimeClass |
-| `privilege: rootful` | the engine's rootful mode, preflighted against the driver row | — | verified root access | — | a privileged security context |
-| `mount` | bind mount | virtiofs share | verified present | — | hostPath on a single-node cluster |
-| `memory: shm` | `/dev/shm` of that size | a guest tmpfs of that size | verified free | — | a memory-backed `emptyDir` |
-| `memory: ram`, `cpu: core` | the engine's memory and CPU limits, leased from the host's capacity | the guest's memory and vCPUs, leased from the host's capacity | verified free | — | resource requests and limits |
-| `storage: root` | the container's writable storage quota | the root disk of that size | verified free | — | an ephemeral-storage request |
+| Host capability | `pod` | `vm` | `local` | `kubernetes` workload |
+|---|---|---|---|---|
+| `device: X` | that device node | the guest's virtio equivalent or passthrough; `kvm` and `vhost_net` through the nested-virtualization CPU mode | verified present | device-plugin request; `kvm` through KubeVirt nested virtualization |
+| `gpu` | the GPU through CDI, a `shared` lease | the GPU through VFIO passthrough, an `exclusive` lease; under `isolation: microvm`, see D-HW-7 | verified, a `shared` lease | a resource request |
+| `driver_api: D` | the API socket of driver D mounted | the socket forwarded through ssh | verified reachable | — |
+| `isolation: userns` | a seccomp profile that admits user-namespace sandboxes and the user-namespace capabilities and unmasked `/proc` they mount, nothing wider (never unconfined) | nothing: the guest has its own kernel | verified unprivileged user namespaces | the same profile in the pod security context |
+| `isolation: microvm` | the microVM runtime of the engine: the container gets a guest kernel of its own, and its venue serves no `exec` | nothing: the guest already has its own kernel | — | the microVM RuntimeClass |
+| `privilege: rootful` | the engine's rootful mode, preflighted against the driver row | — | verified root access | a privileged security context |
+| `mount` | bind mount | virtiofs share | verified present | hostPath on a single-node cluster |
+| `memory: shm` | `/dev/shm` of that size | a guest tmpfs of that size | verified free | a memory-backed `emptyDir` |
+| `memory: ram`, `cpu: core` | the engine's memory and CPU limits, leased from the host's capacity | the guest's memory and vCPUs, leased from the host's capacity | verified free | resource requests and limits |
+| `storage: root` | the container's writable storage quota | the root disk of that size | verified free | an ephemeral-storage request |
 
 | ID | Requirement |
 |---|---|
@@ -1024,12 +1019,12 @@ owner's tests.
 | ID | Rule | Owner | Design check |
 |---|---|---|---|
 | D-VAL-1 | A `check:` step is optional: a candy with content and no check is valid, and no loader, validator or build rejects it for having none. A candy's checks, when it has them, are its acceptance; a candy without them is proven only by the checks of the stacks that compose it. | build plugin | — |
-| D-VAL-2 | Every reference names a node of a kind its `@ref` attribute admits: `from:` of a candy names a source, box, `pod` or `vm` (a capture); `from:` of a `pod` or `vm` a box or source; `require:` candies; a source's `os:` an `os` node; an `os` node's inits `init` nodes; a bootstrap `builder` a `builder` node; a builder's `box` boxes; `build_with` `builder` nodes; `harness` references `harness` nodes; a stage's `deployment` and a check's `on: {node}` name `pod`, `vm`, `local`, `android` or `kubernetes` nodes, and a stage's `pipeline` a `pipeline` node. A namespaced reference resolves through its import. | core | `rules.cue` **Its proof is split:** this row is the **local** half, proven by `rules.cue` and fired only for a reference that is not namespaced; the **namespaced** half is D-VAL-9, proven by core's tests because the examples carry no second repository. |
+| D-VAL-2 | Every reference names a node of a kind its `@ref` attribute admits: `from:` of a candy names a source, box, `pod` or `vm` (a capture); `from:` of a `pod` or `vm` a box or source; `require:` candies; a source's `os:` an `os` node; an `os` node's inits `init` nodes; a bootstrap `builder` a `builder` node; a builder's `box` boxes; `build_with` `builder` nodes; `harness` references `harness` nodes; a stage's `deployment` and a check's `on: {node}` name `pod`, `vm`, `local` or `kubernetes` nodes, and a stage's `pipeline` a `pipeline` node. A namespaced reference resolves through its import. | core | `rules.cue` **Its proof is split:** this row is the **local** half, proven by `rules.cue` and fired only for a reference that is not namespaced; the **namespaced** half is D-VAL-9, proven by core's tests because the examples carry no second repository. |
 | D-VAL-3 | References form no cycle. | core | — |
 | D-VAL-4 | Namespaces and top-level node names are disjoint. | core | `rules.cue` |
 | D-VAL-5 | One release per repository across a load, imports of imports included. | core | — |
 | D-VAL-6 | A deployment's form is one the `os` at the end of its box's `from:` chain can produce (§14.2). | build plugin | — |
-| D-VAL-7 | A deployment's host needs are kinds of need its deployment kind grants (§9.1). | container plugin, machine plugin, kubernetes plugin, android plugin | — |
+| D-VAL-7 | A deployment's host needs are kinds of need its deployment kind grants (§9.1). | container plugin, machine plugin, kubernetes plugin | — |
 | D-VAL-8 | A candy has substance: content of its own, `from:`, `require:` or an inner node. A mapping that holds only a `description` is never a node, so a misspelled field cannot pass as an inner candy. | build plugin | `rules.cue` |
 | D-VAL-9 | A namespaced reference resolves through the namespace its `import:` binds — the import's own repository reference, at its pinned release — and its resolution is **core-proven**, because the examples do not carry a second repository. | core | — |
 | D-VAL-10 | An unnamespaced word that no first-party plugin owns is an error naming the plugin that does (D-PLUG-7). | core | — |
@@ -1111,7 +1106,7 @@ back off a value.
 | source | `source:` node | an external starting point: one origin plus the `os` it provides |
 | box | a candy with `from:` | a stack: the `from:` chain, then `require:`d candies, inner candies and own fields |
 | artifact | produced, never written | a box's built form: image or disk (§14.2) |
-| deployment | `pod:`, `vm:`, `kubernetes:`, `local:` or `android:` node | a box or source brought to life (`pod`, `vm`), a cluster (`kubernetes`), or candies applied to a host or device (`local`, `android`) |
+| deployment | `pod:`, `vm:`, `kubernetes:` or `local:` node | a box or source brought to life (`pod`, `vm`), a cluster (`kubernetes`), or candies applied to a host (`local`) |
 | capture | a box whose `from:` names a deployment | the deployment's state after its runtime checks pass |
 | IR | compiled, never written | the ordered actions a stack compiles to (§14.4) |
 
@@ -1124,7 +1119,7 @@ back off a value.
 |---|---|---|
 | box | a source, a box, or a `pod` or `vm` | start the stack there; from a deployment it is a capture |
 | `pod`, `vm` | a box or a source | run that box's artifact (a candy without `from:` has no starting point and is not admissible, D-VAL-2) |
-| `kubernetes`, `local`, `android` | — | a cluster is created or connected; candies are applied to a host or device |
+| `kubernetes`, `local` | — | a cluster is created or connected; candies are applied to a host |
 | `agent` | a box or a source | an agent workload: deployed, started, stopped and observed like any other (§17.1) |
 
 ### 14.2 One box, every form
@@ -1166,7 +1161,7 @@ restore(deployment, artifact)              → running venue    (the deployment 
   public registry. A change to the `os` boot content restarts the disposable build environment of a
   disk; no action asks for it;
 - **realize** brings a deployment to life from an artifact (`pod`, `vm`), or applies the IR live
-  through the parent's venue (`local`, `android`, and inner `local` nodes of a running
+  through the parent's venue (`local`, and inner `local` nodes of a running
   deployment); a nested deployment receives its parent's venue;
 - **capture** takes a deployment's state as an artifact (a container commit, or a copy-on-write
   disk state), and with scope `process` its running processes too (D-CAPTURE-4);
@@ -1210,7 +1205,6 @@ deployment lock (D-DEP-4); no command has a private path.
 | `vm` | a virtual machine deployment | machine plugin |
 | `local` | candies applied to a host | machine plugin |
 | `kubernetes` | a cluster, created or existing | kubernetes plugin |
-| `android` | candies applied to an Android device | android plugin |
 | `init` | an init system's service rendering | build plugin |
 | `builder` | a builder: bootstraps a root filesystem or builds a language manager's packages | build plugin |
 | `harness` | an AI CLI invocation used by `harness_run`/`harness_check` | agent plugin |
@@ -1724,7 +1718,7 @@ deployment, so `http` writes no phase; the `port` check is the readiness conditi
 endpoints share port 8080 and are told apart by their paths (D-CAP-8), and the first `http` check
 names the `page` endpoint instead of restating its address (D-VERB-8).
 
-A deployment that has no artifact — a `local`, an `android` or an inner `local` node — runs the
+A deployment that has no artifact — a `local` or an inner `local` node — runs the
 artifact checks of its candies in its venue right after the IR is applied, then its ready and
 deployment checks. The instance an artifact check runs in is provided by the plugin that builds the
 form: a container from the image, or the disk's root filesystem with nothing booted.
@@ -1798,7 +1792,6 @@ step:
 | `vm` | `from:` a box or source, `publish:` | the form its hypervisor boots, copy-on-write | `ssh` |
 | `kubernetes` | `node:` to create a cluster where it is written, by the configured cluster driver, or `connect: {kube}` to an existing one; `default_namespace:`, `admission_policy:`, `kubeconfig_context:`, `storage:` and `ingress:` set its policy | a cluster; workloads are inner nodes | `kube` |
 | `local` | `require:` candies; at top level, `connect:` to its host through `shell`, `ssh` or `kvm` | the IR applied to that host | `shell`, `ssh` or `kvm` |
-| `android` | `require:` candies; `device:`, `api_level:`, `box:` and `google_account:` to create an emulator, or `serial:` to reach a device that already exists, or `connect: {adb}` to an adb endpoint | `android:` packages applied to the device | `adb` |
 | `agent` | `from:` a box or a source, the runtime's own `config` | a workload, deployed and observed like any other | the machine it runs on |
 
 Each kind is one row of `_deploymentKind` (S11): `create` is what creating it takes, `connect` the
@@ -1870,9 +1863,7 @@ inner node as a candy; every other body, and the place beside a node, admits no 
 | `pod` or `vm` | `local` (without `connect`) | candies applied live inside the running guest |
 | `pod` or `vm` | `kubernetes`, created | a cluster on the guest |
 | a machine (`pod`, `vm`, `agent`), or a `kubernetes` body | `agent` | an agent workload, deployed onto that machine |
-| `pod` or `vm` | `android` | a device or emulator reached from the guest |
-| `local` | candies, `kubernetes`, `android`, created | content applied to the host; a cluster on it; a device reached from it |
-| `android` | candies | apps applied to the device |
+| `local` | candies, `kubernetes`, created | content applied to the host; a cluster on it |
 | `kubernetes` | `pod`, `vm`, `agent` | a workload, a KubeVirt VM, or an agent, in the cluster |
 | beside a `pod` or `vm` | `pod`, `vm`, `local` (with `connect`) | an alongside root |
 
@@ -1891,7 +1882,7 @@ without one does not.
 |---|---|
 | `pod`, `kubernetes` | `device: {fuse, tun}`, `isolation: {userns}` |
 | `vm` | `device: {kvm, vhost_net}` |
-| `local`, `android`, `agent` | nothing |
+| `local`, `agent` | nothing |
 
 | ID | Requirement |
 |---|---|
@@ -2234,57 +2225,6 @@ check-kind-workload:
               stdout: {contains: check-kind-workload-app}
 ```
 
-**android** — apps applied to a device reached over adb:
-
-<!-- example: deploy-android uses-context -->
-```yaml
-fdroid:
-    description: The F-Droid app store.
-    package: ["android:https://f-droid.org/F-Droid.apk"]
-    step:
-        - check: F-Droid is installed
-          package: {name: "android:https://f-droid.org/F-Droid.apk"}
-        - check: the SSH server is installed under the name this operating system uses
-          package: {name: openssh-server, package_map: {arch: openssh, fedora: openssh-server, debian: openssh-server}}
-        - check: the lab release is at revision 3 or later, rendered from the pinned values
-          package: {name: "helm:lab", present: true, revision: {ge: 3}, hash: {matches: "^[0-9a-f]{64}$"}}
-
-check-android-device:
-    android:
-        description: Checks an app is applied to a device behind an adb endpoint and reversed again.
-        connect: {adb: {address: 192.0.2.10:5555}}
-        require: [fdroid]
-        disposable: true
-        step:
-            - check: the device answers
-              command: getprop ro.build.version.release
-
-check-android-emulator:
-    android:
-        description: Checks an app on an emulator this deployment builds from a box.
-        device: pixel
-        api_level: 36
-        box: search-box
-        google_account: {email: lab@example.com, token: google-token}
-        require: [fdroid]
-        disposable: true
-        step:
-            - check: the emulator answers
-              command: getprop ro.build.version.release
-
-check-android-serial:
-    android:
-        description: Checks an app on a device that already exists, reached by its serial.
-        device: pixel
-        api_level: 36
-        serial: emulator-5554
-        require: [fdroid]
-        disposable: true
-        step:
-            - check: the named device answers
-              command: getprop ro.serialno
-```
-
 ### 17.6 Drivers
 
 A driver is what drives one pluggable subsystem: the container engine of `pod`, the hypervisor of
@@ -2399,7 +2339,6 @@ lab-workstation:
 ```yaml
 plugin:
     plugin-build:     {repo: opencharly/plugin-build,     release: v2026.276.1100, digest: "sha256:1b7c00d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9"}
-    plugin-android:   {repo: opencharly/plugin-android,   release: v2026.276.1100, digest: "sha256:9d3400d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9"}
 
 browser-venue:
     description: A browser venue, its tool server and its session bus.
@@ -2423,21 +2362,13 @@ browser-venue:
           mcp: {tool: {endpoint: toolkit, name: read-file}}
         - check: the filesystem tool answers a call
           mcp: {call: {endpoint: toolkit, tool: read-file, config: {path: /etc/hostname}}}
-        - check: a mobile session is created
-          appium: {session: {action: create, caps: "{\"platformName\": \"Android\"}"}}
-        - check: the appium screen recorder is started
-          appium: {record: {action: start, artifact: /tmp/appium.mp4}}
-        - check: the settings activity is in the foreground
-          appium: {activity: {app_id: com.android.settings, activity: .Settings}}
-        - check: the settings list element is found
-          appium: {element: {strategy: accessibility id, selector: settings}}
         - check: the session bus lists its names
           dbus: {name: {bus: session}}
         - check: the session's own name owns the bus
           dbus: {name: {bus: session, name: org.charly.Tools}}
 ```
 
-Every venue is one alternative of `#VenueAlt`: `container`, `ssh`, `shell`, `kvm`, `adb` and `kube`.
+Every venue is one alternative of `#VenueAlt`: `container`, `ssh`, `shell`, `kvm` and `kube`.
 `connect:` writes one; a kind's `venue` method returns it resolved, with `via` (the venue it is reached
 through) and `access` — what it serves, read from its driver row. Every interaction with a deployment
 is one access: `exec` (a shell, a command, a step), `copy`, `log`, `console`, `display` (a screen over
@@ -2723,7 +2654,6 @@ endpoint. Nothing else is a first-party verb.
 |---|---|---|
 | check plugin | `command`, `file`, `package`, `service`, `process`, `port`, `user`, `group`, `mount`, `kernel_param`, `dns`, `interface` | `http` |
 | kubernetes plugin | — | `kube` |
-| android plugin | — | `appium` |
 | desktop plugin | — | `display`, `cdp`, `dbus`, `mcp` |
 
 Fact verbs observe what the content declared and what the system has. Every fact verb's input
@@ -3147,12 +3077,21 @@ below has `accept retirement` in its ledger `action` and cites `§A.9`.
 | `verb:file-parity` | D-LAW-2: retired with zero authored uses, and no arm of `#FactVerbAlt`/`#ProtocolVerbAlt` remains | 0 of 148 |
 | `verb:module-pins` | D-LAW-2: retired with zero authored uses, no verb arm remains | 0 of 148 |
 | `verb:splice-region` | D-LAW-2: retired with zero authored uses, no verb arm remains | 0 of 148 |
+| `kind:android` | operator decision 2026-11-27 (Android removed completely, including its device support); no replacement | 0 of 121 authored manifests |
+| `deploy:android` | operator decision 2026-11-27 (Android removed completely, including its device support); no replacement | 0 of 121 |
+| `verb:adb` | operator decision 2026-11-27 (Android removed completely); no replacement — the `adb:` venue arm and every typed device operation leave with it | 0 of 121 |
+| `verb:appium` | operator decision 2026-11-27 (Android removed completely); no replacement — the `appium:` protocol verb and its checks leave with it | 0 of 121 |
+| `kind:jetkvm` | operator decision 2026-11-27 (JetKVM removed); no replacement | 0 of 121 |
+| `verb:jetkvm` | operator decision 2026-11-27 (JetKVM removed); no replacement — the generic `display` verb and the `kvm` venue stay | 0 of 121 |
+| `step:apk-install` | operator decision 2026-11-27 (Android removed completely); no replacement — the step leaves with the platform | 0 of 121 |
 
 The count column is D-LAW-2's test, not a description: a capability retires when nothing authored
 uses it. It was measured by grepping every authored `.yml`/`.yaml` outside `CHANGELOG/`, `docs/` and
 generated `.build/` trees for the capability's own key (the transcript is in the change that recorded
 the retirements); a capability that gains a use later is a capability this document no longer
-retires, and its ledger row must say so.
+retires, and its ledger row must say so. Every row records `accept retirement` in its ledger `action`
+and cites `§A.9` where a ledger row remains; a capability retired together with the module that
+provided it has no ledger row left, and this section is its record.
 
 A capability the target keeps but **narrows on purpose** is the same kind of decision, and this
 section records those too:
@@ -3205,8 +3144,8 @@ lone `dulled`.
 
 The same rule covers a **deliberate narrowing** that is not a retirement: an operation the design
 routes elsewhere rather than drops. `D-VERB-6` is the largest — a plugin's internal operation is an
-`api` method reached by `Host.call`, never a verb, so the vendor-internal operation tables (`adb`,
-`containerd`, `libvirt`, `kubevirt`, ...) are not verbs the target owes. A row that records one of
+`api` method reached by `Host.call`, never a verb, so the vendor-internal operation tables (`containerd`,
+`libvirt`, `kubevirt`, ...) are not verbs the target owes. A row that records one of
 those says so in its `dulling` cell and its `action` names `D-VERB-6`; this section does not list them
 again, because the requirement itself is the home.
 
@@ -3509,7 +3448,7 @@ package lives under `charly/` inside its own repository, and `spec/schema/_commo
 citations of
 repositories this tree does not pin, which it reports as unchecked. The two `jetkvm` rows #962
 falsified are the failure it cannot decide for an unnamed range: they were found by reading the pin,
-and both are repaired to the name form, so the control holds them from now on. The self-test plants a real module store — a bare repository under
+and both were repaired to the name form before those capabilities were retired (§A.9). The self-test plants a real module store — a bare repository under
 `<fixture>/.git/modules/<path>`, with the pins written into the fixture's own index — and a STALE
 CHECKOUT beside it with different content. It proves, case by case: a range past the end of the
 pinned file, a range whose start follows its end, a path the pin does not have, a citation that

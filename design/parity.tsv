@@ -105,7 +105,6 @@ kind:firecracker	kind	plugin-substrate	merged	M3	D-DRV-1 §14.2	`vm` under the `
 kind:group	kind	plugin-group	merged	M3	D-NEST-1	tree position (nesting)	candy manifest providers
 kind:hook	kind	plugin-harness-kind	kept	authoring	§15	`hook:` node	candy manifest providers
 kind:init	kind	plugin-init	kept	M1	§15 D-KIND-2	`init:` node	candy manifest providers
-kind:jetkvm	kind	plugin-jetkvm	merged	M6	§17.7 D-NEST-6	`local: {connect: {kvm: …}}` — display, console and power accesses	candy manifest providers
 kind:kindcluster	kind	plugin-substrate	merged	M3	D-DEP-6 D-DRV-1	a created `kubernetes` (`node:`) under the `kind` cluster driver	candy manifest providers
 kind:kubernetes	kind	plugin-substrate	kept	M3	§17.1 D-DEP-6	`kubernetes:` node	candy manifest providers
 kind:kubevirt	kind	plugin-kubevirt,plugin-substrate	merged	M3	§17.2 D-NEST-2	a `vm` inside a `kubernetes` body	candy manifest providers
@@ -136,12 +135,10 @@ step:shell-hook	step	plugin-installstep	merged	M1	§14.4 D-IR-2	IR `command` act
 step:shell-snippet	step	plugin-installstep	merged	M1	§14.4	IR `env` or `command` action	candy manifest providers
 step:system-packages	step	plugin-installstep	merged	M1	§14.4	IR `package` action	candy manifest providers
 terminal:tmux	terminal	plugin-tmux	merged	M6	D-VENUE-1	the `console` venue access (`agent terminal`)	candy manifest providers
-verb:adb	verb	plugin-adb	merged	M7	§23 D-VENUE-1	`command` over the adb venue, and `package` for an app	candy manifest providers
 verb:addr	verb	plugin-addr	merged	M7	§23 D-VERB-6	`port: {host, port, reachable: true}`	candy manifest providers
 verb:ade	verb	plugin-pipeline	merged	workflow	D-VERB-5	a `harness_check` step	candy manifest providers
 verb:agent	verb	plugin-pipeline	merged	workflow	D-VERB-5	a `harness_run` step	candy manifest providers
 verb:agentteams	verb	plugin-agentteams	non-first-party	M7	D-PLUG-7 D-VERB-6	`agentteams.<verb>` or `http`/`command`	candy manifest providers
-verb:appium	verb	plugin-appium	kept	M7	§23 D-VERB-6	protocol verb `appium`	candy manifest providers
 verb:arbiter	verb	plugin-preempt	merged	M5	D-HW-4	core leases	candy manifest providers
 verb:bpf	verb	plugin-bpf	non-first-party	M7	D-PLUG-7 D-VERB-6	`bpf.<verb>` or `http`/`command`	candy manifest providers
 verb:cdp	verb	plugin-cdp	kept	M7	§23 D-VERB-6	protocol verb `cdp`	candy manifest providers
@@ -169,7 +166,6 @@ verb:helm	verb	plugin-helm	merged	M7	§23 D-VERB-6	fact verb `package` on a `hel
 verb:herdr	verb	plugin-herdr	non-first-party	M7	D-PLUG-7 D-VERB-6	`herdr.<verb>` or `http`/`command`	candy manifest providers
 verb:http	verb	plugin-http	kept	M7	§23 D-VERB-6	protocol verb `http`	candy manifest providers
 verb:interface	verb	plugin-interface	kept	M7	§23 D-VERB-6	fact verb `interface`	candy manifest providers
-verb:jetkvm	verb	plugin-jetkvm	merged	M7	§23 D-VERB-6	protocol verb `display`	candy manifest providers
 verb:k8sgen	verb	plugin-k8sgen	merged	M3	D-ROLE-3	the kubernetes plugin's own lowering	candy manifest providers
 verb:kernel-param	verb	plugin-kernel-param	renamed	M7	§23 D-VERB-6	fact verb `kernel_param`	candy manifest providers
 verb:kube	verb	plugin-kube	kept	M7	§23 D-VERB-6	protocol verb `kube`	candy manifest providers

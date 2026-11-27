@@ -3,7 +3,7 @@
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/opencharly/charly)
 
 **The agentic DevOps tool for you and your agents.** Write one list of **candies**. `charly`
-turns it into a container, a VM, a Kubernetes workload, a host install, or an Android device —
+turns it into a container, a VM, a Kubernetes workload, or a host install —
 proves it on a throwaway test bed before anything real sees it — and hands the whole loop to
 your agents through the same CLI you use.
 
@@ -49,7 +49,7 @@ its change class, and by an independent fresh `charly/pr-validator` after the pu
 
 ## This repo: one clone of the whole org
 
-`opencharly/opencharly` is the org-level **umbrella**: every OpenCharly repo (332 today) is pinned
+`opencharly/opencharly` is the org-level **umbrella**: every OpenCharly repo (328 today) is pinned
 here as a git submodule — a "gitlink" — flat at the root, so the submodule path equals the repo
 name for all but one alias: `.github` is pinned at the `dotgithub/` path.
 
@@ -75,7 +75,7 @@ four stages.
 |---|---|---|
 | **Build** | candies stack into a box; the box renders to a Containerfile and builds to an image | `charly box new`, `charly box build`, `charly box generate` |
 | **Run** | the project runs as a managed local deployment — config, volumes, services, logs | `charly config`, `charly start`, `charly shell`, `charly logs` |
-| **Deploy** | the same recipe pours into a pod, a VM, a Kubernetes workload, a local or SSH host, an Android device | `charly deploy add`, `charly update` |
+| **Deploy** | the same recipe pours into a pod, a VM, a Kubernetes workload, a local or SSH host | `charly deploy add`, `charly update` |
 | **Evaluate** | the box is proven on a disposable bed: deterministic `check:` steps, plus an agent that grades `agent-check:` steps on the live thing | `charly check run`, `charly feature validate` |
 
 ### Build
@@ -94,8 +94,8 @@ same mounts.
 ### Deploy
 
 `charly deploy add` puts the same image on a real target. The target is a word in the spec, not
-a different tool with a different language — pod, virtual machine, local or SSH host, Android
-device, Kubernetes, kind cluster, KubeVirt: seven molds under one wrapper.
+a different tool with a different language — pod, virtual machine, local or SSH host,
+Kubernetes, kind cluster, KubeVirt: six molds under one wrapper.
 
 ### Evaluate
 
@@ -208,10 +208,10 @@ rule, and the class prefix in the repo name states it. The rule itself is stated
 | distro image families | `distro-` | 5 | a distro's base and builder, its OS-exclusive layers, its VMs and beds |
 | package repositories | `charly-`, `pkg-` | 10 | the published native package repos, the packaging sources they are built from, and the plugin that generates them |
 | candy layers | `layer-` | 130 | ONE candy with its own files beside it — and for a family, its box, VM and beds |
-| plugins | `plugin-` | 119 | the provider candy: the words charly speaks — kinds, deploys, verbs, steps, builders, commands, engines |
+| plugins | `plugin-` | 116 | the provider candy: the words charly speaks — kinds, deploys, verbs, steps, builders, commands, engines |
 | pods | `pod-` | 41 | a candy with a `service:`, i.e. something that runs |
 | virtual machines | `vm-` | 2 | `kind: vm` definitions for a family that has no image repo |
-| product and tooling | bare or product-specific | 13 | appliances, the org's review action, vendored upstream forks |
+| product and tooling | bare or product-specific | 12 | appliances, the org's review action, vendored upstream forks |
 
 Two repositories are deliberately **not** listed as their own-name submodules:
 
@@ -283,13 +283,12 @@ a scannable index. Their themes:
 
 ### Product and tooling
 
-13 repos — appliances, the org's review action, and the vendored upstream forks.
+12 repos — appliances, the org's review action, and the vendored upstream forks.
 
 | path | repo | role |
 |---|---|---|
 | `Qwen3-TTS/` | [Qwen3-TTS](https://github.com/opencharly/Qwen3-TTS) | Vendored fork of QwenLM/Qwen3-TTS: the speech library the `qwen3-tts` pod serves (patched: honest 0.6B `instruct` handling, a real `__version__`, a PEP-440 post-release). |
 | `action-review/` | [action-review](https://github.com/opencharly/action-review) | The org's AI PR-review gate: dual-runner workflow, env/secret contract, review plan. |
-| `charly-jetkvm/` | [charly-jetkvm](https://github.com/opencharly/charly-jetkvm) | Provisions the appliance-resident `charly` on a JetKVM (armv7) over ssh. |
 | `charly-streamer/` | [charly-streamer](https://github.com/opencharly/charly-streamer) | cstream — Hyprland desktops streamed to a browser over WebRTC (Rust streamer + leader). |
 | `clawsweeper/` | [clawsweeper](https://github.com/opencharly/clawsweeper) | Vendored fork of openclaw/clawsweeper: scans the org's issues and PRs and proposes what to close. |
 | `crabbox/` | [crabbox](https://github.com/opencharly/crabbox) | Vendored fork of openclaw/crabbox: warm a box, sync the diff, run the suite (remote execution). |
@@ -591,12 +590,10 @@ merge mints a CalVer tag plus `CHANGELOG/<CalVer>.md`. Upstream sync runs throug
 
 ### Plugins: Check and control verbs
 
-19 repos — the live probes and control surfaces a `check:`/`plan:` step or a host task speaks.
+16 repos — the live probes and control surfaces a `check:`/`plan:` step or a host task speaks.
 
 | path | repo |
 |---|---|
-| `plugin-adb/` | [opencharly/plugin-adb](https://github.com/opencharly/plugin-adb) |
-| `plugin-appium/` | [opencharly/plugin-appium](https://github.com/opencharly/plugin-appium) |
 | `plugin-bpf/` | [opencharly/plugin-bpf](https://github.com/opencharly/plugin-bpf) |
 | `plugin-cardwire/` | [opencharly/plugin-cardwire](https://github.com/opencharly/plugin-cardwire) |
 | `plugin-cdp/` | [opencharly/plugin-cdp](https://github.com/opencharly/plugin-cdp) |
@@ -604,7 +601,6 @@ merge mints a CalVer tag plus `CHANGELOG/<CalVer>.md`. Upstream sync runs throug
 | `plugin-cua/` | [opencharly/plugin-cua](https://github.com/opencharly/plugin-cua) |
 | `plugin-dbus/` | [opencharly/plugin-dbus](https://github.com/opencharly/plugin-dbus) |
 | `plugin-helm/` | [opencharly/plugin-helm](https://github.com/opencharly/plugin-helm) |
-| `plugin-jetkvm/` | [opencharly/plugin-jetkvm](https://github.com/opencharly/plugin-jetkvm) |
 | `plugin-kube/` | [opencharly/plugin-kube](https://github.com/opencharly/plugin-kube) |
 | `plugin-media/` | [opencharly/plugin-media](https://github.com/opencharly/plugin-media) |
 | `plugin-mise/` | [opencharly/plugin-mise](https://github.com/opencharly/plugin-mise) |

@@ -597,7 +597,7 @@ baseline_header() {
 # control does not pretend to decide it (A.13 states the same split A.11 makes). It is the record of
 # the bytes the row pointed at, so that a change to them cannot pass unread. A row that wants its
 # subject CHECKED cites the construct by name instead (`<path>:#<Definition>`), which a pin advance
-# cannot falsify: `kind:jetkvm` and `verb:jetkvm` do exactly that.
+# cannot falsify: `kind:agent` and `verb:git-submodules` do exactly that.
 #
 # THE CHECK FAILS IN BOTH DIRECTIONS, so this file can only shrink:
 #   * a line citation ABSENT from here is a claim nobody affirmed;

@@ -24,8 +24,6 @@
 # is a reviewed diff, because every row it drops is a violation somebody fixed.
 # tracked-by: opencharly/opencharly#945
 file	rule	symbol	count
-plugin-adb/candy/plugin-adb/schema/adb.cue	union	method: ("devices" | "shell" | "install" | "install-app" | "uninstall" | "getprop" | "screencap" | "logcat-tail" | "wait-for-device" | "wait-ui-settled" | "current-focus" | "keyevent" | "session") @go(Method,type=string)	1
-plugin-adb/candy/plugin-adb/schema/adb.cue	union	action?: "start" | "stop" | "status" @go(Action)	1
 plugin-agent/candy/plugin-agent/schema/agent.cue	open	readiness?: {...}	1
 plugin-agent-pi/candy/plugin-agent-pi/schema/pi.cue	open	#PiRPCEvent: {	1
 plugin-agentteams/candy/plugin-agentteams/schema/agentteams.cue	union	method: ("status" | "manager-running" | "worker-running" | "worker-list") @go(Method,type=string)	1
