@@ -191,6 +191,14 @@ function clearRearm(): void {
 function handleGhLine(pi: ExtensionAPI, line: string): void {
   const ev = watcherEvent(line);
   const item = watcherItem(line);
+  // DROP a line for an item that is ALREADY retired (opencharly/opencharly#1310). `armGh` drops a
+  // retired item from every later arm, so forwarding this one would report on an item the session
+  // has been told it is no longer watching — the binding contradicting its own bookkeeping. The
+  // line that CAUSES the retirement is still delivered ONCE, below: that notification is what a
+  // state event is for. (For today's one-shot `watch` child this path is not reachable — one line
+  // per child — which is exactly why it needs a gate: a defensive branch with no coverage is what
+  // R5 removes again.)
+  if (gh.retired.has(item)) return;
   // A STATE event ends the watch for its item, exactly as the engine's own continuous loop
   // drops it (`watchStream`); the set of state events is the engine's, imported, never restated.
   if (STATE_EVENTS.has(ev.toLowerCase())) gh.retired.add(item);
@@ -427,11 +435,21 @@ export default function (pi: ExtensionAPI) {
         const timeout = (params.timeoutSeconds as number | undefined) ?? 0;
         return { content: [{ type: "text", text: armBed(pi, bed, timeout) }], details: {} };
       }
+      // The retired set is reported as what it IS. MEASURED (opencharly/opencharly#1310): the
+      // explanation of a NON-EMPTY retired set was concatenated unconditionally, so an EMPTY set —
+      // already rendered as `-` — carried the same sentence, three lines above `armed: yes`. That
+      // pair reads as "the arm is gone", which is how it was read: a live, healthy arm was declared
+      // dead to the operator, and killed and re-armed on the strength of it.
+      const retired = [...gh.retired];
+      const retiredLine =
+        retired.length > 0
+          ? `  retired: ${retired.join(", ")} (a state event fired — not re-armed; restart to re-watch)`
+          : `  retired: - (nothing retired)`;
       const lines = [
         `project:  ${projectRoot}`,
         `GitHub:   ${gh.items.length === 0 ? "inert (.pi/watch.items empty/comment-only)" : `${gh.items.length} item(s)`}`,
         `  items:  ${gh.items.join(", ") || "-"}`,
-        `  retired: ${[...gh.retired].join(", ") || "-"} (a state event fired — not re-armed; restart to re-watch)`,
+        retiredLine,
         `  armed:  ${gh.proc ? "yes (this session's arm is tracked)" : gh.rearmTimer ? "re-arm pending" : "no — this session tracks no arm"}`,
         `beds:     ${beds.size === 0 ? "none" : [...beds.keys()].join(", ")}`,
       ];
