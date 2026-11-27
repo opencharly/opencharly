@@ -191,16 +191,15 @@ function clearRearm(): void {
 function handleGhLine(pi: ExtensionAPI, line: string): void {
   const ev = watcherEvent(line);
   const item = watcherItem(line);
-  // DROP a line for an item that is ALREADY retired (opencharly/opencharly#1310). `armGh` drops a
-  // retired item from every later arm, so forwarding this one would report on an item the session
-  // has been told it is no longer watching — the binding contradicting its own bookkeeping. The
-  // line that CAUSES the retirement is still delivered ONCE, below: that notification is what a
-  // state event is for. (For today's one-shot `watch` child this path is not reachable — one line
-  // per child — which is exactly why it needs a gate: a defensive branch with no coverage is what
-  // R5 removes again.)
-  if (gh.retired.has(item)) return;
   // A STATE event ends the watch for its item, exactly as the engine's own continuous loop
   // drops it (`watchStream`); the set of state events is the engine's, imported, never restated.
+  //
+  // NO retired-item guard here, and its absence is a MEASURED decision, not an omission
+  // (opencharly/opencharly#1310). The engine's continuous loop already drops a retired item
+  // (`open = open.filter(...)` in `watchStream`), and this binding's child is the ONE-SHOT `watch`
+  // — `runWatch` returns a single fire, so a child prints at most one line and is gone before its
+  // item could be retired behind its back. A guard here would be an unreachable arm, which
+  // CONC(a) blocks and R5 removes.
   if (STATE_EVENTS.has(ev.toLowerCase())) gh.retired.add(item);
   deliver(pi, `WATCHER ${line.trim()}`);
 }

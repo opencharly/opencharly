@@ -124,20 +124,19 @@ function check() {
   if (!/code\s*===\s*7/.test(code) || !/code\s*===\s*5/.test(code))
     fail(`treats a rate limit (7) / usage error (5) as terminal — never blind-retried`);
 
-  // 3d. THE BINDING MAY NOT CONTRADICT ITS OWN BOOKKEEPING (opencharly/opencharly#1310). Two
-  //     claims it used to make, both measured:
-  //       (a) `retired: - (a state event fired — not re-armed; restart to re-watch)` — the
-  //           explanation of a NON-EMPTY retired set, concatenated unconditionally onto the EMPTY
-  //           one, three lines above `armed: yes`. Read as "the arm is gone": a live, healthy arm
-  //           was declared dead to the operator and killed and re-armed on the strength of it.
-  //       (b) the delivery path never consulted `gh.retired` — only the ARM did — so a line for an
-  //           item the session had been told it is no longer watching was still forwarded.
-  if (/\)\s*\|\|\s*["'`]-["'`]\)\s*\(a state event fired/.test(code))
-    fail(`does not explain an EMPTY retired set as if the arm were gone (the unconditional concatenation is back)`);
+  // 3d. THE STATUS LINE MAY NOT CONTRADICT ITS OWN FIELD (opencharly/opencharly#1310). MEASURED:
+  //     `retired: - (a state event fired — not re-armed; restart to re-watch)` — the explanation of
+  //     a NON-EMPTY retired set, concatenated unconditionally onto the EMPTY one, three lines above
+  //     `armed: yes`. Read as a pair it says "the arm is gone": a live, healthy arm was declared dead
+  //     to the operator and killed and re-armed on the strength of it.
+  //
+  //     ONE assertion, because ONE shape is the defect: the empty case must be NAMED. That also
+  //     catches the old unconditional concatenation, which printed no such wording. An assertion
+  //     matching the concatenation by regex was tried first and DELETED: the real shape closes the
+  //     interpolation with `}` and the pattern expected `)`, so it could never match — a dead
+  //     assertion in a file this change edits (CONC(a)), and one the mutation did not turn RED.
   if (!/nothing retired/.test(code))
     fail(`names the EMPTY retired set instead of leaving an unexplained '-'`);
-  if (!/gh\.retired\.has\(item\)/.test(code))
-    fail(`drops a line for an ALREADY-retired item (the delivery path consults gh.retired, not only the arm)`);
 
   // 4. it cleans up.
   if (!/pi\.on\(\s*["'`]session_shutdown["'`]/.test(code)) fail(`kills its children in session_shutdown`);
@@ -240,12 +239,6 @@ if (argv.includes("--self-test")) {
           '          : `  retired: - (a state event fired — not re-armed; restart to re-watch)`;',
         ),
       "does not explain an EMPTY retired set",
-    ],
-    [
-      "an already-retired item is delivered",
-      REL_EXT,
-      () => ext.replace(/  if \(gh\.retired\.has\(item\)\) return;\n/, ""),
-      "drops a line for an ALREADY-retired item",
     ],
     [
       "a private item grammar",
