@@ -50,10 +50,6 @@
 	path = charly-fedora
 	url = https://github.com/opencharly/charly-fedora.git
 	branch = main
-[submodule "charly-jetkvm"]
-	path = charly-jetkvm
-	url = https://github.com/opencharly/charly-jetkvm.git
-	branch = main
 [submodule "charly-openwrt"]
 	path = charly-openwrt
 	url = https://github.com/opencharly/charly-openwrt.git
@@ -764,10 +760,6 @@
 	path = layer-notebook-openrouter
 	url = https://github.com/opencharly/layer-notebook-openrouter.git
 	branch = main
-[submodule "plugin-adb"]
-	path = plugin-adb
-	url = https://github.com/opencharly/plugin-adb.git
-	branch = main
 [submodule "plugin-addr"]
 	path = plugin-addr
 	url = https://github.com/opencharly/plugin-addr.git
@@ -787,10 +779,6 @@
 [submodule "plugin-alias"]
 	path = plugin-alias
 	url = https://github.com/opencharly/plugin-alias.git
-	branch = main
-[submodule "plugin-appium"]
-	path = plugin-appium
-	url = https://github.com/opencharly/plugin-appium.git
 	branch = main
 [submodule "plugin-authoring"]
 	path = plugin-authoring
@@ -1251,10 +1239,6 @@
 [submodule "plugin-review"]
 	path = plugin-review
 	url = https://github.com/opencharly/plugin-review.git
-	branch = main
-[submodule "plugin-jetkvm"]
-	path = plugin-jetkvm
-	url = https://github.com/opencharly/plugin-jetkvm.git
 	branch = main
 [submodule "layer-qdrant"]
 	path = layer-qdrant

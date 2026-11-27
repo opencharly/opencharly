@@ -80,7 +80,7 @@ import (
 #Scalar:      string | number | bool
 #InitNeutral: string & !~"%[a-zA-Z(]" // D-CANDY-3
 // A package is an OS package name, or `<manager>:<locator>` for a non-OS manager (§3.1); the
-// locator is whatever that manager installs from (a name, or a URL for `android:`).
+// locator is whatever that manager installs from (a name, or a URL).
 #OsPackage:      =~"^[^: ]+$"
 #ManagerLocator: =~"^(\(strings.Join(_managerWord, "|"))):[^ ]+$"
 #Package:        #OsPackage | #ManagerLocator
@@ -160,7 +160,6 @@ _manager: {
 	pixi:    {time: "build"}
 	mise:    {time: "build"}
 	helm:    {time: "apply"}
-	android: {time: "apply"}
 } @vocab(registry)
 _managerWord: [for w, _ in _manager {w}]
 _buildManagerWord: [for w, r in _manager if r.time == "build" {w}]
@@ -173,12 +172,10 @@ _fileType: {file: {}, directory: {}, symlink: {}} @vocab(check)
 _displayButton: {left: {}, right: {}, middle: {}} @vocab(check)
 _clipboardAction: {get: {}, set: {}, clear: {}} @vocab(check)
 _sessionAction: {start: {}, stop: {}, status: {}} @vocab(check)
-_appiumSessionAction: {create: {}, delete: {}} @vocab(check)
 _fileTypeWord: [for w, _ in _fileType {w}]
 _displayButtonWord: [for w, _ in _displayButton {w}]
 _clipboardActionWord: [for w, _ in _clipboardAction {w}]
 _sessionActionWord: [for w, _ in _sessionAction {w}]
-_appiumSessionActionWord: [for w, _ in _appiumSessionAction {w}]
 _serviceFormatWord: [for w, _ in _serviceFormat {w}]
 _initRole: {container: {}, system: {}} @vocab(build)
 _initRoleWord: [for w, _ in _initRole {w}]
@@ -325,7 +322,6 @@ _subsystemDefaultDriver: {for k, _ in _subsystem {(k): [for w, r in _driver if r
 #ProtocolVerbAlt: {
 	http:    {http!: #HttpCheck, #DeploymentPhase...}
 	kube:    {kube!: #KubeCheck, #DeploymentPhase...}
-	appium:  {appium!: #AppiumCheck, #DeploymentPhase...}
 	cdp:     {cdp!: #CdpCheck, #DeploymentPhase...}
 	dbus:    {dbus!: #DbusCheck, #DeploymentPhase...}
 	mcp:     {mcp!: #McpCheck, #DeploymentPhase...}
@@ -338,7 +334,7 @@ _subsystemDefaultDriver: {for k, _ in _subsystem {(k): [for w, r in _driver if r
 // inside CUE, so these lists are written out; design-consistency.sh checks them against the
 // definitions.
 _candyField: ["description", "from", "step", "require", "need", "use", "provide", "package", "os_override", "file", "package_repo", "path_append", "var", "service", "user", "volume", "export", "module", "packaging", "platform", "build_with", "entrypoint", "tag", "capture"]
-_deployField: ["description", "step", "disposable", "preemptible", "update_gate", "concurrency", "instrument", "ephemeral", "need", "use", "provide", "require", "create", "connect", "from", "publish", "node_selector", "node", "device", "api_level", "config", "env", "install_opt", "box", "serial", "google_account", "default_namespace", "admission_policy", "kubeconfig_context", "storage", "ingress", "image_default", "pod_default", "kubeconfig", "kubevirt", "label", "annotation"]
+_deployField: ["description", "step", "disposable", "preemptible", "update_gate", "concurrency", "instrument", "ephemeral", "need", "use", "provide", "require", "create", "connect", "from", "publish", "node_selector", "node", "config", "env", "install_opt", "default_namespace", "admission_policy", "kubeconfig_context", "storage", "ingress", "image_default", "pod_default", "kubeconfig", "kubevirt", "label", "annotation"]
 
 _kindWord: [for w, _ in #KindAlt {w}]
 _verbWord: [for w, _ in #VerbAlt {w}]
@@ -574,7 +570,7 @@ _leasableWord: [for w, r in _capability if r.lease {w}]
 // runs on, or another deployment's venue.
 #CheckOnAlt: {
 	host: {host!: {}}
-	node: {node!: #Ref @ref(pod, vm, local, android, kubernetes)}
+	node: {node!: #Ref @ref(pod, vm, local, kubernetes)}
 }
 #CheckOn: or([for _, a in #CheckOnAlt {a}])
 // A check step without its verb: the loader unifies it with the one verb arm the step names.
@@ -738,20 +734,6 @@ _leasableWord: [for w, r in _capability if r.lease {w}]
 #KubeCheckResource: {kind!: #Text, name!: #Text, namespace?: #Label, ready: *true | bool, value?: #Matcher}
 #KubeCheckRaw:      {path!: #Text, value?: #Matcher}
 #KubeCheckPod:      {namespace?: #Label}
-#AppiumCheckAlt: {
-	status:      {status!: {}}
-	page_source: {page_source!: {}}
-	session:     {session!: #AppiumCheckSession}
-	activity:    {activity!: #AppiumCheckActivity}
-	element:     {element!: #AppiumCheckElement}
-	record:      {record!: #AppiumCheckRecord}
-}
-#AppiumCheck: or([for _, a in #AppiumCheckAlt {a}])
-#AppiumCheckSession:  {action!: *"create" | or(_appiumSessionActionWord), caps?: #Text, session?: #Text}
-#AppiumCheckActivity: {app_id!: #Text, activity!: #Text}
-#AppiumCheckElement:  {strategy!: #Text, selector!: #Text}
-// The recorder: start, stop or ask for the status of the screen capture the appium session writes.
-#AppiumCheckRecord:   {action!: *"start" | or(_sessionActionWord), artifact?: #AbsPath}
 #CdpCheckAlt: {
 	status:     {status!: {}}
 	tab:        {tab!: {}}
@@ -936,7 +918,7 @@ _permissionWord: [for w, _ in _permission {w}]
 #StageAlt: { // D-FLOW-1: a stage does exactly one thing
 	step:     {step!: [...#DeploymentStep], #StageFields...} // D-FLOW-1: a stage observes the host venue
 	pipeline: {pipeline!: #Ref @ref(pipeline), #StageFields...}
-	deployment: {deployment!: #RefSet @ref(pod, vm, local, android, kubernetes), #StageFields...} // realize each, run its checks
+	deployment: {deployment!: #RefSet @ref(pod, vm, local, kubernetes), #StageFields...} // realize each, run its checks
 	ask:      {ask!: #StageAsk, #StageFields...}
 }
 #Stage: or([for _, a in #StageAlt {a}])
@@ -1063,14 +1045,6 @@ _permissionWord: [for w, _ in _permission {w}]
 }
 // A port the cluster maps into a node: the container port and the host port the reach path publishes.
 #ClusterPort: {container!: #Port, host: *0 | #Port}
-#AndroidFields: {
-	device!:    #Text
-	api_level!: #Count
-	box?:       #Ref @ref(box, source) // the emulator image this node boots, built from a box
-	serial?:    #Text                  // the serial of a device that already exists, reached instead of creating one
-	google_account?: #GoogleAccount // the sign-in, the token naming the `secret:` need entry that carries it
-}
-#GoogleAccount: {email!: #Text, token!: #Name}
 #LocalFields: {
 	// The host install's own gates: what this machine lets a deploy do to it.
 	install_opt?: #LocalInstallOpt
@@ -1116,11 +1090,10 @@ _#EngineHost:     {device: {fuse: _, tun: _}, isolation: {userns: _}}
 _#HypervisorHost: {device: {kvm: _, vhost_net: _}}
 _deploymentKind: [#Word]: #DeploymentKindRow
 _deploymentKind: {
-	pod:        {create: #MachineFields, top: ["create"], admit: ["pod", "vm", "local", "kubernetes", "android", "agent"], beside: ["pod", "vm", "local"], host: _#EngineHost}
-	vm:         {create: #MachineFields, top: ["create"], admit: ["pod", "vm", "local", "kubernetes", "android", "agent"], beside: ["pod", "vm", "local"], host: _#HypervisorHost}
+	pod:        {create: #MachineFields, top: ["create"], admit: ["pod", "vm", "local", "kubernetes", "agent"], beside: ["pod", "vm", "local"], host: _#EngineHost}
+	vm:         {create: #MachineFields, top: ["create"], admit: ["pod", "vm", "local", "kubernetes", "agent"], beside: ["pod", "vm", "local"], host: _#HypervisorHost}
 	kubernetes: {create: #KubernetesFields, connect: ["kube"], top: ["create", "connect"], admit: ["pod", "vm", "agent"], host: _#EngineHost}
-	local:      {create: #LocalFields, connect: ["shell", "ssh", "kvm"], top: ["connect"], admit: ["candy", "kubernetes", "android"], content: true, connect_create: true}
-	android:    {create: #AndroidFields, connect: ["adb"], top: ["create", "connect"], admit: ["candy"], content: true}
+	local:      {create: #LocalFields, connect: ["shell", "ssh", "kvm"], top: ["connect"], admit: ["candy", "kubernetes"], content: true, connect_create: true}
 	agent:      {create: #AgentFields, top: []}
 } @vocab(registry)
 // The deployment kinds (§2, §17.1).
@@ -1255,14 +1228,12 @@ _detailCodeWord: [for w, _ in _detailCode {w}]
 	ssh:       {ssh!: #VenueSsh}
 	shell:     {shell!: {}}
 	kvm:       {kvm!: #VenueKvm}
-	adb:       {adb!: #VenueAdb}
 	kube:      {kube!: #VenueKube}
 }
 _venueWord: [for w, _ in #VenueAlt {w}]
 #VenueContainer: {driver!: or(_subsystemDriver.pod), name!: #Text, namespace: *"default" | #Label, isolation?: or(_isolationWord)}
 #VenueSsh:       {host!: #Hostname, port: *22 | #Port, user?: #Name, #SecretFields...}
 #VenueKvm:       {address!: #Address, #SecretFields...}
-#VenueAdb:       {address!: #Address}
 #VenueKube:      {context!: #Text, namespace: *"default" | #Label}
 #VenueFields: {via?: #VenueOutput, access!: [...or(_accessWord)] & list.UniqueItems()}
 // The resolved venues: every venue alternative with what it serves.

@@ -16,7 +16,7 @@
 # control does not pretend to decide it (A.13 states the same split A.11 makes). It is the record of
 # the bytes the row pointed at, so that a change to them cannot pass unread. A row that wants its
 # subject CHECKED cites the construct by name instead (`<path>:#<Definition>`), which a pin advance
-# cannot falsify: `kind:jetkvm` and `verb:jetkvm` do exactly that.
+# cannot falsify: `kind:agent` and `verb:git-submodules` do exactly that.
 #
 # THE CHECK FAILS IN BOTH DIRECTIONS, so this file can only shrink:
 #   * a line citation ABSENT from here is a claim nobody affirmed;
@@ -129,7 +129,6 @@ step:system-packages	plugin-installstep/candy/plugin-installstep/charly.yml	47-4
 terminal:tmux	plugin-tmux/candy/plugin-tmux/charly.yml	5-18	-	9d5b438fcfc617e1
 tmux attach|capture|cmd|kill|list|run|send|shell	plugin-agent/candy/plugin-agent/tmux_compat.go	21-36	TmuxCompatCmd	c32c271c55545811
 udev generate|install|remove|status	plugin-udev/candy/plugin-udev/command.go	72-77	UdevCmd	9f8fe33495a775a3
-verb:adb	plugin-adb/candy/plugin-adb/schema/adb.cue	38-38	#AdbInput	39210d3fc3665e95
 verb:addr	plugin-addr/candy/plugin-addr/schema/addr.cue	2-4	-	f279eddc3b4c4905
 verb:bpf	plugin-bpf/candy/plugin-bpf/schema/bpf.cue	1-8	-	df150ea835ea0129
 verb:command	plugin-command/candy/plugin-command/schema/command.cue	1-45	#CommandInput	dafb060905e8ed54
