@@ -366,7 +366,7 @@ if (argv.includes("--self-test")) {
   // THE CORPUS-ABSENT ARM — the one arm here that must NOT turn the gate red. A session worktree that
   // did not populate its submodules (Part II rule 2) must leave every corpus-dependent check SKIPPING
   // VISIBLY. The regression this exists for is a check that silently loses its skip and inverts from
-  // PASS to RED on every such tree, which is what checks 8 and 9 did when their coverage arms were
+  // PASS to RED on every such tree, which is what checks 3 and 10 did when their coverage arms were
   // replaced by an unconditional generator call.
   stage();
   // Both surviving derivations read the shared corpus: the farm needs skill FILES, the Claude arm
@@ -496,7 +496,7 @@ for (const h of [".claude/hooks/pre-commit-gate.sh", ".claude/hooks/pre-push-gat
 //    while every corpus family added since the last hand edit stayed invisible to Claude Code, and
 //    the other three bindings saw it (opencharly/opencharly#1100). A count cannot see drift; only
 //    the derivation can, so the generator owns it and this check asks "was the generator run" —
-//    the same shape as check 9. The one auto-allow a rulebook FORBIDS is asserted absent: no agent
+//    the same shape as check 10. The one auto-allow a rulebook FORBIDS is asserted absent: no agent
 //    merges (AGENTS.md, "Commit, push, land", step 6), so an allow rule that approves a merge with
 //    no prompt is a weakened guardrail.
 {
@@ -742,7 +742,7 @@ ok(existsSync(join(root, ".dsh/watch.items")), ".dsh/watch.items (the DSH watch 
     );
   }
 
-  // COVERAGE — "was the generator run?", the same arm as check 9 for the other binding, and skipped
+  // COVERAGE — "was the generator run?", the same arm as check 3 for the other binding, and skipped
   // visibly on the same precondition. The farm is an ENUMERATION (one entry per corpus skill), so it
   // drifts every time a family is added; the derivation is the only thing that can keep it correct,
   // and a collision across families is where the generator hard-fails rather than shadowing one.
