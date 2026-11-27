@@ -769,6 +769,19 @@ if (argv.includes("--self-test")) {
     // The nested post-condition (opencharly/opencharly#710): the two ways a worktree can
     // be created WITHOUT the nested level its currency report needs — never initializing
     // it at all, and initializing it without reading the exit code.
+    // One mutation per guard the tool now reads, and one for the class that was filed. Each was
+    // DELETED once already by an over-broad replacement in this branch's own review rounds — which
+    // is why every one of them is named here rather than assumed.
+    [
+      "the build's exit code is discarded",
+      (s) => s.replace(/if \(built\.code !== 0\) \{/, "if (false) {"),
+      "a build that EXITS NON-ZERO",
+    ],
+    [
+      "a build that produces no binary is reported as built",
+      (s) => s.replace(/if \(!existsSync\(binaryPath\)\) \{/, "if (false) {"),
+      "a build that exits 0 WITHOUT the binary",
+    ],
     // Restores the pre-#1312 defect EXACTLY: that code read no exit code at all. ONE replacement
     // is enough — the empty-checkout effect guard this round-1 change added was itself DELETED, so
     // there is nothing else to disable, and a `.replace` aimed at the deleted guard could never
