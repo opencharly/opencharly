@@ -134,7 +134,7 @@ const MUST_DENY = [
 // unrouted` (352 − 130 = 222). With the ceiling left at 226 the self-test's dropping-a-row arm
 // went green again (223 ≤ 226), the slack this ratchet forbids, so the ceiling tightens to 222.
 // MEASURED AGAIN 2026-11-27 on the corpus the reasonix pin wave carries
-// (opencharly/marketplace#661; corpus tag `v2026.331.0144`): `123/297 corpus skills
+// (opencharly/marketplace#662 and #663; corpus tag `v2026.331.0144`): `123/297 corpus skills
 // routed, 174 unrouted` (297 − 123 = 174). The retirement sweep removed 55 skills
 // (measured 2026-11-27), so
 // the ceiling tightens to 174 — at 222 the self-test's dropping-a-row arm went green
