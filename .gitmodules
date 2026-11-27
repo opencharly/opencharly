@@ -1417,3 +1417,7 @@
 	branch = main
 	path = pod-kde-vnc-cdp
 	url = https://github.com/opencharly/pod-kde-vnc-cdp.git
+[submodule "pod-whisper"]
+	path = pod-whisper
+	url = https://github.com/opencharly/pod-whisper
+	branch = main

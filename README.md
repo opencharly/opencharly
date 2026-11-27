@@ -49,7 +49,7 @@ its change class, and by an independent fresh `charly/pr-validator` after the pu
 
 ## This repo: one clone of the whole org
 
-`opencharly/opencharly` is the org-level **umbrella**: every OpenCharly repo (331 today) is pinned
+`opencharly/opencharly` is the org-level **umbrella**: every OpenCharly repo (332 today) is pinned
 here as a git submodule — a "gitlink" — flat at the root, so the submodule path equals the repo
 name for all but one alias: `.github` is pinned at the `dotgithub/` path.
 
@@ -209,7 +209,7 @@ rule, and the class prefix in the repo name states it. The rule itself is stated
 | package repositories | `charly-`, `pkg-` | 10 | the published native package repos, the packaging sources they are built from, and the plugin that generates them |
 | candy layers | `layer-` | 130 | ONE candy with its own files beside it — and for a family, its box, VM and beds |
 | plugins | `plugin-` | 119 | the provider candy: the words charly speaks — kinds, deploys, verbs, steps, builders, commands, engines |
-| pods | `pod-` | 40 | a candy with a `service:`, i.e. something that runs |
+| pods | `pod-` | 41 | a candy with a `service:`, i.e. something that runs |
 | virtual machines | `vm-` | 2 | `kind: vm` definitions for a family that has no image repo |
 | product and tooling | bare or product-specific | 13 | appliances, the org's review action, vendored upstream forks |
 
@@ -751,7 +751,7 @@ merge mints a CalVer tag plus `CHANGELOG/<CalVer>.md`. Upstream sync runs throug
 
 ### Pods: AI and ML services
 
-12 repos — the CDI GPU pod base box, inference servers, notebook servers, the photo library with its ML backend, the model trainers, and the agent front-ends that talk to them.
+13 repos — the CDI GPU pod base box, inference servers, notebook servers, the photo library with its ML backend, the model trainers, and the agent front-ends that talk to them.
 
 | path | repo |
 |---|---|
@@ -767,6 +767,7 @@ merge mints a CalVer tag plus `CHANGELOG/<CalVer>.md`. Upstream sync runs throug
 | `pod-qdrant/` | [opencharly/pod-qdrant](https://github.com/opencharly/pod-qdrant) |
 | `pod-qwen3-tts/` | [opencharly/pod-qwen3-tts](https://github.com/opencharly/pod-qwen3-tts) |
 | `pod-strata/` | [opencharly/pod-strata](https://github.com/opencharly/pod-strata) |
+| `pod-whisper/` | [opencharly/pod-whisper](https://github.com/opencharly/pod-whisper) |
 
 ### Pods: Data and infrastructure services
 
