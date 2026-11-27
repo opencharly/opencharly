@@ -49,22 +49,11 @@
 //      server.                                                       [discriminating]
 //   7. SOUL.md is injected into every harness that has an additive mechanism.
 //                                                                     [discriminating]
-//  7b. reasonix's harness binding (design/REASONIX.md) exists at its declared home
-//      and is injected by that same SessionStart hook.            [discriminating]
-//   8. reasonix.toml's [skills] paths ARE their derivation from the
-//      corpus (scripts/sync-skill-bindings.mjs --only reasonix), and are
-//      well-formed.                                       [discriminating]
-//   9. .reasonix/settings.json uses reasonix's OWN hook key.          [discriminating]
-//  10. The Ollama web-search code extension ships as a v2 plugin package AND
-//      its sidecar answers `extension/initialize` with the host's registered
-//      `InitializeResult` (MEASURED against reasonix v2.28.0: `name`,
-//      `version`, `stateSchemaVersion`, `protocolVersion:"2"`, string
-//      `tools`; no `capabilities`).                              [discriminating]
-//  11. The PR watcher is bound per harness (reasonix, pi, DSH).      [discriminating]
-//  12. The R0 dispatcher table resolves to real skills, every skill a
+//   8. The PR watcher is bound per harness (pi, DSH).                  [discriminating]
+//   9. The R0 dispatcher table resolves to real skills, every skill a
 //      root .md routes to resolves, and the unrouted-skill count
 //      holds under its ratchet.                                      [structural]
-//  13. The DSH arm's .dsh/skills farm IS its derivation from the corpus
+//  10. The DSH arm's .dsh/skills farm IS its derivation from the corpus
 //      (scripts/sync-skill-bindings.mjs --only farm), every entry is a
 //      symlink, and the README signpost is present.               [discriminating]
 //
@@ -108,7 +97,7 @@ const MUST_DENY = [
   ["git commit *--no-verify*", "hooks are never bypassed (R6)"],
 ];
 
-// The dispatcher-coverage RATCHET (check 12). MEASURED on the tree this gate ships with:
+// The dispatcher-coverage RATCHET (check 9). MEASURED on the tree this gate ships with:
 // 355 corpus skills (`marketplace/*/skills/*/SKILL.md`) against 129 `DISPATCHER.md` rows,
 // i.e. 226 corpus skills carry no routing row.
 //
@@ -168,20 +157,11 @@ if (argv.includes("--self-test")) {
     ".pi/settings.json",
     "opencode.json",
     ".codex/config.toml",
-    ".reasonix/settings.json",
-    ".reasonix/soul-inject.sh",
-    ".reasonix/plugin/reasonix-plugin.json",
-    ".reasonix/plugin/sidecar.py",
-    ".reasonix/watch.items",
-    ".reasonix/watch-arm.sh",
-    "scripts/gh",
-    "design/REASONIX.md",
     ".pi/watch.items",
     ".pi/extensions/watch.ts",
     ".pi/extensions/footer.ts",
     ".pi/extensions/question.ts",
     ".pi/extensions/github-pr-status.ts",
-    "reasonix.toml",
     ".opencode/package.json",
     ".opencode/agent",
     ".pi/extensions/charly-gates.ts",
@@ -200,7 +180,7 @@ if (argv.includes("--self-test")) {
       // A SUBMODULE surface (`marketplace/DISPATCHER.md`) is ABSENT in a checkout that did not
       // materialize its submodules — the session-worktree layout Part II rule 2 REQUIRES, and
       // any CI checkout without submodules. Skip it in the SAME voice the gate itself already
-      // uses for this exact case (checks 8/12/13: "not checked out — <check> skipped") instead
+      // uses for this exact case (checks 9/10: "not checked out — <check> skipped") instead
       // of letting cpSync throw ENOENT out of the self-test and abort every remaining arm.
       if (!existsSync(src)) {
         console.log(`  NOTICE  surface ${p} is not materialized in this checkout — not staged`);
@@ -217,27 +197,17 @@ if (argv.includes("--self-test")) {
       cpSync(src, dst, { recursive: true, verbatimSymlinks: true });
       chmodSync(dst, statSync(src).mode & 0o777);
     }
-    // Give check 8's COVERAGE assertion an independent oracle in the staged tree. The
-    // expected layout is materialized from the PRISTINE `reasonix.toml` in `root` (whose
-    // paths are not mutated — mutations edit the staged `tree`), so a mutation that DROPS
-    // a path still finds the directory present and fails coverage. When the real
-    // `marketplace` submodule is checked out, its family/{skills,agents} dirs are used
-    // instead, which additionally exercises a family ADDED upstream but not yet listed.
+    // Materialize the corpus shape the surviving derivations read. When the real
+    // `marketplace` submodule is checked out, its families supply the oracle.
     const mkt = join(root, "marketplace");
     if (existsSync(mkt)) {
-      for (const fam of readdirSync(mkt, { withFileTypes: true })) {
-        if (!fam.isDirectory() || fam.name === ".well-known") continue;
-        for (const sub of ["skills", "agents"]) {
-          if (existsSync(join(mkt, fam.name, sub))) mkdirSync(join(tree, "marketplace", fam.name, sub), { recursive: true });
-        }
-      }
-      // Materialize one PLACEHOLDER SKILL.md per real skill, so check 12's skill inventory in
+      // Materialize one PLACEHOLDER SKILL.md per real skill, so check 9's skill inventory in
       // the staged tree matches the real one WITHOUT copying the corpus (346 files, some
       // large). The gate tests only EXISTENCE of `<family>/skills/<name>/SKILL.md`, so an
-      // empty file is a faithful stand-in — and without it check 12 would find zero skills
+      // empty file is a faithful stand-in — and without it check 9 would find zero skills
       // in the staged tree and no mutation could ever turn it red (a test that cannot fail).
       //
-      // A SKILL IS A DIRECTORY THAT HOLDS A SKILL.md — the gate's own definition (check 12) —
+      // A SKILL IS A DIRECTORY THAT HOLDS A SKILL.md — the gate's own definition (check 9) —
       // never a directory that merely exists. A corpus retirement deletes the SKILL.md and can
       // leave the now-empty directory behind in a working checkout (git tracks no empty dirs,
       // so nothing reports it), and a directory-name oracle turns that leftover into a skill
@@ -257,7 +227,7 @@ if (argv.includes("--self-test")) {
           writeFileSync(dst, "");
         }
       }
-      // Check 12(d) asserts every `.opencode/agent/` pointer names an EXISTING corpus agent
+      // Check 9(d) asserts every `.opencode/agent/` pointer names an EXISTING corpus agent
       // definition, so the staged tree carries one placeholder per real definition — the
       // `agents/` trees are small, and without them the unmutated copy would be RED for a
       // file it never staged.
@@ -274,8 +244,7 @@ if (argv.includes("--self-test")) {
       // The CONTROL for the guard above: an empty skill directory that no source produced. It
       // must never reach the gate's skill inventory, so the unmutated-copy assertion goes RED if
       // the oracle ever goes back to counting directories. It sits inside a REAL family, because
-      // a phantom FAMILY would legitimately demand its own reasonix path and turn the unrelated
-      // derivation arm red for the wrong reason.
+      // a phantom FAMILY would change the corpus shape under test for the wrong reason.
       const withSkills = readdirSync(mkt, { withFileTypes: true }).filter(
         (f) => f.isDirectory() && existsSync(join(mkt, f.name, "skills")),
       );
@@ -290,9 +259,6 @@ if (argv.includes("--self-test")) {
       mkdirSync(dirname(join(tree, CLAUDE_CATALOG)), { recursive: true });
       cpSync(catalog, join(tree, CLAUDE_CATALOG));
     }
-    const pristine = readFileSync(join(root, "reasonix.toml"), "utf8");
-    for (const m of pristine.matchAll(/"marketplace\/[^"]+"/g)) mkdirSync(join(tree, JSON.parse(m[0])), { recursive: true });
-
     // CHECK 14's CURRENCY ARM NEEDS A TAGGED CORPUS TO JUDGE. On a tree where `marketplace/` is not
     // a git checkout the currency assertion SKIPS VISIBLY — a legitimate state, and one a session
     // worktree really has — so a scratch tree without one can never exercise the assertion's
@@ -354,59 +320,32 @@ if (argv.includes("--self-test")) {
     [".codex/config.toml", (p) => writeFileSync(p, readFileSync(p, "utf8").replace(/^project_doc_max_bytes = .+$/m, "project_doc_max_bytes = 1")), "fits the complete AGENTS.md", "6b (rulebook truncation)"],
     ["opencode.json", (p) => { const o = JSON.parse(readFileSync(p, "utf8")); o.instructions = [".opencode/instructions.md"]; writeFileSync(p, JSON.stringify(o)); }, "injects SOUL.md for opencode", "7 (opencode arm)"],
     [".pi/extensions/charly-gates.ts", (p) => writeFileSync(p, readFileSync(p, "utf8").replace(/readSoul/g, "__soul_removed__")), "injects the SOUL.md identity", "7 (pi arm)"],
-    [".reasonix/soul-inject.sh", (p) => writeFileSync(p, readFileSync(p, "utf8").replace(/cat "\$SOUL"/, "true")), "injects SOUL.md for reasonix", "7 (reasonix arm — a wired hook whose script stopped emitting must FAIL)"],
-    [".reasonix/settings.json", (p) => { const s = JSON.parse(readFileSync(p, "utf8")); s.hooks.SessionStart = s.hooks.SessionStart.filter((h) => !h.command.includes("soul-inject")); writeFileSync(p, JSON.stringify(s)); }, "injects SOUL.md for reasonix", "7 (reasonix arm — an UNWIRED hook must FAIL)"],
-    [".reasonix/soul-inject.sh", (p) => writeFileSync(p, readFileSync(p, "utf8").replace(/cat "\$RIX"/, "true")), "injects the reasonix harness binding", "7b (a hook that stopped emitting the binding must FAIL)"],
-    ["design/REASONIX.md", (p) => rmSync(p), "design/REASONIX.md exists", "7b (a missing binding file must FAIL)"],
-    ["reasonix.toml", (p) => writeFileSync(p, readFileSync(p, "utf8").replace(/^paths = \[\n[\s\S]*?\n\]/m, "paths = []")), "wires", "8 (empty [skills] paths must FAIL)"],
-    ["reasonix.toml", (p) => writeFileSync(p, readFileSync(p, "utf8").replace(/^paths = \[/m, 'paths = [\n    "marketplace",')), "bare `marketplace` root", "8 (the bare-family-root regression must FAIL)"],
-    ["reasonix.toml", (p) => writeFileSync(p, readFileSync(p, "utf8").replace(/^    "marketplace\/vm\/skills",\n/m, "")), "match their derivation", "8 (a dropped skill path must FAIL on coverage)"],
-    [".reasonix/settings.json", (p) => { const s = JSON.parse(readFileSync(p, "utf8")); s.hooks.PreToolUse[0].match = "*"; writeFileSync(p, JSON.stringify(s)); }, 'native reasonix "match" key', "9 (the Claude `matcher` spelling must not satisfy it)"],
-    [".reasonix/plugin/reasonix-plugin.json", (p) => rmSync(p), "reasonix-plugin.json exists", "10"],
-    [".reasonix/plugin/sidecar.py", (p) => writeFileSync(p, readFileSync(p, "utf8").replace(/^\s*"name": MANIFEST_NAME,\n/m, "")), "carries every host-required field", "10 (handshake — a sidecar missing a host-required field must FAIL)"],
-    [".reasonix/watch.items", (p) => rmSync(p), "(the reasonix watch binding) exists", "11"],
-    [".pi/watch.items", (p) => rmSync(p), "(the pi watch binding) exists", "11 (pi arm — a harness with no watch binding must FAIL)"],
-    [
-      ".reasonix/watch-arm.sh",
-      (p) => {
-        // Restore the retired shell grammar: keep only lines that match its own regex.
-        const t = readFileSync(p, "utf8");
-        writeFileSync(
-          p,
-          t.replace(
-            /ITEMS="\$\(node "\$WATCHER" items "\$ITEMS_FILE" 2>\/dev\/null \| awk 'NR<=50'\)"/,
-            'ITEMS="$(grep -E -m 50 \'^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+(#|/(pull|issues)/)[0-9]+$\' "$ITEMS_FILE" 2>/dev/null)"',
-          ),
-        );
-      },
-      "reads its items through the engine",
-      "10b (reasonix arm — a private acceptance set must FAIL, not silently drop the forms the engine accepts)",
-    ],
+    [".pi/watch.items", (p) => rmSync(p), "(the pi watch binding) exists", "8 (pi arm — a harness with no watch binding must FAIL)"],
     [".pi/settings.json", (p) => { const s = JSON.parse(readFileSync(p, "utf8")); s.extensions = s.extensions.filter((e) => !e.includes("footer")); writeFileSync(p, JSON.stringify(s)); }, "registers EXACTLY the committed .pi/extensions", "14 (registration — a dropped extension silently removes a tool AGENTS.md routes work through)"],
     [".pi/settings.json", (p) => { const s = JSON.parse(readFileSync(p, "utf8")); s.packages = s.packages.map((x) => String(x).replace(/@v[0-9.]+$/, "@v1999.001.0001")); writeFileSync(p, JSON.stringify(s)); }, "marketplace package pin matches the corpus this tree pins", "14 (currency — the pin the pi package resolves must be the corpus THIS tree carries; the staged corpus is tagged at the real pin, so this is the drift the check exists for)"],
-    // Check 12 has TWO arms that catch different defects, so it needs two mutations.
+    // Check 9 has TWO arms that catch different defects, so it needs two mutations.
     // (a) INVARIANT: a row pointing at a skill that does not exist (a dangling
     //     `/charly-<family>:<skill>` ref — the docs build treats that as a hard error).
-    ["marketplace/DISPATCHER.md", (p) => writeFileSync(p, readFileSync(p, "utf8").replace(/^\| .+ \| `\/charly-internals:git-workflow` \|$/m, "| a dropped row | `/charly-internals:no-such-skill` |")), "every DISPATCHER.md row resolves", "12 (a row must resolve to a real skill — the dangling-ref arm)", true],
+    ["marketplace/DISPATCHER.md", (p) => writeFileSync(p, readFileSync(p, "utf8").replace(/^\| .+ \| `\/charly-internals:git-workflow` \|$/m, "| a dropped row | `/charly-internals:no-such-skill` |")), "every DISPATCHER.md row resolves", "9 (a row must resolve to a real skill — the dangling-ref arm)", true],
     // (b) RATCHET: deleting a row leaves its skill unrouted, pushing the count past the
     //     ceiling. This is the arm that makes the gate able to fail at all.
-    ["marketplace/DISPATCHER.md", (p) => writeFileSync(p, readFileSync(p, "utf8").replace(/^\| .+ \| `\/charly-check:check` \|$\n/m, "")), "dispatcher coverage ratchet holds", "12 (the ratchet — dropping a row must FAIL, or the gate cannot notice coverage loss)", true],
+    ["marketplace/DISPATCHER.md", (p) => writeFileSync(p, readFileSync(p, "utf8").replace(/^\| .+ \| `\/charly-check:check` \|$\n/m, "")), "dispatcher coverage ratchet holds", "9 (the ratchet — dropping a row must FAIL, or the gate cannot notice coverage loss)", true],
     // (c) INVARIANT: a skill the hand-curated AGENTS.md table routes to must exist in the corpus.
-    ["AGENTS.md", (p) => writeFileSync(p, readFileSync(p, "utf8").replace("`/charly-internals:git-workflow`", "`/charly-internals:no-such-skill`")), "every skill a root .md routes to resolves", "12 (a root-document route must resolve — the hand-curated-table arm)", true],
-    [".opencode/agent/root-cause-analyzer.md", (p) => writeFileSync(p, readFileSync(p, "utf8").replace("marketplace/internals/agents/root-cause-analyzer.md", "marketplace/internals/agents/no-such-agent.md")), "every opencode agent pointer names an existing corpus definition", "12 (a dangling corpus-agent pointer must FAIL)"],
+    ["AGENTS.md", (p) => writeFileSync(p, readFileSync(p, "utf8").replace("`/charly-internals:git-workflow`", "`/charly-internals:no-such-skill`")), "every skill a root .md routes to resolves", "9 (a root-document route must resolve — the hand-curated-table arm)", true],
+    [".opencode/agent/root-cause-analyzer.md", (p) => writeFileSync(p, readFileSync(p, "utf8").replace("marketplace/internals/agents/root-cause-analyzer.md", "marketplace/internals/agents/no-such-agent.md")), "every opencode agent pointer names an existing corpus definition", "9 (a dangling corpus-agent pointer must FAIL)"],
     // The DSH arm has three surfaces, so it needs three mutations plus the
     // corpus-level collision arm (the property a flat name-keyed farm can lose).
-    [".dsh/watch.items", (p) => rmSync(p), "(the DSH watch binding) exists", "11 (DSH arm — a harness with no watch binding must FAIL)"],
-    [".dsh/README.md", (p) => rmSync(p), "the DSH harness-config signpost", "13 (a missing signpost must FAIL)"],
+    [".dsh/watch.items", (p) => rmSync(p), "(the DSH watch binding) exists", "8 (DSH arm — a harness with no watch binding must FAIL)"],
+    [".dsh/README.md", (p) => rmSync(p), "the DSH harness-config signpost", "10 (a missing signpost must FAIL)"],
     // COVERAGE: dropping one bound skill leaves its corpus SKILL.md unbound.
-    [".dsh/skills", (p) => rmSync(join(p, readdirSync(p).sort()[0]), { recursive: true, force: true }), "matches its derivation", "13 (coverage — an unbound corpus skill must FAIL)", true],
+    [".dsh/skills", (p) => rmSync(join(p, readdirSync(p).sort()[0]), { recursive: true, force: true }), "matches its derivation", "10 (coverage — an unbound corpus skill must FAIL)", true],
     // COLLISION: a second family offering the same skill directory name. A flat
     // farm is keyed by name, so this would silently shadow one of the two.
-    ["marketplace", (p) => { const name = readdirSync(join(tree, ".dsh/skills")).sort()[0]; const dst = join(p, "zzz-collision", "skills", name); mkdirSync(dst, { recursive: true }); writeFileSync(join(dst, "SKILL.md"), ""); }, "collisions", "13 (collision — a duplicate skill name across families must FAIL)", true],
+    ["marketplace", (p) => { const name = readdirSync(join(tree, ".dsh/skills")).sort()[0]; const dst = join(p, "zzz-collision", "skills", name); mkdirSync(dst, { recursive: true }); writeFileSync(join(dst, "SKILL.md"), ""); }, "collisions", "10 (collision — a duplicate skill name across families must FAIL)", true],
   ];
-  // The four corpus-measured arms (check 12's two, check 13's coverage + collision) are
+  // The four corpus-measured arms (check 9's two, check 10's coverage + collision) are
   // measured against `marketplace/DISPATCHER.md`, so they can only be exercised where that
-  // submodule is materialized — the same precondition the GATE guards at checks 12 and 13.
+  // submodule is materialized — the same precondition the GATE guards at checks 9 and 10.
   const corpus = existsSync(join(root, "marketplace/DISPATCHER.md"));
   let skipped = 0;
   for (const [surface, mutate, expect, check, needsCorpus] of mutations) {
@@ -427,12 +366,12 @@ if (argv.includes("--self-test")) {
   // THE CORPUS-ABSENT ARM — the one arm here that must NOT turn the gate red. A session worktree that
   // did not populate its submodules (Part II rule 2) must leave every corpus-dependent check SKIPPING
   // VISIBLY. The regression this exists for is a check that silently loses its skip and inverts from
-  // PASS to RED on every such tree, which is what checks 8 and 13 did when their coverage arms were
+  // PASS to RED on every such tree, which is what checks 3 and 10 did when their coverage arms were
   // replaced by an unconditional generator call.
   stage();
-  // One message per half, from the shared module: the reasonix arm needs family DIRECTORIES, the farm
-  // arm needs skill FILES, and this fixture holds neither.
-  const skips = ["carries no families", "carries no skills", "carries no catalog", "[skills] paths derivation check skipped", "the .dsh/skills derivation check skipped", "enabledPlugins derivation check skipped"];
+  // Both surviving derivations read the shared corpus: the farm needs skill FILES, the Claude arm
+  // needs the catalog, and this fixture holds neither.
+  const skips = ["carries no skills", "carries no catalog", "the .dsh/skills derivation check skipped", "enabledPlugins derivation check skipped"];
   for (const state of ["absent", "present-but-empty"]) {
     // BOTH non-materialised shapes, because they are not the same tree and the difference is the defect:
     // `git worktree add` creates the submodule MOUNT POINT, so a session worktree (Part II rule 2) has
@@ -448,7 +387,7 @@ if (argv.includes("--self-test")) {
     } else if (missing.length) {
       bad(`a tree whose corpus is ${state} is green, but did not report the visible skip(s): ${missing.join(" | ")}`);
     } else {
-      console.log(`  PASS  check 3/8/13: a tree whose corpus is ${state} SKIPS every derivation arm visibly and stays green`);
+      console.log(`  PASS  check 3/9/10: a tree whose corpus is ${state} SKIPS every derivation arm visibly and stays green`);
     }
   }
 
@@ -491,7 +430,7 @@ const jsonOr = (p) => {
 // check 6 guards the Codex surface without pulling in a TOML library.
 // The ONE derivation of the harness skill bindings, INVOKED rather than re-implemented.
 //
-// Every coverage assertion that used to live below — check 8's reasonix list, check 13's farm — was a
+// Every coverage assertion that used to live below — check 10's farm — was a
 // SECOND implementation of `scripts/sync-skill-bindings.mjs`'s derivation, including its `.well-known`
 // exclusion and its collision rule. Two implementations of one derivation drift apart, and the drift
 // is invisible because each agrees with itself. So the generator owns the derivation, and the checks
@@ -522,84 +461,11 @@ const tomlString = (p, table, key) => {
   }
   return undefined;
 };
-// The companion array reader: the string elements of `key = ["a", "b"]` inside `[table]`,
-// or []. It handles BOTH a single-line array and a multi-line one — `[skills] paths` grew
-// past one line, and a line-scoped regex would silently read it as [] (a false FAIL on the
-// assertion that uses it). Narrow by design — the gate reads ONE array, so it does not pull
-// in a TOML library.
-const tomlArray = (p, table, key) => {
-  const t = read(p);
-  if (t === null) return [];
-  let inTable = false;
-  let body = null; // the array body, once `key = [` is seen and until its `]`
-  for (const raw of t.split("\n")) {
-    const line = raw.trim();
-    if (body === null) {
-      // A table header is a line that is entirely `[name]`. (A bare `]` close-line only
-      // appears once `body !== null`, so it is never mistaken for a header here.)
-      if (line.startsWith("[") && line.endsWith("]")) {
-        inTable = line === `[${table}]`;
-        continue;
-      }
-      if (!inTable) continue;
-      const m = line.match(new RegExp(`^${key}\\s*=\\s*\\[(.*)$`));
-      if (!m) continue;
-      body = m[1];
-    } else {
-      body += " " + line;
-    }
-    if (body.includes("]")) {
-      return [...body.slice(0, body.indexOf("]")).matchAll(/"([^"]*)"/g)].map((x) => x[1]);
-    }
-  }
-  return [];
-};
-
-// Drive the Ollama web-search sidecar through `extension/initialize` over its real stdio
-// wire and return the decoded `InitializeResult`, or null when it cannot be produced. This
-// is the ONE offline oracle the gate lacked: the installed reasonix host decodes this
-// result STRICTLY, so a sidecar that answers with the wrong shape boots to a hard error.
-// The params below are the exact shape the installed reasonix v2.28.0 host sends (MEASURED).
-const sidecarInitialize = (rootDir) => {
-  const script = join(rootDir, ".reasonix/plugin/sidecar.py");
-  if (!existsSync(script)) return null;
-  const params = {
-    protocolVersion: "2",
-    protocolId: "reasonix.extension.v2",
-    manifest: { tools: ["web_search", "web_fetch"], capabilities: ["tools"] },
-    session: { sessionId: "gate-1", workspaceRoot: rootDir, generation: 1 },
-    capabilities: { contentRefs: true, uiHost: "headless", protocolVersion: "2" },
-  };
-  const input =
-    JSON.stringify({ jsonrpc: "2.0", id: 1, method: "extension/initialize", params }) + "\n" +
-    JSON.stringify({ jsonrpc: "2.0", id: 2, method: "extension/shutdown", params: {} }) + "\n";
-  const r = spawnSync("python3", [script], { input, encoding: "utf8", timeout: 30000 });
-  if (r.status !== 0 || !r.stdout) return null;
-  for (const line of r.stdout.split("\n")) {
-    if (!line.trim()) continue;
-    try {
-      const msg = JSON.parse(line);
-      if (msg.id === 1 && msg.result) return msg.result;
-    } catch {
-      /* a malformed frame is not the handshake result */
-    }
-  }
-  return null;
-};
-
-// The fields the host's registered `InitializeResult` REQUIRES, and the one field an
-// earlier revision wrongly sent. MEASURED against the installed reasonix v2.28.0: the
-// host rejects a result missing any required field or carrying any unregistered field
-// with `invalid initialize result`, aborting boot for a `runtime.required: true` plugin.
-const INITIALIZE_RESULT_REQUIRED = ["name", "version", "stateSchemaVersion", "protocolVersion"];
-const INITIALIZE_RESULT_FORBIDDEN = ["capabilities"];
-
 // 1. Every harness JSON parses. STRUCTURAL: all four exist on `main` too, so this class
 //    is not the branch's evidence — read it as "an existing surface stays valid".
 for (const p of [
   ".claude/settings.json",
   "opencode.json",
-  ".reasonix/settings.json",
   ".opencode/package.json",
 ]) {
   const t = read(p);
@@ -630,7 +496,7 @@ for (const h of [".claude/hooks/pre-commit-gate.sh", ".claude/hooks/pre-push-gat
 //    while every corpus family added since the last hand edit stayed invisible to Claude Code, and
 //    the other three bindings saw it (opencharly/opencharly#1100). A count cannot see drift; only
 //    the derivation can, so the generator owns it and this check asks "was the generator run" —
-//    the same shape as check 8. The one auto-allow a rulebook FORBIDS is asserted absent: no agent
+//    the same shape as check 10. The one auto-allow a rulebook FORBIDS is asserted absent: no agent
 //    merges (AGENTS.md, "Commit, push, land", step 6), so an allow rule that approves a merge with
 //    no prompt is a weakened guardrail.
 {
@@ -672,14 +538,14 @@ ok(existsSync(join(root, ".claude/workflows/audit-deploy-configs.js")), ".claude
 //    table is [surface, extractor, who] so adding a harness is ONE row and the guarded set
 //    is legible in one place. Each surface's syntax was verified against its OWN harness:
 //      .mcp.json        — Claude Code's project-scoped HTTP MCP file (a remote server needs
-//                         `type: "http"` + `url`); also read by Reasonix (Claude-Code-compatible);
+//                         `type: "http"` + `url`);
 //      .pi/mcp.json     — pi's native project MCP file (same `mcpServers` shape);
 //      opencode.json    — opencode's top-level `mcp` map (`{type: "remote", url}`);
 //      .codex/config.toml — Codex `[mcp_servers.<name>]` with `url` (streamable HTTP).
 {
   const DEEPWIKI_URL = "https://mcp.deepwiki.com/mcp";
   const MCP_SURFACES = [
-    [".mcp.json", (v) => v.mcpServers?.deepwiki?.url, "Claude Code and Reasonix (project-scoped .mcp.json)"],
+    [".mcp.json", (v) => v.mcpServers?.deepwiki?.url, "Claude Code (project-scoped .mcp.json)"],
     [".pi/mcp.json", (v) => v.mcpServers?.deepwiki?.url, "pi (project .pi/mcp.json)"],
     ["opencode.json", (v) => v.mcp?.deepwiki?.url, "opencode (top-level mcp map)"],
     [".codex/config.toml", (v, p) => tomlString(p, "mcp_servers.deepwiki", "url"), "Codex ([mcp_servers.deepwiki])"],
@@ -708,17 +574,6 @@ ok(existsSync(join(root, ".claude/workflows/audit-deploy-configs.js")), ".claude
 //                  file needed, which is the whole point.
 //      pi        — `.pi/extensions/charly-gates.ts` reads the project-root SOUL.md inside
 //                  its `before_agent_start` handler and injects it every turn.
-//      reasonix  — a `SessionStart` hook whose STDOUT is injected into the next user turn
-//                  (`.reasonix/soul-inject.sh`, wired in `.reasonix/settings.json`).
-//    CORRECTED (opencharly/opencharly#367): this check previously DEFERRED reasonix on the
-//    stated ground that "reasonix's documented hooks are Bash-only". That premise is
-//    MEASURABLY FALSE — reasonix's hook events include `SessionStart`, and its documented
-//    contract is that a `SessionStart` hook's stdout ("plain text, or JSON with
-//    `hookSpecificOutput.additionalContext`") "is injected once into the next real user
-//    turn", which the host wraps as `<hook-context event="SessionStart">…</hook-context>`.
-//    That IS an additive session-context mechanism, so the arm is wired here rather than
-//    deferred again. (reasonix has no additive `instructions` config key — opencode's
-//    mechanism — so a hook is the right primitive, not a config field.)
 //    Codex uses its native additive SessionStart context; verify that profile live with the CLI.
 //    Claude Code stays on the `AGENTS.md` pointer (operator decision): no new hook here.
 {
@@ -736,222 +591,20 @@ ok(existsSync(join(root, ".claude/workflows/audit-deploy-configs.js")), ".claude
       },
       "pi (the before_agent_start handler injects the SOUL.md identity)",
     ],
-    [
-      ".reasonix/settings.json",
-      (v) => {
-        // The hook must be WIRED (a SessionStart entry naming the script)…
-        const hooks = Array.isArray(v.hooks?.SessionStart) ? v.hooks.SessionStart : [];
-        const wired = hooks.some((h) => typeof h?.command === "string" && h.command.includes("soul-inject.sh"));
-        // …and the script must actually READ SOUL.md and emit it on stdout, which is
-        // what reasonix injects. Both halves are asserted: a wired hook pointing at a
-        // script that no longer injects is exactly the silent capability loss here.
-        const t = read(".reasonix/soul-inject.sh") ?? "";
-        const injects = /SOUL\.md/.test(t) && /cat "\$SOUL"/.test(t) && !/exit 2/.test(t);
-        return wired && injects;
-      },
-      "reasonix (a SessionStart hook whose stdout is injected as <hook-context>)",
-    ],
   ];
   for (const [surface, asserts, who] of SOUL_SURFACES) {
     ok(asserts(jsonOr(surface), surface), `${surface} injects SOUL.md for ${who}`);
   }
 }
 
-// 7b. reasonix's harness BINDING is injected by that same SessionStart hook, and it
-//    EXISTS at its declared home. The binding used to sit at the repo ROOT, where
-//    reasonix loaded it natively; it lives in `design/` beside the design ledger now,
-//    and reasonix loads instruction files ONLY from the workspace root — so the hook
-//    IS the delivery mechanism, and both halves have to hold. The two assertions are
-//    split deliberately: an existence check alone stays green over a hook that stopped
-//    emitting, and a text check alone stays green over a deleted file (the hook's own
-//    warning path then fires at runtime, where no gate reads it).
-//    DISCRIMINATING: `main` carries the binding at the root and no `cat` of
-//    `design/REASONIX.md`, so this check is RED there.
-{
-  const BINDING = "design/REASONIX.md";
-  ok(existsSync(join(root, BINDING)), `${BINDING} exists (the reasonix harness binding)`);
-  const t = read(".reasonix/soul-inject.sh") ?? "";
-  ok(
-    /design\/REASONIX\.md/.test(t) && /cat "\$RIX"/.test(t) && !/exit 2/.test(t),
-    ".reasonix/soul-inject.sh injects the reasonix harness binding (design/REASONIX.md)",
-  );
-}
-
-// 8. reasonix.toml wires the marketplace SKILL roots — as a DERIVATION, and NOT the bare root.
-//    The list is an ENUMERATION (one entry per family directory), so it drifts silently every time
-//    the corpus grows; the assertion is therefore "was the generator run" rather than a second,
-//    hand-written copy of the generator's arithmetic. The shape arms below stay, because they are an
-//    oracle INDEPENDENT of the derivation: a generator that emitted a bare `marketplace` entry would
-//    pass its own --check and still be wrong.
-//    DISCRIMINATING: an unmodified `main` carries no `[skills]` table at all, so Reasonix
-//    resolves only its builtin + global skills (MEASURED: 12) and none of the
-//    `/charly-<family>:<skill>` references in AGENTS.md resolve. The fix scopes `paths` to
-//    the directories that actually HOLD skills — every `<family>/skills/` plus the two
-//    `<family>/agents/` roster dirs. Pointing at the bare `marketplace` root (the earlier
-//    revision) is the regression this asserts against: `marketplace/` is a multi-FAMILY
-//    root, so reasonix scans family prose as skills and prints ~3,500 `skill.missing_description`
-//    warning lines per boot (MEASURED, reasonix v2.28.0).
-{
-  const paths = tomlArray("reasonix.toml", "skills", "paths");
-  ok(paths.length > 0, "reasonix.toml wires marketplace skill roots ([skills] paths)");
-  ok(
-    !paths.includes("marketplace"),
-    "reasonix.toml does NOT point [skills] paths at the bare `marketplace` root (which scans CHANGELOG/docs prose as skills)",
-  );
-  const malformed = paths.filter((p) => !/^marketplace\/[^/]+\/(skills|agents)$/.test(p));
-  ok(
-    malformed.length === 0,
-    `every [skills] paths entry is a marketplace <family>/{skills,agents} dir (offenders: ${malformed.join(", ") || "none"})`,
-  );
-  // COVERAGE — "was the generator run?". The derivation lives in ONE place; this asserts the
-  // artifact on disk IS that derivation. A family added upstream with a `skills/` dir and no path
-  // entry is exactly the drift this catches, whether it was dropped by hand or omitted by a pin
-  // advance that forgot to run the generator.
-  //
-  // SKIPPED VISIBLY when the corpus is not materialised — a session worktree (Part II rule 2) or any
-  // checkout without submodules — exactly as check 12 does. Without this the check INVERTS from
-  // PASS-skip to RED on every such tree, which is a regression in the gate rather than a finding about
-  // the tree. The structural assertions above hold either way.
-  if (!CORPUS_NEEDS.families(root)) {
-    pass(`${corpusSkipReason(root, "families")} — [skills] paths derivation check skipped (structural assertions above still hold)`);
-  } else {
-    const gen8 = derivedBindings("reasonix");
-    ok(gen8.rc === 0, "reasonix.toml [skills] paths match their derivation (node scripts/sync-skill-bindings.mjs --check)");
-    if (gen8.rc !== 0) for (const l of gen8.out.trim().split("\n")) console.error(`        ${l}`);
-  }
-
-}
-
-// 9. .reasonix/settings.json uses reasonix's OWN hook key. DISCRIMINATING: `main` uses
-//    Claude Code's `"matcher"`, which reasonix does not read — MEASURED, it silently
-//    widens to `match: "*"`, so the commit/push gates fire on EVERY tool call instead of
-//    only Bash. A hook that cannot be matched is a capability loss nothing else reports.
-{
-  const s = jsonOr(".reasonix/settings.json");
-  const hooks = Array.isArray(s.hooks?.PreToolUse) ? s.hooks.PreToolUse : [];
-  ok(hooks.length > 0, ".reasonix/settings.json declares PreToolUse hooks");
-  ok(
-    hooks.length > 0 && hooks.every((h) => h.match === "Bash"),
-    'reasonix/settings.json uses the native reasonix "match" key with value "Bash"',
-  );
-}
-
-// 10. The Ollama web-search code extension ships as a v2 plugin package AND its sidecar
-//     answers `extension/initialize` with the host's registered `InitializeResult`.
-//     DISCRIMINATING: `main` has no `.reasonix/plugin/` at all. Reasonix supports NO
-//     provider-side web search for Ollama Cloud (MEASURED: no `IsOllamaCloud*WebSearch`
-//     symbol; the docs document `web_search = true` only for the DeepSeek/OpenCode-Go
-//     presets), so the capability is a code extension whose runtime serves the tools. The
-//     handshake is the half that was WRONG once: the result must satisfy the host's
-//     registered DTO exactly, so the sidecar is driven over its real stdio wire here.
-{
-  ok(existsSync(join(root, ".reasonix/plugin/reasonix-plugin.json")), ".reasonix/plugin/reasonix-plugin.json exists");
-  const m = jsonOr(".reasonix/plugin/reasonix-plugin.json");
-  ok(m.apiVersion === "reasonix.io/plugin/v2", 'the reasonix plugin declares apiVersion "reasonix.io/plugin/v2"');
-  const tools = (m.runtime?.tools ?? []).map((t) => t.name);
-  ok(
-    tools.includes("web_search") && tools.includes("web_fetch"),
-    "the reasonix plugin declares the web_search and web_fetch runtime tools",
-  );
-
-  const result = sidecarInitialize(root);
-  if (result === null) {
-    fail("the reasonix sidecar answers extension/initialize over its real stdio wire");
-  } else {
-    const missing = INITIALIZE_RESULT_REQUIRED.filter((k) => !(k in result));
-    ok(
-      missing.length === 0,
-      `the reasonix sidecar's InitializeResult carries every host-required field (missing: ${missing.join(", ") || "none"})`,
-    );
-    const extra = INITIALIZE_RESULT_FORBIDDEN.filter((k) => k in result);
-    ok(
-      extra.length === 0,
-      `the reasonix sidecar's InitializeResult sends no unregistered field (unregistered present: ${extra.join(", ") || "none"})`,
-    );
-    ok(result.protocolVersion === "2", 'the reasonix sidecar sends protocolVersion "2" (the wire major, not the protocol ID)');
-    ok(
-      Array.isArray(result.tools) && result.tools.every((t) => typeof t === "string"),
-      "the reasonix sidecar's InitializeResult.tools is an array of strings",
-    );
-  }
-}
-
-// 10b. The reasonix watch ARM (`.reasonix/watch-arm.sh`) reads its items through the ENGINE.
-//      FIRED, not text-matched: the arm used to carry a shell `grep -E` acceptance set of its
-//      own, and it silently dropped `opencharly/opencharly/pull/1301#issuecomment-42` — the
-//      shape `gh pr comment` PRINTS — plus a scheme-less `github.com/...` and a trailing-slash
-//      URL, all of which the engine accepts (opencharly/opencharly#1308). The assertion runs the
-//      real script against a fixture items file and requires those forms to appear in what it
-//      prints, which no private acceptance set can satisfy.
-{
-  const armRel = ".reasonix/watch-arm.sh";
-  const arm = join(root, armRel);
-  // The arm drives the engine CLI, so the assertion needs the arm, the engine and an items file.
-  // A tree missing any of them (a session worktree without the script, the mutation that removes
-  // the items file) SKIPS VISIBLY — never crashes the gate and never reports a pass it did not take.
-  const missing = [armRel, "scripts/gh/cli.ts", "scripts/gh/lib/watch.ts", ".reasonix/watch.items"].filter(
-    (p) => !existsSync(join(root, p)),
-  );
-  if (missing.length > 0) {
-    pass(`${missing.join(", ")} not present in ${root} — the reasonix arm assertion skipped`);
-  } else {
-    const { mkdtempSync: mkd, writeFileSync: wf, mkdirSync: mkdir, cpSync: cp, rmSync: rm } = await import("node:fs");
-    const { tmpdir: tdir } = await import("node:os");
-    // A fixture umbrella the arm accepts: it self-gates on the commit/push hook and the CLI.
-    const fx = mkd(join(tdir(), "watch-arm-"));
-    try {
-      mkdir(join(fx, ".claude/hooks"), { recursive: true });
-      wf(join(fx, ".claude/hooks/pre-push-gate.sh"), "#!/bin/sh\n", "utf8");
-      mkdir(join(fx, ".reasonix"), { recursive: true });
-      mkdir(join(fx, "scripts/gh"), { recursive: true });
-      cp(join(root, "scripts/gh/cli.ts"), join(fx, "scripts/gh/cli.ts"));
-      cp(join(root, "scripts/gh/lib"), join(fx, "scripts/gh/lib"), { recursive: true });
-      // The module TYPE is DECLARED, not inferred: `scripts/gh/package.json` carries
-      // `"type": "module"`, and a fixture without it would leave Node guessing whether the
-      // engine's `.ts` entrypoint is ESM — a property of the fixture, never of the shipped code.
-      if (existsSync(join(root, "scripts/gh/package.json")))
-        cp(join(root, "scripts/gh/package.json"), join(fx, "scripts/gh/package.json"));
-      wf(
-        join(fx, ".reasonix/watch.items"),
-        "# a comment\nopencharly/opencharly#1301\ngithub.com/o/r/pull/5\no/r/pull/7#issuecomment-9\no/r/pull/8/\n",
-        "utf8",
-      );
-      const r = spawnSync("bash", [arm], { cwd: fx, encoding: "utf8" });
-      const printed = `${r.stdout ?? ""}${r.stderr ?? ""}`;
-      const kept = ["opencharly/opencharly#1301", "github.com/o/r/pull/5", "o/r/pull/7#issuecomment-9", "o/r/pull/8/"].filter(
-        (f) => printed.includes(f),
-      );
-      ok(
-        r.status === 0 && kept.length === 4,
-        `the reasonix watch arm reads its items through the engine (cli.ts items) — it printed ${
-          kept.length
-        }/4 item forms verbatim (missing: ${["opencharly/opencharly#1301", "github.com/o/r/pull/5", "o/r/pull/7#issuecomment-9", "o/r/pull/8/"]
-          .filter((f) => !printed.includes(f))
-          .join(", ") || "none"})`,
-      );
-      // A comment-only list must stay INERT — the arm prints nothing and exits 0.
-      wf(join(fx, ".reasonix/watch.items"), "# only comments\n\n", "utf8");
-      const inert = spawnSync("bash", [arm], { cwd: fx, encoding: "utf8" });
-      ok(
-        inert.status === 0 && (inert.stdout ?? "").trim() === "",
-        "a comment-only .reasonix/watch.items keeps the reasonix arm inert (no output, exit 0)",
-      );
-    } finally {
-      rm(fx, { recursive: true, force: true });
-    }
-  }
-}
-
-// 11. The PR watcher is bound per harness. DISCRIMINATING: `main` carries no reasonix
-//     watch binding. The harness-INDEPENDENT watcher is `scripts/gh/cli.ts`;
-//     the items file is the same `owner/repo#num` grammar the opencode plugin parses. The
-//     pi arm's items file is inert by design; the extension that arms it is verified by
-//     `scripts/check-pi-watch.mjs`.
-ok(existsSync(join(root, ".reasonix/watch.items")), ".reasonix/watch.items (the reasonix watch binding) exists");
+// 8. The PR watcher is bound per harness. The harness-INDEPENDENT watcher is
+//    `scripts/gh/cli.ts`; the items file is the same `owner/repo#num` grammar the opencode
+//    plugin parses. The pi arm's items file is inert by design; the extension that arms it
+//    is verified by `scripts/check-pi-watch.mjs`.
 ok(existsSync(join(root, ".pi/watch.items")), ".pi/watch.items (the pi watch binding) exists");
 ok(existsSync(join(root, ".dsh/watch.items")), ".dsh/watch.items (the DSH watch binding) exists");
 
-// 12. Dispatcher coverage: the R0 dispatcher table in `marketplace/DISPATCHER.md` is the
+// 9. Dispatcher coverage: the R0 dispatcher table in `marketplace/DISPATCHER.md` is the
 //     routing half of the corpus, emitted one row per `type: skill` entity carrying a
 //     `triggers:` list (see `plugin-marketplace/candy/plugin-marketplace/emit_dispatcher.go`).
 //     Three assertions, and they catch DIFFERENT defects ((c) is written beside (a), below):
@@ -1055,7 +708,7 @@ ok(existsSync(join(root, ".dsh/watch.items")), ".dsh/watch.items (the DSH watch 
   }
 }
 
-// 13. The DSH arm. Same contract as check 8 for the other binding: the farm IS its derivation, and
+// 10. The DSH arm. Same contract as check 9 for the other binding: the farm IS its derivation, and
 //     the shape arm (every entry a symlink) is the oracle the derivation cannot provide for itself.
 //     DSH's ONLY native repo-local config home is `<projectRoot>/.dsh/`:
 //     `dsh-skill-filesystem` scans `.dsh/skills` at rank 100 and discovers only depth-1
@@ -1065,7 +718,7 @@ ok(existsSync(join(root, ".dsh/watch.items")), ".dsh/watch.items (the DSH watch 
 //     no generated copy and no second pin. Two assertions, catching different defects:
 //       (a) COVERAGE — every corpus skill has a `.dsh/skills/<name>` entry resolving to a
 //           `SKILL.md`. A newly pinned skill that nobody bound FAILS, so the farm is a
-//           ratchet on the corpus (this mirrors check 8's coverage assertion for reasonix).
+//           ratchet on the corpus (the same coverage assertion as check 9's dispatcher inventory).
 //       (b) COLLISION — no two families may share a skill directory name. The farm is keyed
 //           by NAME, so a collision would silently shadow one of the two skills. Measured
 //           0 across the pinned corpus today; the assertion keeps it that way.
@@ -1089,7 +742,7 @@ ok(existsSync(join(root, ".dsh/watch.items")), ".dsh/watch.items (the DSH watch 
     );
   }
 
-  // COVERAGE — "was the generator run?", the same arm as check 8 for the other binding, and skipped
+  // COVERAGE — "was the generator run?", the same arm as check 3 for the other binding, and skipped
   // visibly on the same precondition. The farm is an ENUMERATION (one entry per corpus skill), so it
   // drifts every time a family is added; the derivation is the only thing that can keep it correct,
   // and a collision across families is where the generator hard-fails rather than shadowing one.

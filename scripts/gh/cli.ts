@@ -206,8 +206,8 @@ async function cmdWatch(argv: string[], out: (s: string) => void, err: (s: strin
 
 /**
  * Print the item strings a watch-items FILE carries, one per line — the ONE reader for the
- * shared grammar (`parseItemsFile`), exposed so a binding that cannot import TypeScript (the
- * reasonix shell arm) uses the engine's acceptance set instead of writing a fourth copy of it.
+ * shared grammar (`parseItemsFile`), exposed so a binding that cannot import TypeScript
+ * uses the engine's acceptance set instead of writing a fourth copy of it.
  *
  * It deliberately does NOT validate: `watch` does, by name, and exits 5. A reader that filtered
  * would turn that refusal into the silence this verb exists to end (opencharly/opencharly#1308).

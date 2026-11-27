@@ -166,7 +166,7 @@ head_entry() {
 # pointer (index mode 160000); false for a plain file (100644/100755). The producer stages
 # EVERY changed path (`git diff --cached --name-only`), so a hand-edit beside the pins is a
 # FILE here, never a pointer — the class the old builder miscounted as a gitlink (measured:
-# `reasonix.toml` rendered as a 46th gitlink). Reads the INDEX first (the staged snapshot
+# a hand-edited TOML file rendered as a 46th gitlink). Reads the INDEX first (the staged snapshot
 # this PR records) and falls back to HEAD, mirroring staged_gitlink. ONE implementation the
 # live render loop and the self-test both call.
 is_gitlink_path() {
@@ -217,7 +217,7 @@ base_entry() {
 # file_row <path> <blob_sha> — ONE evidence row for a changed NON-gitlink path. A plain file
 # has no remote default-branch HEAD to compare against, so its row carries NO `=`/`!` flag:
 # flagging such a path `!` against a remote that does not exist is a false finding (measured:
-# `reasonix.toml  d6b7737bbd8d  !`). The row still names the file and its staged blob, so no
+# a hand-edited TOML file  d6b7737bbd8d  !). The row still names the file and its staged blob, so no
 # changed path is hidden. ONE implementation the live render loop and the self-test call.
 file_row() {
   printf '  %s  %.12s  (file)\n' "$1" "$2"
@@ -649,7 +649,7 @@ charly.yml" "" || fail "a manifest edit among plain files must still touch an in
   # is_gitlink_path / file_row: the moved list is not all gitlinks (the producer stages EVERY
   # changed path), so a plain file must be classified as a file and rendered WITHOUT the `=`/`!`
   # flag — flagging it `!` against a remote that does not exist is the false finding the
-  # pre-fix builder emitted (measured: `reasonix.toml  <blob>  !`).
+  # pre-fix builder emitted (measured: a hand-edited TOML file  <blob>  !).
   printf 'blob\n' > "$tmp/plainfile"; git -C "$tmp" add plainfile
   is_gitlink_path "$tmp" sub \
     || fail "is_gitlink_path must be TRUE for a mode-160000 entry"
