@@ -225,8 +225,6 @@ spec/schema/candy.cue	union	restart_sec?: (string & !="") | int @go(RestartSec,t
 spec/schema/candy.cue	union	watchdog_sec?: (string & !="") | int @go(WatchdogSec,type=string)	1
 spec/schema/candy.cue	union	unit_options?: {[string]: {[string]: string | [...string]}} @go(UnitOptions)	1
 spec/schema/candy.cue	union	timeout?: (string & !="") | int @go(Timeout,type=string)	1
-spec/schema/candy.cue	absence	} & ({package!: _, apk?: _|_} | {apk!: _, package?: _|_}) @go(-)	1
-spec/schema/candy.cue	union	} & ({package!: _, apk?: _|_} | {apk!: _, package?: _|_}) @go(-)	1
 spec/schema/candy.cue	close	#Plugin: close({	1
 spec/schema/candy.cue	union	#PluginSource: #GithubRef | #OciRef	1
 spec/schema/candy.cue	close	#PluginRequirement: close({	1
@@ -275,7 +273,6 @@ spec/schema/marketplace.cue	close	#MarketplaceMCPServer: close({	1
 spec/schema/marketplace.cue	close	#MarketplaceSettings: close({	1
 spec/schema/node.cue	union	#Image: #Box & ({base: string & !=""} | {from: string & !=""})	1
 spec/schema/node.cue	union	#CandyValue: (*#Candy | #Image) @go(-)	1
-spec/schema/node.cue	union	#AndroidValue: (#Android | #DeployValue) @go(-)	1
 spec/schema/node.cue	absence	#DeployValue: #Deploy & {nested?: _|_, peer?: _|_, target?: _|_, member_of?: _|_, inside?: _|_, descent?: _|_}	1
 spec/schema/node.cue	open	#Node: {...}	1
 spec/schema/node.cue	close	#NodeDoc: close({	1
