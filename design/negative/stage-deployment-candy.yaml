@@ -1,5 +1,5 @@
 # rule: D-VAL-2
-# expect: pipeline.stage.checks.deployment: c is a candy, want pod or vm or local or android or kubernetes
+# expect: pipeline.stage.checks.deployment: c is a candy, want pod or vm or local or kubernetes
 c:
   description: A candy, not a deployment.
   package: [jq]

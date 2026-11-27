@@ -16,7 +16,7 @@
 # control does not pretend to decide it (A.13 states the same split A.11 makes). It is the record of
 # the bytes the row pointed at, so that a change to them cannot pass unread. A row that wants its
 # subject CHECKED cites the construct by name instead (`<path>:#<Definition>`), which a pin advance
-# cannot falsify: `kind:jetkvm` and `verb:jetkvm` do exactly that.
+# cannot falsify: `kind:agent` and `verb:git-submodules` do exactly that.
 #
 # THE CHECK FAILS IN BOTH DIRECTIONS, so this file can only shrink:
 #   * a line citation ABSENT from here is a claim nobody affirmed;
@@ -79,7 +79,6 @@ Firecracker rootfs + kernel	spec/schema/vm.cue	19-19	-	0bd2f1d19826fa37
 GPU shared through CDI vs held alone through VFIO	plugin-gpu/README.md	23-29	-	bd4c32a2246cbb41
 GPU shared through CDI vs held alone through VFIO	spec/schema/arbiter.cue	40-56	#PreemptLease	815228e090db8a3a
 GPU shared through CDI vs held alone through VFIO	spec/schema/deploy.cue	324-324	#Deploy	c5b928edd97d201b
-kind:android	spec/schema/android.cue	14-24	#Android	f615fdb22527d614
 kind:builder	spec/schema/builder.cue	9-33	#Builder	1e67df59c651e055
 kind:cua	plugin-cua/candy/plugin-cua/schema/cua.cue	173-191	#CuaDeviceInput	7b7bdd4ccee16f37
 kind:distro	plugin-distro/candy/plugin-distro/schema/distro.cue	32-47	#DistroInput	fdb988c388629d51
@@ -112,8 +111,6 @@ secrets get|set|list|delete|import|export|gpg|encrypt|decrypt|edit|env|recipient
 secrets get|set|list|delete|import|export|gpg|encrypt|decrypt|edit|env|recipients|setup|show|unset|doctor	plugin-secrets/candy/plugin-secrets/secrets_gpg.go	25-36	SecretsGpgCmd	d929a1631d542e04
 ssh spice|vnc	plugin-ssh/candy/plugin-ssh/tunnel.go	31-41	SshTunnelCmd	a0cd71a5971bcf03
 ssh tunnel	plugin-ssh/candy/plugin-ssh/tunnel.go	31-41	SshTunnelCmd	a0cd71a5971bcf03
-step:apk-install	plugin-installstep/candy/plugin-installstep/charly.yml	45-45	-	e529a8fb71a3c8db
-step:apk-install	spec/spec/union_types.go	353-359	UnmarshalJSON	4e4ac51420145c4f
 step:builder	plugin-installstep/candy/plugin-installstep/charly.yml	48-48	-	e1f89f1fd3cb5613
 step:builder	spec/spec/install_step_vocab.go	140-181	BuilderStep	430a078ee9186a04
 step:file	plugin-installstep/candy/plugin-installstep/charly.yml	39-39	-	a8046d02613a4f04
@@ -132,7 +129,6 @@ step:system-packages	plugin-installstep/candy/plugin-installstep/charly.yml	47-4
 terminal:tmux	plugin-tmux/candy/plugin-tmux/charly.yml	5-18	-	9d5b438fcfc617e1
 tmux attach|capture|cmd|kill|list|run|send|shell	plugin-agent/candy/plugin-agent/tmux_compat.go	21-36	TmuxCompatCmd	c32c271c55545811
 udev generate|install|remove|status	plugin-udev/candy/plugin-udev/command.go	72-77	UdevCmd	9f8fe33495a775a3
-verb:adb	plugin-adb/candy/plugin-adb/schema/adb.cue	38-38	#AdbInput	39210d3fc3665e95
 verb:addr	plugin-addr/candy/plugin-addr/schema/addr.cue	2-4	-	f279eddc3b4c4905
 verb:bpf	plugin-bpf/candy/plugin-bpf/schema/bpf.cue	1-8	-	df150ea835ea0129
 verb:command	plugin-command/candy/plugin-command/schema/command.cue	1-45	#CommandInput	dafb060905e8ed54

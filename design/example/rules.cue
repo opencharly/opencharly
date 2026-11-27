@@ -22,12 +22,12 @@ _refKind: {for n, v in _node {(n): [if _kindOf[n] == "candy" for f, _ in v if f 
 
 _candyFieldSet: {for f in _candyField {(f): true}}
 
-// The candies of the document: top level, and one level inside top-level candies and local or
-// android bodies — each with its path and value.
+// The candies of the document: top level, and one level inside top-level candies and local
+// bodies — each with its path and value.
 _candies: [
 	for n, v in _node if _kindOf[n] == "candy" {{at: n, value: v}},
 	for n, v in _node if _kindOf[n] == "candy" for k, x in v if _candyFieldSet[k] == _|_ {{at: "\(n).\(k)", value: x}},
-	for n, v in _node for k, b in v if k == "local" || k == "android" for name, x in b
+	for n, v in _node for k, b in v if k == "local" for name, x in b
 	if _deployFieldSet[name] == _|_ if [for t, _ in x if _deploymentKind[t] != _|_ {t}] == [] {{at: "\(n).\(name)", value: x}},
 ]
 
@@ -46,7 +46,7 @@ _refs: [
 	for n, v in _node for k, b in v if k == "pod" || k == "vm" for f, r in b if f == "from" {
 		{node: n, field: "\(k).from", ref: r, want: ["box", "source"]}
 	},
-	for n, v in _node for k, b in v if k == "local" || k == "android" for f, l in b if f == "require" for r in l {
+	for n, v in _node for k, b in v if k == "local" for f, l in b if f == "require" for r in l {
 		{node: n, field: "\(k).require", ref: r, want: ["candy"]}
 	},
 	for n, v in _node for k, b in v if k == "source" for f, r in b if f == "os" {
@@ -68,13 +68,13 @@ _refs: [
 		{node: n, field: "builder.manager.\(w)", ref: r, want: ["box"]}
 	},
 	for n, v in _node for k, b in v if k == "pipeline" for f, st in b if f == "stage" for sn, x in st for g, l in x if g == "deployment" for r in l {
-		{node: n, field: "pipeline.stage.\(sn).deployment", ref: r, want: ["pod", "vm", "local", "android", "kubernetes"]}
+		{node: n, field: "pipeline.stage.\(sn).deployment", ref: r, want: ["pod", "vm", "local", "kubernetes"]}
 	},
 	for n, v in _node for k, b in v if k == "pipeline" for f, st in b if f == "stage" for sn, x in st for g, r in x if g == "pipeline" {
 		{node: n, field: "pipeline.stage.\(sn).pipeline", ref: r, want: ["pipeline"]}
 	},
 	for n, l in _stepList for i, e in l let st = e.value for f, o in st if f == "on" for g, r in o if g == "node" {
-		{node: n, field: "step.\(i).on.node", ref: r, want: ["pod", "vm", "local", "android", "kubernetes"]}
+		{node: n, field: "step.\(i).on.node", ref: r, want: ["pod", "vm", "local", "kubernetes"]}
 	},
 ]
 
@@ -131,7 +131,6 @@ _pluginOwner: {
 	vm: {target: "opencharly/plugin-machine", current: ["opencharly/plugin-substrate", "opencharly/plugin-deploy-vm"]}
 	local: {target: "opencharly/plugin-machine", current: ["opencharly/plugin-substrate", "opencharly/plugin-deploy-local"]}
 	kubernetes: {target: "opencharly/plugin-kubernetes", current: ["opencharly/plugin-substrate", "opencharly/plugin-kube"]}
-	android: {target: "opencharly/plugin-android", current: ["opencharly/plugin-substrate", "opencharly/plugin-adb"]}
 	command: {target: "opencharly/plugin-check", current: ["opencharly/plugin-command"]}
 	file: {target: "opencharly/plugin-check", current: ["opencharly/plugin-file"]}
 	package: {target: "opencharly/plugin-check", current: ["opencharly/plugin-package"]}
@@ -146,7 +145,6 @@ _pluginOwner: {
 	interface: {target: "opencharly/plugin-check", current: ["opencharly/plugin-interface"]}
 	http: {target: "opencharly/plugin-check", current: ["opencharly/plugin-http"]}
 	kube: {target: "opencharly/plugin-kubernetes", current: ["opencharly/plugin-kube"]}
-	appium: {target: "opencharly/plugin-android", current: ["opencharly/plugin-appium"]}
 }
 
 _declared: {for _, r in *doc.plugin | {} for f, v in r if f == "repo" {(v): true}}
