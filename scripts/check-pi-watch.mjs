@@ -124,6 +124,20 @@ function check() {
   if (!/code\s*===\s*7/.test(code) || !/code\s*===\s*5/.test(code))
     fail(`treats a rate limit (7) / usage error (5) as terminal — never blind-retried`);
 
+  // 3d. THE STATUS LINE MAY NOT CONTRADICT ITS OWN FIELD (opencharly/opencharly#1310). MEASURED:
+  //     `retired: - (a state event fired — not re-armed; restart to re-watch)` — the explanation of
+  //     a NON-EMPTY retired set, concatenated unconditionally onto the EMPTY one, three lines above
+  //     `armed: yes`. Read as a pair it says "the arm is gone": a live, healthy arm was declared dead
+  //     to the operator and killed and re-armed on the strength of it.
+  //
+  //     ONE assertion, because ONE shape is the defect: the empty case must be NAMED. That also
+  //     catches the old unconditional concatenation, which printed no such wording. An assertion
+  //     matching the concatenation by regex was tried first and DELETED: the real shape closes the
+  //     interpolation with `}` and the pattern expected `)`, so it could never match — a dead
+  //     assertion in a file this change edits (CONC(a)), and one the mutation did not turn RED.
+  if (!/nothing retired/.test(code))
+    fail(`names the EMPTY retired set instead of leaving an unexplained '-'`);
+
   // 4. it cleans up.
   if (!/pi\.on\(\s*["'`]session_shutdown["'`]/.test(code)) fail(`kills its children in session_shutdown`);
   if (!/\.kill\(/.test(code)) fail(`kills the child processes`);
@@ -216,6 +230,16 @@ if (argv.includes("--self-test")) {
     // THE ITEM GRAMMAR (opencharly/opencharly#1308): a private copy in the binding is the
     // duplication the gate now forbids — the mutation puts back the exact shape that shipped
     // (a local `isGithubItem` filter over the items lines).
+    [
+      "an empty retired set explained as if the arm were gone",
+      REL_EXT,
+      () =>
+        ext.replace(
+          '          : `  retired: - (nothing retired)`;',
+          '          : `  retired: - (a state event fired — not re-armed; restart to re-watch)`;',
+        ),
+      "does not explain an EMPTY retired set",
+    ],
     [
       "a private item grammar",
       REL_EXT,
