@@ -226,10 +226,6 @@ the generated table has no row for. *Detail:* `/charly-internals:skills`,
 | Fedora images / `fedora*` / `box/fedora` (incl. `nvidia` / `python-ml` / `sway-browser-vnc`) | `/charly-distros:fedora`, `/charly-distros:charly-fedora`, `/charly-distros:fedora-builder`, `/charly-distros:fedora-nonfree`, `/charly-distros:nvidia` |
 | Ubuntu images / `ubuntu*` / `box/ubuntu` | `/charly-distros:ubuntu`, `/charly-distros:ubuntu-builder`, `/charly-distros:ubuntu-debootstrap`, `/charly-vm:ubuntu-debootstrap-vm` |
 | nested-podman-socket / a rootless podman API socket at uid 1000 inside a pod | `/charly-distros:nested-podman-socket` |
-| `kind: android` / `target: android` / `apk:` packages / adb endpoints / nested `pod → android` | `/charly-check:android`, `/charly-core:deploy` |
-| The `adb:` check verb | `/charly-check:adb`, `/charly-check:check` |
-| The `appium:` check verb / Android UI automation | `/charly-check:appium`, `/charly-check:check` |
-| The `jetkvm:` check verb / charly on a JetKVM (`charly-jetkvm`) | `/charly-check:jetkvm`, `/charly-check:check` |
 | The `punktfunk:` check verb | `/charly-check:punktfunk`, `/charly-check:check` |
 | A punktfunk streaming host / `punktfunk-host` units / the punktfunk pacman repo | `/charly-punktfunk:punktfunk-host` |
 | The `kube:` check verb | `/charly-kubernetes:check-k8s` |
