@@ -476,7 +476,28 @@ export default function (pi: ExtensionAPI) {
             borrowed += 1;
           }
           args.push("--", modulePath);
-          await pi.exec("git", args, { cwd: worktreePath });
+          // FAIL CLOSED (R3, opencharly/opencharly#1312). `pi.exec` RESOLVES on a non-zero exit —
+          // `code` is the only failure signal there is (the lesson opencharly/opencharly#410 put
+          // into `charly_worktree_remove` and step 3b already follows). This call DISCARDED it, so
+          // a failed module clone fell through as an empty directory, the nested step then skipped
+          // it (an empty module has no `.gitmodules`), the build could not run, and the report
+          // below still claimed "Modules materialized" and "Binary built at …". MEASURED three
+          // times in one session: `--reference` cloning failed with git's own `fetch-pack: invalid
+          // index-pack output` and the worktree came back with 0 entries in both modules.
+          const cloned = await pi.exec("git", args, { cwd: worktreePath });
+          if (cloned.code !== 0) {
+            const why = (cloned.stderr || cloned.stdout || "").trim() || `exit ${cloned.code}`;
+            throw new Error(
+              `module ${modulePath} did not materialize: ${why} — a worktree whose module clone failed is not a session worktree`,
+            );
+          }
+          // The clone can also succeed while landing nothing (a shallow/alternates failure leaves an
+          // empty directory), so the EFFECT is checked, not just the exit code.
+          if (!existsSync(join(worktreePath, modulePath, ".git")) && !existsSync(join(worktreePath, modulePath, ".gitmodules"))) {
+            throw new Error(
+              `module ${modulePath} materialized to an EMPTY checkout (git exited 0) — its clone did not land`,
+            );
+          }
         }
 
         // Step 3b: the NESTED level of every materialized module.
@@ -529,7 +550,20 @@ export default function (pi: ExtensionAPI) {
         }
 
         // Step 4: Build the worktree-local binary (the ONE non-charly entrypoint).
-        await pi.exec("bash", ["charly/scripts/bootstrap-charly.sh"], { cwd: worktreePath });
+        // FAIL CLOSED for the same reason as step 3: an empty `charly/` has no
+        // `scripts/bootstrap-charly.sh` at all, so a discarded exit code here reported a binary
+        // that could never have been built (opencharly/opencharly#1312).
+        const built = await pi.exec("bash", ["charly/scripts/bootstrap-charly.sh"], { cwd: worktreePath });
+        const binaryPath = `${worktreePath}/charly/bin/charly`;
+        if (built.code !== 0) {
+          const why = (built.stderr || built.stdout || "").trim() || `exit ${built.code}`;
+          throw new Error(`the worktree binary did not build: ${why}`);
+        }
+        // The report line names this file, so the file is what decides it — never the exit code
+        // alone (a build that exits 0 without producing the binary is the same lie).
+        if (!existsSync(binaryPath)) {
+          throw new Error(`the build exited 0 but produced no binary at ${binaryPath}`);
+        }
 
         // Record for cleanup
         _worktrees.push({ slug, path: worktreePath, branch });
@@ -540,7 +574,7 @@ export default function (pi: ExtensionAPI) {
               type: "text",
               text:
                 `Worktree created at ${worktreePath} on branch ${branch}.\n` +
-                `- Binary built at ${worktreePath}/charly/bin/charly\n` +
+                `- Binary built at ${binaryPath}\n` +
                 `- Modules materialized: ${modules.join(", ")} (${borrowed}/${modules.length} borrowing the main checkout's objects)\n` +
                 `- Nested levels materialized: ${nested.length ? nested.join(", ") : "none (no materialized module declares one)"}\n` +
                 `- The other submodules stay unmaterialized. Read one of them with:\n` +
