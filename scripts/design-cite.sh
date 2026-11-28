@@ -79,7 +79,7 @@
 # be stale, dirty or absent. Where that store is, is `scripts/design-module-store.sh`'s answer (a
 # linked worktree keeps its submodule repositories under
 # `<git-common-dir>/worktrees/<name>/modules/<path>`), so this control sources the ONE resolver
-# `design-dpat.sh` and `design-pintag.sh` already use instead of writing a second one. A pin whose
+# `design-dpat.sh` already uses instead of writing a second one. A pin whose
 # store or commit cannot be read is a failure that names the path and the remedy, never a smaller
 # scan that still reports success.
 #

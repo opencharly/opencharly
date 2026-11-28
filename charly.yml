@@ -36,7 +36,7 @@ import:
     # from the index like every other one.
     #
     # Local path, like every entry here: the version rides the GITLINK, advanced with
-    # `charly task sync` (Part II #3), never a tag in the URL.
+    # `charly task ff` (Part II #3), never a tag in the URL.
     - strata: ./pod-strata
     # opencharly/plugin-strata — the `charly strata` management CLI over HTTP, an
     # out-of-tree command plugin. A DISTINCT key, because the namespace is the key and
@@ -276,11 +276,11 @@ testing-validator-agent:
         model: inherit
 
 # -----------------------------------------------------------------------------
-# map — list every submodule with its pin and sync state.
+# map — list every submodule with its pin and branch state.
 # -----------------------------------------------------------------------------
 map:
   task:
-    description: List every submodule with its pin and sync state
+    description: List every submodule with its pin and branch state
     dir: .
     plan:
       # Composes the ONE status implementation (verb:git-submodules status) — the
@@ -288,7 +288,7 @@ map:
       # re-implemented that table (R2 duplication) AND its `command` stdout was
       # discarded by the task reporter (the `command` verb's pass path returns only
       # `exit=N`), so `map` printed no map at all. Composition makes the verb's
-      # table the step's Result.Message, which plugin-task v0.2026316.2347 renders —
+      # table the step's Result.Message, which plugin-task v0.2026332.323 renders —
       # the version the umbrella's PINNED charly compiles, re-derived from that pin by
       # scripts/check-cited-plugin-task-version.mjs.
       # A `task:` verb wrapper is deliberately NOT used: verb:task returns only a
@@ -300,23 +300,23 @@ map:
 
 # -----------------------------------------------------------------------------
 # pins — the ONE pin-contract pin operation: a single canonical definition, not copy-pasted.
-# `pin-check`, `sync` and `verify`
+# `pin-check`, `ff` and `verify`
 # are thin wrappers selecting the mode -- and `pins` itself carries `MODE=currency` -- so the 6-entry map exists exactly once.
 # -----------------------------------------------------------------------------
 pins:
   task:
-    description: The pin-contract pin operation over EVERY declared path (mode via param) — the `distro-*` paths are its EDGE subset (the `pin_map`), MODE=bump advances EVERY pin this repo declares, MODE=currency asks whether every pin is at the ref its intent names, and its Message IS the answer
+    description: The pin operation over EVERY declared path (mode via param) — the `distro-*` paths are its EDGE subset (the `pin_map`), MODE=ff fast-forwards EVERY pin this repo declares onto the tip of its branch, MODE=currency asks whether every pin is at that tip, and its Message IS the answer
     dir: .
     params:
       MODE:
-        description: status|bump|verify|currency (the git-submodules mode) — bump advances EVERY pin this repo declares and does not commit
+        description: status|ff|verify|currency (the git-submodules mode) — ff fast-forwards EVERY pin this repo declares and does not commit
         default: verify
     plan:
       - run: run git-submodules in the selected mode
         # The runner's per-attempt never-hang floor is 90s, and this verb's cost
         # scales with the ORG: MODE=currency asks every remote what they serve
         # (measured 4m00s–5m15s on 2026-10-23, umbrella trees f2c7db1 and 4f0777a)
-        # and MODE=bump rolls every leaf submodule to its remote HEAD and re-pins
+        # and MODE=ff fast-forwards every leaf submodule onto its branch tip and re-pins
         # the edge ones (distro-*) to their source's twin.
         # A step the floor cuts short is KILLED mid-run, so the ceiling is declared
         # here — the mechanism's own parameter, not a sleep and not a retry.
@@ -374,7 +374,7 @@ self-test:
       # The SET is owned by scripts/self-test.sh, so the commit gate can reach it
       # without the charly binary (opencharly/opencharly#498) and the two callers
       # cannot drift (R2).
-      - run: self-test sync-pin-evidence + sync-pr-body + sync-dispatcher + init-submodules + measure-clone
+      - run: self-test ff-evidence + ff-body + sync-dispatcher + init-submodules + measure-clone
         command: bash scripts/self-test.sh
         context: [runtime]
 
@@ -408,9 +408,9 @@ hooks:
 #   CHARLY_INIT_MODE=list   charly task init                  print it, change nothing
 #   CHARLY_INIT_PATHS=a,b   charly task init                  the named paths
 #
-# MODE=all is for a FULL tree, not for a wave: the bump advances an unmaterialized
+# MODE=all is for a FULL tree, not for a wave: the fast-forward advances an unmaterialized
 # pin IN THE INDEX (so a wave needs no full set), and it still fails loud, by
-# design, for every path it CANNOT advance (a sync over a tree it could not fully
+# design, for every path it CANNOT advance (a wave over a tree it could not fully
 # advance must never report success). The daily tree is light, and so is a wave.
 #
 # THIS TASK IS NOT THE FIRST STEP on a fresh clone: the project cannot load
@@ -491,10 +491,10 @@ worktree:
         context: [runtime]
 
 # -----------------------------------------------------------------------------
-# sync — advance EVERY submodule pin this repo declares, per the pin contract.
-# The wave is an ORG-WIDE cutover, not a way to move one pin: it advances EVERY
-# declared path. Phase 1 rolls every leaf submodule that HAS a checkout to its
-# remote's default-branch HEAD and stages its gitlink (a path with NO checkout is
+# ff — fast-forward EVERY submodule pin this repo declares onto its branch tip.
+# The wave is an ORG-WIDE operation, not a way to move one pin: it advances EVERY
+# declared path. Phase 1 fast-forwards every leaf submodule that HAS a checkout onto
+# the tip of the branch its `.gitmodules` entry declares and stages its gitlink (a path with NO checkout is
 # advanced IN THE INDEX, because the pin IS the index entry), and phase 2
 # re-pins the `pin_map` edges — the six distro-* repos — from charly's NEW
 # gitlinks, charly rolling FIRST (the verb's phase order).
@@ -502,31 +502,31 @@ worktree:
 # It does not commit and does not open a PR: it moves checkouts and stages the
 # gitlinks, and the wave lands as a PR.
 #
-# A WAVE NEEDS NO FULL SET: the bump advances a path with no checkout IN THE
+# A WAVE NEEDS NO FULL SET: the fast-forward advances a path with no checkout IN THE
 # INDEX (a leaf to the tip its remote serves for its `branch=`, an edge to the
 # twin the source's tree records), and a path WITH a checkout is still rolled in
 # that checkout, so the two keep agreeing. It still fails loud for every path it
-# CANNOT advance (a sync over a tree it could not fully advance must never
-# report success). A wave's order is SYNC → INIT → VERIFY: the sync writes the
+# CANNOT advance (a wave over a tree it could not fully advance must never
+# report success). A wave's order is FF → INIT → VERIFY: the ff writes the
 # pins, the init materializes the checkouts AT those pins, and the verify
 # judges them. The daily tree stays light, and so does a wave.
 # -----------------------------------------------------------------------------
-sync:
+ff:
   task:
-    description: Advance EVERY submodule pin this repo declares, per the pin contract (it rolls the checkouts that exist to their default-branch HEAD and stages the gitlinks; it does not commit)
+    description: Fast-forward EVERY submodule pin this repo declares onto the tip of its branch (it advances the checkouts that exist, stages the gitlinks, refuses a move that is not a fast-forward, and does not commit)
     dir: .
     plan:
-      - run: advance EVERY submodule pin this repo declares (charly rolls first, then distro-* from its new gitlinks)
-        # The bump rolls every leaf submodule to its remote HEAD and re-pins the
+      - run: fast-forward EVERY submodule pin this repo declares (charly first, then distro-* from its new gitlinks)
+        # The fast-forward advances every leaf submodule onto its branch tip and re-pins the
         # edge ones (distro-*) to their source's twin, so the hop's own attempt
         # carries a declared ceiling above the runner's 90s floor — a hop the floor
         # cuts short leaves the wave HALF done and still reporting success.
         timeout: 30m
         task:
           task: pins
-          param: [MODE=bump]
+          param: [MODE=ff]
         context: [runtime]
-      - run: re-derive the harness skill bindings from the corpus the bump just advanced (the DSH farm and .claude/settings.json's enabledPlugins — a pin advance that skips this leaves them a family behind)
+      - run: re-derive the harness skill bindings from the corpus the fast-forward just advanced (the DSH farm and .claude/settings.json's enabledPlugins — a pin advance that skips this leaves them a family behind)
         # --require-corpus: an unmaterialized corpus must FAIL this step, not silently SKIP it.
         # The script's default is skip-visible because the GATE runs it on light/partial trees
         # where a skip is correct; here the corpus IS the input this step exists to read, so a
@@ -585,14 +585,13 @@ verify:
       # while every pin is behind what its repo serves (opencharly/opencharly#621), and
       # nothing in the gate said so.
       #
-      # The verb answers it in the shape a control wants: StatusPass with a message that
-      # NAMES every pin that is not current and the producer-first legs that would make it
-      # current. So this step REPORTS the currency without reddening the gate — a behind pin
-      # is an advance available NOW, in that producer's own repo, not a broken edge, and a
-      # gate that failed on it would be permanently red on a healthy tree. A STRUCTURAL
-      # failure — a pin the workflow cannot judge, or two sides that disagree — is still a
-      # FAIL, and that is the point of the step.
-      - check: each pin's CURRENCY — the pin is at the ref its intent names (the question the consistency half above does not answer)
+      # The verb answers it in the shape a control wants: it NAMES every pin that is not
+      # current and the producer-first legs that would make it current, and it FAILS on a
+      # `behind` pin or on a `blocked-by` that names a leg. The one non-failure is a pin whose
+      # ancestry cannot be judged at all (`differs (no checkout to judge ancestry)`), which is
+      # reported rather than guessed at — the umbrella tracks `main`, so a pin known to be
+      # behind is a finding, and `charly task ff` is its remedy.
+      - check: every pin is CURRENT — each recorded gitlink is the tip of the branch its intent names (the question the consistency half above does not answer)
         # CURRENCY asks every remote what they serve: measured 4m00s–5m15s on
         # 2026-10-23, umbrella trees f2c7db1 and 4f0777a, so the hop's attempt
         # carries a declared ceiling above the runner's 90s floor.
@@ -732,7 +731,7 @@ verify:
       # comment is a copy of a fact whose owner (the charly pin) moves on every
       # release, so nothing but a gate that re-derives it from the pin can see the
       # copy go stale (opencharly/opencharly#689). The version is derived from the
-      # PINNED charly's own go.mod, so a pin bump turns this RED at the moment the
+      # PINNED charly's own go.mod, so advancing the charly pin turns this RED at the moment the
       # citations beside it must be re-read.
       - check: every plugin-task version this repo's OWN prose cites equals the version the PINNED charly compiles — the version is DERIVED from the pin, and the scan is derived from the tracked file set (fixtures)
         command: node scripts/check-cited-plugin-task-version.mjs
@@ -931,10 +930,10 @@ verify:
 # -----------------------------------------------------------------------------
 design-check:
   task:
-    description: Run the DESIGN gate — the seven controls of DESIGN.md A.1/A.2 (the CUE toolchain, DESIGN.md↔DESIGN.cue, the examples and their negatives, the capability ledger, every citation into a pinned module resolved at its pin, the schema patterns of every pinned plugin module, and every pin's relation to a release tag) — the same command hooks/pre-push runs by change class
+    description: Run the DESIGN gate — the six controls of DESIGN.md A.1/A.2 (the CUE toolchain, DESIGN.md↔DESIGN.cue, the examples and their negatives, the capability ledger, every citation into a pinned module resolved at its pin, and the schema patterns of every pinned plugin module) — the same command hooks/pre-push runs by change class
     dir: .
     plan:
-      - check: the seven design controls pass on THIS tree
+      - check: the six design controls pass on THIS tree
         command: bash scripts/design-check.sh
         timeout: 30m
         context: [runtime]
@@ -1012,6 +1011,31 @@ org-map:
         context: [runtime]
       - check: the org-map gate discriminates — each arm turns RED on its own mutation, and a tree that agrees with itself stays GREEN (fixtures)
         command: python3 scripts/org-map.py --self-test
+        context: [runtime]
+
+# -----------------------------------------------------------------------------
+# brand — every BRAND surface carries the product's canonical tagline, no retired
+# brand phrase survives on any of them, and a surface that names the tagline
+# without a register row is a finding.
+#
+# WHY. The product has had five taglines. Each rename swept the string in the
+# repositories its author remembered, because nothing in the tree NAMED the set:
+# MEASURED two renames after "wonky" was retired, the published site's own meta
+# description still shipped it (opencharly/opencharly#1335). The register is
+# `brand/surfaces.tsv`; the closed retired set is `brand/retired.txt`. A repo that
+# is not materialised in this checkout is reported as a VISIBLE SKIP, never
+# treated as a pass.
+# -----------------------------------------------------------------------------
+brand:
+  task:
+    description: Every registered brand surface carries the canonical tagline and no retired brand phrase, and every tracked file naming the tagline has a register row — and the control proves each arm can fail
+    dir: .
+    plan:
+      - check: every registered brand surface carries the canonical text and no retired phrase, and every tracked file that names the tagline has a register row (an unmaterialised repo is a visible skip, never a pass)
+        command: python3 scripts/check-brand.py .
+        context: [runtime]
+      - check: the brand gate discriminates — each arm turns RED on its own mutation, a wrapped paragraph still matches, and a tree that agrees with itself stays GREEN (fixtures)
+        command: python3 scripts/check-brand.py --self-test
         context: [runtime]
 
 # -----------------------------------------------------------------------------

@@ -2773,7 +2773,7 @@ once as schema for machines. Two statements of one thing drift unless something 
 The design check is that comparison. It runs locally and on demand — there is no CI gate — and a
 change to `DESIGN.md`, `DESIGN.cue`, `GRIEVANCES.md` or the check itself lands only with its output on
 the final committed tree pasted into the PR body. It relies on the pinned CUE v0.18.0-rc.1, on
-`git` — the schema-pattern gate (A.11), the pin-tag control (A.12) and the citation control (A.13)
+`git` — the schema-pattern gate (A.11) and the citation control (A.13)
 read the pinned modules through the tree's own index — and on `python3`, which the ledger's
 definition-shape walk (`scripts/design-shape-check.py`) already needs. No other toolchain is
 needed, and in particular no Go.
@@ -2795,8 +2795,6 @@ validated with `cue vet -d '#Document' DESIGN.cue charly.yml`, and a user config
 | `scripts/design-dpat.sh` | checks the schema patterns (D-PAT-1, D-PAT-2, D-PAT-3) in every pinned plugin CUE module, on the half of each the pinned CUE text decides (A.11) |
 | `design/dpat-baseline.tsv` | the FROZEN census of the schema-pattern violations that gate tolerates, and the issue that retires it (A.11) |
 | `design/dpat-admission.tsv` | the known schema-pattern debt that enters the census later than the baseline, with WHY it cannot be retired yet and the issue that retires it (A.11) |
-| `scripts/design-pintag.sh` | answers, for every pin of the tree, whether it is at a tag or its untagged-ness is explained: a CHANGELOG commit above a tag, the tag-on-merge caller's birth, or a repository without one (A.12) |
-| `design/pintag-baseline.tsv` | the pins the pin-tag control records as untagged, and why, with the issue that retires the census (A.12) |
 | `design/example/load.cue` | the loader's view of a document (§11.1 stage 3, D-LOAD-5), in CUE |
 | `design/example/rules.cue` | the §12.4 rules that a single document can show, in CUE |
 | `design/negative/*.yaml` | one document per rule that breaks exactly that rule |
@@ -2809,6 +2807,12 @@ validated with `cue vet -d '#Document' DESIGN.cue charly.yml`, and a user config
 | `design/dulling.tsv` | the capability ledger: every current capability, and whether the target form lands it whole (A.8) |
 | `design/dulling-admission.tsv` | the new-capability paths of the capability ledger (A.8) |
 
+**The pin-tag control is retired (A.12).** It asked whether every gitlink of the tree sat at a
+release tag. The umbrella instead tracks the branch each `.gitmodules` entry declares: a recorded
+gitlink that is behind the tip of that branch is a failure, and its remedy is the maintenance verb
+`ff`, which fast-forwards every checkout and stages every gitlink. Appendix ids are stable and are never
+renumbered, so the gap is deliberate.
+
 ### A.2 `scripts/design-check.sh`
 
 ```bash
@@ -2817,15 +2821,15 @@ bash scripts/design-check.sh
 
 Runs in the repository root, in order, and stops at the first failure: the toolchain (A.3), the
 consistency check (A.4), the example check (A.5), the ledger check (A.8), the citation control
-(A.13), the schema-pattern gate (A.11) and the pin-tag control (A.12). It has no logic of its own;
+(A.13) and the schema-pattern gate (A.11). It has no logic of its own;
 each control lives in exactly one script, and no check writes to the repository. The committed
 negative cases (A.5) and the `--self-test` mutations of the ledger check (A.8), of the citation
-control (A.13), of the schema-pattern gate (A.11) and of the pin-tag control (A.12) are the proof
+control (A.13) and of the schema-pattern gate (A.11) are the proof
 that each check can fail.
 
 **The gate has a caller.** A control that nothing runs enforces nothing, so the umbrella's
 pre-push hook (`hooks/pre-push`) runs this command for a push whose commits change one of the
-surfaces these seven controls read, and refuses the push on a finding. Which pushes those are is
+surfaces these six controls read, and refuses the push on a finding. Which pushes those are is
 defined once, in `scripts/design-gate-inputs.sh`; `scripts/check-design-gate.mjs` asserts that
 the caller is wired and FIRES it, because an unwired gate is how this one came to run only when
 somebody remembered. The command above stays runnable at any time.
@@ -3250,112 +3254,6 @@ carries the construct. A persisted record is the same story one step worse: `spe
 the ledger writes, and the egress schemas restate it in a shape of their own, so the fix there is a
 unification and a decision about which side is right — never a deletion. `opencharly/spec#294`
 carries the first units of that cutover, and `opencharly/opencharly#950` carries the rest.
-
-### A.12 `scripts/design-pintag.sh` — the pin-tag control
-
-```bash
-bash scripts/design-pintag.sh              # the control design-check.sh runs
-bash scripts/design-pintag.sh --self-test  # mutate every state and prove the check fails
-bash scripts/design-pintag.sh --remote     # cross-check the untagged pins against the remote
-bash scripts/design-pintag.sh --explain    # print every pin and its state
-```
-
-Every release lands as a squash merge, `tag-on-merge` writes a `CHANGELOG/<CalVer>.md` commit on
-top of the merged HEAD, and this umbrella advances the pin to the branch tip — which is therefore
-usually ONE CHANGELOG commit ABOVE the tag, and `git ls-remote --tags | grep -F <pin>` is empty for
-it. Nothing before this control related a pin to a tag: a pin left untagged for a different reason
-— a wrong commit, a stray commit, a pin advanced past a release — read exactly like a healthy one,
-and `tag-on-merge` could fail after the merge with no detector. The control answers, for every pin
-of the tree, whether the pin is at a tagged release or whether its untagged-ness is recorded and
-explained. D-PLUG-3 ties a plugin's release to its repository tag; this control asks the same
-question of the pin that ships.
-
-**It is a control of its own, not a wider A.11.** A.11 reads the CUE text of the pinned plugin
-modules and answers a question about the schema's shape; this reads the pin itself and answers a
-question about its relation to a tag. The two read the same index and share nothing else,
-so A.2's "each control lives in exactly one script" puts the second question in a second script.
-
-**What it reads.** Every gitlink of the tree's index (`git ls-files --stage`, mode 160000 at stage
-0) — the whole pin set, not only the plugin modules A.11 reads — and each module from its own
-repository, `<git-common-dir>/modules/<path>`, at the pinned commit. It never reads a checkout: a
-session worktree materializes no gitlink, and a checkout can be stale, dirty or absent. A pin whose
-module store is absent is skipped visibly and counted, with the remedy named; a store that holds
-the module but not the pinned commit fails the run by name, rather than judging a smaller set and
-still reporting success.
-
-| State | The pin | Verdict |
-|---|---|---|
-| `tagged` | is the commit a tag points at | the release itself |
-| `changelog-tip` | is one commit above a tag, and that commit's subject is `docs: add CHANGELOG …` | the structure every merge produces |
-| `changelog-chain` | is a `docs: add CHANGELOG …` commit, and every commit between it and the first tagged ancestor is one too | `tag-on-merge` re-ran for an earlier merge out of order; the untagged-ness is still only CHANGELOG commits |
-| `pre-release-process` | is the commit that ADDS `.github/workflows/tag-on-merge.yml` to a repository that did not have it | its parent could not mint a tag; the absence is the repository's birth |
-| `not-applicable` | sits in a tree that has no tag-on-merge caller at all | a repository with no caller — an un-onboarded fork, a vendored mirror, an archived repo, or one holding captured output — mints no release tag; the question does not apply, and the pin is counted |
-| `untagged` | is none of the above, and its module runs tag-on-merge at the pin and at its parent | a merge above a tag wrote no CHANGELOG commit — the signal, and a finding unless the census records it |
-
-**A first-party fork is tagged like any other landing repo.** Every active fork carries the
-tag-on-merge caller, installed and kept canonical by `opencharly/.github`'s `SCOPE=forks`
-reconcile, so a fork pin classifies as `pre-release-process` at the commit that ADDS the caller,
-then as `changelog-tip` or `tagged` above it. `not-applicable` therefore describes a repository
-with NO caller — an un-onboarded fork, a vendored mirror, an archived repo, or a captured-output
-branch — and it does not describe forks in general.
-
-**The split: what the offline reading sees, and what it does not.** A positive needs no network: a
-tag ref in the module store that points at the pin, or at the first-parent ancestor the walk
-reaches, is proof, and tags are immutable, so a store's tag cannot go stale into a false pass. An
-absence is the other direction, and it is fail-closed: a tag that exists upstream but was never
-fetched into the module store is invisible, and a pin fetched before its tag reads as untagged —
-which the census must explain or the run fails. The reading can therefore never bless an untagged
-pin; it can only over-report one. The gate A.2 runs is that offline reading, and every run prints
-the store boundary it used. It cannot see:
-
-- a tag that exists upstream and was never fetched into the module store. This is what `--remote`
-  resolves, and it is why an absence is the interesting direction;
-- a tag deleted or moved upstream. Tags are add-only by policy, so a store's tag is a durable
-  fact, and a moved tag is outside what a local reading can observe;
-- whether a pin TRAILS its remote's tip. A pin one CHANGELOG commit above a tag can still be
-  behind the branch, and that is the currency question, which this control does not answer;
-- the tag-to-merge relation beyond the first-parent line, and whether a tag is annotated or
-  lightweight (either counts as a tag).
-
-`--remote` is the opt-in cross-check: for every pin the local reading called untagged it asks
-`git ls-remote --tags` and runs the same classification over the merged tag map. A remote it
-cannot reach is a loud failure that names the module and the URL — never a green run over a
-question that was not answered. It is not the gate, because a full sweep is a network call per
-ambiguous pin and a gate that failed when a remote was unreachable would fail for a reason that is
-not about the pins; the positive side of the question needs no network at all, so the gate loses
-nothing by running offline.
-
-**The census.** The tree carries pins today that are untagged and that tag-on-merge did not
-explain — the live instances of the failure opencharly/.github#286 names, the failure mode with no
-detector. A gate that is red on landing enforces nothing, so `design/pintag-baseline.tsv` records
-them: one row per module, commit, state and reason, with the issue that retires the census. The
-control tolerates exactly what the census records, reports each tolerated pin as known, and fails
-on anything else:
-
-- an untagged pin with no row is a new finding;
-- a row whose commit is no longer its module's pin is a pin that moved and was never examined, so
-  it fails until the row is re-argued or lowered;
-- a row whose pin is no longer untagged is stale, so it is lowered in the change that fixes it.
-  Delete the last row and the control is a plain check with nothing to excuse.
-
-A row is not a line and not a count: module and commit are its key, and the state and the reason
-are what the next reader needs to judge it. The rows the tree carries are the live instances this
-control found, each confirmed against its remote — `git ls-remote --tags` returns nothing for the
-served commit and `git ls-remote refs/heads/main` returns that same commit, so the branch tip
-itself is untagged rather than a pin that trails a tagged tip.
-
-**The measurement on this tree.** On 2026-11-09 the index carried 409 pins and the run judged
-every one; it reads them in about eight seconds and writes nothing. The split that day was 392
-`changelog-tip`, 5 `tagged`, 2 `changelog-chain`, 3 `pre-release-process`, 5 `not-applicable` and
-the 2 `untagged` rows the census records. The self-test proves both directions of every rule: a pin
-at a tag and a pin one
-CHANGELOG commit above one pass; an arbitrary untagged commit, a pin more than one step above a tag
-with no CHANGELOG commit, and a CHANGELOG commit above an untagged merge fail; a recorded untagged
-pin passes and a new one beside it fails; a row whose pin moved, a row whose pin became healthy, a
-malformed row, a census with no tracked issue and an absent census each fail; an absent module
-store is skipped visibly, a run over only skipped pins fails, and a pin the store does not hold
-fails the run by name; and `--remote` fails loud on an unreachable remote and resolves a tag the
-store never fetched.
 
 ### A.13 `scripts/design-cite.sh` — the citation control
 

@@ -16,7 +16,7 @@
 #
 #   - the commit gate's CHANGE CLASS (hooks/pre-commit-gate.sh): the check runs only
 #     when the staged diff touches one of these inputs;
-#   - the wave body's COVERAGE DECISION (scripts/sync-pin-evidence.sh): the check is
+#   - the wave body's COVERAGE DECISION (scripts/ff-evidence.sh): the check is
 #     this diff's coverage only when the diff touches one of these inputs.
 #
 # A second, narrower copy of that rule is how the shipped class came to be wrong: it

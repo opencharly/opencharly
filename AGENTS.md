@@ -192,7 +192,7 @@ the generated table has no row for. *Detail:* `/charly-internals:skills`,
 | Git/`gh` workflow — `feat/` branch, commit, PR-only landing (no direct push to `main`), the `pr-validator` gate, native auto-merge + tag-on-merge CalVer, worktrees, sync-to-upstream, branch/worktree prune (`charly task prune`), cross-repo R10 landing / claim-or-track an issue / coordination comments (`CLAIM`…`RESOLVED`) / the session footer / triaging or backfilling issue labels | `/charly-internals:git-workflow` |
 | Filing an issue (its RCA, its `category:`+`type:`, blocking or non-blocking) | `/charly-internals:root-cause-analyzer`, `/charly-internals:strict-policy`, `/charly-internals:git-workflow` |
 | An RCA has named a cause and a fix or solution is about to be implemented / a spike round / an R12 exemption / RDD | `/charly-internals:strict-policy`, `/charly-internals:root-cause-analyzer`, `/charly-internals:design` |
-| Pinning / gitlink policy / the pin contract — a pin's INTENT (leaf vs edge) and whether the umbrella is CURRENT / `charly task sync` / `charly task verify` | `/charly-internals:git-workflow` |
+| Pinning / gitlink policy — a pin tracks the branch `.gitmodules` declares, an edge tracks `charly`'s twin, and a pin behind its tip FAILS / `charly task ff` / `charly task verify` | `/charly-internals:git-workflow` |
 | Adding or reshaping a field / shape / kind / verb / capability / mechanism / editing `DESIGN.md`, `DESIGN.cue` or `design/` / citing a `D-<AREA>-<n>` id / `charly task design-check` (R11) | `/charly-internals:design` |
 | A spike round has named its winning candidate and the first implementation edit has not happened — the R11 plan conformance pass | `/charly-internals:design` |
 | New repo in the org / org ruleset / dotgithub config + workflows | `/charly-internals:repo-setup` |
@@ -370,7 +370,7 @@ remains; the only legal deferral is R1's *file it*, and a denied required action
    `gh pr update-branch`, never rebased.
 6. **Land.** No agent merges. A `charly/pr-validator` PASS arms native auto-merge (squash),
    and `tag-on-merge` writes `CHANGELOG/<CalVer>.md` from the PR body. Cross-repo work is
-   **producer-first**: producer PR → merge → tag → consumer pin bump → umbrella PR. Never
+   **producer-first**: producer PR → merge → tag → consumer ff → umbrella PR. Never
    `gh pr merge`, `--admin`, bypass protection, or move a release tag.
 7. **Close out.** Close every issue the PR resolved (`Closes #N` does not close it by
    itself), and post `RESOLVED` on every coordination thread you claimed.
@@ -549,17 +549,18 @@ Before declaring completion, answer every applicable item YES.
    materializing was never a licence to edit in place. *Detail:*
    `/charly-internals:git-workflow` (umbrella mechanics: "The clone shape is a working set").
 
-3. **Pins are gitlinks; a pin declares its INTENT, and CURRENCY is the question.** *(R6, R10)*
-   **When:** a pin must move. **Do:** pin only MERGED refs; a pin is a **leaf**
-   (`upstream:<ref>`) or an **edge** (`derived-from:<path>`), and an edge may not point at an
-   edge.
-   Advance pins only with `./charly/bin/charly task sync` plus a PR, never with a hand-pin or
-   a branch checkout. **That verb is an ORG-WIDE cutover, not a way to move one pin:** it
-   advances EVERY pin this repo declares; to move ONE repo's pin, use the narrow mechanism that
-   repo declares. A wave's order is sync → init → verify, and while it runs no other git command
-   runs in that worktree. **Done when:** every pin is judgeable; `behind` and a `blocked-by`
-   naming a producer leg PASS and are reported. *Detail:* `/charly-internals:git-workflow`
-   (`references/pin-intent-and-currency.md`, umbrella mechanics).
+ 3. **Pins track the branch their `.gitmodules` entry declares; a pin behind it is a failure.** *(R6, R10)*
+    **When:** you catch up the umbrella, or a pin must move. **Do:** advance pins only with
+    `./charly/bin/charly task ff` plus a PR, never with a hand-pin or a branch checkout. `ff`
+    fetches every declared path and fast-forwards each checkout onto the tip of the branch its
+    `.gitmodules` entry declares (`main` unless the entry says otherwise), stages the gitlinks, and
+    REFUSES a move that is not a fast-forward.
+    **That verb is an ORG-WIDE operation, not a way to move one pin:** it fast-forwards EVERY pin
+    this repo declares. The `distro-*` paths are EDGES — each equals `charly`'s own `box/*` gitlink —
+    so `charly` advances first. A wave's order is ff → init → verify, and while it runs no other
+    git command runs in that worktree. **Done when:** every pin is at the tip its intent names;
+    `charly task verify` FAILS on a pin that is behind, and no tag is consulted anywhere. *Detail:*
+    `/charly-internals:git-workflow` (`references/pin-intent-and-currency.md`, umbrella mechanics).
 
 4. **Read the subrepo's own rulebook first.** *(R0)* **When:** before acting in a subrepo.
    **Do:** read its `AGENTS.md`, which adds repo-specific rules on top of Part I.

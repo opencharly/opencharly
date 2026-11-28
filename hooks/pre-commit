@@ -80,7 +80,7 @@
 #                          reading nobody measured is a reading no gate can see.
 #  13. cited plugin-task version — every plugin-task version this repo's OWN prose cites
 #                          equals the version the PINNED charly compiles; the version is
-#                          DERIVED from the pin, so a charly pin bump turns the gate RED
+#                          DERIVED from the pin, so a charly pin advance (`charly task ff`) turns the gate RED
 #                          at the moment the citations beside it must be re-read
 #                          (`node scripts/check-cited-plugin-task-version.mjs`;
 #                          opencharly/opencharly#689)
@@ -181,6 +181,7 @@ node "$ROOT/scripts/check-validator-rule-map.mjs" --no-live
 node "$ROOT/scripts/check-readme-measurements.mjs"
 node "$ROOT/scripts/check-cited-plugin-task-version.mjs"
 python3 "$ROOT/scripts/org-map.py" "$ROOT"
+python3 "$ROOT/scripts/check-brand.py" "$ROOT"
 bash "$ROOT/scripts/check-bed-watch.sh" --self-test
 
 echo "pre-commit: OK"

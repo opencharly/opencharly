@@ -11,7 +11,7 @@ now, so a cutover that moves both halves and a change that moves only one are ju
 same arms.
 
 THE ARMS
-  A0 anchors          README.md carries both `## The org map` and `## Pinning`
+  A0 anchors          README.md carries both `## The org map` and the tracking section
   A1 section claim    each `### <section>` states `N repos` and lists exactly N rows
   A2 section order    a section's rows are sorted (the map is read as an inventory)
   A3 submodule→row    every `[submodule "p"]` has a row `| `p/` |`
@@ -46,7 +46,7 @@ SUB_RE = re.compile(r'^\[submodule "([^"]+)"\]', re.M)
 HEADER_RE = re.compile(r"every OpenCharly repo \((\d+) today\)")
 
 MAP_START = "## The org map"
-MAP_END = "## Pinning"
+MAP_END = "## Tracking upstream `main`"
 
 
 def parse(root):
@@ -201,7 +201,7 @@ Intro prose, which the anchors bracket.
 | `gamma/` | g | third |
 
 
-## Pinning
+## Tracking upstream `main`
 
 and every OpenCharly repo (3 today) is pinned here.
 """
@@ -270,9 +270,9 @@ def self_test():
     print(f"  {'PASS' if ok else 'FAIL'}  a tree that agrees with itself is GREEN: findings={clean}")
 
     arm(
-        "A0 — no `## Pinning` anchor",
+        "A0 — no tracking-section anchor",
         ["A0 anchors"],
-        readme=FIXTURE_README.replace("## Pinning", "## Something else"),
+        readme=FIXTURE_README.replace(MAP_END, "## Something else"),
     )
     arm(
         "A1 — a section claims more rows than it lists",
@@ -313,7 +313,7 @@ def self_test():
         "the DISPLAY path on a tree with no anchors prints the A0 finding and exits 1",
         1,
         "FAIL A0 anchors",
-        readme=FIXTURE_README.replace("## Pinning", "## Something else"),
+        readme=FIXTURE_README.replace(MAP_END, "## Something else"),
     )
     report_arm("the DISPLAY path on the clean fixture exits 0", 0, "OK: both directions reconcile")
 

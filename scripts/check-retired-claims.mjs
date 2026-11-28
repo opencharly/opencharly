@@ -319,7 +319,7 @@ const PATTERNS = [
     // The class: two of the report's own states claimed INDISTINGUISHABLE. The truth:
     // the report's state names them apart — `differs (no checkout of <twin> to judge
     // ancestry)` against `behind` / `unmerged` / `not-on-the-served-line` (the product's
-    // own `ancestryClass`, plugin-task v0.2026316.2347, candy/plugin-task/verbs.go:987)
+    // own `ancestryClass`, plugin-task v0.2026332.323, candy/plugin-task/verbs.go:978)
     // — and only the VERDICT level, where both read "not current", cannot tell them
     // apart. A claim that the two states cannot be told apart is that defect in any
     // wording, and this change wrote it in four surfaces.
@@ -418,7 +418,7 @@ const PATTERNS = [
     // segments of the claim stream (a shell statement boundary is a boundary), so
     // "from the index" sits in the NEXT segment and a context-anchored pattern would
     // not match the very wording it was written for (MEASURED on the retired legend
-    // in origin/main's scripts/sync-pin-evidence.sh).
+    // in the evidence script, now `scripts/ff-evidence.sh`).
     //
     // The token pair is `--verify --quiet`, not `--verify` alone: the pair is what the
     // retired read WAS, and a plain `git rev-parse --verify <ref>` — the ordinary
@@ -488,7 +488,7 @@ const PATTERNS = [
   {
     // THE CLASS: the pin-advance operation described as a NON-MUTATING KIND — a
     // preview, a dry run, a read-only report. The truth: the umbrella's pin
-    // advance (`charly task sync`, the git-submodules `bump` mode) WRITES — it
+    // advance (`charly task ff`, the git-submodules `ff` mode) WRITES — it
     // rolls every leaf submodule that HAS a checkout to its remote's
     // default-branch HEAD, stages those gitlinks, and re-pins the `pin_map`
     // edges. The retired wording introduced it as a thing that changed nothing

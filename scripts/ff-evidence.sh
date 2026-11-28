@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# sync-pin-evidence.sh — emit the sync PR body's "pin evidence" section: for every
+# ff-evidence.sh — emit the ff PR body's "pin evidence" section: for every
 # MOVED gitlink, the STAGED GITLINK (the pinned commit this PR records) beside the
 # owning repo's remote default-branch HEAD, plus the truthful statement of whether
 # the pin contract can fail on THIS diff.
 #
-# Why this is its own script: the sync PR's body must carry real, verifiable evidence
-# that each moved pin is a merged default-branch HEAD (or charly's own gitlink, for
-# `distro-*`). Extracting it here makes the logic TESTABLE in-tree (`--self-test`, run
+# Why this is its own script: the ff PR's body must carry real, verifiable evidence
+# that each moved pin is the tip of the branch its `.gitmodules` entry
+# declares. Extracting it here makes the logic TESTABLE in-tree (`--self-test`, run
 # by the pre-commit gate), not a string nobody can exercise.
 #
 # The STAGED GITLINK — never the submodule's working-tree HEAD — is the pinned commit
@@ -27,25 +27,25 @@
 # contract (charly.yml) and the declared path set (.gitmodules), so a diff that
 # touches none of them cannot violate it.
 #
-# SIZE BOUND (a GitHub platform limit, not a preference). A sync PR body is capped by
-# GitHub at 65536 characters; a sync that moves hundreds of pins overflows it and
+# SIZE BOUND (a GitHub platform limit, not a preference). An ff PR body is capped by
+# GitHub at 65536 characters; an ff that moves hundreds of pins overflows it and
 # `gh pr create` fails with "Body is too long". The per-pin evidence table is the
 # largest section. It is emitted in the COMPACT format above (≈50 bytes/row, vs ≈115
 # for the retired `staged-gitlink=… remote-HEAD=… [kind, eq]` row) so the FULL table —
 # every changed path, no elision — fits the body with headroom at fleet scale. The
-# fleet scale is the LIVE one: `sync-pr-body.sh`'s self-test builds its synthetic moved
+# fleet scale is the LIVE one: `ff-body.sh`'s self-test builds its synthetic moved
 # set from the umbrella's own `.gitmodules`, so the bound is re-proved on every run at
 # the real submodule count instead of by a figure recorded once — and it fails loud when
-# the count outgrows the budget. SYNC_EVIDENCE_MAX_BYTES (default 50000) is now a FALLBACK
-# guard only: it does not fire at fleet scale, and if a far larger sync ever
+# the count outgrows the budget. FF_EVIDENCE_MAX_BYTES (default 50000) is now a FALLBACK
+# guard only: it does not fire at fleet scale, and if a far larger ff ever
 # tripped it the elision notice names shown/total AND the evidence file holding the
-# rest. The BODY always carries the complete table; SYNC_EVIDENCE_OUT additionally
-# writes a copy to a caller-named file. Neither is a CI run artifact — the sync is
-# hand-run (`charly task sync` + a PR), so no workflow run exists to attach one to.
+# rest. The BODY always carries the complete table; FF_EVIDENCE_OUT additionally
+# writes a copy to a caller-named file. Neither is a CI run artifact — the ff is
+# hand-run (`charly task ff` + a PR), so no workflow run exists to attach one to.
 # The body never POINTS at a file as the home of the evidence — a pointer is a
 # promise, not pasted output, which is exactly what the validator BLOCKed.
 
-SYNC_EVIDENCE_MAX_BYTES="${SYNC_EVIDENCE_MAX_BYTES:-50000}"
+FF_EVIDENCE_MAX_BYTES="${FF_EVIDENCE_MAX_BYTES:-50000}"
 
 set -euo pipefail
 
@@ -92,7 +92,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # diff. A body that cannot decide must not claim it does not. The commit gate
 # carries the same guard for the same reason (hooks/pre-commit-gate.sh).
 if [ ! -f "$SCRIPT_DIR/pin-contract-inputs.sh" ]; then
-  echo "sync-pin-evidence: no scripts/pin-contract-inputs.sh in THIS tree, and the pin" >&2
+  echo "ff-evidence: no scripts/pin-contract-inputs.sh in THIS tree, and the pin" >&2
   echo "  check's coverage decision is DEFINED there, so this body cannot decide" >&2
   echo "  whether the check covers this diff — and a body that cannot decide must not" >&2
   echo "  claim it does not." >&2
@@ -192,7 +192,7 @@ is_gitlink_path() {
 # TWO WINDOWS, and the base covers the second. Generating the body STAGED-but-uncommitted
 # makes HEAD the pre-change tree, and `head_entry` answers. Generating it for an ALREADY
 # PUSHED branch (every review round re-renders the WHOLE branch diff) leaves the deletion
-# in BOTH the index and HEAD, and only the BASE — `SYNC_BASE`, default `origin/main`, the
+# in BOTH the index and HEAD, and only the BASE — `FF_BASE`, default `origin/main`, the
 # tree the branch left — still records the path. Without that half a committed deletion
 # rendered as a `(file)` row with NO blob and was counted as a moved file (measured on
 # opencharly/opencharly#1252 round 1: `.dsh/skills/immich-ml  (file)`, counted among
@@ -203,12 +203,12 @@ is_removed_path() {
     && { [ -n "$(head_entry "$root" "$p")" ] || [ -n "$(base_entry "$root" "$p")" ]; }
 }
 
-# base_entry <root> <path> — the BASE tree's recorded entry for <path> (`SYNC_BASE`,
+# base_entry <root> <path> — the BASE tree's recorded entry for <path> (`FF_BASE`,
 # default `origin/main`), or empty. It is what lets `is_removed_path` see a deletion the
 # branch has ALREADY COMMITTED; a base that does not resolve leaves it empty rather than
 # failing, so a fixture repo with no `origin/main` still runs.
 base_entry() {
-  local root="$1" p="$2" base="${SYNC_BASE:-origin/main}"
+  local root="$1" p="$2" base="${FF_BASE:-origin/main}"
   unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES
   git -C "$root" rev-parse --verify -q "${base}^{commit}" >/dev/null 2>&1 || return 0
   git -C "$root" ls-tree "$base" -- ":(literal)$p" 2>/dev/null | awk 'NR==1{print $1" "$3}'
@@ -258,11 +258,11 @@ coverage_note() {
 # (one per line, each already rendered) from stdin and print them until adding the next
 # would exceed <budget_bytes>, always emitting AT LEAST the first row. When truncation
 # occurs, print a final elision line naming shown/total AND where the full table lives —
-# the caller's evidence file (SYNC_EVIDENCE_OUT), NEVER a CI run artifact: the sync is
+# the caller's evidence file (FF_EVIDENCE_OUT), NEVER a CI run artifact: the ff is
 # hand-run, so no workflow run exists to attach one to. ONE implementation the live path
 # and the self-test both call — this is the 65536-char body-cap guard.
 bounded_rows() {
-  local budget="$1" total="$2" where="${3:-the full evidence file (SYNC_EVIDENCE_OUT)}" bytes=0 rows=0 truncated=0 line bytes_line
+  local budget="$1" total="$2" where="${3:-the full evidence file (FF_EVIDENCE_OUT)}" bytes=0 rows=0 truncated=0 line bytes_line
   while IFS= read -r line; do
     bytes_line=$(( ${#line} + 1 ))
     if [ "$rows" -gt 0 ] && [ $((bytes + bytes_line)) -gt "$budget" ]; then
@@ -310,11 +310,11 @@ staged_gitlink() {
 # how it tells a reader to READ a `!` is load-bearing, and the earlier wording got it wrong:
 # it claimed a blanket "must be EQUAL", which calls a MEASURED-BENIGN case a violation.
 #
-# Root cause (R1, measured on this sync). A walk resolves each remote default-branch HEAD at
+# Root cause (R1, measured on this wave). A walk resolves each remote default-branch HEAD at
 # the moment the walk RUNS; this table compares the staged gitlink against HEAD at the moment
-# the table is GENERATED — later, by however long the sync PR body takes to assemble. So a
+# the table is GENERATED — later, by however long the ff PR body takes to assemble. So a
 # non-`distro-*` `!` has exactly two readings, told apart by the two commits themselves:
-#   (a) THE SYNC RACE — the owning default branch advanced after the walk, so the staged pin
+#   (a) THE WALK RACE — the owning default branch advanced after the walk, so the staged pin
 #       is an ANCESTOR of the remote HEAD (benign; disclose by name, never chase);
 #   (b) A REAL FINDING — the staged pin is not on that repo's default branch at all (a PR
 #       branch, or a non-HEAD commit).
@@ -339,7 +339,7 @@ evidence_legend() {
   echo '        A walk resolves each remote HEAD when it runs; this table compares at the'
   echo '        moment it is generated — later. A `!` on a non-`distro-*` row therefore has'
   echo '        two readings, told apart by the two commits themselves:'
-  echo '        (a) THE SYNC RACE — the owning default branch advanced after the walk, so the'
+  echo '        (a) THE WALK RACE — the owning default branch advanced after the walk, so the'
   echo '            staged pin is an ANCESTOR of the remote HEAD'
   echo '            (`git -C <submodule> merge-base --is-ancestor <staged> <remote-HEAD>` →'
   echo '            true); benign — the body discloses it by name and never chases it.'
@@ -358,7 +358,7 @@ evidence_legend() {
 }
 
 if [ "${1:-}" = "--self-test" ]; then
-  fail() { echo "FAIL: sync-pin-evidence self-test: $*" >&2; exit 1; }
+  fail() { echo "FAIL: ff-evidence self-test: $*" >&2; exit 1; }
 
   # pin_row: the COMPACT format `  <path>  <staged12>  <remote12>  <flag>`. The kind
   # (distro-* edge-pinned vs default-branch) is derivable from the path prefix and stated
@@ -422,9 +422,9 @@ charly.yml" "" || fail "a manifest edit among plain files must still touch an in
   # explicit removal at the end of the arm is the tidy path; the registration is
   # what makes the failure path safe.
   scratch guard_dir
-  cp "$SCRIPT_DIR/sync-pin-evidence.sh" "$guard_dir/sync-pin-evidence.sh"
+  cp "$SCRIPT_DIR/ff-evidence.sh" "$guard_dir/ff-evidence.sh"
   : > "$guard_dir/pin-check.log"
-  if ( cd "$guard_dir" && bash "$guard_dir/sync-pin-evidence.sh" "$guard_dir" "$guard_dir/pin-check.log" ) \
+  if ( cd "$guard_dir" && bash "$guard_dir/ff-evidence.sh" "$guard_dir" "$guard_dir/pin-check.log" ) \
        >"$guard_dir/out.txt" 2>"$guard_dir/err.txt" </dev/null; then
     guard_rc=0
   else
@@ -442,7 +442,7 @@ charly.yml" "" || fail "a manifest edit among plain files must still touch an in
   # the guard, so the arm cannot pass by failing everything. It runs to completion
   # and REPORTS a coverage decision (empty stdin = no moved path = not coverage).
   cp "$SCRIPT_DIR/pin-contract-inputs.sh" "$guard_dir/pin-contract-inputs.sh"
-  if ( cd "$guard_dir" && bash "$guard_dir/sync-pin-evidence.sh" "$guard_dir" "$guard_dir/pin-check.log" ) \
+  if ( cd "$guard_dir" && bash "$guard_dir/ff-evidence.sh" "$guard_dir" "$guard_dir/pin-check.log" ) \
        >"$guard_dir/out2.txt" 2>"$guard_dir/err2.txt" </dev/null; then
     guard_rc2=0
   else
@@ -471,7 +471,7 @@ charly.yml" "" || fail "a manifest edit among plain files must still touch an in
 
   # bounded_rows: the 65536-char body-cap guard. A generous budget emits every row and
   # NO elision notice; a tiny budget emits at least ONE row plus an elision naming
-  # shown/total (so a huge sync can never overflow the body nor emit an empty fence).
+  # shown/total (so a huge ff can never overflow the body nor emit an empty fence).
   rows_all=$(printf 'r1\nr2\nr3\n' | bounded_rows 1000 3)
   [ "$(printf '%s\n' "$rows_all" | grep -c .)" = "3" ] || fail "generous budget must emit all 3 rows"
   printf '%s\n' "$rows_all" | grep -q 'elided\|rows shown' && fail "generous budget must not emit an elision notice"
@@ -480,8 +480,8 @@ charly.yml" "" || fail "a manifest edit among plain files must still touch an in
   echo "$rows_cap" | grep -q 'rows shown' || fail "bounded_rows must emit an elision notice when truncating"
   echo "$rows_cap" | grep -q '3 rows shown\|1 of 4 rows shown\|1 of 4' || fail "elision notice must name shown/total"
   # The elision notice must name the CALLER's evidence file, never a CI run artifact:
-  # the sync is hand-run (`charly task sync` + a PR), so no workflow run exists to
-  # attach a `sync-evidence` artifact to.
+  # the ff is hand-run (`charly task ff` + a PR), so no workflow run exists to
+  # attach an `ff-evidence` artifact to.
   echo "$rows_cap" | grep -q 'run artifact' && fail "elision notice must not promise a CI run artifact"
   rows_named=$(printf 'aaaaaaa\nbbbbbbb\nccccccc\nddddddd\n' | bounded_rows 10 4 /tmp/evidence.txt)
   echo "$rows_named" | grep -q '/tmp/evidence.txt' || fail "elision notice must name the caller's evidence file"
@@ -560,9 +560,9 @@ charly.yml" "" || fail "a manifest edit among plain files must still touch an in
     git commit -qm "drop plain3"
   )
   fixture3 >/dev/null
-  SYNC_BASE=HEAD~1 is_removed_path "$t3" plain3 \
+  FF_BASE=HEAD~1 is_removed_path "$t3" plain3 \
     || fail "is_removed_path must be TRUE for a path the BASE records and index+HEAD do not (a committed removal)"
-  SYNC_BASE=HEAD~1 is_removed_path "$t3" absent-path \
+  FF_BASE=HEAD~1 is_removed_path "$t3" absent-path \
     && fail "is_removed_path must be FALSE for a path no window records"
 
   # THE READERS MUST READ THE SAME PATH SET (opencharly/opencharly#740).
@@ -633,7 +633,7 @@ charly.yml" "" || fail "a manifest edit among plain files must still touch an in
   # (removed) row. The pre-fix tree rendered it as a carried (file) — a false claim
   # about the diff.
   printf 'charly task pin-check: OK\n' > "$tmp2/pinlog"
-  if printf ':colonpath\n' | bash "$SCRIPT_DIR/sync-pin-evidence.sh" "$tmp2" "$tmp2/pinlog" \
+  if printf ':colonpath\n' | bash "$SCRIPT_DIR/ff-evidence.sh" "$tmp2" "$tmp2/pinlog" \
        > "$tmp2/colon-body.txt" 2> "$tmp2/colon-body.err"; then
     colon_rc=0
   else
@@ -684,7 +684,7 @@ charly.yml" "" || fail "a manifest edit among plain files must still touch an in
   # fixture whose HEAD records `sub2` and whose INDEX no longer does, and asserts the
   # row it produces. It is the discriminating arm: on the pre-fix tree it fails.
   printf 'charly task pin-check: OK\n' > "$tmp/pinlog"
-  if printf 'sub2\n' | bash "$SCRIPT_DIR/sync-pin-evidence.sh" "$tmp" "$tmp/pinlog" \
+  if printf 'sub2\n' | bash "$SCRIPT_DIR/ff-evidence.sh" "$tmp" "$tmp/pinlog" \
        > "$tmp/removed-body.txt" 2> "$tmp/removed-body.err"; then
     removed_rc=0
   else
@@ -705,15 +705,15 @@ charly.yml" "" || fail "a manifest edit among plain files must still touch an in
     || fail "a removed gitlink still touches the pin check's commit-carried inputs"
 
   # evidence_legend: the wording that tells a reader how to READ a `!`. A `!` on a
-  # non-`distro-*` row is EITHER the sync race (benign — measured: an upstream default
+  # non-`distro-*` row is EITHER the walk race (benign — measured: an upstream default
   # branch that merged after the walk, leaving the staged pin an ANCESTOR of the remote
   # HEAD) OR a real finding (a pin that is not on that default branch at all). The
   # retired legend claimed a blanket "must be EQUAL", so it called that measured-benign
   # race a violation; these arms fail if either reading or the discriminating check goes
   # missing, or if the blanket claim comes back.
   LEGEND="$(evidence_legend)"
-  printf '%s\n' "$LEGEND" | grep -q 'THE SYNC RACE' \
-    || fail "legend must name the sync race (the benign reading of a non-distro-* !)"
+  printf '%s\n' "$LEGEND" | grep -q 'THE WALK RACE' \
+    || fail "legend must name the walk race (the benign reading of a non-distro-* !)"
   printf '%s\n' "$LEGEND" | grep -q 'A REAL FINDING' \
     || fail "legend must name the real-finding reading (a pin not on the default branch)"
   printf '%s\n' "$LEGEND" | grep -q 'merge-base --is-ancestor' \
@@ -729,12 +729,12 @@ charly.yml" "" || fail "a manifest edit among plain files must still touch an in
   printf '%s\n' "$LEGEND" | grep -q 'is rendered `  <path>  (removed)`' \
     || fail "legend must keep the removed-row clause (a removal is not a divergence)"
 
-  echo "sync-pin-evidence: self-test OK (compact <path> <staged> <remote> <flag> rows both ways; coverage both directions; bounded_rows emits all under budget and >=1 + elision notice over budget; staged-gitlink reads the index + falls back to HEAD; a REMOVED gitlink renders a (removed) row and NO comparison row, and so does a COMMITTED removal seen only through the base; evidence_legend states BOTH readings of a non-distro-* ! and the check that tells them apart)"
+  echo "ff-evidence: self-test OK (compact <path> <staged> <remote> <flag> rows both ways; coverage both directions; bounded_rows emits all under budget and >=1 + elision notice over budget; staged-gitlink reads the index + falls back to HEAD; a REMOVED gitlink renders a (removed) row and NO comparison row, and so does a COMMITTED removal seen only through the base; evidence_legend states BOTH readings of a non-distro-* ! and the check that tells them apart)"
   exit 0
 fi
 
-ROOT="${1:?usage: sync-pin-evidence.sh <root> <pin-check-log>}"
-PIN_CHECK_LOG="${2:?usage: sync-pin-evidence.sh <root> <pin-check-log>}"
+ROOT="${1:?usage: ff-evidence.sh <root> <pin-check-log>}"
+PIN_CHECK_LOG="${2:?usage: ff-evidence.sh <root> <pin-check-log>}"
 cd "$ROOT"
 
 MOVED="$(cat)"
@@ -777,21 +777,21 @@ done <<< "$MOVED"
 # The gitlink/file split is published for the body builder (the ONE measurement of what
 # KIND of diff this is), so its Summary count and Change-class line cannot disagree with
 # the table below. Absent (a standalone run) it is simply not written.
-if [ -n "${SYNC_EVIDENCE_TYPE_OUT:-}" ]; then
+if [ -n "${FF_EVIDENCE_TYPE_OUT:-}" ]; then
   printf 'GITLINK_COUNT=%s\nFILE_COUNT=%s\nREMOVED_COUNT=%s\n' \
-    "$GITLINK_COUNT" "$FILE_COUNT" "$REMOVED_COUNT" > "$SYNC_EVIDENCE_TYPE_OUT"
+    "$GITLINK_COUNT" "$FILE_COUNT" "$REMOVED_COUNT" > "$FF_EVIDENCE_TYPE_OUT"
 fi
-bounded_rows "$SYNC_EVIDENCE_MAX_BYTES" "$MOVED_COUNT" "${SYNC_EVIDENCE_OUT:-}" < "$ROWS_FILE"
+bounded_rows "$FF_EVIDENCE_MAX_BYTES" "$MOVED_COUNT" "${FF_EVIDENCE_OUT:-}" < "$ROWS_FILE"
 echo '```'
 # When the caller asks, persist the FULL rendered table so the elision notice's promise
 # ("the remaining N are in the full evidence file") is TRUE — that file gets the rendered
 # rows, not just an unrendered producer log.
-if [ -n "${SYNC_EVIDENCE_OUT:-}" ]; then
+if [ -n "${FF_EVIDENCE_OUT:-}" ]; then
   {
     echo
     echo "== per-pin evidence table (full, all ${MOVED_COUNT} rows) =="
     cat "$ROWS_FILE"
-  } >> "$SYNC_EVIDENCE_OUT"
+  } >> "$FF_EVIDENCE_OUT"
 fi
 echo
 # The pin contract's commit-carried inputs THIS diff touches — named, because a body

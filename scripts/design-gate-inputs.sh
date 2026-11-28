@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # design-gate-inputs.sh — the DESIGN gate's COMMIT-CARRIED INPUTS: ONE definition.
 #
-# `bash scripts/design-check.sh` is seven controls over ONE tree (DESIGN.md A.2): the
+# `bash scripts/design-check.sh` is six controls over ONE tree (DESIGN.md A.2): the
 # CUE toolchain, the DESIGN.md ↔ DESIGN.cue consistency, the examples and their
 # negative cases, the capability ledger, every citation into a pinned module resolved
-# at its pin, the schema patterns of every pinned plugin CUE module, and every pin's
-# relation to a release tag. Each control reads a surface that a commit can change, and
+# at its pin, and the schema patterns of every pinned plugin CUE module. Each control
+# reads a surface that a commit can change, and
 # those surfaces are what this file names:
 #
 #   1. the NORMATIVE PAIR — DESIGN.md and DESIGN.cue, at the repository root (A.1,
@@ -14,14 +14,15 @@
 #      control validates against the pair (A.5).
 #   2. the DESIGN TREE — design/: the parity and dulling ledgers and their admission
 #      table (A.8), the example and negative fixtures (A.5), and the baselines the
-#      gates record their known debt through (A.11, A.12, A.13).
+#      gates record their known debt through (A.11, A.13).
 #   3. the CONTROLS THEMSELVES — scripts/design-*.sh. A change to a control changes
 #      what is enforced, so it is in the class by construction; a control that could
 #      be edited without the gate re-reading it would let the gate be widened or
 #      narrowed in the dark.
 #   4. EVERY PINNED MODULE. The schema-pattern gate reads the CUE of the `spec` pin
-#      and of every `plugin-*` pin, and the pin-tag control reads EVERY mode-160000
-#      entry of the index (A.11, A.12). A gitlink is a MODE, not a name, so the
+#      and of every `plugin-*` pin, and the citation control resolves its citations
+#      into those pins, so EVERY mode-160000 entry of the index is in the class
+#      (A.11, A.13). A gitlink is a MODE, not a name, so the
 #      caller measures the gitlink paths and this file asks only whether one moved —
 #      the same split scripts/pin-contract-inputs.sh uses, for the same reason.
 #
