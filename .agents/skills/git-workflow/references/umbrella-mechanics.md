@@ -17,13 +17,13 @@ umbrella root; `charly task list` enumerates them, and the umbrella README's
 |---|---|
 | `charly task map` | STATE — list every submodule with its pin and its branch (`mode: status`) |
 | `charly task init` | MATERIALIZE the umbrella's submodules ON DEMAND: the derived WORKING SET by default, `CHARLY_INIT_PATHS=<a,b>` for named paths, `CHARLY_INIT_MODE=all` for every declared path. Blobless, never shallow; the mode travels in the ENVIRONMENT, never as a task param — see "The clone shape is a working set" below |
-| `charly task sync` | advance EVERY pin the umbrella declares per Policy B — an ORG-WIDE cutover, not a way to move one pin. A path WITH a checkout is MATERIALISED (`switch --detach`) and its gitlink STAGED (`git add`); a path with NO checkout is advanced IN THE INDEX, because the pin IS the index entry — so **a PIN WAVE needs no full set** (`plugin-task#37`). It does not commit and does not open a PR, and it is **not read-only** — it moves checkouts (`plugin-task#26`). A wave's order is **sync -> init -> verify** |
+| `charly task ff` | fast-forward EVERY pin the umbrella declares onto the tip of the branch its `.gitmodules` entry declares — an ORG-WIDE cutover, not a way to move one pin. A path WITH a checkout is FETCHED and fast-forwarded (`switch --detach`, refusing a move that is not a fast-forward) and its gitlink STAGED (`git add`); a path with NO checkout is advanced IN THE INDEX, because the pin IS the index entry — so **a PIN WAVE needs no full set** (`plugin-task#37`). It does not commit and does not open a PR, and it is **not read-only** — it moves checkouts (`plugin-task#26`). A wave's order is **ff -> init -> verify** |
 | `charly task hooks` | install `hooks/pre-commit` for this clone (once; sets `core.hooksPath hooks`) |
-| `charly task verify` | CONSISTENCY — the FULL pinning audit on demand: policy B, then every checkout clean and at its recorded gitlink, then the CURRENCY question (a behind pin is REPORTED, not failed), then the per-submodule `git ls-remote` default-branch audit. There is **no CI gate**; this IS the gate. Run it on the final tree and paste the output (R7: a green `git status` proves nothing). **The checkout half covers the MATERIALIZED paths only** — an unmaterialized path is *uninitialized (pin audited, no checkout)*, a notice, not a failure |
+| `charly task verify` | CONSISTENCY AND CURRENCY — the FULL pinning audit on demand: policy B, then every checkout clean and at its recorded gitlink, then the CURRENCY question (a pin behind the tip of its declared branch FAILS, and `charly task ff` is its remedy), then the per-submodule `git ls-remote` default-branch audit. There is **no CI gate**; this IS the gate. Run it on the final tree and paste the output (R7: a green `git status` proves nothing). **The checkout half covers the MATERIALIZED paths only** — an unmaterialized path is *uninitialized (pin audited, no checkout)*, a notice, not a failure |
 | `charly task org-map` | reconcile the README org-map TABLES against `.gitmodules`. It reads ONLY those two surfaces, so it is NOT an org-vs-umbrella census — see "`org-map` answers the wrong question" below |
 | `charly task skills` | `scripts/sync-dispatcher.sh`: splice the generated R0 dispatcher into `AGENTS.md` (no-op while the table is hand-curated outside the markers) |
 | `charly task pin-check` | assert the pin contract's consistency half — the EDGE (every `pin_map` entry equals its twin in the `pinned_from` checkout) and the CHECKOUT AUDIT (every declared path clean and at its recorded gitlink). It READS the index's gitlinks, the MANIFEST `charly.yml`'s `pins:` block and the DECLARED PATH SET `.gitmodules`, so a commit can violate it by moving a gitlink **or** by editing the manifest **or** by editing the declared path set — a commit that moves NO gitlink can still violate it. It is the half of `verify` that needs no remote (the per-submodule `git ls-remote` default-branch audit is the rest), and it is what `hooks/pre-commit` runs. Checkout DRIFT on its own — a checkout dirty or at another commit, caused by NO commit — stays with `charly task verify` |
-| `charly task pins` | the pin-contract pin operation over EVERY declared path (mode via param) — the `distro-*` paths are its EDGE subset (Policy B's `pin_map`); `MODE=bump` advances EVERY pin the umbrella declares |
+| `charly task pins` | the pin-contract pin operation over EVERY declared path (mode via param) — the `distro-*` paths are its EDGE subset (Policy B's `pin_map`); `MODE=ff` fast-forwards EVERY pin the umbrella declares onto the tip of its branch |
 | `charly task self-test` | self-test the committed CI body/pin-evidence builders + the dispatcher splice + the submodule initializer |
 | `charly task prune` | reap merged-upstream session worktrees + branches. The declared `MODE` DEFAULTS to `report`, so **plain `charly task prune` IS the dry run**; a positional `MODE=report` is rejected (`unexpected extra argument`), and the removal is selected through the task's own param (`--param MODE=prune`) |
 
@@ -84,8 +84,8 @@ list does.
 **That is the fourth instrument in this surface whose NAME suggests a question it
 does not answer**, and the pattern is the reason `task map`/`task verify`/currency
 had to be separated in the first place: `task map` is STATE (a listing, not a
-correctness claim), `task verify` is CONSISTENCY (green on a tree whose pins are
-behind their remotes),
+correctness claim), `task verify` is CONSISTENCY AND CURRENCY (it FAILS on a pin behind
+the tip its branch declares),
 `prune MODE=report` is a parameter the task does not accept while the DEFAULT is
 already the report, and `org-map` is README-vs-`.gitmodules`. **Read every one of
 them by what its output compares, never by its name.**
@@ -98,8 +98,8 @@ another is how a green gate gets mistaken for "everything is current":
 | question | the verb that answers it | what a green answer proves |
 |---|---|---|
 | **STATE** — where is each submodule, on which branch, at which pin? | `charly task map` | a listing, nothing about correctness |
-| **CONSISTENCY** — does each checkout match the gitlink the umbrella records, and does policy B hold? | `charly task verify`, and `charly task pin-check` — the same edge and checkout audit without the remote-branch audit, and the half `hooks/pre-commit` runs | that the tree is internally COHERENT — **not that it is current** |
-| **CURRENCY** — is each recorded pin the value its intent names? | the `currency` mode of the ONE pin verb (`verb: git-submodules`), reached through the umbrella's own `charly task pins --param MODE=currency` | that every pin is at the ref its intent names, or the exact leg order that would get it there — the contract is in `references/pin-intent-and-currency.md` |
+| **CONSISTENCY** — does each checkout match the gitlink the umbrella records, and does policy B hold? | `charly task pin-check` (and `charly task verify`, which composes it) — the edge and checkout audit without the remote-branch audit, and the half `hooks/pre-commit` runs | that the tree is internally COHERENT |
+| **CURRENCY** — is each recorded pin the tip of the branch its `.gitmodules` entry declares? | the `currency` mode of the ONE pin verb (`verb: git-submodules`), reached through `charly task verify` or the umbrella's own `charly task pins --param MODE=currency` | that every pin is at the tip its intent names, or the exact leg order that would get it there — a pin behind FAILS, and `charly task ff` is the remedy; the contract is in `references/pin-intent-and-currency.md` |
 
 **`currency` is IN A RELEASED BINARY, and the umbrella's own task surface exposes
 it.** Measured 2026-10-23 on the built binary (2026.295.1709):
@@ -116,15 +116,15 @@ answer had to be measured by hand — was FALSE, and it is deleted here and in
 `SKILL.md` and in `references/pin-intent-and-currency.md`, which carried the same
 sentence.
 
-**`charly task verify` passes on a tree whose submodules are behind their
+**`charly task verify` FAILS on a tree whose submodules are behind their
 remotes.** Measured on the umbrella at the commit that advanced
 the wave of 20: policy B and the checkout audit were GREEN on 2026-10-15 (`429
 submodule(s); 422 checkout(s) clean at their gitlink; 7 uninitialized`) while
-**five of the six `distro-*` gitlinks were behind their remote `main`**. That is
-not a defect
-in `verify` — it is `verify` answering its own question — which is why a
-currency claim needs its own measurement, and its honest form is the currency
-mode's own report — never "verify is green".
+**five of the six `distro-*` gitlinks were behind their remote `main`** — a state
+that old gate PASSED, and that the currency check now FAILS: a pin behind the tip
+its branch declares is a finding, and `charly task ff` is its remedy. So a green
+`verify` IS a currency claim, and the mode's own report names every pin that is
+not current.
 
 ### The clone shape is a working set, not a checkout per repo
 
@@ -173,15 +173,15 @@ against or edit.
   ancestor" for a healthy pin, which is a silent misclassification. The filter
   must be an EXPLICIT FLAG on the init command: `filter = blob:none` in
   `.gitmodules` is NOT honoured by `git submodule update`.
-- **A pin wave needs NO full set.** `bump` advances a path with no checkout IN
+- **A pin wave needs NO full set.** `ff` advances a path with no checkout IN
   THE INDEX — a LEAF to the tip its remote serves for its `branch=`, an EDGE to
   the twin the SOURCE's tree records — and a path WITH a checkout is still rolled
   in that checkout, so the two keep agreeing (`plugin-task#37`). It still fails
   loud for every path it CANNOT advance: an unjudgeable path (no `branch=`), a
   remote that does not serve the branch, a missing url, an unreadable source
-  twin — a sync over a tree it could not fully advance must never report success.
+  twin — a wave over a tree it could not fully advance must never report success.
   The daily tree is light, and so is a wave.
-- **A wave's order is sync → init → verify.** The sync writes the pins, the init
+- **A wave's order is ff → init → verify.** The ff writes the pins, the init
   materializes the checkouts at those pins, and the verify judges them. On a tree
   that was never materialized, the materialization comes FIRST, because the
   project cannot load before its `import:` paths exist.
@@ -225,9 +225,9 @@ git submodule update --init plugin-marketplace plugin-spice   # …the paths it 
 ```
 
 Do this BEFORE the first push rather than after a BLOCKED push — a blocked push costs a full gate run
-and looks like a finding in your own change. The same shape applies to `design-pintag.sh`, which reads
-tag maps from each pin's module store ("a tag that was never fetched into a store is invisible to this
-reading"); it names the path too. **An unmaterialized checkout is a NOTICE for the pin contract
+and looks like a finding in your own change. The same shape applies to the design controls that read a
+pinned module's OBJECT STORE (`design-cite.sh`, `design-dpat.sh`): an unfetched module store is
+invisible to them too, and they name the path. **An unmaterialized checkout is a NOTICE for the pin contract
 (currency) and a FAILURE for a citation control** — two different verdicts for the same absence, and
 the difference is whether the control needs to READ the pinned bytes.
 
@@ -237,16 +237,17 @@ The umbrella records a commit per submodule and checks it out DETACHED and clean
 exactly what `charly task verify` asserts. `distro-*` must equal charly's OWN
 gitlinks. `sdk` and `spec` are recorded as gitlinks too, but charly no longer pins
 them — its builds resolve them from the Go proxy at pinned `go.mod` requires.
-`marketplace`, `docs`, and every `plugin-*` repo are recorded at their own
-default-branch HEAD. Pin only MERGED refs (default branches or gitlinks charly
-records), never a PR branch; a dangling pin is a failure. If pinning changed, the
-fix is `charly task sync` + a PR — it advances EVERY pin the umbrella declares, so
+`marketplace`, `docs`, and every `plugin-*` repo are recorded at the tip of the
+branch their `.gitmodules` entry declares. Pin only MERGED refs (a declared branch's
+tip, or a gitlink charly records), never a PR branch; a dangling pin is a failure. If pinning changed, the
+fix is `charly task ff` + a PR — it fast-forwards EVERY pin the umbrella declares, so
 read its scope before running it — never a hand-pin or a branch checkout to
 "catch up".
 
-**Policy B is a CONSISTENCY contract, not a CURRENCY one: it holds while both
-sides are equally stale, and that is a real state, not a bug in the gate.**
-`charly task sync` pins each `distro-*` **from charly's own nested `box/*`
+**Policy B is the EDGE half of the contract: it can hold while both sides are
+equally stale, and under the tracking contract that state is a FAILING one — a
+`blocked-by` that names the producer leg.**
+`charly task ff` pins each `distro-*` **from charly's own nested `box/*`
 gitlinks** (`pin_map`, `pinned_from: charly`), so when charly's own `box/*`
 gitlinks are behind, the umbrella's `distro-*` pins equal them exactly and policy
 B passes — measured 2026-10-15: all six `distro-*` had gitlink == checkout, and
@@ -254,8 +255,9 @@ B passes — measured 2026-10-15: all six `distro-*` had gitlink == checkout, an
 advance those five from here: the only sanctioned writer of a `distro-*` pin is
 the verb, and the verb's source of truth is that same stale gitlink. Advancing
 them is a change in `opencharly/charly` (its own `box/*` gitlinks), after which
-the umbrella's pin follows through `charly task sync`. Report that as the
-reachable limit of a currency sweep; never hand-pin `distro-*` to close the gap.
+the umbrella's pin follows through `charly task ff`. `charly task verify` FAILS on
+them until it does — a finding with a named producer leg, never a green gate — and
+no one hand-pins `distro-*` to close the gap.
 
 **Under the pin contract, `pin_map`/`pinned_from` IS the EDGE mechanism rather
 than the whole contract**, so policy B is what makes an edge judgeable — not what
@@ -268,7 +270,7 @@ and the producer-first leg order: `references/pin-intent-and-currency.md`.
   repo; the umbrella only records gitlinks. A dirty submodule fails
   `charly task verify` and is a review blocker. Worked model: a cross-repo cutover edits
   `spec`, `plugin-vm`, `plugin-migrate` each on its OWN branch + PR; the
-  umbrella's gitlinks are bumped afterwards by `charly task sync`.
+  umbrella's gitlinks are advanced afterwards by `charly task ff`.
 - **Run submodule git through `git -C <absolute-path>` from the umbrella
   root.** Never root a worker in a submodule, never `git add -A` from one, and
   never assume a submodule moved after an umbrella `git pull`.
@@ -282,13 +284,13 @@ and the producer-first leg order: `references/pin-intent-and-currency.md`.
 - **Command hygiene (umbrella-scale):** SIGPIPE is ignored here, so an
   unbounded `grep … | head` floods the output with `Broken pipe` lines. Bound
   every command — `grep -m N`, or redirect to a file and read it bounded.
-- **`charly task sync`'s answer is relative to the BASE it ran against — run it
+- **`charly task ff`'s answer is relative to the BASE it ran against — run it
   on a checkout current with `origin/main`, or its diff is against a dead base.**
-  A sync run in a shared clone that sits on an older local `main` selects pins
+  An ff run in a shared clone that sits on an older local `main` stages pins
   *behind that local HEAD*, and every one of those that the target base already
-  carries is not a change at all. Measured: the same verb reported 22 advances
-  from a clone on `b730035`, of which only **10** were genuine against
-  `origin/main` (`136de7f`). The honest filter is *selected ∩ differs-from-base*,
+  carries is not a change at all. Measured on the mode this replaced (the same
+  index-relative selection): 22 advances from a clone on `b730035`, of which only
+  **10** were genuine against `origin/main` (`136de7f`). The honest filter is *selected ∩ differs-from-base*,
   so compute the set against the branch it will land on — and re-derive it
   before landing, because a merged pin wave moves the base under you. Never
   "correct" a base-relative set by hand; re-derive it.
@@ -305,13 +307,13 @@ and the producer-first leg order: `references/pin-intent-and-currency.md`.
   running, so `POST .../runs/<id>/rerun` answers
   `403 {"message":"This workflow is already running"}`. Wait it out — a run that
   produced no verdict is not a counting verdict, so waiting costs nothing.
-- **`charly task sync`'s selection was PARTIAL when the tree was not fully
+- **`charly task ff`'s selection was PARTIAL when the tree was not fully
   initialized**, and it said `rc=1` while doing its job: it skipped every
   `.gitmodules` path with no checkout and then FAILED the run, naming how many
   and which (`opencharly/charly#917`, `#469`). It advances those paths IN THE
   INDEX now (`plugin-task#37`), so a wave over a light tree no longer fails over
   the paths it has no checkout for — only over the paths it cannot advance at
-  all. See "`task sync` and the commit gate" below.
+  all. See "`task ff` and the commit gate" below.
 - **A pin advance that brings in a NEW marketplace corpus family must bind it in
   the harness-config derivation, in the same commit.** The umbrella binds the
   corpus with the tracked symlink farm
@@ -325,10 +327,10 @@ and the producer-first leg order: `references/pin-intent-and-currency.md`.
   tree is not green"*, which is a CONSEQUENCE of the same missing rows, not a
   third defect.
 
-### `task sync` and the commit gate — the seam, and what to do about it
+### `task ff` and the commit gate — the seam, and what to do about it
 
-`charly task sync` (git-submodules `bump`) and `charly task verify` are two
-sanctioned verbs that meet at ONE object: the gitlink. `bump` MATERIALISES each
+`charly task ff` (git-submodules `ff`) and `charly task verify` are two
+sanctioned verbs that meet at ONE object: the gitlink. `ff` MATERIALISES each
 advance of a path that HAS a checkout — `switch --quiet --detach <ref>` inside
 the submodule — and STAGES it (`git add -- ':(literal)<path>'` in the superproject), so the
 index and the checkouts AGREE the moment it returns. A path with NO checkout has
@@ -339,7 +341,7 @@ gap. `verify` reads the recorded gitlink from the superproject's **index** (`git
 ls-files -s -- ':(literal)<path>'`) and compares it with the submodule checkout's **HEAD**: two
 repositories, two objects, maintained by different verbs.
 
-**So the pair is coherent at `sync`'s exit and conflicts the moment the advances
+**So the pair is coherent at `ff`'s exit and conflicts the moment the advances
 are UN-STAGED while the checkouts stay advanced** — which the sanctioned branch
 flow does by design: creating a `feat/` branch off fresh `origin/main`
 (`git switch -c`), a `git reset`, a `git stash pop`, or an aborted commit rewrites
@@ -361,15 +363,15 @@ tree that predates that fix, re-stage the named paths and re-run: measured,
 20 rows of `HEAD != gitlink` became `rc=0` from `git add` alone, nothing else
 changed.
 
-**A fresh session worktree runs `sync` to a green exit, and its pins live in the
-INDEX until the tree is initialized.** `bump` pre-flights every `.gitmodules` path
+**A fresh session worktree runs `ff` to a green exit, and its pins live in the
+INDEX until the tree is initialized.** `ff` pre-flights every `.gitmodules` path
 whose checkout is absent and ADVANCES THOSE PINS IN THE INDEX — a leaf to the tip
 its remote serves for its `branch=`, an edge to the twin the source's tree
 records (`plugin-task#37`); before that change it skipped them and FAILED the
 run, naming the count and the paths (`#469`). The path the verb could NOT
 advance — a source with no checkout, whose tree cannot be read — is still refused
 BY NAME, with the command that materializes it. So a wave over a light tree is
-**sync -> init -> verify**: the sync writes the pins, the init materializes the
+**ff -> init -> verify**: the ff writes the pins, the init materializes the
 checkouts AT those pins, and the verify judges them. `verify` classifies a path
 with no checkout as *uninitialized (pin audited, no checkout)* and can return
 PASS. A fresh worktree also needs its manifest's imports materialized before the
@@ -379,11 +381,11 @@ the manifest needs).
 **And nothing locks the shared checkout.** One index, N sessions: a session that
 measures while another's `sync` holds the tree reads a half-applied set, and one
 that stages on top of it commits both. Check the process table for an in-flight
-`task sync` before measuring or staging, and never run a mutating `sync`
+`task ff` before measuring or staging, and never run a mutating `ff`
 concurrently with anything else.
 
 **A wave holds ITS OWN worktree's index, for the minutes it rolls the submodules.**
-The bump stages each advanced path with a `git add` in the superproject, and that
+The ff stages each advanced path with a `git add` in the superproject, and that
 `git add` takes the worktree's index lock; a concurrent `git status` in the SAME
 worktree takes the same lock for an instant, so the wave's own `git add` can lose
 the race. The verb's behaviour is the intended one — it names every contended
@@ -406,5 +408,5 @@ report — was what said so.
 
 A consumer that pins a producer's artifact (`@github` candy ref, a `spec`/`sdk`
 require, a submodule gitlink) lands AFTER the producer merges + tags. Producer
-PR → merge → tag → consumer pin bump. The umbrella's gitlink bump is the last
-hop, via `charly task sync`. Never bump a consumer to a PR branch.
+PR → merge → tag → consumer pin bump. The umbrella's gitlink advance is the last
+hop, via `charly task ff`. Never point a consumer at a PR branch.

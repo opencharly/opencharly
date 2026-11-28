@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // check-design-gate.mjs — the DESIGN gate's CALLER, asserted.
 //
-// Why it exists. `bash scripts/design-check.sh` composes seven controls — four with
+// Why it exists. `bash scripts/design-check.sh` composes six controls — four with
 // `--self-test` mutations of their own rules, the examples proven by their committed
 // negative cases, the toolchain control proving the pinned `cue` (DESIGN.md A.1, A.2) —
 // and, until this gate landed, NOTHING in the tree ran it: `git grep -l design-check origin/main -- charly.yml hooks/ .github`
@@ -14,7 +14,7 @@
 // What it asserts, in two halves:
 //
 //   THE WIRING IS THERE — hooks/pre-push runs the gate, decided by the change class in
-//   scripts/design-gate-inputs.sh, the class watches every surface the seven controls
+//   scripts/design-gate-inputs.sh, the class watches every surface the six controls
 //   read, the leg blocks on a failure, and its skips are visible. The leg must sit
 //   BEFORE every body condition, because a push with no body file yet must not walk
 //   past the TREE assertion.
@@ -201,7 +201,7 @@ function check() {
   // 4. THE CLASS WATCHES EVERY SURFACE THE CONTROLS READ. A class narrower than what
   //    the controls read is a green light over a tree nobody looked at: a gitlink is
   //    enough (the schema-pattern gate reads each `spec`/`plugin-*` pin's CUE and the
-  //    pin-tag control reads every pin of the index), and so is a design file.
+  //    citation control resolves into every pin of the index), and so is a design file.
   if (!/design_gate_touches_input\(\)/.test(inputs)) fail(`${inputsRel} defines the class test`);
   for (const surface of ["DESIGN.md", "DESIGN.cue", "design/", "scripts/design-"]) {
     if (!inputs.includes(surface)) fail(`${inputsRel} watches ${surface} — a surface the controls read`);
@@ -239,7 +239,7 @@ function check() {
 
 // ── the fired assertions ──────────────────────────────────────────────────────────
 // The real hook, the real class file, and a RECORDING gate: what is under test is the
-// CALLER's decision, not the seven controls (that is `bash scripts/design-check.sh`).
+// CALLER's decision, not the six controls (that is `bash scripts/design-check.sh`).
 
 const FAKE_GATE = `#!/usr/bin/env bash
 printf 'design-check\\n' >> "$FAKE_DESIGN_LOG"

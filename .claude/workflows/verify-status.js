@@ -42,9 +42,10 @@ const INVARIANTS = [
   },
   {
     id: 'pin-check',
-    invariant: 'the pin contract: distro-* pins == charly own gitlinks (sdk/spec/docs/marketplace follow their own default-branch HEAD)',
+    invariant:
+      'every recorded gitlink is the tip of the branch its `.gitmodules` entry declares; a pin behind that tip FAILS; `charly task ff` is the remedy',
     cmd: './charly/bin/charly task verify',
-    proves: 'ls-tree comparison charly/ vs umbrella/',
+    proves: 'each recorded gitlink vs the tip of its declared branch (ls-remote), and charly/ vs umbrella/ for the distro-* edges',
   },
   {
     id: 'nested',
@@ -90,7 +91,7 @@ if (requested.length) {
 phase('Discover')
 const discoverPrompt =
   `STRICTLY CONFIRM — never add, never substitute — that these umbrella gate targets exist: ` +
-  `./charly/bin/charly task verify, ./charly/bin/charly task sync, and the .gitmodules file with at least 20 submodule entries. ` +
+  `./charly/bin/charly task verify, ./charly/bin/charly task ff, and the .gitmodules file with at least 20 submodule entries. ` +
   `Return ONLY the entries that exist, verbatim, as JSON {targets:[{path}]}. Do NOT run anything.`
 const discovered = await agent(discoverPrompt, { schema: DISCOVER_SCHEMA, label: 'discover-verify-targets', phase: 'Discover' })
 

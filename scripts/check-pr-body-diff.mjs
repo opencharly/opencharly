@@ -78,7 +78,7 @@
 //      a line of a file; the tree can decide it, so it needs no judgement. This arm
 //      exists because the `charly/pr-validator` found a body whose pasted sweep was
 //      taken on ANOTHER tree (2026-10-24, this branch's own PR: the body pasted
-//      `scripts/sync-pin-evidence.sh:290:` with the line's text, and on the head being
+//      `scripts/ff-evidence.sh:290:` with the line's text, and on the head being
 //      pushed line 290 read `guard_rc=0`) — a stale paste that H, T and N all accept,
 //      because a stale paste is well-formed. It is scoped to FENCED blocks (pasted
 //      output) and never to prose: prose may quote a line that has since moved, and
@@ -365,7 +365,7 @@ const DIFF_ALGORITHMS = ["myers", "patience", "histogram", "minimal"];
  * arm says so. It used to run unconditionally, which made it a different and much
  * stronger rule — "no pull request may carry a diff with a moved block" — and that rule
  * cannot be obeyed by a restructure whose moved text is PINNED VERBATIM by other gates
- * (the copy of `## The org map` … `## Pinning`, the clone-shape rows and the pin-scope
+ * (the copy of `## The org map` … `## Tracking upstream `main``, the clone-shape rows and the pin-scope
  * surfaces are byte-identical requirements of `charly task org-map`,
  * `check-readme-measurements` and `check-pin-verb-scope`), so the remedy the old message
  * named — "reshape the diff" — was unavailable and the only remaining move would have

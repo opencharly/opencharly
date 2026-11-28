@@ -1261,7 +1261,7 @@ other"
   # opencharly/opencharly#1076: design-dpat.sh names the contract repo as a bare
   # literal ("spec") when it compares a pin's path, and a guard requiring a "/" in
   # the value made that read invisible — so the derived set omitted a repo the
-  # design gate reads, and design-pintag.sh could not run on a fresh tree at all.
+  # design gate reads, and the design controls could not run on a fresh tree at all.
   # `skipped` is declared but derived by nothing else, so it can only arrive here.
   local bare_root="$BASE/umbrella-bare"
   cp -a "$fixture" "$bare_root"

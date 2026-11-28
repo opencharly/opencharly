@@ -25,7 +25,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
 BUILDERS=(
-  scripts/sync-pin-evidence.sh
+  scripts/ff-evidence.sh
   scripts/sync-pr-body.sh
   scripts/sync-dispatcher.sh
   scripts/init-submodules.sh

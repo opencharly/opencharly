@@ -166,8 +166,8 @@ bash scripts/design-check.sh          # or: ./charly/bin/charly task design-chec
 ```
 
 It runs, in order, the pinned CUE toolchain, DESIGN.md ↔ DESIGN.cue consistency, the examples and
-their negatives, the capability ledger, the citation control, the schema-pattern gate and the
-pin-tag control (DESIGN Appendix A.2). It stops at the first failure. The umbrella's pre-push hook
+their negatives, the capability ledger, the citation control and the schema-pattern gate (DESIGN
+Appendix A.2). It stops at the first failure. The umbrella's pre-push hook
 runs it for every push whose commits touch one of the surfaces it reads. That surface set is defined
 once, in `scripts/design-gate-inputs.sh`. What each control proves, and the files it reads, are in
 DESIGN Appendix A. This skill points there and never copies it.

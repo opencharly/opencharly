@@ -126,7 +126,7 @@ A plugin is not one artifact and does not resolve from one ref. Its **code** may
 
 **The rule.** Before assuming a plugin works, verify the pin its BACKEND resolves from — not only that the plugin file loaded. A tool failure of the form **"X not found — sync the pin"** is a **PIN-LAG**, not a plugin defect: the tool is present in the plugin, but the script/submodule it dispatches to is older than the commit that added it. Do NOT debug the plugin's code for it, and do NOT reimplement or hand-copy the missing script into the pinned checkout (that is an R3 workaround and a generated-copy edit).
 
-**Remedy.** Identify the submodule / ref the backend script resolves from; compare the pinned gitlink (or `@github` ref) against the commit that merged the script; then advance the pin the sanctioned way — `charly task sync` for an umbrella gitlink (a wave: it advances EVERY pin the umbrella declares), or a refs-list bump + `charly marketplace generate` for the marketplace corpus — never a hand-pin and never a checkout into the submodule.
+**Remedy.** Identify the submodule / ref the backend script resolves from; compare the pinned gitlink (or `@github` ref) against the commit that merged the script; then advance the pin the sanctioned way — `charly task ff` for an umbrella gitlink (a wave: it fast-forwards EVERY pin the repo declares onto its branch tip), or a refs-list bump + `charly marketplace generate` for the marketplace corpus — never a hand-pin and never a checkout into the submodule.
 
 ## Monitoring AND controlling agents in OpenCode (the `agent_progress` + `agent_control` tools)
 

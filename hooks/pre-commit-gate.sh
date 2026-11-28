@@ -38,7 +38,7 @@
 #
 #      That set is DEFINED ONCE — scripts/pin-contract-inputs.sh — and this file
 #      only MEASURES it: which of the staged paths are gitlinks, and which are
-#      declaration files. The wave body's coverage decision (scripts/sync-pin-evidence.sh)
+#      declaration files. The wave body's coverage decision (scripts/ff-evidence.sh)
 #      reads the SAME definition, because it asks the SAME question — can this diff
 #      violate the pin check? — and a second, narrower copy of that question is how
 #      the shipped class came to be wrong in the first place.

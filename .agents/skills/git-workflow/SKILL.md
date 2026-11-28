@@ -353,18 +353,17 @@ reading of the org's remotes, not a constant, so the same binary can report a
 different number an hour later than it did before. The rule and its reason are in
 `references/pin-intent-and-currency.md`, which owns the contract; the command,
 the shapes and the states are there too.
-A green `verify` still does NOT answer the currency question — it passes on a tree
-whose submodules are all behind their remotes (measured 2026-10-15; the `distro-*`
-reading is in `references/umbrella-mechanics.md`)
-— which is why the pin contract now has its own reference: the intent model and its
-two structural rules, the states and what each obliges, and the producer-first leg
-order are in `references/pin-intent-and-currency.md`. `charly task hooks` installs the
+`verify` FAILS on a pin that is behind the tip its branch declares, and on a
+`blocked-by` that names a producer leg; `charly task ff` plus a PR is the remedy. The
+intent model, the two structural rules, the states and the producer-first leg order
+are in `references/pin-intent-and-currency.md`. `charly task hooks` installs the
 per-commit gate. Hard rules
 there: **never edit inside a submodule** (change lands by PR to the owning repo; the
 umbrella only records gitlinks), run submodule git through `git -C <absolute-path>`
 from the umbrella root, no worktrees inside submodules, pin only MERGED refs, run
-`charly task sync` (it advances EVERY pin the umbrella declares) on a base current
-with `origin/main` (its answer is base-relative), and bound every command's output
+`charly task ff` (it fast-forwards EVERY pin the repo declares onto the tip of the
+branch its `.gitmodules` entry declares) and prove it with `charly task verify`, which
+FAILS on a pin that is behind, and bound every command's output
 (SIGPIPE is ignored — `grep` floods on `Broken
 pipe`). Full detail: `references/umbrella-mechanics.md`.
 
@@ -376,7 +375,7 @@ pipe`). Full detail: `references/umbrella-mechanics.md`.
 | B2 (multi-repo/multi-worktree coordination, per-module verification), **B2b (cross-session coordination via PR comments when another session's PR blocks you; the two-line identity footer + the CLAIM/OWNING/HANDING OVER/TAKING OVER/WAITING/HOLDING/CLEARED/STATUS/RESOLVED verb grammar, mandatory on a contended or blocking scope)**, B3 (agent teams in per-teammate worktrees), B6 (cross-repo `@github` landing), and B7 (multi-worktree landing + refresh, the canonical end-to-end) | `references/multi-repo-coordination.md` |
 | B5 (the fresh evaluator + fork/PR path, the two-gate autonomous-landing model), CalVer generation, post-landing cleanliness + report format, and the validation-FAILS recovery sequence | `references/validator-and-calver.md` |
 | Evidence discipline — provenance vs plausibility of a pasted gate, the three freshness surfaces (head / body / pasted output), positive-vs-negative claim decay, sweeping for claims a fix invalidated, the merged-tree gate for a `BEHIND` PR, source-and-regeneration as one cross-repo cutover, submodule pointers reverted by a non-conflicting merge, and why status-absence on a known head proves nothing | `references/evidence-and-freshness.md` |
-| The pin contract — a pin declares its INTENT (`upstream:<ref>` leaf vs `derived-from:<path>` edge), the two structural rules (an edge may not point at an edge; every leaf remote-verifiable), the states with what each obliges, why `behind` and `blocked-by` PASS by design, and the producer-first leg order | `references/pin-intent-and-currency.md` |
+| The pin contract — a pin declares its INTENT (`upstream:<ref>` leaf vs `derived-from:<path>` edge), the two structural rules (an edge may not point at an edge; every leaf remote-verifiable), the states with what each obliges, why `behind` and a named `blocked-by` FAIL and what each obliges, and the producer-first leg order | `references/pin-intent-and-currency.md` |
 | Umbrella mechanics — the ~400-submodule view, the pin contract's umbrella side (policy B is its edge mechanism), the full `charly task` maintenance table, session worktrees, the no-edit-in-submodule rule, pin discipline | `references/umbrella-mechanics.md` |
 | Watch-and-wake — the ONE watcher every harness uses (`scripts/gh/cli.ts`), which one to arm for which wait, what a verdict is, the wake lines and exit codes, and the arm → wake → act → re-arm runbook | `references/watch-and-wake.md` |
 | The pre-validator self-audit — the six BLOCK classes detectable before the first push, the ten-step preflight that removes them, and the delegating-parent duties | `references/pre-validator-self-audit.md` |

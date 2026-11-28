@@ -11,9 +11,9 @@ set -euo pipefail
 # 2026-09-22) — the body exceeded GitHub's body limit, and `gh pr create` failed "Body is
 # too long". Extracting the builder here makes the bounding + the hard guard + the
 # evidence-file assembly exerciseable in-tree (`--self-test`), exactly as
-# `sync-pin-evidence.sh` is.
+# `ff-evidence.sh` is.
 #
-# The sync is now run BY HAND (`charly task sync` + a PR); nothing schedules
+# The fast-forward is now run BY HAND (`charly task ff` + a PR); nothing schedules
 # it. BOTH identity lines are therefore caller-supplied — SYNC_AGENT carries rule 7's
 # `Agent:` line (`` `<slug>` · <Harness> session `<session-id>` ``, the text after `Agent: `
 # in the first line `node scripts/gh/cli.ts footer` prints) and SYNC_ASSISTED_BY the `Assisted-by:` footer — so the
@@ -29,7 +29,7 @@ set -euo pipefail
 #   --self-test                         exercise the bounding + guard on fixtures.
 #
 # Bounds (all overridable): PRODUCER_MAX (default 200), SYNC_EVIDENCE_MAX_BYTES
-# (default 50000, passed to sync-pin-evidence.sh for the per-pin table — a fallback
+# (default 50000, passed to ff-evidence.sh for the per-pin table — a fallback
 # guard only; the FULL table renders at fleet scale). GITHUB_BODY_MAX overrides the
 # platform cap the hard guard enforces; the cap ITSELF is the ONE number in
 # `scripts/lib/pr-body-cap` — the same file the umbrella's body/diff gate reads
@@ -97,14 +97,14 @@ GITHUB_BODY_MAX="${GITHUB_BODY_MAX:-$PR_BODY_CAP_BYTES}"
 # producer_log_excerpt <max-lines> reads the producer log on stdin and prints at
 # most <max-lines> lines VERBATIM. It deliberately parses NOTHING: the retired
 # scripts/sync-gitlinks.sh emitted `  <path> -> <sha>` per pin and the current
-# `charly task sync` (verb:git-submodules bump) emits a `pinned N pin_map
+# `charly task ff` (verb:git-submodules ff) emits a `pinned N pin_map
 # entr(y|ies) (…; P moved) after rolling R leaf submodule(s) to their
 # default-branch HEAD (RM moved) and advancing A leaf pin(s) in the index
 # (AM moved); T pin(s) moved` summary, but coupling this builder to either
 # incidental format is what broke after the Taskfile→task cutover — the old
 # per-pin-only grep matched nothing against the new shape and the body read
 # "MISSING from producer log — investigate" for every moved pin (measured). The
-# AUTHORITATIVE per-pin proof is the index-derived table sync-pin-evidence.sh
+# AUTHORITATIVE per-pin proof is the index-derived table ff-evidence.sh
 # emits below (`staged-gitlink` vs remote default-branch HEAD); this excerpt is
 # only the producer's own raw output, pasted as-is so no form is silently
 # dropped. The bound is applied HERE (via
@@ -117,7 +117,7 @@ producer_log_excerpt() {
 
 # build_body <root> <moved-file> <producer-log> <pin-check-log> <out-body> <out-evidence>
 # Prints nothing; writes both files. The per-pin table is produced by
-# sync-pin-evidence.sh (bounded for the body, full for the artifact via SYNC_EVIDENCE_OUT).
+# ff-evidence.sh (bounded for the body, full for the artifact via SYNC_EVIDENCE_OUT).
 build_body() {
   local root="$1" moved_file="$2" producer_log="$3" pin_check_log="$4" out_body="$5" out_evidence="$6"
   local MOVED MOVED_TOTAL GITLINK_COUNT FILE_COUNT REMOVED_COUNT MOVED_DESC CLASS CLASS_DESC evidence_body evidence_full type_file
@@ -169,7 +169,7 @@ build_body() {
   } > "$out_evidence"
 
   # Render the per-pin evidence section's BODY form ONCE, capturing the moved-path split from
-  # the ONE place that classifies each path (sync-pin-evidence.sh, by index mode 160000) — so
+  # the ONE place that classifies each path (ff-evidence.sh, by index mode 160000) — so
   # this builder's Summary count and Change-class line cannot disagree with the table below.
   # The full table is appended to the caller's evidence file by that same run (its
   # SYNC_EVIDENCE_OUT path); rendering it a SECOND time here (the old shape) would both
@@ -184,7 +184,7 @@ build_body() {
   # with no `||`, so `errexit` is on there; checking the status here keeps the two paths
   # identical and makes every arm's `|| fail` message point at the real cause.
   if ! evidence_body="$(printf '%s\n' "$MOVED" | SYNC_EVIDENCE_OUT="$out_evidence" SYNC_EVIDENCE_TYPE_OUT="$type_file" \
-    bash "$SCRIPT_DIR/sync-pin-evidence.sh" "$root" "$pin_check_log")"; then
+    bash "$SCRIPT_DIR/ff-evidence.sh" "$root" "$pin_check_log")"; then
     echo "::error::the evidence builder failed — a body that cannot decide must not claim it does not" >&2
     rm -f "$type_file"
     return 1
@@ -247,7 +247,7 @@ build_body() {
     # The producer's own output, pasted verbatim — NEVER re-parsed against an
     # incidental format. Coupling this to a shape is what broke after the
     # Taskfile→task cutover (the old per-pin-only grep matched nothing against the
-    # `charly task sync` summary and the body read "MISSING … investigate" for every
+    # `charly task ff` summary and the body read "MISSING … investigate" for every
     # pin). The producer excerpt is context; the index-derived table is the proof.
     producer_log_excerpt "$PRODUCER_MAX" < "$producer_log" 2>/dev/null
     echo '```'
@@ -289,7 +289,7 @@ build_body() {
     echo "## Rulebook compliance"
     echo
     echo "- **R0 skills:** the sync is owned by \`/charly-internals:git-workflow\`; this PR is"
-    echo "  produced by \`charly task sync\`, the verb that skill names."
+    echo "  produced by \`charly task ff\`, the verb that skill names."
     echo "- **R1 RCA + warnings measured, not asserted:** the producer resolves each pin and"
     echo "  names any repo it cannot resolve rather than guessing. The pasted producer output"
     echo "  carries **${PRODUCER_WARNINGS}** \`WARNING:\` line(s) and **${PRODUCER_FAILED}** failed-step"
@@ -330,7 +330,7 @@ build_body() {
     echo "## Attribution"
     echo
     echo "This body is emitted by the tested \`scripts/sync-pr-body.sh\`"
-    echo "from a manual \`charly task sync\` run; its \`--self-test\` runs in the pre-commit"
+    echo "from a manual \`charly task ff\` run; its \`--self-test\` runs in the pre-commit"
     echo "gate. \`SYNC_AGENT\` carries this run's \`Agent:\` line and \`SYNC_ASSISTED_BY\` the"
     echo "trailer beneath it: rule 7's one canonical order, \`Agent:\` first, trailer last."
     echo
@@ -390,7 +390,7 @@ if [ "${1:-}" = "--self-test" ]; then
   # fixture fits, so the self-test states the platform's cap itself. The arm that
   # needs a smaller cap sets its own, in a subshell.
   export GITHUB_BODY_MAX="$PR_BODY_CAP_BYTES"
-  # Make the fixture a real git repo: sync-pin-evidence.sh's staged_gitlink()/`git config`
+  # Make the fixture a real git repo: ff-evidence.sh's staged_gitlink()/`git config`
   # run under `set -e`, and a non-repo would spew `fatal: not a git repository` per row.
   git -C "$tmp" init -q
   git -C "$tmp" config user.email t@t; git -C "$tmp" config user.name t
@@ -474,7 +474,7 @@ if [ "${1:-}" = "--self-test" ]; then
   grep -q 'sync-evidence' "$tmp/body" "$tmp/ev" && fail "no file may name a 'sync-evidence' run artifact (the sync is hand-run; no workflow uploads one)"
 
   # The producer excerpt is carried VERBATIM for BOTH historical shapes — the
-  # retired scripts/sync-gitlinks.sh per-pin form and the current `charly task sync`
+  # retired scripts/sync-gitlinks.sh per-pin form and the current `charly task ff`
   # summary. The retired builder grepped ONLY the per-pin form, so against the
   # current summary it emitted "MISSING from producer log — investigate" for every
   # pin and the excerpt silently lost the producer's own words (the regression this
@@ -504,7 +504,7 @@ if [ "${1:-}" = "--self-test" ]; then
   # lines beside it: scripts/check-cited-plugin-task-version.mjs re-derives it from
   # that pin and fails when it moves, so these lines are re-read, not re-remembered)
   # and confirmed end
-  # to end by a real `charly task sync` run of this repo (the umbrella's wave
+  # to end by a real pin wave on this repo (the umbrella's wave
   # PR #671, and the wave that advances this pin):
   #     pinned N pin_map entr(y|ies) (…; P moved) after rolling R leaf submodule(s)
   #     to their default-branch HEAD (RM moved) and advancing A leaf pin(s) in the
@@ -541,8 +541,8 @@ if [ "${1:-}" = "--self-test" ]; then
       pinned="$6" pinnedMoved="$7" names="$8"
     local total=$((rolledMoved + advancedMoved + pinnedMoved))
     {
-      printf 'task sync: 1 step(s), 0 failed, 0 skipped\n'
-      printf '  [pass] run — bump the pins\n'
+      printf 'task ff: 1 step(s), 0 failed, 0 skipped\n'
+      printf '  [pass] run — fast-forward the pins\n'
       printf '      pinned %d pin_map entr(y|ies) (%s; %d moved) after rolling %d leaf submodule(s) to their default-branch HEAD (%d moved) and advancing %d leaf pin(s) in the index (%d moved); %d pin(s) moved\n' \
         "$pinned" "$names" "$pinnedMoved" "$rolled" "$rolledMoved" "$advanced" "$advancedMoved" "$total"
     } > "$out"
@@ -568,7 +568,7 @@ if [ "${1:-}" = "--self-test" ]; then
   # line — a renderer that regressed to the two-bucket form would not produce it,
   # so this arm is what turns red when the fixture drifts back to the retired shape
   # (the same discrimination the step-message arm above carries).
-  grep -qF 'task sync: 1 step(s), 0 failed, 0 skipped' "$tmp/body4" \
+  grep -qF 'task ff: 1 step(s), 0 failed, 0 skipped' "$tmp/body4" \
     || fail "the CURRENT producer HEADLINE must reach the body verbatim"
   grep -q 'MISSING from producer log' "$tmp/body4" && fail "the excerpt must never inject a MISSING line — the producer's words are pasted as-is"
 

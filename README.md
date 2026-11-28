@@ -9,7 +9,7 @@ your agents through the same CLI you use.
 
 > Jump to: [What OpenCharly is](#what-opencharly-is) ·
 > [The docs in this repo](#the-docs-in-this-repo) · [The org map](#the-org-map) ·
-> [Pinning](#pinning) · [Developing in the umbrella](#developing-in-the-umbrella)
+> [Tracking main](#tracking-upstream-main) · [Developing in the umbrella](#developing-in-the-umbrella)
 
 ## What OpenCharly is
 
@@ -811,85 +811,60 @@ merge mints a CalVer tag plus `CHANGELOG/<CalVer>.md`. Upstream sync runs throug
 | `pod-os-layer/` | [opencharly/pod-os-layer](https://github.com/opencharly/pod-os-layer) |
 | `pod-web-layer/` | [opencharly/pod-web-layer](https://github.com/opencharly/pod-web-layer) |
 
-## Pinning
+## Tracking upstream `main`
 
-Every submodule is pinned to a specific commit — a **gitlink** — and the pin lives in this
-repo's **index**. The checkout follows the pin, never the other way round: a pin is the index
-entry, and a path with no checkout still has a pin, audited from the index and reported as
-*uninitialized (pin audited, no checkout)* — a notice, not a failure.
+Every submodule is recorded as a commit — a **gitlink** — in this repo's **index**. That commit is
+the tip of the branch the submodule's `.gitmodules` entry declares (`main` for every repo but two
+vendor forks, which declare `av1` and `stable`) **as of the last fast-forward**. The checkout
+follows the gitlink, never the other way round: a path with no checkout still has a gitlink,
+audited from the index and reported as *uninitialized (gitlink audited, no checkout)* — a notice,
+not a failure.
 
-### The pin contract
+### The tracking contract
 
-This umbrella's `.gitmodules` records `branch = <repo default>` on all of its entries, so a
-future default-branch rename keeps working. The pins are advanced with `charly task sync` (the
-pin-contract bump — it advances EVERY pin this repo declares), run by hand and landed through
-the org's PR-only validation chain, which opens a PR and never pushes to the default branch.
-There is no scheduled workflow; `charly task sync` is the one path that moves a pin.
-
-**Every pin declares what "current" means for it**, and that declaration is what the gate reads:
-
-- `upstream:<ref>` is a **leaf**, judged against the REMOTE. `charly`, `sdk` and `spec` are leaves
-  at their own default branch's tip.
-- `derived-from:<path>` — and every `pin_map` entry, which desugars to it — is an **edge**,
-  judged by its SOURCE. The `distro-` pins are this repo's edges: each follows exactly the
-  commit charly's own gitlinks record, so the umbrella always means *"the org exactly as charly
-  sees it"*.
-
-An edge may not point at an edge (depth ≤ 2, acyclic by construction), and every leaf must be
-remote-verifiable, so the whole graph is judgeable rather than consistent by accident.
-
-A pin is in one of four states:
-
-| state | what it means |
-|---|---|
-| `cur` | at the ref its intent names — it obliges nothing |
-| `behind` | an advance available NOW, in the producer's own repo |
-| `blocked-by <source>:<twin> (<state>)` | it names the producer that must go first |
-| `not-on-the-served-line` | a squash advance; its one remedy is the same as `behind`'s, and it is *not* a divergence |
-
-A `behind` pin and a `blocked-by` that names a producer leg **PASS and are REPORTED**, because
-the next step of a cross-repo sequence is another repo's PR — a gate that failed there would be
-permanently red. Only a pin the workflow cannot judge — or two sides that disagree — fails the
-  gate.
+- A **leaf** is a repo at its own branch's tip: `charly`, `sdk`, `spec`, `marketplace`, and every
+  other ordinary submodule.
+- An **edge** is a repo at another pinned repo's gitlink: the `distro-*` paths each equal
+  `charly`'s own `box/*` gitlink, so the umbrella always means *"the org exactly as charly sees
+  it"*. An edge may not point at an edge (depth ≤ 2).
+- **Behind is a failure.** A recorded gitlink that is an ancestor of the tip its branch declares
+  fails `charly task verify`; so does a `blocked-by`, which names the producer leg that must
+  advance first. A pin *ahead* of the tip, or one whose two sides disagree, fails too. The one
+  non-failure is a pin whose ancestry cannot be judged at all — no checkout and no local objects —
+  which is reported, never guessed at.
+- **No tag is consulted.** A pin is at a branch tip, not at a release tag; whether a merge landed
+  tagged is the release workflow's business, not this repo's.
 
 ### Three questions, three commands
 
-The pins move only through the pin contract, and three different questions have three different
-answers. Ask the right one:
-
 | question | command | what it answers |
 |---|---|---|
-| where is each repo pinned? | `charly task map` | the **state** — every submodule with its pin and sync state |
-| does this tree agree with itself? | `charly task verify` | the **consistency** — every checkout sits at the gitlink the index records, and every pin's branch is its remote's default branch — plus a **report** of the currency below, which never fails the gate |
-| is the org current with its upstreams? | `charly task pins --param MODE=currency` | the **currency** — every pin against the ref its intent names, judged from the index and the remote, never from a checkout |
-
-`verify` being green does **not** mean the org is current: a tree can be perfectly consistent
-while every pin is behind what its repo serves. That is why the gate reports currency instead of
-asserting it, and why asking the currency question is its own verb.
+| where is each repo pinned? | `charly task map` | the **state** — every submodule with its pin |
+| does this tree agree with itself? | `charly task verify` | **consistency and currency** — every checkout sits at the gitlink the index records, and any pin behind its branch tip FAILS |
+| which pins are behind? | `charly task pins --param MODE=currency` | the **currency** alone — every pin against the tip its intent names, judged from the index and the remote, never from a checkout |
 
 ### Catching up
 
-The sanctioned catch-up is one sequence, and it is the only one that moves a pin:
+The one sanctioned catch-up is a fast-forward, and it is the only thing that moves a pin:
+`charly task ff` fast-forwards EVERY pin this repo declares onto the tip of the branch its
+`.gitmodules` entry declares.
 
 ```sh
-charly task sync                        # the pin-contract bump — it advances EVERY pin this repo declares, in the index; it commits nothing
-charly task init                        # materialize the paths the wave advanced, AT their new pins
-charly task verify                      # judge the tree against the pins it records
+charly task ff        # fast-forward EVERY pin this repo declares onto its branch tip, stage the gitlinks; commits nothing
+charly task init      # materialize the paths the wave advanced, AT their new gitlinks
+charly task verify    # judge the tree, and FAIL if any pin is still behind
 ```
 
-Then land the pin wave as a PR through the org's validation chain. A wave needs **no full set**:
-it advances a path that has no checkout *in the index* — a leaf to the tip its remote serves for
-its `branch=`, an edge to the twin the source's tree records — while a path that does have a
-checkout is rolled in that checkout, so the two keep agreeing. It fails loud, by name, for every
-path it cannot advance: a sync over a tree it could not fully advance must never report success.
+Then land the wave as a PR through the org's validation chain. `ff` refuses a move that is not a
+fast-forward — a checkout carrying a local commit, or an edge whose twin is behind it — and names
+the path and the direction rather than resetting it. A wave needs no full set: it advances a path
+with no checkout *in the index* and rolls a path that has one, so the two keep agreeing.
 
-On a tree that was **never materialized**, the materialization comes first — the project cannot
-load before its `import:` paths exist, so the wave's own first verb would not run. That step is
-`bash scripts/init-submodules.sh`, in *Developing in the umbrella* below; the sequence above
-follows it unchanged.
+On a tree that was **never materialized**, materialize first — `bash scripts/init-submodules.sh`;
+the sequence above follows it unchanged.
 
-**Never catch up by hand.** A pin is never hand-edited in the index, never re-pointed at a
-branch tip, and never "fixed" by checking out a newer commit inside the submodule.
+**Never catch up by hand.** A gitlink is never hand-edited in the index and never "fixed" by
+checking out a newer commit inside the submodule.
 
 ## Developing in the umbrella
 
@@ -1013,11 +988,11 @@ form — `charly task …`, the same shape a packaged `charly` gives you:
 | `charly task init` | materialize the umbrella's submodules on demand — the derived working set by default (`CHARLY_INIT_MODE=all\|list\|stores` and `CHARLY_INIT_PATHS` select the others); a working-set run also advances every other checkout that a pull left behind its pin, when that checkout is clean and a strict ancestor. After a pull that adds an `import:` path the project cannot load until it runs, so run its script form then: `bash scripts/init-submodules.sh` |
 | `charly task worktree` | create a ready session worktree: `CHARLY_WORKTREE_SLUG=<slug> charly task worktree` adds `.worktrees/<slug>/opencharly` on `feat/<slug>` off `origin/main`, brings the module stores up to the new pins, materializes the working set borrowing from them, and builds the worktree's own binary |
 | `charly task map` | list every submodule with its pin and sync state |
-| `charly task sync` | advance EVERY submodule pin this repo declares, per the pin contract (it rolls the checkouts that exist to their default-branch HEAD and stages the gitlinks; it does not commit) |
+| `charly task ff` | fast-forward EVERY submodule pin this repo declares onto the tip of the branch its `.gitmodules` entry declares (it fetches every declared path, rolls the checkouts that exist, stages the gitlinks, and refuses a move that is not a fast-forward; it does not commit) |
 | `charly task verify` | run the full pinning gate on demand — every pin, including the remote branch audit |
-| `charly task pins` | the pin-contract pin operation over EVERY declared path (mode via param) — the `distro-*` paths are its EDGE subset (the `pin_map`); `MODE=bump` advances EVERY pin this repo declares, `MODE=currency` asks whether every pin is at the ref its intent names |
+| `charly task pins` | the pin-contract pin operation over EVERY declared path (mode via param) — the `distro-*` paths are its EDGE subset (the `pin_map`); `MODE=ff` fast-forwards EVERY pin this repo declares onto the tip of its branch, `MODE=currency` asks whether every pin is at the ref its intent names |
 | `charly task pin-check` | the pin contract's consistency half — the EDGE (every `pin_map` entry equals its twin in the `pinned_from` checkout) and the CHECKOUT AUDIT. It reads the index's gitlinks, the manifest's `pins:` block and the declared path set, so a commit can violate it by moving a gitlink, or by editing the manifest, or by editing `.gitmodules`. This is what `hooks/pre-commit` runs |
-| `charly task design-check` | the DESIGN gate — the seven controls of `DESIGN.md` A.1/A.2: the CUE toolchain, `DESIGN.md`↔`DESIGN.cue`, the examples and their negatives, the capability ledger, every citation into a pinned module resolved at its pin, the schema patterns of every pinned plugin module, and every pin's relation to a release tag. It is the same command `hooks/pre-push` runs for a push that changes a surface those controls read |
+| `charly task design-check` | the DESIGN gate — the six controls of `DESIGN.md` A.1/A.2: the CUE toolchain, `DESIGN.md`↔`DESIGN.cue`, the examples and their negatives, the capability ledger, every citation into a pinned module resolved at its pin, and the schema patterns of every pinned plugin module. It is the same command `hooks/pre-push` runs for a push that changes a surface those controls read |
 | `charly task hooks` | install this clone's git hooks — `pre-commit` and `pre-push` |
 | `charly task org-map` | verify the org-map tables above against the repo and `.gitmodules` |
 | `charly task skills` | splice the generated R0 dispatcher from the pinned marketplace into `AGENTS.md` |

@@ -2,23 +2,24 @@
 // check-pin-verb-scope.mjs — every place in the umbrella's OWN tree that presents the
 // pin-advance verb to an operator states the verb's SCOPE.
 //
-// WHY (opencharly/opencharly#501): `charly task sync` is an ORG-WIDE cutover — it
-// advances EVERY pin the repo declares, rolls the checkouts that exist to their
-// remote's default-branch HEAD and stages their gitlinks — and the guidance
-// introduced it as a thing that changed nothing. The RCA's missed control was that
+// WHY (opencharly/opencharly#501): `charly task ff` is an ORG-WIDE cutover — it
+// fast-forwards EVERY pin the repo declares onto the tip of the branch its
+// `.gitmodules` entry declares and stages the gitlinks — and the guidance
+// introduced its predecessor as a thing that changed nothing. The RCA's missed control was that
 // the reader had NO SCOPE to read: the PERMISSION was legible ("advance pins only
-// with `charly task sync`") and the scope was not, so the verb read like a targeted
+// with the pin-advance verb") and the scope was not, so the verb read like a targeted
 // tool and turned out to be a wave over EVERY pin the repo declares. A guidance
 // defect is a product defect (R4): the fix is a CONTROL that keeps the claim true,
 // not a lesson in a comment.
 //
 // WHAT IS ASSERTED, over the SHIPPED text of the umbrella's own tree:
 //
-//   A. SCOPE — every claim-maker surface states the scope: the verb advances EVERY
-//      pin the repo declares. The marker is a CLAIM, not a keyword: "every" on its
-//      own also matches "asks whether every pin is at the ref its intent names",
-//      which is a question about CURRENCY, not a statement of what the wave
-//      advances. So the marker carries the whole claim — every … pin(s) … declare(s).
+//   A. SCOPE — every claim-maker surface states the scope: the verb fast-forwards
+//      EVERY pin the repo declares. The marker is a CLAIM, not a keyword: "every"
+//      on its own also matches "asks whether every pin is at the tip its intent
+//      names", which is a question about CURRENCY, not a statement of what the
+//      wave does. So the marker carries the whole claim — fast-forward(s) … every
+//      … pin(s) … declare(s).
 //   B. EXISTENCE — every enumerated surface is PRESENT and its anchor is UNIQUE. A
 //      surface that moved is a finding, not a silent pass: a gate that cannot see
 //      the surface it is checking is worse than no gate.
@@ -28,10 +29,10 @@
 //      file that names the verb and is in NEITHER list is a FINDING: a new
 //      claim-maker surface cannot slip in unclassified.
 //   D. NO NARROWING — no claim-maker surface may scope the operation to a SUBSET
-//      of the declared paths. Arm A asserts the POSITIVE claim ("advances EVERY pin
-//      the repo declares"), and a surface can state that AND contradict it in the
-//      same breath — "the pin operation over the `distro-*` set — advances EVERY pin
-//      this repo declares" — which is what opencharly/opencharly#787 found in three
+//      of the declared paths. Arm A asserts the POSITIVE claim ("fast-forwards EVERY
+//      pin the repo declares"), and a surface can state that AND contradict it in the
+//      same breath — "the pin operation over the `distro-*` set — fast-forwards EVERY
+//      pin this repo declares" — which is what opencharly/opencharly#787 found in three
 //      surfaces: the EDGE subset's vocabulary applied to the whole operation. The
 //      operation runs over EVERY path `.gitmodules` declares; the `distro-*` paths
 //      are the EDGE subset of them (the `pin_map`), and every other declared path
@@ -69,23 +70,27 @@ const SELF_REL = "scripts/check-pin-verb-scope.mjs";
 const RETIRED_GATE_REL = "scripts/check-retired-claims.mjs";
 
 /**
- * The SCOPE claim: the verb advances EVERY pin the repo declares.
+ * The SCOPE claim: the verb fast-forwards EVERY pin the repo declares.
+ *
+ * ONE marker, the ff claim: the verb, the universal quantifier, the pin and the
+ * word that says the set is the repo's own. The predecessor's marker keyed only
+ * "every … pin … advances", which a surface could satisfy while describing a
+ * different operation; this one names the operation itself.
  *
  * `[^]` (not `[^\n]`) because a claim WRAPS: the scope sentence runs over a line
  * boundary in several of these surfaces, and a marker that cannot cross a wrap
- * would read a stated scope as an absent one. The windows are small (30 and 40
- * characters), so the match stays inside a sentence or two.
+ * would read a stated scope as an absent one. The windows are small (20, 30 and
+ * 40 characters), so the match stays inside a sentence or two.
  *
- * The VERB after the pin word is what separates the scope claim from the
- * CURRENCY question: "asks whether every pin is at the ref its intent names" is
- * not a statement of what the wave advances, and no verb in the list follows
- * that sentence's "pin".
+ * The universal quantifier is what separates the scope claim from the CURRENCY
+ * question: "is each recorded pin the tip of the branch …" is not a statement of
+ * what the wave advances, and it carries no quantifier.
  */
 const SCOPE_RE =
-  /\bevery\b[^]{0,30}\bpin(?:s)?\b[^]{0,40}\b(?:declares?|declared|declaring|records?|recorded|holds|moves|moved|advances|advanced)\b/i;
+  /\bfast-forwards?\b[^]{0,20}\b(?:every|all|each)\b[^]{0,30}\bpin(?:s)?\b[^]{0,40}\b(?:declares?|declared|declaring)\b/i;
 
 /** The verb's own spellings — a file that NAMES it is a file the coverage arm classifies. */
-const VERB_RE = /charly task sync|charly task pins|MODE=bump/;
+const VERB_RE = /charly task ff|charly task pins|MODE=ff/;
 
 /**
  * The claim-maker surfaces: the places whose job is to tell an operator what the
@@ -95,20 +100,20 @@ const VERB_RE = /charly task sync|charly task pins|MODE=bump/;
  * vanish instead of failing.
  */
 const SURFACES = [
-  { id: "charly.yml — the sync task's header comment", rel: "charly.yml", kind: "comment", anchor: /^\s*#\s*sync\s+—\s+advance\s/ },
-  { id: "charly.yml — the sync task's description", rel: "charly.yml", kind: "line", anchor: /^\s{4}description:\s*Advance\s/ },
-  { id: "charly.yml — the sync task's step name", rel: "charly.yml", kind: "line", anchor: /^\s+- run: advance\s/ },
-  { id: "charly.yml — the pins task's description", rel: "charly.yml", kind: "line", anchor: /^\s{4}description:\s*The pin-contract pin operation/ },
-  { id: "charly.yml — the pins task's MODE parameter", rel: "charly.yml", kind: "line", anchor: /^\s{8}description:\s*status\|bump\|verify\|currency/ },
-  { id: "README.md — the maintenance table's `charly task sync` row", rel: "README.md", kind: "line", anchor: /^\| `charly task sync` \|/ },
+  { id: "charly.yml — the ff task's header comment", rel: "charly.yml", kind: "comment", anchor: /^\s*#\s*ff\s+—\s+/ },
+  { id: "charly.yml — the ff task's description", rel: "charly.yml", kind: "line", anchor: /^\s{4}description:\s*Fast-forward/ },
+  { id: "charly.yml — the ff task's step name", rel: "charly.yml", kind: "line", anchor: /^\s+- run: fast-forward/ },
+  { id: "charly.yml — the pins task's description", rel: "charly.yml", kind: "line", anchor: /^\s{4}description:\s*The pin operation over/ },
+  { id: "charly.yml — the pins task's MODE parameter", rel: "charly.yml", kind: "line", anchor: /^\s{8}description:\s*status\|ff\|verify\|currency/ },
+  { id: "README.md — the maintenance table's `charly task ff` row", rel: "README.md", kind: "line", anchor: /^\| `charly task ff` \|/ },
   { id: "README.md — the maintenance table's `charly task pins` row", rel: "README.md", kind: "line", anchor: /^\| `charly task pins` \|/ },
-  { id: "README.md — the pinning paragraph", rel: "README.md", kind: "block", anchor: /^This umbrella's `\.gitmodules` records `branch = / },
-  { id: "README.md — the sanctioned catch-up sequence", rel: "README.md", kind: "line", anchor: /^charly task sync\s+# the pin-contract bump/ },
-  { id: "AGENTS.md — Part II #3's permission clause", rel: "AGENTS.md", kind: "block", anchor: /^\s+Advance pins only with\s/ },
+  { id: "README.md — the catching-up paragraph", rel: "README.md", kind: "block", anchor: /^The one sanctioned catch-up is a fast-forward/ },
+  { id: "README.md — the sanctioned catch-up sequence", rel: "README.md", kind: "line", anchor: /^charly task ff\s+# fast-forward/ },
+  { id: "AGENTS.md — Part II #3's permission clause", rel: "AGENTS.md", kind: "block", anchor: /\*\*Do:\*\* advance pins only with$/ },
   { id: "git-workflow/SKILL.md — the hard rules", rel: ".agents/skills/git-workflow/SKILL.md", kind: "block", anchor: /per-commit gate\. Hard rules/ },
-  { id: "umbrella-mechanics.md — the task table's `charly task sync` row", rel: ".agents/skills/git-workflow/references/umbrella-mechanics.md", kind: "line", anchor: /^\| `charly task sync` \|/ },
+  { id: "umbrella-mechanics.md — the task table's `charly task ff` row", rel: ".agents/skills/git-workflow/references/umbrella-mechanics.md", kind: "line", anchor: /^\| `charly task ff` \|/ },
   { id: "umbrella-mechanics.md — the task table's `charly task pins` row", rel: ".agents/skills/git-workflow/references/umbrella-mechanics.md", kind: "line", anchor: /^\| `charly task pins` \|/ },
-  { id: "umbrella-mechanics.md — the `the fix is` paragraph", rel: ".agents/skills/git-workflow/references/umbrella-mechanics.md", kind: "block", anchor: /^records\), never a PR branch/ },
+  { id: "umbrella-mechanics.md — the `the fix is` paragraph", rel: ".agents/skills/git-workflow/references/umbrella-mechanics.md", kind: "block", anchor: /^tip, or a gitlink charly records\), never a PR branch/ },
   { id: "branch-and-pr-loop.md — the pin-advance step", rel: ".agents/skills/git-workflow/references/branch-and-pr-loop.md", kind: "block", anchor: /^7\. Advance pins ONLY with/ },
   { id: "pin-intent-and-currency.md — the contract's opening", rel: ".agents/skills/git-workflow/references/pin-intent-and-currency.md", kind: "block", anchor: /^The umbrella records one commit per submodule/ },
   { id: "agents/SKILL.md — the remedy for a pin lag", rel: ".agents/skills/agents/SKILL.md", kind: "block", anchor: /^\*\*Remedy\.\*\* Identify the submodule/ },
@@ -126,8 +131,12 @@ const NON_CLAIM_MENTIONS = new Map([
     "a table of the DSH skill farm's paths: the cell names the verb's SIDE EFFECT (it re-derives the bindings), and the reader is not being told to run the verb",
   ],
   [
-    "scripts/sync-pin-evidence.sh",
-    "comments about WHY the sync has no CI run artifact (it is hand-run); the subject is the artifact, not the verb's scope",
+    "hooks/pre-commit",
+    "one comment states WHY the cited-version leg turns RED on an advance (the version is DERIVED from the pin); it does not present the verb to an operator",
+  ],
+  [
+    "scripts/ff-evidence.sh",
+    "comments about WHY the ff has no CI run artifact (it is hand-run); the subject is the artifact, not the verb's scope",
   ],
   [
     "scripts/sync-pr-body.sh",
@@ -320,8 +329,8 @@ function findings(rootDir, overrides = new Map()) {
         line: hits[0] + 1,
         msg:
           `${s.id} — the surface does not state the verb's SCOPE: it must say the verb advances ` +
-          `EVERY pin the repo declares (the claim, not the keyword: "every" alone also matches a ` +
-          `question about currency). A reader with no scope is the #501 reader`,
+          `EVERY pin the repo declares (the claim, not the keyword: the marker names the verb, ` +
+          `the universal quantifier and the declared set). A reader with no scope is the #501 reader`,
       });
     }
     // D: the NEGATIVE claim — a scope clause that narrows the operation to a
@@ -447,7 +456,11 @@ if (argv.includes("--self-test")) {
     const head = range.text.slice(0, range.start);
     const body = range.text.slice(range.start, range.end);
     const tail = range.text.slice(range.end);
-    const mutatedBody = body.replace(new RegExp(SCOPE_RE.source, "gi"), "the pins");
+    // Drop the CLAIM, not the verb: replacing the whole match would also rewrite
+    // the anchor's own "fast-forward", so the surface would read as MOVED (arm B)
+    // instead of scopeless (arm A). The universal quantifier is what the claim
+    // rests on, so replacing it leaves every anchor intact and the claim gone.
+    const mutatedBody = body.replace(/\b(?:every|EVERY|all|each)\b/g, "some");
     if (mutatedBody === body) {
       stFails += 1;
       console.error(`  FAIL  the scope mutation did not apply to ${s.id} — the surface carries no scope claim`);
@@ -482,7 +495,7 @@ if (argv.includes("--self-test")) {
   // C: a NEW file that names the verb is caught, so a claim-maker surface cannot slip in.
   {
     const rel = "notes/operator-brief.md";
-    const fs = findings(root, new Map([[rel, "# a new brief\n\nrun `charly task sync` to move the pin\n"]]));
+    const fs = findings(root, new Map([[rel, "# a new brief\n\nrun `charly task ff` to move the pin\n"]]));
     if (fs.some((f) => f.kind === "C" && f.rel === rel)) {
       ok("the coverage claim is live — a new file naming the verb turns the gate RED");
     } else {
@@ -640,7 +653,7 @@ if (argv.includes("--self-test")) {
   {
     const s = SURFACES.find((x) => x.rel === "charly.yml" && /description/.test(x.id));
     const range = surfaceRange(s.rel, s.anchor, s.kind);
-    const mutated = range.text.replace("it does not commit", "it never commits");
+    const mutated = range.text.replace("and does not commit", "and never commits");
     if (mutated === range.text) {
       stFails += 1;
       console.error("  FAIL  the negative control did not apply");

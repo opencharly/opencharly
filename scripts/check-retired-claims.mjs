@@ -418,7 +418,7 @@ const PATTERNS = [
     // segments of the claim stream (a shell statement boundary is a boundary), so
     // "from the index" sits in the NEXT segment and a context-anchored pattern would
     // not match the very wording it was written for (MEASURED on the retired legend
-    // in origin/main's scripts/sync-pin-evidence.sh).
+    // in the evidence script, now `scripts/ff-evidence.sh`).
     //
     // The token pair is `--verify --quiet`, not `--verify` alone: the pair is what the
     // retired read WAS, and a plain `git rev-parse --verify <ref>` — the ordinary
@@ -488,7 +488,7 @@ const PATTERNS = [
   {
     // THE CLASS: the pin-advance operation described as a NON-MUTATING KIND — a
     // preview, a dry run, a read-only report. The truth: the umbrella's pin
-    // advance (`charly task sync`, the git-submodules `bump` mode) WRITES — it
+    // advance (`charly task ff`, the git-submodules `ff` mode) WRITES — it
     // rolls every leaf submodule that HAS a checkout to its remote's
     // default-branch HEAD, stages those gitlinks, and re-pins the `pin_map`
     // edges. The retired wording introduced it as a thing that changed nothing
