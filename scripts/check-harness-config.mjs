@@ -64,6 +64,7 @@
 
 import { existsSync, lstatSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { spawnSync } from "node:child_process";
+import { corpusTag } from "./lib/corpus-tag.mjs";
 import { fileURLToPath } from "node:url";
 import { dirname, join, resolve } from "node:path";
 import { CLAUDE_CATALOG, CORPUS_NEEDS, corpusSkipReason } from "./lib/corpus.mjs";
@@ -815,26 +816,15 @@ ok(existsSync(join(root, ".dsh/watch.items")), ".dsh/watch.items (the DSH watch 
   const pin = (Array.isArray(settings.packages) ? settings.packages : [])
     .map((p) => /^git:github\.com\/opencharly\/marketplace@(.+)$/.exec(String(p)))
     .find(Boolean);
-  const corpus = join(root, "marketplace");
   if (!pin) {
     ok(false, ".pi/settings.json pins the marketplace skill corpus (a git package on `packages`)");
-  } else if (!existsSync(join(corpus, ".git"))) {
-    pass(
-      `marketplace/ is not checked out in ${root} — the pi package pin currency check skipped (the registration assertion above still holds)`,
-    );
   } else {
-    // The corpus tag THIS tree pins: the nearest tag reachable from the submodule's HEAD. The
-    // remote is not asked — the pi package must be the corpus this tree carries, never the newest
-    // one published, and a gate that reaches the network is not a gate.
-    const described = spawnSync("git", ["describe", "--tags", "--abbrev=0", "HEAD"], {
-      cwd: corpus,
-      encoding: "utf8",
-    });
-    const tag = (described.stdout ?? "").trim();
-    if (described.status !== 0 || tag === "") {
-      pass(
-        `marketplace/ carries no reachable tag in ${root} — the pi package pin currency check skipped (the registration assertion above still holds)`,
-      );
+    // The corpus tag THIS tree pins — read by the ONE library the DERIVATION also writes from
+    // (`scripts/lib/corpus-tag.mjs`), so the gate and `charly task sync` cannot disagree
+    // (opencharly/opencharly#1344).
+    const { tag, reason } = corpusTag(root);
+    if (tag === "") {
+      pass(`${reason} — the pi package pin currency check skipped (the registration assertion above still holds)`);
     } else {
       ok(
         pin[1] === tag,
