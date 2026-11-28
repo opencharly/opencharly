@@ -338,9 +338,13 @@ if (argv.includes("--self-test")) {
     // (a) INVARIANT: a row pointing at a skill that does not exist (a dangling
     //     `/charly-<family>:<skill>` ref — the docs build treats that as a hard error).
     ["marketplace/DISPATCHER.md", (p) => writeFileSync(p, readFileSync(p, "utf8").replace(/^\| .+ \| `\/charly-internals:git-workflow` \|$/m, "| a dropped row | `/charly-internals:no-such-skill` |")), "every DISPATCHER.md row resolves", "9 (a row must resolve to a real skill — the dangling-ref arm)", true],
-    // (b) RATCHET: deleting a row leaves its skill unrouted, pushing the count past the
-    //     ceiling. This is the arm that makes the gate able to fail at all.
-    ["marketplace/DISPATCHER.md", (p) => writeFileSync(p, readFileSync(p, "utf8").replace(/^\| .+ \| `\/charly-check:check` \|$\n/m, "")), "dispatcher coverage ratchet holds", "9 (the ratchet — dropping a row must FAIL, or the gate cannot notice coverage loss)", true],
+    // (b) RATCHET: deleting rows leaves their skills unrouted, pushing the count past the ceiling.
+    //     This is the arm that makes the gate able to fail at all — so it must not depend on the
+    //     TREE's slack. A single-row mutation only bites while the tree sits AT the ceiling; the
+    //     2026-11-28 corpus advance left one row of slack (173 unrouted against a 174 ceiling) and
+    //     the arm went green-when-mutated, i.e. a control that could not fail. Dropping EVERY row is
+    //     data-independent: unrouted becomes the whole corpus, which no ceiling can admit.
+    ["marketplace/DISPATCHER.md", (p) => writeFileSync(p, readFileSync(p, "utf8").replace(/^\| .+ \| `\/charly-[^`]+` \|$\n/gm, "")), "dispatcher coverage ratchet holds", "9 (the ratchet — dropping the rows must FAIL, or the gate cannot notice coverage loss)", true],
     // (c) INVARIANT: a skill the hand-curated AGENTS.md table routes to must exist in the corpus.
     ["AGENTS.md", (p) => writeFileSync(p, readFileSync(p, "utf8").replace("`/charly-internals:git-workflow`", "`/charly-internals:no-such-skill`")), "every skill a root .md routes to resolves", "9 (a root-document route must resolve — the hand-curated-table arm)", true],
     [".opencode/agent/root-cause-analyzer.md", (p) => writeFileSync(p, readFileSync(p, "utf8").replace("marketplace/internals/agents/root-cause-analyzer.md", "marketplace/internals/agents/no-such-agent.md")), "every opencode agent pointer names an existing corpus definition", "9 (a dangling corpus-agent pointer must FAIL)"],
