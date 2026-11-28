@@ -1015,6 +1015,31 @@ org-map:
         context: [runtime]
 
 # -----------------------------------------------------------------------------
+# brand — every BRAND surface carries the product's canonical tagline, no retired
+# brand phrase survives on any of them, and a surface that names the tagline
+# without a register row is a finding.
+#
+# WHY. The product has had five taglines. Each rename swept the string in the
+# repositories its author remembered, because nothing in the tree NAMED the set:
+# MEASURED two renames after "wonky" was retired, the published site's own meta
+# description still shipped it (opencharly/opencharly#1335). The register is
+# `brand/surfaces.tsv`; the closed retired set is `brand/retired.txt`. A repo that
+# is not materialised in this checkout is reported as a VISIBLE SKIP, never
+# treated as a pass.
+# -----------------------------------------------------------------------------
+brand:
+  task:
+    description: Every registered brand surface carries the canonical tagline and no retired brand phrase, and every tracked file naming the tagline has a register row — and the control proves each arm can fail
+    dir: .
+    plan:
+      - check: every registered brand surface carries the canonical text and no retired phrase, and every tracked file that names the tagline has a register row (an unmaterialised repo is a visible skip, never a pass)
+        command: python3 scripts/check-brand.py .
+        context: [runtime]
+      - check: the brand gate discriminates — each arm turns RED on its own mutation, a wrapped paragraph still matches, and a tree that agrees with itself stays GREEN (fixtures)
+        command: python3 scripts/check-brand.py --self-test
+        context: [runtime]
+
+# -----------------------------------------------------------------------------
 # prune — reap the merged-upstream session worktrees + branches the per-session
 # close-out prose never collected. Default MODE=report is a DRY RUN that changes
 # nothing; MODE=prune performs the removal. A branch is pruned only when its merge

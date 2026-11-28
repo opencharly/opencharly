@@ -2,7 +2,7 @@
 
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/opencharly/charly)
 
-**The agentic DevOps tool for you and your agents.** Write one list of **candies**. `charly`
+**The Agentic DevOps Factory for you and your agents.** Write one list of **candies**. `charly`
 turns it into a container, a VM, a Kubernetes workload, or a host install —
 proves it on a throwaway test bed before anything real sees it — and hands the whole loop to
 your agents through the same CLI you use.
@@ -245,7 +245,7 @@ a scannable index. Their themes:
 
 | path | repo | role |
 |---|---|---|
-| `charly/` | [charly](https://github.com/opencharly/charly) | The agentic DevOps tool for you and your agents — the product repo and the single source of truth. |
+| `charly/` | [charly](https://github.com/opencharly/charly) | The agentic DevOps Factory for you and your agents — the product repo and the single source of truth. |
 | `charly-lib/` | [charly-lib](https://github.com/opencharly/charly-lib) | The shared multi-call plugin host: ONE binary serving every welded plugin (`opencharly/sdk/charlylib`). |
 | `docs/` | [docs](https://github.com/opencharly/docs) | The documentation site (Astro/Starlight), published at opencharly.ai; generated trees, never hand-edited. |
 | `marketplace/` | [marketplace](https://github.com/opencharly/marketplace) | The GENERATED skill/agent/workflow corpus; every supported harness loads it natively. |
