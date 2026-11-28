@@ -194,12 +194,32 @@ build_body() {
   . "$type_file"
   rm -f "$type_file"
 
+  # THE RACE, COUNTED FROM THE TABLE THE BODY SHIPS. The evidence builder flags a pin whose staged
+  # commit is not the remote's default-branch HEAD with `!`, and that flag is recorded AT
+  # TABLE-GENERATION TIME — so a body that claims every non-`distro-*` pin IS its HEAD contradicts its
+  # own legend whenever the wave raced (measured: 3 of 25 rows on opencharly/opencharly#1348, up to 6
+  # commits behind, and the org validator read the contradiction as a regression). Counting here, from
+  # the same text, is what makes the prose and the table mechanically incapable of disagreeing
+  # (opencharly/opencharly#1353).
+  RACE_COUNT=0
+  RACE_COUNT=$(printf '%s\n' "$evidence_body" | grep -cE '(^|[[:space:]])!$' || true)
+
   {
     echo "## Summary"
     echo
     echo "Gitlink sync: every umbrella submodule pin advanced to what **the pin contract** requires"
     echo "— \`charly\` to its own default-branch HEAD, \`distro-*\` to exactly the commits charly's"
-    echo "own gitlinks pin, everything else to its own default branch."
+    echo "own gitlinks pin, everything else to its own default branch — **as this run resolved it**."
+    echo
+    if [ "$RACE_COUNT" -gt 0 ]; then
+      echo "**$RACE_COUNT of the $GITLINK_COUNT gitlink row(s) raced**: their repo's default branch advanced"
+      echo "while this wave ran, so the staged commit is a strict ANCESTOR of that branch's HEAD and a"
+      echo "DESCENDANT of the pin it replaces. AGENTS.md Part II #3 says a \`behind\` pin is REPORTED, not"
+      echo "chased; \`charly task sync\` advances it on the next wave."
+    else
+      echo "No row raced: every staged pin still equals its repo's default-branch HEAD, so the"
+      echo "\`!\` column of the table below is empty by measurement, not by assertion."
+    fi
     echo
     # The moved/removed split is the ONE measurement of what KIND of diff this is, so
     # the count and the change class cannot disagree with the table below. A REMOVED
@@ -299,9 +319,16 @@ build_body() {
     echo "  moved gitlink belongs to its OWNING repo (which gated it before tagging)."
     echo "- **R2 no duplication:** the pin contract is asserted by \`charly task pin-check\` — the ONE"
     echo "  implementation \`charly task verify\` also composes."
-    echo "- **R3 no workaround:** \`charly\` and every non-\`distro-*\` pin is its owning repo's"
-    echo "  default-branch HEAD (per-pin \`git ls-remote\` above); every \`distro-*\` pin is charly's"
-    echo "  own gitlink. The producer never pins a PR branch."
+    echo "- **R3 no workaround:** every non-\`distro-*\` pin **was** its owning repo's default-branch HEAD"
+    echo "  when this run resolved it, and every \`distro-*\` pin is charly's own gitlink. The producer"
+    echo "  never pins a PR branch, and no pin is hand-edited to close a gap after the fact."
+    if [ "$RACE_COUNT" -gt 0 ]; then
+      echo "  **$RACE_COUNT row(s) are flagged \`!\`** because that branch moved on during the wave: each is a"
+      echo "  strict ANCESTOR of the branch HEAD now and a DESCENDANT of the pin it replaces, so no row pins"
+      echo "  a PR branch and none rolls a pin back. Part II #3 reports a \`behind\` pin; it is never chased."
+    else
+      echo "  No row is flagged \`!\`: every staged pin still equals its default-branch HEAD."
+    fi
     echo "- **R4 product before prose:** \`N/A — a gitlink sync changes no documentation and routes around no defect.\`"
     echo "- **R5 hard cutover + grep:** the pointers are replaced, not appended to."
     echo "- **R6 git safety:** a fresh branch per run; no force-push; no push to \`main\`."
@@ -570,6 +597,26 @@ if [ "${1:-}" = "--self-test" ]; then
   # (the same discrimination the step-message arm above carries).
   grep -qF 'task sync: 1 step(s), 0 failed, 0 skipped' "$tmp/body4" \
     || fail "the CURRENT producer HEADLINE must reach the body verbatim"
+  # THE CONTRACT IS STATED AS THE WAVE SATISFIES IT (opencharly/opencharly#1353). The qualifier and the
+  # past tense are what stop the body asserting an invariant its own `!` legend refutes — the sentence
+  # the org validator read as a regression on opencharly/opencharly#1348.
+  grep -qF 'as this run resolved it' "$tmp/body4" \
+    || fail "the Summary must qualify the contract with \"as this run resolved it\""
+  grep -qF '**was** its owning repo' "$tmp/body4" \
+    || fail "R3 must state the pin contract in the past tense (the head at resolution, not an invariant)"
+  grep -qF 'Part II #3' "$tmp/body4" \
+    || fail "R3 must name the rule that reports a behind pin instead of chasing it"
+  # AND THE COUNT CANNOT DRIFT FROM THE TABLE: the stated race count is compared to the body's own
+  # `!` rows, so a generator that counted differently from the table it rendered goes red here.
+  races=$(grep -cE '(^|[[:space:]])!$' "$tmp/body4" || true)
+  stated=$(sed -n 's/^\*\*\([0-9][0-9]*\) of the .* gitlink row(s) raced\*\*.*/\1/p' "$tmp/body4" | head -1)
+  if [ "${races:-0}" -gt 0 ]; then
+    [ "${stated:-0}" = "$races" ] \
+      || fail "the stated race count (${stated:-none}) must equal the table's '!' rows ($races)"
+  else
+    grep -qF 'No row raced' "$tmp/body4" \
+      || fail "a body whose table carries no '!' row must say so, not stay silent"
+  fi
   grep -q 'MISSING from producer log' "$tmp/body4" && fail "the excerpt must never inject a MISSING line — the producer's words are pasted as-is"
 
   # THE MIXED LIST — the class the pre-fix builder got WRONG (measured: the real 45-gitlink
