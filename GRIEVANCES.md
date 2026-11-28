@@ -324,8 +324,8 @@ worth fighting inside one.
 
 A box describes the system once, and says nothing about where it runs. A **deployment** is a node
 whose **kind** says where it runs: `pod:` for a rootless container, `vm:` for a virtual machine,
-`local:` to apply candies to an existing host, `android:` for a device, `kubernetes:` for a cluster
-that runs pods and VMs as workloads. Changing the kind is the whole change:
+`local:` to apply candies to an existing host, `kubernetes:` for a cluster that runs pods and VMs
+as workloads. Changing the kind is the whole change:
 
 <!-- example: grievance-pod-and-vm -->
 ```yaml
