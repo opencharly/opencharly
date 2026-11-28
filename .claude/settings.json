@@ -58,7 +58,6 @@
     "charly-immich@charly-plugins": true,
     "charly-infrastructure@charly-plugins": true,
     "charly-internals@charly-plugins": true,
-    "charly-jupyter@charly-plugins": true,
     "charly-kubernetes@charly-plugins": true,
     "charly-kubevirt@charly-plugins": true,
     "charly-languages@charly-plugins": true,
