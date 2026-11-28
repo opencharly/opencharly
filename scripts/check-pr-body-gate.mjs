@@ -222,9 +222,9 @@ $ true
 - **R12 — spike before implementing:** fixture.
 
 ### Plan conformance
+**Winning candidate:** N/A — a test fixture, no candidate to spike.
 
-**Winning candidate:** N/A — a fixture body, no behaviour to spike
-No DESIGN-governed surface — the fixture asserts the linter's FORM, not a change.
+No DESIGN-governed surface — this body exists to exercise the hook's decision, and changes nothing.
 
 ## Change classification
 Test fixture, not a real change.
