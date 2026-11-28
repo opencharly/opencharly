@@ -422,7 +422,11 @@ declares_construct() {
 		if [[ "$subject" == *.* ]]; then
 			recv="${subject%%.*}"
 			meth="${subject#*.}"
-			grep -qE "^func[[:space:]]+\([^)]*${recv}\)[[:space:]]+${meth}\(" "$file"
+			# THE RECEIVER IS ANCHORED. `[^)]*` alone is satisfied by `func (x *FooCpCmd) Run(`, so a
+			# citation of `CpCmd.Run` passed on a declaration that does not exist — the exact class this
+			# arm exists to close (opencharly/opencharly#1356, round 4 block 1). A Go receiver is
+			# `(name *Type)`, `(*Type)` or `(name Type)`, so the type must START after the optional name.
+			grep -qE "^func[[:space:]]+\(([A-Za-z_][A-Za-z0-9_]*[[:space:]]+)?\*?${recv}\)[[:space:]]+${meth}\(" "$file"
 			return $?
 		fi
 		grep -qE "^(func([[:space:]]+\([^)]*\))?|type|var|const)[[:space:]]+${subject}([[:space:](]|$)" "$file"
@@ -1001,8 +1005,43 @@ INSIDE2_PY
 	# 9f. a DOCUMENT reference is not a citation: `DESIGN.md:D-CLI-1` and `DESIGN.md:§A.13` name a
 	#     requirement, and every ledger row carries one. An arm that failed them turned 241 legitimate
 	#     references into findings when it was first written — the blast radius this case pins.
-	printf '%s\n' 'DESIGN.md:§A.13' 'DESIGN.md:D-VENUE-1' >>"$work/design/dulling.tsv"
+	# 9f. A DOCUMENT REFERENCE is not a citation: `DESIGN.md:D-CLI-1` and `DESIGN.md:§A.13` name a
+	#     requirement, and every ledger row carries one. It must be a real ROW in the citation column:
+	#     a bare line appended to the file lands in column 0, which `cite_scan` never reads, so the
+	#     earlier version of this arm exercised NOTHING (opencharly/opencharly#1356, round-4 note).
+	# The fixture must CARRY the document: without it the prose guard (a slash-less path that names no
+	# file here) swallows the row before the judge sees it, and the arm proves nothing — measured by
+	# disabling the `.md` skip and watching this arm stay green.
+	printf '# fixture design\n' >"$work/DESIGN.md"
+	{
+		cat "$work/design/dulling.tsv"
+		printf 'fixture:docref\t`fixture:` names its requirement\t—\tx\tsharp\t—\t%s\tnone\n' 'DESIGN.md:§A.13; DESIGN.md:D-VENUE-1'
+	} >"$work/l" && mv "$work/l" "$work/design/dulling.tsv"
 	green "a document reference is prose, not a citation"
+	write_ledger '1-3' '5-8' ':#FixtureGamma' 'plugin-fixture/candy/plugin-fixture/schema'
+	emit_baseline "$work" >"$work/design/cite-baseline.tsv"
+
+	# 9h. THE GO RECEIVER IS ANCHORED. `func (x *FooCpCmd) Run(` must NOT satisfy a citation of
+	#     `CpCmd.Run`: the unanchored form `\([^)]*${recv}\)` was satisfied by that declaration and
+	#     passed a construct the file does not declare — the class this arm exists to close
+	#     (opencharly/opencharly#1356, round-4 block 1).
+	printf 'package fixture\n\nfunc (x *FooCpCmd) Run() {}\n\nfunc (c *CpCmd) Stop() {}\n' \
+		>"$work/src/candy/plugin-fixture/schema/fixture.go"
+	commit_pin "$work" go-receivers
+	{
+		cat "$work/design/dulling.tsv"
+		printf 'fixture:go\t`fixture:` declares a method\t—\tx\tsharp\t—\t%s\tnone\n' \
+			'plugin-fixture/candy/plugin-fixture/schema/fixture.go:CpCmd.Stop'
+	} >"$work/l" && mv "$work/l" "$work/design/dulling.tsv"
+	green "a Go method the pin really declares"
+	write_ledger '1-3' '5-8' ':#FixtureGamma' 'plugin-fixture/candy/plugin-fixture/schema'
+	emit_baseline "$work" >"$work/design/cite-baseline.tsv"
+	{
+		cat "$work/design/dulling.tsv"
+		printf 'fixture:go\t`fixture:` declares a method\t—\tx\tsharp\t—\t%s\tnone\n' \
+			'plugin-fixture/candy/plugin-fixture/schema/fixture.go:CpCmd.Run'
+	} >"$work/l" && mv "$work/l" "$work/design/dulling.tsv"
+	expect "a Go method only a DIFFERENT receiver declares" 'does not declare CpCmd.Run at the pin'
 	write_ledger '1-3' '5-8' ':#FixtureGamma' 'plugin-fixture/candy/plugin-fixture/schema'
 	emit_baseline "$work" >"$work/design/cite-baseline.tsv"
 
