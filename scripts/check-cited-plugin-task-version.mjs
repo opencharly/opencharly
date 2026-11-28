@@ -3,7 +3,7 @@
 // prose cites must be the version the umbrella's PINNED charly actually compiles.
 //
 // THE DEFECT THIS CLOSES (measured 2026-10-25, on this repo's own tree):
-//   scripts/sync-pr-body.sh said "the module the binary is built from — the one
+//   scripts/ff-body.sh said "the module the binary is built from — the one
 //   charly's own go.mod pins" and named a plugin-task version FIVE RELEASES
 //   behind that pin; charly.yml named one TWENTY-NINE DAYS behind it. The
 //   umbrella's pinned charly (gitlink f1f85d19) requires a THIRD version, and

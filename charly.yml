@@ -374,7 +374,7 @@ self-test:
       # The SET is owned by scripts/self-test.sh, so the commit gate can reach it
       # without the charly binary (opencharly/opencharly#498) and the two callers
       # cannot drift (R2).
-      - run: self-test ff-evidence + sync-pr-body + sync-dispatcher + init-submodules + measure-clone
+      - run: self-test ff-evidence + ff-body + sync-dispatcher + init-submodules + measure-clone
         command: bash scripts/self-test.sh
         context: [runtime]
 

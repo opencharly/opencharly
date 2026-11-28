@@ -187,7 +187,7 @@ purpose. So the order is:
       `category:governance`, `category:hygiene`; `type:fix`, `type:feat`, `type:design`,
       `type:spec`, `type:docs`, `type:chore`) exist in every non-archived repo. Verify them:
       `gh label list -R opencharly/<name> --limit 100 | grep -E '^(category|type):'` must show
-      all 12; if the sync has not run, run `gh workflow run label-sync.yml --repo
+      all 12; if the label sync has not run, run `gh workflow run label-sync.yml --repo
       opencharly/.github -f repos=<name>`.
    c. **Do not ship a repository-specific issue template** unless it carries the same four
       required fields as the org form — Category, Type, Remedy / files the remedy will touch,

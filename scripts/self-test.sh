@@ -26,7 +26,7 @@ cd "$ROOT"
 
 BUILDERS=(
   scripts/ff-evidence.sh
-  scripts/sync-pr-body.sh
+  scripts/ff-body.sh
   scripts/sync-dispatcher.sh
   scripts/init-submodules.sh
   scripts/measure-clone.sh

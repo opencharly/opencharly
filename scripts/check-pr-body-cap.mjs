@@ -5,7 +5,7 @@
 // Why it exists (opencharly/opencharly#720). `scripts/lib/pr-body-cap` is the ONE
 // cap, read by TWO readers: the reconciler `scripts/check-pr-body-diff.mjs` (the
 // gate the pre-push hook runs on every body) and the builder
-// `scripts/sync-pr-body.sh` (the sync PR's own guard). The cap file stated the
+// `scripts/ff-body.sh` (the wave PR's own guard). The cap file stated the
 // rule in PROSE — "the readers take the first line that is neither blank nor a
 // comment" — and only ONE of the two readers implemented it. The bash reader took
 // the first content line; the JS reader stripped the comments and whitespace from
@@ -48,7 +48,7 @@ const root = rootIdx === -1 ? resolve(here, "..") : resolve(argv[rootIdx + 1]);
 
 const CAP_REL = join("scripts", "lib", "pr-body-cap");
 const JS_READER_REL = join("scripts", "check-pr-body-diff.mjs");
-const BASH_READER_REL = join("scripts", "sync-pr-body.sh");
+const BASH_READER_REL = join("scripts", "ff-body.sh");
 const SELF_REL = "scripts/check-pr-body-cap.mjs";
 
 /**

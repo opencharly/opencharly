@@ -33,19 +33,19 @@
 # largest section. It is emitted in the COMPACT format above (≈50 bytes/row, vs ≈115
 # for the retired `staged-gitlink=… remote-HEAD=… [kind, eq]` row) so the FULL table —
 # every changed path, no elision — fits the body with headroom at fleet scale. The
-# fleet scale is the LIVE one: `sync-pr-body.sh`'s self-test builds its synthetic moved
+# fleet scale is the LIVE one: `ff-body.sh`'s self-test builds its synthetic moved
 # set from the umbrella's own `.gitmodules`, so the bound is re-proved on every run at
 # the real submodule count instead of by a figure recorded once — and it fails loud when
-# the count outgrows the budget. SYNC_EVIDENCE_MAX_BYTES (default 50000) is now a FALLBACK
+# the count outgrows the budget. FF_EVIDENCE_MAX_BYTES (default 50000) is now a FALLBACK
 # guard only: it does not fire at fleet scale, and if a far larger ff ever
 # tripped it the elision notice names shown/total AND the evidence file holding the
-# rest. The BODY always carries the complete table; SYNC_EVIDENCE_OUT additionally
+# rest. The BODY always carries the complete table; FF_EVIDENCE_OUT additionally
 # writes a copy to a caller-named file. Neither is a CI run artifact — the ff is
 # hand-run (`charly task ff` + a PR), so no workflow run exists to attach one to.
 # The body never POINTS at a file as the home of the evidence — a pointer is a
 # promise, not pasted output, which is exactly what the validator BLOCKed.
 
-SYNC_EVIDENCE_MAX_BYTES="${SYNC_EVIDENCE_MAX_BYTES:-50000}"
+FF_EVIDENCE_MAX_BYTES="${FF_EVIDENCE_MAX_BYTES:-50000}"
 
 set -euo pipefail
 
@@ -192,7 +192,7 @@ is_gitlink_path() {
 # TWO WINDOWS, and the base covers the second. Generating the body STAGED-but-uncommitted
 # makes HEAD the pre-change tree, and `head_entry` answers. Generating it for an ALREADY
 # PUSHED branch (every review round re-renders the WHOLE branch diff) leaves the deletion
-# in BOTH the index and HEAD, and only the BASE — `SYNC_BASE`, default `origin/main`, the
+# in BOTH the index and HEAD, and only the BASE — `FF_BASE`, default `origin/main`, the
 # tree the branch left — still records the path. Without that half a committed deletion
 # rendered as a `(file)` row with NO blob and was counted as a moved file (measured on
 # opencharly/opencharly#1252 round 1: `.dsh/skills/immich-ml  (file)`, counted among
@@ -203,12 +203,12 @@ is_removed_path() {
     && { [ -n "$(head_entry "$root" "$p")" ] || [ -n "$(base_entry "$root" "$p")" ]; }
 }
 
-# base_entry <root> <path> — the BASE tree's recorded entry for <path> (`SYNC_BASE`,
+# base_entry <root> <path> — the BASE tree's recorded entry for <path> (`FF_BASE`,
 # default `origin/main`), or empty. It is what lets `is_removed_path` see a deletion the
 # branch has ALREADY COMMITTED; a base that does not resolve leaves it empty rather than
 # failing, so a fixture repo with no `origin/main` still runs.
 base_entry() {
-  local root="$1" p="$2" base="${SYNC_BASE:-origin/main}"
+  local root="$1" p="$2" base="${FF_BASE:-origin/main}"
   unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES
   git -C "$root" rev-parse --verify -q "${base}^{commit}" >/dev/null 2>&1 || return 0
   git -C "$root" ls-tree "$base" -- ":(literal)$p" 2>/dev/null | awk 'NR==1{print $1" "$3}'
@@ -258,11 +258,11 @@ coverage_note() {
 # (one per line, each already rendered) from stdin and print them until adding the next
 # would exceed <budget_bytes>, always emitting AT LEAST the first row. When truncation
 # occurs, print a final elision line naming shown/total AND where the full table lives —
-# the caller's evidence file (SYNC_EVIDENCE_OUT), NEVER a CI run artifact: the ff is
+# the caller's evidence file (FF_EVIDENCE_OUT), NEVER a CI run artifact: the ff is
 # hand-run, so no workflow run exists to attach one to. ONE implementation the live path
 # and the self-test both call — this is the 65536-char body-cap guard.
 bounded_rows() {
-  local budget="$1" total="$2" where="${3:-the full evidence file (SYNC_EVIDENCE_OUT)}" bytes=0 rows=0 truncated=0 line bytes_line
+  local budget="$1" total="$2" where="${3:-the full evidence file (FF_EVIDENCE_OUT)}" bytes=0 rows=0 truncated=0 line bytes_line
   while IFS= read -r line; do
     bytes_line=$(( ${#line} + 1 ))
     if [ "$rows" -gt 0 ] && [ $((bytes + bytes_line)) -gt "$budget" ]; then
@@ -560,9 +560,9 @@ charly.yml" "" || fail "a manifest edit among plain files must still touch an in
     git commit -qm "drop plain3"
   )
   fixture3 >/dev/null
-  SYNC_BASE=HEAD~1 is_removed_path "$t3" plain3 \
+  FF_BASE=HEAD~1 is_removed_path "$t3" plain3 \
     || fail "is_removed_path must be TRUE for a path the BASE records and index+HEAD do not (a committed removal)"
-  SYNC_BASE=HEAD~1 is_removed_path "$t3" absent-path \
+  FF_BASE=HEAD~1 is_removed_path "$t3" absent-path \
     && fail "is_removed_path must be FALSE for a path no window records"
 
   # THE READERS MUST READ THE SAME PATH SET (opencharly/opencharly#740).
@@ -777,21 +777,21 @@ done <<< "$MOVED"
 # The gitlink/file split is published for the body builder (the ONE measurement of what
 # KIND of diff this is), so its Summary count and Change-class line cannot disagree with
 # the table below. Absent (a standalone run) it is simply not written.
-if [ -n "${SYNC_EVIDENCE_TYPE_OUT:-}" ]; then
+if [ -n "${FF_EVIDENCE_TYPE_OUT:-}" ]; then
   printf 'GITLINK_COUNT=%s\nFILE_COUNT=%s\nREMOVED_COUNT=%s\n' \
-    "$GITLINK_COUNT" "$FILE_COUNT" "$REMOVED_COUNT" > "$SYNC_EVIDENCE_TYPE_OUT"
+    "$GITLINK_COUNT" "$FILE_COUNT" "$REMOVED_COUNT" > "$FF_EVIDENCE_TYPE_OUT"
 fi
-bounded_rows "$SYNC_EVIDENCE_MAX_BYTES" "$MOVED_COUNT" "${SYNC_EVIDENCE_OUT:-}" < "$ROWS_FILE"
+bounded_rows "$FF_EVIDENCE_MAX_BYTES" "$MOVED_COUNT" "${FF_EVIDENCE_OUT:-}" < "$ROWS_FILE"
 echo '```'
 # When the caller asks, persist the FULL rendered table so the elision notice's promise
 # ("the remaining N are in the full evidence file") is TRUE — that file gets the rendered
 # rows, not just an unrendered producer log.
-if [ -n "${SYNC_EVIDENCE_OUT:-}" ]; then
+if [ -n "${FF_EVIDENCE_OUT:-}" ]; then
   {
     echo
     echo "== per-pin evidence table (full, all ${MOVED_COUNT} rows) =="
     cat "$ROWS_FILE"
-  } >> "$SYNC_EVIDENCE_OUT"
+  } >> "$FF_EVIDENCE_OUT"
 fi
 echo
 # The pin contract's commit-carried inputs THIS diff touches — named, because a body

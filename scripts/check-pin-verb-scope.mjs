@@ -139,7 +139,7 @@ const NON_CLAIM_MENTIONS = new Map([
     "comments about WHY the ff has no CI run artifact (it is hand-run); the subject is the artifact, not the verb's scope",
   ],
   [
-    "scripts/sync-pr-body.sh",
+    "scripts/ff-body.sh",
     "the PR-body builder: it PASTES the producer's own summary, and the summary is the verb's report — the body carries the scope from the run itself",
   ],
 ]);
