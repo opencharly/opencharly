@@ -20,7 +20,13 @@
 //   * A REFERENCE — `opencode.json`'s `skills.paths` is a single entry naming the corpus root.
 //     A single root entry cannot drift per family at all, so it is verified rather than derived.
 //
-// So this script DERIVES the two enumerations — the farm and Claude's plugin set — and only
+//   * A PIN — `.pi/settings.json` names the corpus as a git PACKAGE (`git:github.com/opencharly/
+//     marketplace@<tag>`), so the harness follows one release of the corpus rather than a directory.
+//     It is DERIVED from the corpus checkout's own tag, through the SAME library the harness-config
+//     gate judges it with (`scripts/lib/corpus-tag.mjs`): the third surface a pin wave moves, and the
+//     one that used to be nobody's job (opencharly/opencharly#1344 — two hand edits in one cutover).
+//
+// So this script DERIVES two enumerations — the farm and Claude's plugin set — and one pin, and only
 // VERIFIES the single-root reference. Nothing here is a count carried by hand: the numbers below are measured
 // on every run. This is what makes the bindings derived rather than maintained, and a derived binding
 // has no parity burden — which is precisely what Part II #5's "no mirrors, no parity gate" is aimed at.
@@ -43,6 +49,7 @@ import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, readlinkSy
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { CLAUDE_CATALOG, CORPUS_ROOT, CORPUS_NEEDS, corpusFamilies, corpusSkipReason } from "./lib/corpus.mjs";
+import { corpusTag } from "./lib/corpus-tag.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const argv = process.argv.slice(2);
@@ -63,11 +70,12 @@ const selfTest = argv.includes("--self-test");
 // farm defect under a check that is not about the farm.
 const onlyIdx = argv.indexOf("--only");
 const only = onlyIdx === -1 ? "all" : argv[onlyIdx + 1];
-if (!["all", "farm", "opencode", "claude"].includes(only)) fail(`--only takes all|farm|opencode|claude, got ${only}`);
+if (!["all", "farm", "opencode", "claude", "pi"].includes(only)) fail(`--only takes all|farm|opencode|claude|pi, got ${only}`);
 
 const FARM = ".dsh/skills";
 const OPENCODE = "opencode.json";
 const CLAUDE = ".claude/settings.json";
+const PI = ".pi/settings.json";
 
 function fail(msg) {
   console.error(`FAIL: ${msg}`);
@@ -233,6 +241,45 @@ function syncOpencode(r) {
   return { present: true, namesRoot: paths.includes(CORPUS_ROOT), paths };
 }
 
+/**
+ * syncPi <root> -> { present, changes, pin, want, skip }
+ *
+ * The marketplace package pin, derived from the corpus tag THIS tree carries. The tag comes from
+ * `corpusTag()` — the library `check-harness-config` also reads — so the derivation and the gate are
+ * one rule with two consumers, never two copies that drift.
+ *
+ * SKIPS VISIBLY when the pin cannot be derived: no `.pi/settings.json` (not a pi tree), no marketplace
+ * package entry, or no corpus checkout (a session worktree carries an EMPTY `marketplace/`, Part II
+ * rule 2). A skip is never a silent pass: every one of those states is named in the output.
+ */
+function syncPi(r, { write }) {
+  const file = join(r, PI);
+  if (!existsSync(file)) return { present: false, changes: false };
+  let doc;
+  try {
+    doc = JSON.parse(readFileSync(file, "utf8"));
+  } catch (e) {
+    fail(`${PI} does not parse: ${e.message}`);
+  }
+  const pkgs = Array.isArray(doc.packages) ? doc.packages : [];
+  const at = pkgs.findIndex((p) => /^git:github\.com\/opencharly\/marketplace@.+$/.test(String(p)));
+  if (at < 0) return { present: true, changes: false, skip: "it names no marketplace package" };
+  const pin = String(pkgs[at]);
+  const { tag, reason } = corpusTag(r);
+  if (tag === "") return { present: true, changes: false, pin, skip: reason };
+  const want = `git:github.com/opencharly/marketplace@${tag}`;
+  const changes = pin !== want;
+  // THE CHECK MUST NOT MUTATE. `--check` is the gate's mode: it reports and exits 1, and a check that
+  // also writes turns "is this tree correct?" into "make this tree correct", which would hide the very
+  // staleness the pin wave is supposed to surface (measured: the first version of this function wrote
+  // on `--check`, so the failing gate repaired the file and the next run was green).
+  if (changes && write) {
+    pkgs[at] = want;
+    writeFileSync(file, JSON.stringify(doc, null, 2) + "\n");
+  }
+  return { present: true, changes, pin, want };
+}
+
 // ---------------------------------------------------------------------- main
 
 function run(r, { write, quiet }) {
@@ -241,6 +288,7 @@ function run(r, { write, quiet }) {
   const wantFarm = only === "all" || only === "farm";
   const wantOpencode = only === "all" || only === "opencode";
   const wantClaude = only === "all" || only === "claude";
+  const wantPi = only === "all" || only === "pi";
 
   // The skill NAMES are only needed to derive the flat farm. Skipped entirely otherwise, so a corpus
   // name collision cannot be reported by a check that is not about the farm.
@@ -279,6 +327,17 @@ function run(r, { write, quiet }) {
       for (const k of claude.extra) parts.push(`    - ${k}`);
       for (const k of claude.disabled) parts.push(`    ~ ${k}`);
     }
+    }
+  }
+  if (wantPi) {
+    const pi = syncPi(r, { write });
+    if (!pi.present) parts.push(`sync-skill-bindings: ${PI}  SKIPPED (not a pi tree: no ${PI})`);
+    else if (pi.skip) parts.push(`sync-skill-bindings: ${PI} marketplace pin  SKIPPED (${pi.skip})`);
+    else {
+      if (pi.changes) stale.push(`${PI} marketplace package pin (${pi.pin} -> ${pi.want})`);
+      parts.push(
+        `sync-skill-bindings: ${PI} marketplace pin  ${pi.changes ? `STALE (${pi.pin} -> ${pi.want})` : "unchanged"}`,
+      );
     }
   }
   if (wantOpencode) {

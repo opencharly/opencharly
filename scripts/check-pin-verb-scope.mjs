@@ -142,6 +142,18 @@ const NON_CLAIM_MENTIONS = new Map([
     "scripts/ff-body.sh",
     "the PR-body builder: it PASTES the producer's own summary, and the summary is the verb's report — the body carries the scope from the run itself",
   ],
+  [
+    "scripts/lib/corpus-tag.mjs",
+    "a comment naming the wave as the CONSUMER of this reading: the subject is the shared tag reading (one library, two consumers), never the verb's scope",
+  ],
+  [
+    "scripts/check-harness-config.mjs",
+    "a comment naming the wave to say WHY the gate and the derivation must read one library: the subject is the coupling the gate enforces, not the verb's scope (opencharly/opencharly#1344)",
+  ],
+  [
+    "scripts/sync-skill-bindings.selftest.mjs",
+    "the self-test's arm comments, naming the wave as the state the derivation must survive (a stale pin after a wave) — the subject is the arm, not the verb's scope",
+  ],
 ]);
 
 /** The files exempt from the coverage arm, with the reason. */

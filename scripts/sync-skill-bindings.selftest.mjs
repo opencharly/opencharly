@@ -177,6 +177,72 @@ export function runSelfTest() {
     red("opencode: a paths list that does not name the corpus root fails", ["--root", d, "--check"], /must name the corpus root/);
   }
 
+  // ---- the pi package pin: the THIRD surface a pin wave moves -----------------
+  // `charly task ff` advanced the corpus and re-derived two of the three surfaces that name it, so
+  // every wave reddened `check-harness-config` after its own derive step reported success
+  // (opencharly/opencharly#1344). These arms pin the derivation, and the skip that keeps a session
+  // worktree (an EMPTY `marketplace/`) green without pretending the pin was verified.
+  const tagCorpus = (d, tag) => {
+    const g = (args) => spawnSync("git", ["-C", join(d, "marketplace"), ...args], { encoding: "utf8" });
+    g(["init", "-q"]);
+    g(["config", "user.email", "fixture@example.com"]);
+    g(["config", "user.name", "fixture"]);
+    g(["add", "-A"]);
+    g(["commit", "-q", "-m", "fixture"]);
+    g(["tag", tag]);
+    return tag;
+  };
+  const writePi = (d, ref) => {
+    mkdirSync(join(d, ".pi"), { recursive: true });
+    writeFileSync(
+      join(d, ".pi", "settings.json"),
+      JSON.stringify({ packages: [`git:github.com/opencharly/marketplace@${ref}`] }, null, 2) + "\n",
+    );
+  };
+  {
+    const d = newFixture("pi-stale");
+    const tag = tagCorpus(d, "v2026.001.0001");
+    writePi(d, "v1999.001.0001");
+    const before = readFileSync(join(d, ".pi", "settings.json"), "utf8");
+    red(
+      "pi: a package pin that is not the corpus tag this tree carries is stale",
+      ["--root", d, "--check", "--only", "pi"],
+      /\.pi\/settings\.json.*STALE/,
+    );
+    // A CHECK MUST NOT MUTATE: the failed check above must leave the file exactly as it found it.
+    const untouched = readFileSync(join(d, ".pi", "settings.json"), "utf8") === before;
+    results.push({
+      name: "pi: --check reports the stale pin and does NOT write it (a gate does not repair)",
+      ok: untouched,
+      status: untouched ? 0 : 1,
+      first: untouched ? "byte-identical after the failed check" : "the check rewrote the file",
+      note: "the defect the first version of syncPi shipped",
+    });
+    const w = run(["--root", d, "--only", "pi"]);
+    const after = JSON.parse(readFileSync(join(d, ".pi", "settings.json"), "utf8")).packages[0];
+    const again = run(["--root", d, "--check", "--only", "pi"]);
+    results.push({
+      name: "pi: the write moves the pin to the corpus tag, and the next check is clean",
+      ok: w.status === 0 && after === `git:github.com/opencharly/marketplace@${tag}` && again.status === 0,
+      status: w.status,
+      first: after,
+      note: `corpus tag ${tag}`,
+    });
+  }
+  {
+    const d = newFixture("pi-no-checkout");
+    writePi(d, "v2026.001.0001");
+    const r = run(["--root", d, "--check", "--only", "pi"]);
+    const out = `${r.stdout}${r.stderr}`;
+    results.push({
+      name: "pi: a marketplace that is not a checkout SKIPS visibly and writes nothing",
+      ok: r.status === 0 && /SKIPPED \(marketplace\/ is not checked out/.test(out),
+      status: r.status,
+      first: out.split("\n").find((l) => /SKIPPED/.test(l)) ?? out.split("\n")[0],
+      note: "a session worktree's empty corpus — a skip, never a silent pass",
+    });
+  }
+
   // ---- the corpus-absent case: a clean, VISIBLE SKIP, never a crash ----------
   // The verdict here moved from FAIL (exit 1) to SKIP (exit 0) when the guard learned the difference
   // between a missing corpus and an empty one: the harness-config gate SKIPS on a tree without the
