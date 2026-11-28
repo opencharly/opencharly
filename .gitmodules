@@ -328,11 +328,6 @@
 	url = https://github.com/opencharly/layer-java-openjdk.git
 	branch = main
 
-[submodule "layer-jupyter-mcp"]
-	path = layer-jupyter-mcp
-	url = https://github.com/opencharly/layer-jupyter-mcp.git
-	branch = main
-
 [submodule "layer-k3s"]
 	path = layer-k3s
 	url = https://github.com/opencharly/layer-k3s.git
@@ -396,21 +391,6 @@
 [submodule "layer-nano-pdf"]
 	path = layer-nano-pdf
 	url = https://github.com/opencharly/layer-nano-pdf.git
-	branch = main
-
-[submodule "layer-notebook-graph"]
-	path = layer-notebook-graph
-	url = https://github.com/opencharly/layer-notebook-graph.git
-	branch = main
-
-[submodule "layer-notebook-llm-on-supercomputers"]
-	path = layer-notebook-llm-on-supercomputers
-	url = https://github.com/opencharly/layer-notebook-llm-on-supercomputers.git
-	branch = main
-
-[submodule "layer-notebook-templates"]
-	path = layer-notebook-templates
-	url = https://github.com/opencharly/layer-notebook-templates.git
 	branch = main
 
 [submodule "layer-nvenc-headers"]
@@ -568,11 +548,6 @@
 	url = https://github.com/opencharly/layer-typst.git
 	branch = main
 
-[submodule "layer-unsloth"]
-	path = layer-unsloth
-	url = https://github.com/opencharly/layer-unsloth.git
-	branch = main
-
 [submodule "layer-uv"]
 	path = layer-uv
 	url = https://github.com/opencharly/layer-uv.git
@@ -676,10 +651,6 @@
 	path = pod-immich
 	url = https://github.com/opencharly/pod-immich.git
 	branch = main
-[submodule "pod-jupyter"]
-	path = pod-jupyter
-	url = https://github.com/opencharly/pod-jupyter.git
-	branch = main
 [submodule "vm-k3s-agent"]
 	path = vm-k3s-agent
 	url = https://github.com/opencharly/vm-k3s-agent.git
@@ -720,10 +691,6 @@
 	path = pod-hermes
 	url = https://github.com/opencharly/pod-hermes.git
 	branch = main
-[submodule "layer-notebook-finetuning"]
-	path = layer-notebook-finetuning
-	url = https://github.com/opencharly/layer-notebook-finetuning.git
-	branch = main
 [submodule "pod-openwebui"]
 	path = pod-openwebui
 	url = https://github.com/opencharly/pod-openwebui.git
@@ -744,10 +711,6 @@
 	path = layer-hermes-playwright
 	url = https://github.com/opencharly/layer-hermes-playwright.git
 	branch = main
-[submodule "layer-notebook-ollama"]
-	path = layer-notebook-ollama
-	url = https://github.com/opencharly/layer-notebook-ollama.git
-	branch = main
 [submodule "pod-github-runner"]
 	path = pod-github-runner
 	url = https://github.com/opencharly/pod-github-runner.git
@@ -755,10 +718,6 @@
 [submodule "pod-nested-podman-socket"]
 	path = pod-nested-podman-socket
 	url = https://github.com/opencharly/pod-nested-podman-socket.git
-	branch = main
-[submodule "layer-notebook-openrouter"]
-	path = layer-notebook-openrouter
-	url = https://github.com/opencharly/layer-notebook-openrouter.git
 	branch = main
 [submodule "plugin-addr"]
 	path = plugin-addr
