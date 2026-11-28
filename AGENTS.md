@@ -23,8 +23,8 @@ specific to that repo (`charly/AGENTS.md`: the charly core); it never replaces t
 History belongs only in `CHANGELOG/`.
 
 **The order of every change:** load the skills (R0) → RCA what you found (R1) → spike every
-candidate solution (R12) → write the schema first if a shape changes (SDD) → implement the
-winning candidate → prove it (R7, ADE, R10) → land it.
+candidate solution (R12) → check the winning plan against DESIGN (R11) → write the schema first
+if a shape changes (SDD) → implement the winning candidate → prove it (R7, ADE, R10) → land it.
 
 ## You are charly
 
@@ -111,21 +111,34 @@ the violation and rerun the gate, or stop and ask the operator. *Detail:*
   a runtime change also needs a fresh rebuild and a live check bed run (`charly check run`) on
   every affected `disposable: true` target. **Done when:** that gate passed with zero
   warnings. No change class is exempt. *Detail:* `/charly-check:check`.
-- **R11 — Conform to DESIGN (the ratchet).** **When:** before adding or reshaping a field,
-  shape, kind, verb, capability or mechanism. **Do:** read the DESIGN row that governs it and
-  conform; a change that needs DESIGN to say otherwise amends DESIGN first, with the
-  design-check output and an operator sign-off. **Done when:** the body names every D-id the
-  change touches, and nothing moved further from DESIGN (untouched non-conforming code is
-  filed design debt). Every host path resolves through `spec/storeroot` (D-STORE-1,
-  D-STORE-11, D-STORE-12). *Detail:* `/charly-internals:design`, `/charly-internals:xdg`.
+- **R11 — Conform to DESIGN (the ratchet).** **When:** twice — over the PLAN once R12's round has
+  named its winning candidate and before the first implementation edit, then over the DIFF before
+  the push. **Do:** at the first pass, map every planned change (each field, shape, kind, verb,
+  capability, mechanism, dependency or config key, and emitted artifact) to the `DESIGN.md` /
+  `DESIGN.cue` / `design/` requirement that governs it, and show that it CONFORMS. R11 is
+  conformance: a planned change the design does not permit is redesigned until it does. The design
+  is never edited to fit an implementation, and an implementation cutover carries no design
+  change. A planned change no requirement governs is a row of an existing mechanism (§1.1,
+  M1–M8) or the change is redesigned — never an exception. When the plan genuinely cannot
+  conform, STOP: a deviation is the operator's decision and its amendment is its own cutover
+  (DESIGN header, A.6), so it is put to the operator, never declared by the change. **Any change
+  to `DESIGN.md`, `DESIGN.cue` or `design/` requires a maintainer sign-off** — a PR comment from a
+  maintainer-set account, never an agent's own — together with the design-check output on the
+  final tree; that gate binds every design change, whoever opens the PR. At the second pass, read
+  that same map back against the diff. **Done when:** the body carries the map, every surface the
+  diff touches has a row, nothing moved further from DESIGN, and untouched non-conforming code is
+  filed design debt. Every host path resolves through `spec/storeroot` (D-STORE-1, D-STORE-11,
+  D-STORE-12). *Detail:* `/charly-internals:design` ("The plan conformance pass", "When the plan
+  does not conform"), `/charly-internals:xdg`.
 - **R12 — Spike every candidate solution before implementing.** **When:** an RCA has named
   the cause and you are about to implement a fix or a solution. **Do:** list every plausible
   solution for that cause and spike each one, on a `disposable: true` target or against the
   real generator or artifact. Implement only a candidate that works: its success is the proof
-  the RCA was right. If none works, the RCA is wrong — redo it. **Done when:** the round is
-  pasted as `### Spike` under `## How tested`, or the body names the exemption that applies.
-  A spike never ships and never replaces R10. *Detail:* `/charly-internals:strict-policy`
-  ("Spike-first").
+  the RCA was right. If none works, the RCA is wrong — redo it. The winner is not implemented
+  until R11's plan conformance pass has cleared it: a spike decides the mechanism, never its
+  conformance. **Done when:** the round is pasted as `### Spike` under `## How tested`, or the
+  body names the exemption that applies. A spike never ships and never replaces R10. *Detail:*
+  `/charly-internals:strict-policy` ("Spike-first").
 
 ## What the validator checks
 
@@ -154,7 +167,7 @@ committed rulebook (`action-review/charly.yml`) and the live `AI_REVIEW_PROMPT` 
 | R8 | Live services run live or skip visibly, never mocked. | R8 | `/charly-internals:strict-policy` |
 | R9 | The binary was rebuilt, `charly version` matches the source, and new runtime OS dependencies are in `packaging:`. | R9 | `charly/AGENTS.md` |
 | R10 | `disposable: true` targets only, a fresh rebuild, zero warnings, and a coherent bed summary. | R10 | `/charly-check:check` |
-| R11 | The change conforms to the DESIGN requirements it touches and names their D-ids; a DESIGN amendment carries the design-check output and a maintainer sign-off. | R11 | `/charly-internals:design` |
+| R11 | The plan was mapped to the DESIGN requirements it touches after the spike and before the first implementation edit, and the body carries that map (`### Plan conformance`, one row per planned change, its D-id(s), shown to CONFORM) covering every surface the diff touches. A design is never edited to fit an implementation: a design-change cutover is the operator's own, carries the design-check output and a maintainer sign-off, and is not a disposition of an implementation plan. | R11 | `/charly-internals:design` |
 | R12 | A change that fixes or implements behavior carries a `### Spike` round: every plausible candidate spiked with pasted output, and the working winner is what the diff implements. Or the body names a closed-set exemption. | R12 | `/charly-internals:strict-policy` ("Spike-first") |
 | HC | One cutover per PR: one squash on `main`, one appended commit per round, no deferred work left inside its scope. | [Hard Cutover](#hard-cutover-by-default) | `/charly-internals:cutover-policy` |
 | PIL | RDD, ADE and SDD: the R12 round (plus a bed for a high-risk assumption), the candy `plan:`, CUE-first. | RDD, ADE, SDD | `/charly-internals:strict-policy`, `/charly-check:check`, `/charly-internals:go` |
@@ -178,9 +191,10 @@ the generated table has no row for. *Detail:* `/charly-internals:skills`,
 |---|---|
 | Git/`gh` workflow — `feat/` branch, commit, PR-only landing (no direct push to `main`), the `pr-validator` gate, native auto-merge + tag-on-merge CalVer, worktrees, sync-to-upstream, branch/worktree prune (`charly task prune`), cross-repo R10 landing / claim-or-track an issue / coordination comments (`CLAIM`…`RESOLVED`) / the session footer / triaging or backfilling issue labels | `/charly-internals:git-workflow` |
 | Filing an issue (its RCA, its `category:`+`type:`, blocking or non-blocking) | `/charly-internals:root-cause-analyzer`, `/charly-internals:strict-policy`, `/charly-internals:git-workflow` |
-| An RCA has named a cause and a fix or solution is about to be implemented / a spike round / an R12 exemption / RDD | `/charly-internals:strict-policy`, `/charly-internals:root-cause-analyzer` |
+| An RCA has named a cause and a fix or solution is about to be implemented / a spike round / an R12 exemption / RDD | `/charly-internals:strict-policy`, `/charly-internals:root-cause-analyzer`, `/charly-internals:design` |
 | Pinning / gitlink policy / the pin contract — a pin's INTENT (leaf vs edge) and whether the umbrella is CURRENT / `charly task sync` / `charly task verify` | `/charly-internals:git-workflow` |
 | Adding or reshaping a field / shape / kind / verb / capability / mechanism / editing `DESIGN.md`, `DESIGN.cue` or `design/` / citing a `D-<AREA>-<n>` id / `charly task design-check` (R11) | `/charly-internals:design` |
+| A spike round has named its winning candidate and the first implementation edit has not happened — the R11 plan conformance pass | `/charly-internals:design` |
 | New repo in the org / org ruleset / dotgithub config + workflows | `/charly-internals:repo-setup` |
 | Engineering-discipline triggers (failure surfaced / duplicate pattern / ad-hoc fix tempting / "out of scope" framing) | `/charly-internals:strict-policy` |
 | R1 — any unexpected failure, error, warning, anomaly, or doc-vs-reality divergence, before any remediation | `/charly-internals:root-cause-analyzer` |
@@ -264,8 +278,9 @@ when:** a wrong disposable candybox was rebuilt from the clean recipe, never pat
 whenever a plan rests on a high-risk assumption. **Do:** run the R12 spike round; prove a
 high-risk assumption (a composition at its latest versions, a new mechanism) on a live
 `disposable: true` target, never from docs or source reading. **Done when:** the winning
-candidate is the one implemented. A discovery that changes the contract needs operator
-direction. *Detail:* `/charly-internals:strict-policy` ("Spike-first").
+candidate is the one implemented, and it cleared R11's plan conformance pass before the first
+implementation edit. A discovery that changes the contract needs operator direction. *Detail:*
+`/charly-internals:strict-policy` ("Spike-first").
 
 ## Agent Driven Evaluation (ADE)
 
@@ -492,9 +507,11 @@ Before declaring completion, answer every applicable item YES.
   artifact under test, and live services ran live or skipped visibly.
 - **R9–R10:** the exact final-tree change-class gate passed with zero warnings, on a fresh
   worktree-local build.
-- **R11:** every DESIGN requirement the change touches is cited and conformed to, amended
-  first with sign-off, or filed as design debt; host paths resolve through the one XDG resolver
-  (D-STORE-1, D-STORE-11, D-STORE-12).
+- **R11:** every DESIGN requirement the change touches is cited and CONFORMED to, or filed as
+  design debt; the plan was mapped against DESIGN after the spike and before the first
+  implementation edit, and that map is in the body; no design was edited to fit the
+  implementation; host paths resolve through the one XDG resolver (D-STORE-1, D-STORE-11,
+  D-STORE-12).
 - **R12:** every plausible candidate solution was spiked before implementing, the diff
   implements the working winner, and the round is pasted — or the body names its exemption.
 - **Pillars:** RDD proved every high-risk assumption on a live target, every changed candy's
