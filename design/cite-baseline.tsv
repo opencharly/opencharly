@@ -48,9 +48,9 @@ command:alias	plugin-alias/candy/plugin-alias/alias.go	213-218	AliasCmd	a7b88dcd
 command:cache	plugin-cache/candy/plugin-cache/plugin.go	101-108	CacheCmd	cb7759b02fea03d2
 command:candy	plugin-candy/candy/plugin-candy/params.go	40-47	paramsUsage	bc7bee9cdd4451c5
 command:clean	plugin-clean/candy/plugin-clean/charly.yml	6-9	-	d03834f47e9b76de
-command:config	plugin-pod/candy/plugin-pod/pod_cmd.go	471-485	Run	1f3f4826ed87c419
+command:config	plugin-pod/candy/plugin-pod/pod_cmd.go	496-520	Run	8d79d0a7f6d8064a
 command:containerd	plugin-nerdctl/candy/plugin-containerd/charly.yml	43-47	-	a91feb5e0950136f
-command:cp	plugin-pod/candy/plugin-pod/pod_cmd.go	412-420	CpCmd	e9e1fb4fa1039965
+command:cp	plugin-pod/candy/plugin-pod/pod_cmd.go	715-720	Run	b25960ecfdb334b3
 command:deploy	plugin-fleet/candy/plugin-fleet/deploy_cmd.go	28-38	DeployCmd	7ba64c193df1fe85
 command:docs	plugin-docs/candy/plugin-docs/command.go	14-14	docsCLI	ab027eafd5be402f
 command:generate-packages	plugin-generate-packages/candy/generate-packages/cli.go	18-32	cli	99a285f4f02ce4b6
@@ -58,7 +58,7 @@ command:gh	plugin-gh/candy/plugin-gh/cli.go	34-34	CliMain	669c46569ad203c7
 command:pipeline	plugin-pipeline/candy/plugin-pipeline/cli.go	20-26	-	913e238ae782131f
 command:preempt	plugin-preempt/candy/plugin-preempt/command.go	24-33	runPreemptCLI	b2a7ae8bc09a277c
 command:registry	charly-registry/candy/plugin-registry/charly.yml	30-32	-	a3a6333b4652f51a
-command:restart	plugin-pod/candy/plugin-pod/pod_cmd.go	119-119	-	c5ac749e4ceea62a
+command:restart	plugin-pod/candy/plugin-pod/pod_cmd.go	138-138	Run	d7edf0ecaa761b50
 command:secrets	plugin-secrets/candy/plugin-secrets/command.go	116-127	Run	ef31a3b697310449
 command:ssh	plugin-ssh/candy/plugin-ssh/tunnel.go	27-41	SshTunnelCmd	44462a4022d4c1b2
 command:strata	plugin-strata/candy/plugin-strata/charly.yml	33-34	-	6b82fed826233983
