@@ -49,7 +49,7 @@ its change class, and by an independent fresh `charly/pr-validator` after the pu
 
 ## This repo: one clone of the whole org
 
-`opencharly/opencharly` is the org-level **umbrella**: every OpenCharly repo (328 today) is pinned
+`opencharly/opencharly` is the org-level **umbrella**: every OpenCharly repo (319 today) is pinned
 here as a git submodule — a "gitlink" — flat at the root, so the submodule path equals the repo
 name for all but one alias: `.github` is pinned at the `dotgithub/` path.
 
@@ -207,9 +207,9 @@ rule, and the class prefix in the repo name states it. The rule itself is stated
 | core and contract | bare names | 6 | the product, the wire/IR contract, the SDK, the generated corpus, the site |
 | distro image families | `distro-` | 5 | a distro's base and builder, its OS-exclusive layers, its VMs and beds |
 | package repositories | `charly-`, `pkg-` | 10 | the published native package repos, the packaging sources they are built from, and the plugin that generates them |
-| candy layers | `layer-` | 130 | ONE candy with its own files beside it — and for a family, its box, VM and beds |
+| candy layers | `layer-` | 122 | ONE candy with its own files beside it — and for a family, its box, VM and beds |
 | plugins | `plugin-` | 116 | the provider candy: the words charly speaks — kinds, deploys, verbs, steps, builders, commands, engines |
-| pods | `pod-` | 41 | a candy with a `service:`, i.e. something that runs |
+| pods | `pod-` | 40 | a candy with a `service:`, i.e. something that runs |
 | virtual machines | `vm-` | 2 | `kind: vm` definitions for a family that has no image repo |
 | product and tooling | bare or product-specific | 12 | appliances, the org's review action, vendored upstream forks |
 
@@ -230,7 +230,7 @@ are grouped by theme instead, so the heading answers "what is this group for?" a
 a scannable index. Their themes:
 
 - **candy layers** — the OS and bootstrapping candies, kubernetes, language runtimes, GPU/ML,
-  notebooks, AI agents, dev tooling, productivity CLIs, security and connectivity,
+  AI agents, dev tooling, productivity CLIs, security and connectivity,
   desktops and terminals, desktop fixings, charly itself, the check/fixture layers, and the
   documentation site's toolchain with the remote-execution client;
 - **plugins** — boxes and authoring, deploy targets and substrates, check and control verbs,
@@ -364,7 +364,7 @@ merge mints a CalVer tag plus `CHANGELOG/<CalVer>.md`. Upstream sync runs throug
 
 ### Candy layers: GPU and ML runtimes
 
-12 repos — CUDA/ROCm, the GPU base layers and the inference stacks that ride them.
+11 repos — CUDA/ROCm, the GPU base layers and the inference stacks that ride them.
 
 | path | repo |
 |---|---|
@@ -378,22 +378,14 @@ merge mints a CalVer tag plus `CHANGELOG/<CalVer>.md`. Upstream sync runs throug
 | `layer-python-ml/` | [opencharly/layer-python-ml](https://github.com/opencharly/layer-python-ml) |
 | `layer-rocm/` | [opencharly/layer-rocm](https://github.com/opencharly/layer-rocm) |
 | `layer-sherpa-onnx/` | [opencharly/layer-sherpa-onnx](https://github.com/opencharly/layer-sherpa-onnx) |
-| `layer-unsloth/` | [opencharly/layer-unsloth](https://github.com/opencharly/layer-unsloth) |
 | `layer-whisper/` | [opencharly/layer-whisper](https://github.com/opencharly/layer-whisper) |
 
-### Candy layers: Notebooks and data
+### Candy layers: Data and vector storage
 
-10 repos — Jupyter notebooks and the vector-search extensions.
+3 repos — the vector-search and embedded database layers.
 
 | path | repo |
 |---|---|
-| `layer-jupyter-mcp/` | [opencharly/layer-jupyter-mcp](https://github.com/opencharly/layer-jupyter-mcp) |
-| `layer-notebook-finetuning/` | [opencharly/layer-notebook-finetuning](https://github.com/opencharly/layer-notebook-finetuning) |
-| `layer-notebook-graph/` | [opencharly/layer-notebook-graph](https://github.com/opencharly/layer-notebook-graph) |
-| `layer-notebook-llm-on-supercomputers/` | [opencharly/layer-notebook-llm-on-supercomputers](https://github.com/opencharly/layer-notebook-llm-on-supercomputers) |
-| `layer-notebook-ollama/` | [opencharly/layer-notebook-ollama](https://github.com/opencharly/layer-notebook-ollama) |
-| `layer-notebook-openrouter/` | [opencharly/layer-notebook-openrouter](https://github.com/opencharly/layer-notebook-openrouter) |
-| `layer-notebook-templates/` | [opencharly/layer-notebook-templates](https://github.com/opencharly/layer-notebook-templates) |
 | `layer-qdrant/` | [opencharly/layer-qdrant](https://github.com/opencharly/layer-qdrant) |
 | `layer-sqlite/` | [opencharly/layer-sqlite](https://github.com/opencharly/layer-sqlite) |
 | `layer-vectorchord/` | [opencharly/layer-vectorchord](https://github.com/opencharly/layer-vectorchord) |
@@ -747,7 +739,7 @@ merge mints a CalVer tag plus `CHANGELOG/<CalVer>.md`. Upstream sync runs throug
 
 ### Pods: AI and ML services
 
-13 repos — the CDI GPU pod base box, inference servers, notebook servers, the photo library with its ML backend, the model trainers, and the agent front-ends that talk to them.
+12 repos — the CDI GPU pod base box, inference servers, the photo library with its ML backend, the model trainers, and the agent front-ends that talk to them.
 
 | path | repo |
 |---|---|
@@ -757,7 +749,6 @@ merge mints a CalVer tag plus `CHANGELOG/<CalVer>.md`. Upstream sync runs throug
 | `pod-hermes/` | [opencharly/pod-hermes](https://github.com/opencharly/pod-hermes) |
 | `pod-hermes-full/` | [opencharly/pod-hermes-full](https://github.com/opencharly/pod-hermes-full) |
 | `pod-immich/` | [opencharly/pod-immich](https://github.com/opencharly/pod-immich) |
-| `pod-jupyter/` | [opencharly/pod-jupyter](https://github.com/opencharly/pod-jupyter) |
 | `pod-ollama/` | [opencharly/pod-ollama](https://github.com/opencharly/pod-ollama) |
 | `pod-openwebui/` | [opencharly/pod-openwebui](https://github.com/opencharly/pod-openwebui) |
 | `pod-qdrant/` | [opencharly/pod-qdrant](https://github.com/opencharly/pod-qdrant) |

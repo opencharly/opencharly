@@ -464,7 +464,7 @@ The playbook:
    partition by token: each exclusive-token set runs as its own serial
    group (one bed at a time), while different token groups and the
    no-token pool run in parallel. On this repo: `nvidia-gpu` =
-   {`check-cachyos-{comfyui,unsloth-studio,immich,jupyter-ml}-pod`} — all
+   {`check-cachyos-{comfyui,immich}-pod`} — all
    serial among themselves (a shared nvidia+CDI claim cannot overlap
    another); `test-lock` = {`check-preempt-arbiter-pod`,
    `check-preempt-live-pod`} — serial (GPU-free, so parallel with the
@@ -565,7 +565,7 @@ The playbook:
    Teammates never commit, push, or merge.
 
 Worked partition (illustrative): A → `{check-pod, check-local-vm}`, B →
-`{check-jupyter-pod, check-cachyos-ollama-pod}`, C → `{check-k3s-vm}` (VM,
+`{check-openwebui-qdrant-pod, check-cachyos-ollama-pod}`, C → `{check-k3s-vm}` (VM,
 needs the libvirt user session), D → `{check-cachyos-vm}` (heavy). All
 concurrent → multiple pods and a VM live at once; wall-clock is roughly the
 slowest chain, not the sum.
