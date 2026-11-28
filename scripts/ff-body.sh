@@ -201,7 +201,6 @@ build_body() {
   # commits behind, and the org validator read the contradiction as a regression). Counting here, from
   # the same text, is what makes the prose and the table mechanically incapable of disagreeing
   # (opencharly/opencharly#1353).
-  RACE_COUNT=0
   RACE_COUNT=$(printf '%s\n' "$evidence_body" | grep -cE '(^|[[:space:]])!$' || true)
 
   {
