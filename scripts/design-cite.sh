@@ -424,6 +424,49 @@ declares_construct() {
 	return 2
 }
 
+# judge_construct <file> <cited-path> <subject> <ledger> <cap> <where> <out>
+#
+# ONE implementation for BOTH call sites (R2). A construct citation arrives from two loops — one judging
+# a citation into a pinned module, one judging a citation into this repository's own tree — and the two
+# copies differed only in WHICH file they read and HOW they said so: exactly the pair of divergences that
+# let the same citation get two verdicts depending on the loop that reached it (opencharly/opencharly#1356
+# block 2). The caller supplies the file it resolved and the phrase that names it, so there is ONE
+# predicate, ONE message shape, and no second copy to drift.
+#
+# `<file>` is the PINNED content when the citation names a pin (`file_at` writes it), and this tree's own
+# file when it does not — the split the LINE arm documents, for the same reason: a pinned artifact can
+# drift under a third party's commit, a file of this repository cannot.
+judge_construct() {
+	local file="$1" cited="$2" subject="$3" ledger_name="$4" cap="$5" where="$6" out="$7"
+	local rc=0
+	case "$cited" in
+	*.md)
+		# A DOCUMENT REFERENCE, not a citation: `DESIGN.md:D-CLI-1` and `DESIGN.md:§A.13` are how every
+		# ledger row names its requirement. Skipped like any other prose token (an ungated arm turned 241
+		# of them into failures — measured).
+		return 0
+		;;
+	*.cue|*.go) ;;
+	*)
+		printf 'FAIL %s:%s: %s is a %s file and this control has no construct model for that language %s — cite the path alone, or a subject it can judge\n' \
+			"$ledger_name" "$cap" "$cited" "${cited##*.}" "$where" >>"$out"
+		return 0
+		;;
+	esac
+	if [[ "$subject" =~ ^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)?-[0-9] ]]; then
+		printf 'FAIL %s:%s: %s:%s is a CONSTRUCT and a LINE RANGE at once — cite one subject (%s:%s, or %s:%s)\n' \
+			"$ledger_name" "$cap" "$cited" "$subject" "$cited" "${subject%-*}" "$cited" "${subject##*-}" >>"$out"
+		return 0
+	fi
+	declares_construct "$file" "$cited" "$subject" || rc=$?
+	if [[ "$rc" != 0 ]]; then
+		printf 'FAIL %s:%s: %s does not declare %s %s\n' "$ledger_name" "$cap" "$cited" "$subject" "$where" >>"$out"
+	elif [[ "$VERBOSE" == 1 ]]; then
+		printf '  ok   %s:%s  %s declares %s\n' "$ledger_name" "$cap" "$cited" "$subject"
+	fi
+	return 0
+}
+
 # ── the judgement ───────────────────────────────────────────────────────────────────────────
 # judge <root> <out> — write FAIL lines to <out>; returns 0 when clean. Everything it reads comes
 # from <root>, so the self-test judges its own isolated fixture and not the repository's files.
@@ -507,25 +550,7 @@ judge() {
 			fi
 			[[ -n "$subject" && "$subject" != "#"* ]] || continue
 			if [[ "$subject" =~ ^[A-Za-z_] ]]; then
-				case "$path" in
-				*.md) continue ;;
-				*.cue|*.go) ;;
-				*)
-					printf 'FAIL %s:%s: %s is a %s file and this control has no construct model for that language — cite the path alone, or a subject it can judge\n' \
-						"$ledger_name" "$cap" "$path" "${path##*.}" >>"$out"
-					continue
-					;;
-				esac
-				if [[ "$subject" =~ ^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)?-[0-9] ]]; then
-					printf 'FAIL %s:%s: %s:%s is a CONSTRUCT and a LINE RANGE at once — cite one subject (%s:%s, or %s:%s)\n' \
-						"$ledger_name" "$cap" "$path" "$subject" "$path" "${subject%-*}" "$path" "${subject##*-}" >>"$out"
-					continue
-				fi
-				local drc=0
-				declares_construct "$root/$path" "$path" "$subject" || drc=$?
-				if [[ "$drc" != 0 ]]; then
-					printf 'FAIL %s:%s: %s does not declare %s\n' "$ledger_name" "$cap" "$path" "$subject" >>"$out"
-				fi
+				judge_construct "$root/$path" "$path" "$subject" "$ledger_name" "$cap" "in this tree" "$out"
 				continue
 			fi
 			a="${subject%%-*}"
@@ -598,39 +623,9 @@ judge() {
 
 		local ext=".${path##*.}" total
 		total=$(line_count "$file")
-		# A CONSTRUCT citation (the form without `#`): a bare symbol, or `Receiver.Method` for a Go
-		# method. A hybrid carrying a range names two subjects at once and is refused rather than
-		# silently re-read as the construct (opencharly/opencharly#1349).
-		#
-		# WHICH LANGUAGES, AND WHY `.md` IS NOT ONE. The subject is a construct only in a language this
-		# control models (`.cue`, `.go`). In a document, `path:Word` is a REFERENCE — `DESIGN.md:D-CLI-1`
-		# and `DESIGN.md:§A.13` are how every row names its requirement — so it is skipped like any
-		# other prose token, exactly as it was before this arm existed. Every other extension is a
-		# FAILURE that says the control cannot judge it, which is the loud half of #1349: MEASURED, an
-		# ungated arm turned 241 legitimate `DESIGN.md:D-…` references into failures.
+		# A CONSTRUCT citation (the form without `#`) — ONE helper, both call sites.
 		if [[ "$subject" =~ ^[A-Za-z_] ]]; then
-			case "$path" in
-			*.md) continue ;;
-			*.cue|*.go) ;;
-			*)
-				printf 'FAIL %s:%s: %s is a %s file and this control has no construct model for that language at the pin %s — cite the path alone, or a subject it can judge\n' \
-					"$ledger_name" "$cap" "$path" "${path##*.}" "${PIN_OF[$module]:0:12}" >>"$out"
-				continue
-				;;
-			esac
-			if [[ "$subject" =~ ^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)?-[0-9] ]]; then
-				printf 'FAIL %s:%s: %s:%s is a CONSTRUCT and a LINE RANGE at once — cite one subject (%s:%s, or %s:%s)\n' \
-					"$ledger_name" "$cap" "$path" "$subject" "$path" "${subject%-*}" "$path" "${subject##*-}" >>"$out"
-				continue
-			fi
-			declare_rc=0
-			declares_construct "$file" "$path" "$subject" || declare_rc=$?
-			if [[ "$declare_rc" != 0 ]]; then
-				printf 'FAIL %s:%s: %s does not declare %s at the pin %s\n' \
-					"$ledger_name" "$cap" "$module" "$subject" "${PIN_OF[$module]:0:12}" >>"$out"
-			elif [[ "$VERBOSE" == 1 ]]; then
-				printf '  ok   %s:%s  %s declares %s\n' "$ledger_name" "$cap" "$module" "$subject"
-			fi
+			judge_construct "$file" "$path" "$subject" "$ledger_name" "$cap" "at the pin ${PIN_OF[$module]:0:12}" "$out"
 			continue
 		fi
 		if [[ -z "$key" ]]; then
@@ -1003,6 +998,28 @@ INSIDE2_PY
 	#     references into findings when it was first written — the blast radius this case pins.
 	printf '%s\n' 'DESIGN.md:§A.13' 'DESIGN.md:D-VENUE-1' >>"$work/design/dulling.tsv"
 	green "a document reference is prose, not a citation"
+	write_ledger '1-3' '5-8' ':#FixtureGamma' 'plugin-fixture/candy/plugin-fixture/schema'
+	emit_baseline "$work" >"$work/design/cite-baseline.tsv"
+
+	# 9g. THE LOCAL CONSTRUCT PATH — the other caller of `judge_construct`, and the arm whose ABSENCE
+	#     let the two copies diverge (opencharly/opencharly#1356 block 2: every construct arm above is a
+	#     PINNED citation, so the working-tree path was never exercised). A file of this repository is
+	#     judged in the tree; the same helper must answer both ways, so both are pinned here.
+	printf '#LocalThing: {a?: bool}\n' >"$work/LOCAL.cue"
+	{
+		cat "$work/design/dulling.tsv"
+		printf 'fixture:local-construct\t`fixture:` names a local construct\t—\tx\tsharp\t—\t%s\tnone\n' 'LOCAL.cue:LocalThing'
+	} >"$work/l" && mv "$work/l" "$work/design/dulling.tsv"
+	green "a construct declared in this repository's own file"
+	write_ledger '1-3' '5-8' ':#FixtureGamma' 'plugin-fixture/candy/plugin-fixture/schema'
+	emit_baseline "$work" >"$work/design/cite-baseline.tsv"
+	{
+		cat "$work/design/dulling.tsv"
+		printf 'fixture:local-construct\t`fixture:` names a local construct\t—\tx\tsharp\t—\t%s\tnone\n' 'LOCAL.cue:NoSuchLocalThing'
+	} >"$work/l" && mv "$work/l" "$work/design/dulling.tsv"
+	expect "a construct this repository's own file does not declare" 'does not declare NoSuchLocalThing in this tree'
+	write_ledger '1-3' '5-8' ':#FixtureGamma' 'plugin-fixture/candy/plugin-fixture/schema'
+	emit_baseline "$work" >"$work/design/cite-baseline.tsv"
 	write_ledger '1-3' '5-8' ':#FixtureGamma' 'plugin-fixture/candy/plugin-fixture/schema'
 	emit_baseline "$work" >"$work/design/cite-baseline.tsv"
 
