@@ -5,7 +5,7 @@
 //
 //   - `scripts/check-harness-config.mjs` (check 14) JUDGES `.pi/settings.json`'s marketplace package pin
 //     against it;
-//   - `scripts/sync-skill-bindings.mjs` WRITES that pin from it, because `charly task sync` advances the
+//   - `scripts/sync-skill-bindings.mjs` WRITES that pin from it, because `charly task ff` advances the
 //     corpus and every harness surface that names it must follow in the same run.
 //
 // A second implementation is what let the gate and the derivation disagree: the derivation covered the

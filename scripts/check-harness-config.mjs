@@ -820,7 +820,7 @@ ok(existsSync(join(root, ".dsh/watch.items")), ".dsh/watch.items (the DSH watch 
     ok(false, ".pi/settings.json pins the marketplace skill corpus (a git package on `packages`)");
   } else {
     // The corpus tag THIS tree pins — read by the ONE library the DERIVATION also writes from
-    // (`scripts/lib/corpus-tag.mjs`), so the gate and `charly task sync` cannot disagree
+    // (`scripts/lib/corpus-tag.mjs`), so the gate and `charly task ff` cannot disagree
     // (opencharly/opencharly#1344).
     const { tag, reason } = corpusTag(root);
     if (tag === "") {

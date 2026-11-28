@@ -178,7 +178,7 @@ export function runSelfTest() {
   }
 
   // ---- the pi package pin: the THIRD surface a pin wave moves -----------------
-  // `charly task sync` advanced the corpus and re-derived two of the three surfaces that name it, so
+  // `charly task ff` advanced the corpus and re-derived two of the three surfaces that name it, so
   // every wave reddened `check-harness-config` after its own derive step reported success
   // (opencharly/opencharly#1344). These arms pin the derivation, and the skip that keeps a session
   // worktree (an EMPTY `marketplace/`) green without pretending the pin was verified.
