@@ -181,6 +181,7 @@ node "$ROOT/scripts/check-validator-rule-map.mjs" --no-live
 node "$ROOT/scripts/check-readme-measurements.mjs"
 node "$ROOT/scripts/check-cited-plugin-task-version.mjs"
 python3 "$ROOT/scripts/org-map.py" "$ROOT"
+python3 "$ROOT/scripts/check-brand.py" "$ROOT"
 bash "$ROOT/scripts/check-bed-watch.sh" --self-test
 
 echo "pre-commit: OK"
