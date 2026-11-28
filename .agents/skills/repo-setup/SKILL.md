@@ -171,9 +171,9 @@ purpose. So the order is:
    that reconciler checks. The mechanism and the why are `/charly-internals:git-workflow`
    (its pin-intent-and-currency reference, "A submodule is BORN `unpinned`"); this checklist repeats
    the two commands because a checklist is read on its own, and cites the owner of the rule rather than
-   restating the reasoning. Advance THIS pin with the narrow mechanism, NOT with `charly task sync`:
-   that verb is an ORG-WIDE wave (Part II #3), it advances every pin the umbrella declares, and it
-   holds the worktree's index while it runs.
+   restating the reasoning. Advance THIS pin with the narrow mechanism, NOT with `charly task ff`:
+   that verb is an ORG-WIDE wave (Part II #3), it fast-forwards every pin the umbrella declares onto
+   its branch tip, and it holds the worktree's index while it runs.
 7. **Verify the org issue labels** (this is the whole label contract for a new repo):
 
    a. **`opencharly/.github` owns everything label-related** — the taxonomy
@@ -187,7 +187,7 @@ purpose. So the order is:
       `category:governance`, `category:hygiene`; `type:fix`, `type:feat`, `type:design`,
       `type:spec`, `type:docs`, `type:chore`) exist in every non-archived repo. Verify them:
       `gh label list -R opencharly/<name> --limit 100 | grep -E '^(category|type):'` must show
-      all 12; if the sync has not run, run `gh workflow run label-sync.yml --repo
+      all 12; if the label sync has not run, run `gh workflow run label-sync.yml --repo
       opencharly/.github -f repos=<name>`.
    c. **Do not ship a repository-specific issue template** unless it carries the same four
       required fields as the org form — Category, Type, Remedy / files the remedy will touch,
@@ -226,8 +226,8 @@ purpose. So the order is:
    and a CalVer tag plus `CHANGELOG/<CalVer>.md` on the fork's DEFAULT branch.
 5. **Sync from upstream with `sync-forks.yml`**, never a user-token `gh repo sync`
    (the `workflows` rule blocks a direct push).
-6. **Tag-on-merge means the fork mints CalVer**: a pin at the caller-install commit
-   is `pre-release-process`, above it `changelog-tip` or `tagged` (DESIGN A.12).
+6. **Tag-on-merge means the fork mints CalVer**: a landing on the fork's default branch is
+   tagged by the caller, like every repo. The umbrella no longer asks a pin's relation to a tag.
 
 ## The measured gap this checklist prevents
 

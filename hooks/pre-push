@@ -339,8 +339,8 @@ design_gate_leg() {
     return 0
   fi
   echo "pre-push: BLOCKED — the DESIGN controls above have findings." >&2
-  echo "pre-push: fix EVERY finding and push again. The census in design/dpat-baseline.tsv and" >&2
-  echo "pre-push: design/pintag-baseline.tsv is lowered, never raised, by the change that fixes it." >&2
+  echo "pre-push: fix EVERY finding and push again. The census in design/dpat-baseline.tsv is" >&2
+  echo "pre-push: lowered, never raised, by the change that fixes it." >&2
   return 1
 }
 
@@ -572,7 +572,7 @@ fi
 # the stale copy and `1 finding(s)` from the pinned one. That is how a defect got re-filed
 # 35 minutes after its fix landed (opencharly/opencharly#1176).
 #
-# A PIN IS THE INDEX ENTRY; THE CHECKOUT FOLLOWS IT (DESIGN §A.12, D-PLUG-3). So the
+# A PIN IS THE INDEX ENTRY; THE CHECKOUT FOLLOWS IT. So the
 # comparison is `git ls-files -s -- marketplace` (the gitlink) against
 # `git -C marketplace rev-parse HEAD` (the checkout) — never two checkouts, never a
 # network read. A disagreement is a VISIBLE BLOCK, not a skip: a pass earned by a gate

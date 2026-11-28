@@ -142,7 +142,7 @@ function check() {
   // 7. The change class watches EVERY commit-carried input of the pin check
   //    (opencharly/opencharly#661), and the RULE that says which lives in ONE
   //    place: scripts/pin-contract-inputs.sh. The gate SOURCES it, and the wave
-  //    body's coverage decision (scripts/sync-pin-evidence.sh) sources the same
+  //    body's coverage decision (scripts/ff-evidence.sh) sources the same
   //    file — because both ask the same question, "can this diff violate the pin
   //    check?", and a second copy of that question is how the shipped class came
   //    to be wrong. The verb reads the index's gitlinks, the manifest that

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # design-module-store.sh — WHERE a pinned module's object store is: ONE definition.
 #
-# The two design controls that read a pinned module's own repository — design-dpat.sh (its CUE)
-# and design-pintag.sh (its relation to a release tag) — read it from the object store AT THE
+# The design controls that read a pinned module's own repository — design-dpat.sh (its CUE) and
+# design-cite.sh (its citations) — read it from the object store AT THE
 # PINNED COMMIT, never from the checkout: a checkout can be stale, dirty or absent, and a gate
 # that judged it would be judging a tree nobody ships. Both used to assume the store is
 # `<git-common-dir>/modules/<path>`. That is true of a plain clone and FALSE in the shape
@@ -13,7 +13,7 @@
 # The consequence was a control that failed LOUD on a healthy pin — and it is not hypothetical:
 # measured 2026-11-09, the merged `main` pins `dotgithub` at 3f1ad6cab29c5ba58ad13778e139f4f24da0fd2b,
 # which is absent from `.git/modules/dotgithub` and present in
-# `.git/worktrees/opencharly-gate/modules/dotgithub`, so `design-pintag.sh` reported
+# `.git/worktrees/opencharly-gate/modules/dotgithub`, so the control reported
 # "does not have that commit — the control cannot read the pin it judges". A LOUD refusal is the
 # right shape for an unreadable pin, so the defect is the LOCATION, not the refusal.
 #

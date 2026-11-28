@@ -1,22 +1,22 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# sync-pr-body.sh — build the sync PR's body + the evidence file, so the
+# ff-body.sh — build the wave PR's body + the evidence file, so the
 # body's size cap is enforced by TESTED code, not by an untestable inline workflow
 # block.
 #
-# WHY THIS IS ITS OWN SCRIPT: the sync PR's body was once built inline in the (since
+# WHY THIS IS ITS OWN SCRIPT: the wave PR's body was once built inline in the (since
 # removed) `.github/workflows/sync.yml` as a large `printf`/`echo` block. That block had a
 # real defect: the org-wide ruleset cutover advanced 393 pins in one sync (measured
 # 2026-09-22) — the body exceeded GitHub's body limit, and `gh pr create` failed "Body is
 # too long". Extracting the builder here makes the bounding + the hard guard + the
 # evidence-file assembly exerciseable in-tree (`--self-test`), exactly as
-# `sync-pin-evidence.sh` is.
+# `ff-evidence.sh` is.
 #
-# The sync is now run BY HAND (`charly task sync` + a PR); nothing schedules
-# it. BOTH identity lines are therefore caller-supplied — SYNC_AGENT carries rule 7's
+# The fast-forward is now run BY HAND (`charly task ff` + a PR); nothing schedules
+# it. BOTH identity lines are therefore caller-supplied — FF_AGENT carries rule 7's
 # `Agent:` line (`` `<slug>` · <Harness> session `<session-id>` ``, the text after `Agent: `
-# in the first line `node scripts/gh/cli.ts footer` prints) and SYNC_ASSISTED_BY the `Assisted-by:` footer — so the
+# in the first line `node scripts/gh/cli.ts footer` prints) and FF_ASSISTED_BY the `Assisted-by:` footer — so the
 # run that opens the PR records its own identity, never a canned one. Rule 7 fixes their
 # order: `Agent:` FIRST, `Assisted-by:` LAST, ADJACENT — which is exactly what the body
 # linter asserts (`pr_body_lint.py`'s footer check requires the `Agent:` line to be the line
@@ -28,8 +28,8 @@ set -euo pipefail
 #                                       build the body + evidence from real inputs.
 #   --self-test                         exercise the bounding + guard on fixtures.
 #
-# Bounds (all overridable): PRODUCER_MAX (default 200), SYNC_EVIDENCE_MAX_BYTES
-# (default 50000, passed to sync-pin-evidence.sh for the per-pin table — a fallback
+# Bounds (all overridable): PRODUCER_MAX (default 200), FF_EVIDENCE_MAX_BYTES
+# (default 50000, passed to ff-evidence.sh for the per-pin table — a fallback
 # guard only; the FULL table renders at fleet scale). GITHUB_BODY_MAX overrides the
 # platform cap the hard guard enforces; the cap ITSELF is the ONE number in
 # `scripts/lib/pr-body-cap` — the same file the umbrella's body/diff gate reads
@@ -97,14 +97,14 @@ GITHUB_BODY_MAX="${GITHUB_BODY_MAX:-$PR_BODY_CAP_BYTES}"
 # producer_log_excerpt <max-lines> reads the producer log on stdin and prints at
 # most <max-lines> lines VERBATIM. It deliberately parses NOTHING: the retired
 # scripts/sync-gitlinks.sh emitted `  <path> -> <sha>` per pin and the current
-# `charly task sync` (verb:git-submodules bump) emits a `pinned N pin_map
+# `charly task ff` (verb:git-submodules ff) emits a `pinned N pin_map
 # entr(y|ies) (…; P moved) after rolling R leaf submodule(s) to their
 # default-branch HEAD (RM moved) and advancing A leaf pin(s) in the index
 # (AM moved); T pin(s) moved` summary, but coupling this builder to either
 # incidental format is what broke after the Taskfile→task cutover — the old
 # per-pin-only grep matched nothing against the new shape and the body read
 # "MISSING from producer log — investigate" for every moved pin (measured). The
-# AUTHORITATIVE per-pin proof is the index-derived table sync-pin-evidence.sh
+# AUTHORITATIVE per-pin proof is the index-derived table ff-evidence.sh
 # emits below (`staged-gitlink` vs remote default-branch HEAD); this excerpt is
 # only the producer's own raw output, pasted as-is so no form is silently
 # dropped. The bound is applied HERE (via
@@ -117,7 +117,7 @@ producer_log_excerpt() {
 
 # build_body <root> <moved-file> <producer-log> <pin-check-log> <out-body> <out-evidence>
 # Prints nothing; writes both files. The per-pin table is produced by
-# sync-pin-evidence.sh (bounded for the body, full for the artifact via SYNC_EVIDENCE_OUT).
+# ff-evidence.sh (bounded for the body, full for the artifact via FF_EVIDENCE_OUT).
 build_body() {
   local root="$1" moved_file="$2" producer_log="$3" pin_check_log="$4" out_body="$5" out_evidence="$6"
   local MOVED MOVED_TOTAL GITLINK_COUNT FILE_COUNT REMOVED_COUNT MOVED_DESC CLASS CLASS_DESC evidence_body evidence_full type_file
@@ -132,14 +132,14 @@ build_body() {
 
   # The attribution tier is READ, never re-typed: it comes from the caller's Assisted-by
   # trailer — the ONE place the run states it — so the `## Change classification` tier line
-  # and the footer cannot drift apart. Fail LOUD on an unset SYNC_ASSISTED_BY or a trailer
+  # and the footer cannot drift apart. Fail LOUD on an unset FF_ASSISTED_BY or a trailer
   # with no `(<tier>)`, BEFORE anything is written: the calling run then never gets a
   # complete body to open a PR with, so a manual run cannot ship an anonymous one.
-  local SYNC_TIER
-  SYNC_TIER="$(printf '%s' "${SYNC_ASSISTED_BY:?set SYNC_ASSISTED_BY to the Assisted-by footer for the run opening this PR}" \
+  local FF_TIER
+  FF_TIER="$(printf '%s' "${FF_ASSISTED_BY:?set FF_ASSISTED_BY to the Assisted-by footer for the run opening this PR}" \
     | sed -n 's/.*[[:space:]]*(\([^()]*\))[[:space:]]*$/\1/p')"
-  if [ -z "$SYNC_TIER" ]; then
-    echo "::error::SYNC_ASSISTED_BY carries no '(<confidence tier>)' — the Change classification tier line and the footer must agree; refusing to emit a body" >&2
+  if [ -z "$FF_TIER" ]; then
+    echo "::error::FF_ASSISTED_BY carries no '(<confidence tier>)' — the Change classification tier line and the footer must agree; refusing to emit a body" >&2
     return 1
   fi
 
@@ -149,8 +149,8 @@ build_body() {
   # only the Assisted-by trailer, so every body it rendered was missing the line and the
   # calling run had to add it by hand (measured: opencharly/opencharly#392, and the defect
   # filed as #395). ONE guard, here, before anything is written.
-  if [ -z "${SYNC_AGENT:-}" ]; then
-    echo "::error::SYNC_AGENT is unset — AGENTS.md rule 7 requires the 'Agent:' session line (work slug, harness and session id) on every agent-authored PR body, directly above the Assisted-by trailer; refusing to emit a body without it" >&2
+  if [ -z "${FF_AGENT:-}" ]; then
+    echo "::error::FF_AGENT is unset — AGENTS.md rule 7 requires the 'Agent:' session line (work slug, harness and session id) on every agent-authored PR body, directly above the Assisted-by trailer; refusing to emit a body without it" >&2
     return 1
   fi
 
@@ -169,10 +169,10 @@ build_body() {
   } > "$out_evidence"
 
   # Render the per-pin evidence section's BODY form ONCE, capturing the moved-path split from
-  # the ONE place that classifies each path (sync-pin-evidence.sh, by index mode 160000) — so
+  # the ONE place that classifies each path (ff-evidence.sh, by index mode 160000) — so
   # this builder's Summary count and Change-class line cannot disagree with the table below.
   # The full table is appended to the caller's evidence file by that same run (its
-  # SYNC_EVIDENCE_OUT path); rendering it a SECOND time here (the old shape) would both
+  # FF_EVIDENCE_OUT path); rendering it a SECOND time here (the old shape) would both
   # duplicate the network work and risk the two copies diverging.
   type_file="$(mktemp)"
   # The evidence builder's OWN status is checked HERE, not left to `errexit`: the self-test
@@ -183,8 +183,8 @@ build_body() {
   # it would pass SILENTLY (opencharly/opencharly#679). The live path calls `build_body`
   # with no `||`, so `errexit` is on there; checking the status here keeps the two paths
   # identical and makes every arm's `|| fail` message point at the real cause.
-  if ! evidence_body="$(printf '%s\n' "$MOVED" | SYNC_EVIDENCE_OUT="$out_evidence" SYNC_EVIDENCE_TYPE_OUT="$type_file" \
-    bash "$SCRIPT_DIR/sync-pin-evidence.sh" "$root" "$pin_check_log")"; then
+  if ! evidence_body="$(printf '%s\n' "$MOVED" | FF_EVIDENCE_OUT="$out_evidence" FF_EVIDENCE_TYPE_OUT="$type_file" \
+    bash "$SCRIPT_DIR/ff-evidence.sh" "$root" "$pin_check_log")"; then
     echo "::error::the evidence builder failed — a body that cannot decide must not claim it does not" >&2
     rm -f "$type_file"
     return 1
@@ -238,7 +238,7 @@ build_body() {
     echo
     echo "## How tested"
     echo
-    echo "**The producer that opened this PR**, pasted verbatim from the sync run"
+    echo "**The producer that opened this PR**, pasted verbatim from the wave run"
     echo "(bounded to \`PRODUCER_MAX=${PRODUCER_MAX}\` lines — the producer's own words, never"
     echo "re-parsed against an incidental format). The AUTHORITATIVE per-pin proof is the"
     echo "complete \`staged-gitlink\` vs remote default-branch \`HEAD\` table that follows it."
@@ -247,7 +247,7 @@ build_body() {
     # The producer's own output, pasted verbatim — NEVER re-parsed against an
     # incidental format. Coupling this to a shape is what broke after the
     # Taskfile→task cutover (the old per-pin-only grep matched nothing against the
-    # `charly task sync` summary and the body read "MISSING … investigate" for every
+    # `charly task ff` summary and the body read "MISSING … investigate" for every
     # pin). The producer excerpt is context; the index-derived table is the proof.
     producer_log_excerpt "$PRODUCER_MAX" < "$producer_log" 2>/dev/null
     echo '```'
@@ -282,14 +282,14 @@ build_body() {
     echo "  the final tree, plus the per-pin \`git ls-remote\` default-branch table above (rule 10:"
     echo "  that IS the gate for a diff that touches one of the pin contract's commit-carried"
     echo "  inputs — a gitlink, the manifest \`charly.yml\`, the declared path set \`.gitmodules\`)."
-    echo "- **Attribution tier:** \`${SYNC_TIER}\` — read from this run's \`Assisted-by\` trailer, so"
+    echo "- **Attribution tier:** \`${FF_TIER}\` — read from this run's \`Assisted-by\` trailer, so"
     echo "  this line and the footer cannot disagree."
     echo "- **Breaking change + rollback:** none — a revert restores the previous snapshot."
     echo
     echo "## Rulebook compliance"
     echo
-    echo "- **R0 skills:** the sync is owned by \`/charly-internals:git-workflow\`; this PR is"
-    echo "  produced by \`charly task sync\`, the verb that skill names."
+    echo "- **R0 skills:** the wave is owned by \`/charly-internals:git-workflow\`; this PR is"
+    echo "  produced by \`charly task ff\`, the verb that skill names."
     echo "- **R1 RCA + warnings measured, not asserted:** the producer resolves each pin and"
     echo "  names any repo it cannot resolve rather than guessing. The pasted producer output"
     echo "  carries **${PRODUCER_WARNINGS}** \`WARNING:\` line(s) and **${PRODUCER_FAILED}** failed-step"
@@ -305,7 +305,7 @@ build_body() {
     echo "- **R4 product before prose:** \`N/A — a gitlink sync changes no documentation and routes around no defect.\`"
     echo "- **R5 hard cutover + grep:** the pointers are replaced, not appended to."
     echo "- **R6 git safety:** a fresh branch per run; no force-push; no push to \`main\`."
-    echo "- **R7 runtime gate:** \`charly task verify\` on the final tree — the sync"
+    echo "- **R7 runtime gate:** \`charly task verify\` on the final tree — the wave"
     echo "  is hand-run in a HUMAN tree, where that gate's nested-submodule half is meaningful —"
     echo "  plus the per-pin \`git ls-remote\` default-branch evidence above; \`distro-*\` pins (when"
     echo "  any move) are additionally asserted by the pin contract. No generated artifact or OCI"
@@ -329,16 +329,16 @@ build_body() {
     echo
     echo "## Attribution"
     echo
-    echo "This body is emitted by the tested \`scripts/sync-pr-body.sh\`"
-    echo "from a manual \`charly task sync\` run; its \`--self-test\` runs in the pre-commit"
-    echo "gate. \`SYNC_AGENT\` carries this run's \`Agent:\` line and \`SYNC_ASSISTED_BY\` the"
+    echo "This body is emitted by the tested \`scripts/ff-body.sh\`"
+    echo "from a manual \`charly task ff\` run; its \`--self-test\` runs in the pre-commit"
+    echo "gate. \`FF_AGENT\` carries this run's \`Agent:\` line and \`FF_ASSISTED_BY\` the"
     echo "trailer beneath it: rule 7's one canonical order, \`Agent:\` first, trailer last."
     echo
     # BOTH are validated at the top of build_body — ONE guard each, not two — and the
     # Assisted-by trailer stays the FINAL line, with the Agent line directly above it: that
     # is the footer contract `marketplace/scripts/pr_body_lint.py` asserts.
-    echo "*Agent: ${SYNC_AGENT}*"
-    echo "*Assisted-by: ${SYNC_ASSISTED_BY}*"
+    echo "*Agent: ${FF_AGENT}*"
+    echo "*Assisted-by: ${FF_ASSISTED_BY}*"
   } > "$out_body"
 
   # HARD GUARD: GitHub rejects a body over the cap. Fail LOUD here, naming the size, so a
@@ -346,7 +346,7 @@ build_body() {
   local bytes
   bytes=$(wc -c < "$out_body")
   if [ "$bytes" -gt "$GITHUB_BODY_MAX" ]; then
-    echo "::error::sync PR body is ${bytes} bytes (> ${GITHUB_BODY_MAX} GitHub cap) — bound the section that grew" >&2
+    echo "::error::wave PR body is ${bytes} bytes (> ${GITHUB_BODY_MAX} GitHub cap) — bound the section that grew" >&2
     return 1
   fi
 }
@@ -369,28 +369,28 @@ fleet_count() {
 fleet_floor_guard() {
   local gm="$1" n="$2" min="$3"
   [ "$n" -ge "$min" ] \
-    || { echo "sync-pr-body: $gm declares $n submodule(s) — below the fleet-scale floor of $min" >&2; exit 1; }
+    || { echo "ff-body: $gm declares $n submodule(s) — below the fleet-scale floor of $min" >&2; exit 1; }
 }
 
 if [ "${1:-}" = "--self-test" ]; then
-  fail() { echo "FAIL: sync-pr-body self-test: $*" >&2; exit 1; }
+  fail() { echo "FAIL: ff-body self-test: $*" >&2; exit 1; }
   tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
-  # The Assisted-by footer is caller-supplied (no workflow owns the sync any more), so
+  # The Assisted-by footer is caller-supplied (no workflow owns the wave any more), so
   # the self-test supplies a fixed fixture value for the build_body calls below.
   # THREE whitespace-separated identity tokens: squash_body.py's TRAILER — the ONE
   # Assisted-by grammar — is `<Harness> <Provider Full Model Name> (<confidence>)`, so the
   # fixture must be grammar-valid or the rendered body fails the body linter for a
   # fixture's sake. The tier is what the Change classification section reads back.
-  export SYNC_ASSISTED_BY="Self-test Harness Fixture (fully tested and validated)"
+  export FF_ASSISTED_BY="Self-test Harness Fixture (fully tested and validated)"
   # Rule 7's `Agent:` line, caller-supplied the same way, so the ordering + tracking arms
   # below can name a value the fixture actually set rather than one that merely looks right.
-  export SYNC_AGENT='`self-test-slug` · Self-test session `00000000-0000-0000-0000-000000000000`'
+  export FF_AGENT='`self-test-slug` · Self-test session `00000000-0000-0000-0000-000000000000`'
   # The cap the fixtures build under is the ONE cap, pinned: an ambient
   # GITHUB_BODY_MAX in the caller's shell must not decide whether the fleet-scale
   # fixture fits, so the self-test states the platform's cap itself. The arm that
   # needs a smaller cap sets its own, in a subshell.
   export GITHUB_BODY_MAX="$PR_BODY_CAP_BYTES"
-  # Make the fixture a real git repo: sync-pin-evidence.sh's staged_gitlink()/`git config`
+  # Make the fixture a real git repo: ff-evidence.sh's staged_gitlink()/`git config`
   # run under `set -e`, and a non-repo would spew `fatal: not a git repository` per row.
   git -C "$tmp" init -q
   git -C "$tmp" config user.email t@t; git -C "$tmp" config user.name t
@@ -419,7 +419,7 @@ if [ "${1:-}" = "--self-test" ]; then
   # exists to prove the body fits AT that scale; a fixture pinned to a number the org
   # has already outgrown would prove nothing.
   GITMODULES="$(cd "$SCRIPT_DIR/.." && pwd)/.gitmodules"
-  [ -r "$GITMODULES" ] || { echo "sync-pr-body: cannot read $GITMODULES" >&2; exit 1; }
+  [ -r "$GITMODULES" ] || { echo "ff-body: cannot read $GITMODULES" >&2; exit 1; }
   FLEET="$(fleet_count "$GITMODULES")"
   FLEET_MIN=100   # a fleet-scale fixture below this proves nothing about the real fleet
   fleet_floor_guard "$GITMODULES" "$FLEET" "$FLEET_MIN"
@@ -453,7 +453,7 @@ if [ "${1:-}" = "--self-test" ]; then
     || fail "fleet-scale (${FLEET}-pin) input must build under the cap, not trip the guard"
   bytes=$(wc -c < "$tmp/body")
   [ "$bytes" -lt "$PR_BODY_CAP_BYTES" ] || fail "fleet-scale body is ${bytes} bytes (>= ${PR_BODY_CAP_BYTES})"
-  echo "sync-pr-body self-test: fleet-scale (${FLEET}-pin) rendered body = ${bytes} bytes (< ${PR_BODY_CAP_BYTES})"
+  echo "ff-body self-test: fleet-scale (${FLEET}-pin) rendered body = ${bytes} bytes (< ${PR_BODY_CAP_BYTES})"
   grep -q "^\*\*${FLEET}\*\* gitlink(s) moved\." "$tmp/body" || fail "body must name the TRUE total (${FLEET})"
   grep -q 'legend: <path>  <staged-gitlink>  <remote-HEAD>  <flag>' "$tmp/body" || fail "body must carry the compact-table legend"
   # THE FIX: the BODY carries the COMPLETE table — no elision, every row full width.
@@ -469,12 +469,13 @@ if [ "${1:-}" = "--self-test" ]; then
   # reason to exist).
   grep -q "per-pin evidence table (full, all ${FLEET} rows)" "$tmp/ev" || fail "the evidence file must carry the full rendered table (all ${FLEET} rows)"
   [ "$(grep -cE "$ROW_RE" "$tmp/ev")" -eq "$FLEET" ] || fail "the evidence-file table must have exactly ${FLEET} rows"
-  # No CI run artifact exists any more (the sync is hand-run), so the body must never
-  # promise one.
-  grep -q 'sync-evidence' "$tmp/body" "$tmp/ev" && fail "no file may name a 'sync-evidence' run artifact (the sync is hand-run; no workflow uploads one)"
+  # No CI run artifact exists any more (the wave is hand-run), so the body must never
+  # promise one; `sync-evidence` is the RETIRED artifact name a stale body could still
+  # carry, kept here because forbidding it is the point.
+  grep -q 'sync-evidence' "$tmp/body" "$tmp/ev" && fail "no file may name a 'sync-evidence' run artifact (the wave is hand-run; no workflow uploads one)"
 
   # The producer excerpt is carried VERBATIM for BOTH historical shapes — the
-  # retired scripts/sync-gitlinks.sh per-pin form and the current `charly task sync`
+  # retired scripts/sync-gitlinks.sh per-pin form and the current `charly task ff`
   # summary. The retired builder grepped ONLY the per-pin form, so against the
   # current summary it emitted "MISSING from producer log — investigate" for every
   # pin and the excerpt silently lost the producer's own words (the regression this
@@ -498,13 +499,13 @@ if [ "${1:-}" = "--self-test" ]; then
   # ONE definition so that no arm can carry a shape of its own.
   #
   # The STEP MESSAGE, read from the product's own source
-  # (`candy/plugin-task/verbs.go:807` in the module the binary is built from —
+  # (`candy/plugin-task/verbs.go:819` in the module the binary is built from —
   # `charly/charly/go.mod` at the umbrella's PINNED charly pins
-  # `plugin-task v0.2026316.2347`, and that version is the SENTINEL for the source
+  # `plugin-task v0.2026332.323`, and that version is the SENTINEL for the source
   # lines beside it: scripts/check-cited-plugin-task-version.mjs re-derives it from
   # that pin and fails when it moves, so these lines are re-read, not re-remembered)
   # and confirmed end
-  # to end by a real `charly task sync` run of this repo (the umbrella's wave
+  # to end by a real pin wave on this repo (the umbrella's wave
   # PR #671, and the wave that advances this pin):
   #     pinned N pin_map entr(y|ies) (…; P moved) after rolling R leaf submodule(s)
   #     to their default-branch HEAD (RM moved) and advancing A leaf pin(s) in the
@@ -541,8 +542,8 @@ if [ "${1:-}" = "--self-test" ]; then
       pinned="$6" pinnedMoved="$7" names="$8"
     local total=$((rolledMoved + advancedMoved + pinnedMoved))
     {
-      printf 'task sync: 1 step(s), 0 failed, 0 skipped\n'
-      printf '  [pass] run — bump the pins\n'
+      printf 'task ff: 1 step(s), 0 failed, 0 skipped\n'
+      printf '  [pass] run — fast-forward the pins\n'
       printf '      pinned %d pin_map entr(y|ies) (%s; %d moved) after rolling %d leaf submodule(s) to their default-branch HEAD (%d moved) and advancing %d leaf pin(s) in the index (%d moved); %d pin(s) moved\n' \
         "$pinned" "$names" "$pinnedMoved" "$rolled" "$rolledMoved" "$advanced" "$advancedMoved" "$total"
     } > "$out"
@@ -568,7 +569,7 @@ if [ "${1:-}" = "--self-test" ]; then
   # line — a renderer that regressed to the two-bucket form would not produce it,
   # so this arm is what turns red when the fixture drifts back to the retired shape
   # (the same discrimination the step-message arm above carries).
-  grep -qF 'task sync: 1 step(s), 0 failed, 0 skipped' "$tmp/body4" \
+  grep -qF 'task ff: 1 step(s), 0 failed, 0 skipped' "$tmp/body4" \
     || fail "the CURRENT producer HEADLINE must reach the body verbatim"
   grep -q 'MISSING from producer log' "$tmp/body4" && fail "the excerpt must never inject a MISSING line — the producer's words are pasted as-is"
 
@@ -673,7 +674,7 @@ if [ "${1:-}" = "--self-test" ]; then
   # Every ground-truth rule R0–R12 has its own `## Rulebook compliance` row. The org body
   # linter (`pr_body_lint.py`, default `--rules R0..R12`) and the validator's A1 both demand a
   # line per rule, and a renumbering that leaves a number with no row (the old R4 → R3 left R4
-  # empty, opencharly/opencharly#448) must fail here rather than in a nightly sync PR.
+  # empty, opencharly/opencharly#448) must fail here rather than in a nightly wave PR.
   for r in R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12; do
     grep -qE "^- \*\*${r} " "$tmp/body" || fail "the Rulebook compliance section has no ${r} row"
   done
@@ -690,25 +691,25 @@ if [ "${1:-}" = "--self-test" ]; then
   [ "$ab_count" -eq 1 ] \
     || fail "the rendered body must carry exactly one literal 'Assisted-by:' (the trailer); found ${ab_count}"
 
-  # ...and an UNSET SYNC_AGENT must fail LOUD rather than emit a body with no Agent: line —
+  # ...and an UNSET FF_AGENT must fail LOUD rather than emit a body with no Agent: line —
   # the exact defect this builder shipped (#395): #392's body carried the line only because
   # it was inserted by hand. A subshell with an explicit `unset`, so the arm cannot inherit
   # the export above.
-  ( unset SYNC_AGENT; build_body "$tmp" "$moved" "$producer" "$pinlog" "$tmp/body8" "$tmp/ev8" ) 2>"$tmp/err8" \
-    && fail "an unset SYNC_AGENT must fail loud, not emit a body with no Agent: line"
-  grep -q 'SYNC_AGENT' "$tmp/err8" || fail "the Agent: guard must name the missing variable, on stderr"
+  ( unset FF_AGENT; build_body "$tmp" "$moved" "$producer" "$pinlog" "$tmp/body8" "$tmp/ev8" ) 2>"$tmp/err8" \
+    && fail "an unset FF_AGENT must fail loud, not emit a body with no Agent: line"
+  grep -q 'FF_AGENT' "$tmp/err8" || fail "the Agent: guard must name the missing variable, on stderr"
 
   # ...and the Agent: line TRACKS its variable — not a literal that happens to match the
   # fixture (without this arm a hard-coded slug line passes every assertion above).
-  ( SYNC_AGENT='`other-slug` · Self-test session `11111111-1111-1111-1111-111111111111`' \
+  ( FF_AGENT='`other-slug` · Self-test session `11111111-1111-1111-1111-111111111111`' \
       build_body "$tmp" "$moved" "$producer" "$pinlog" "$tmp/body9" "$tmp/ev9" )
   tail -n 2 "$tmp/body9" | head -n 1 | grep -qxF '*Agent: `other-slug` · Self-test session `11111111-1111-1111-1111-111111111111`*' \
-    || fail "the Agent: line must track SYNC_AGENT, not a fixed literal"
+    || fail "the Agent: line must track FF_AGENT, not a fixed literal"
 
   # The tier guard fails LOUD, before writing anything: a body whose tier line silently read
   # empty would be an attribution claim with nothing behind it. (A subshell, so the fixture
   # value cannot leak into the arms that follow.)
-  ( SYNC_ASSISTED_BY="No Tier Harness" build_body "$tmp" "$moved" "$producer" "$pinlog" "$tmp/body5" "$tmp/ev5" ) 2>"$tmp/err5" \
+  ( FF_ASSISTED_BY="No Tier Harness" build_body "$tmp" "$moved" "$producer" "$pinlog" "$tmp/body5" "$tmp/ev5" ) 2>"$tmp/err5" \
     && fail "a trailer with no (tier) must fail loud, not emit a body with an empty tier"
   grep -q 'confidence tier' "$tmp/err5" || fail "the tier guard must say what is missing, on stderr"
 
@@ -716,7 +717,7 @@ if [ "${1:-}" = "--self-test" ]; then
   # fixture. A second run with a DIFFERENT tier must report THAT tier (without this arm a
   # hard-coded `fully tested and validated` passes every assertion above, since that is the
   # fixture's own tier — measured: the first version of this arm did not discriminate).
-  ( SYNC_ASSISTED_BY="Self-test Harness Fixture (documentation reviewed)" \
+  ( FF_ASSISTED_BY="Self-test Harness Fixture (documentation reviewed)" \
       build_body "$tmp" "$moved" "$producer" "$pinlog" "$tmp/body6" "$tmp/ev6" )
   grep -qF '**Attribution tier:** `documentation reviewed`' "$tmp/body6" \
     || fail "the tier line must track the trailer's tier, not a fixed literal"
@@ -758,9 +759,9 @@ if [ "${1:-}" = "--self-test" ]; then
   grep -q 'below the fleet-scale floor' "$tmp/err-fleet" \
     || fail "the floor guard must name the floor, on stderr"
 
-  echo "sync-pr-body: self-test OK (fleet-scale BODY — the umbrella's live submodule count, read from .gitmodules — carries the COMPLETE compact evidence table — every path named, no elision — and stays under the ${PR_BODY_CAP_BYTES}-byte cap; the caller's evidence file keeps a convenience copy; neither names a CI run artifact; small input names its paths with no elision; the producer excerpt is verbatim for BOTH the historical per-pin form and the CURRENT summary shape (pinned N pin_map entr(y|ies) (…; P moved) after rolling R leaf submodule(s) to their default-branch HEAD (RM moved) and advancing A leaf pin(s) in the index (AM moved); T pin(s) moved); the body carries the four required sections, the Change classification's change class + verification gate + attribution tier, and rule 7's two-line footer — the Agent: line directly above the italic Assisted-by trailer as the FINAL line, and exactly ONE literal 'Assisted-by:' in the body so squash_body.py's prose contract holds; an unset SYNC_AGENT fails loud, and the Agent: line is shown to TRACK its variable rather than a literal; a trailer with no (tier) fails loud; over-cap trips the hard guard; a .gitmodules with no submodule entry counts as 0 and reaches the floor guard's own message instead of aborting on grep's exit status)"
+  echo "ff-body: self-test OK (fleet-scale BODY — the umbrella's live submodule count, read from .gitmodules — carries the COMPLETE compact evidence table — every path named, no elision — and stays under the ${PR_BODY_CAP_BYTES}-byte cap; the caller's evidence file keeps a convenience copy; neither names a CI run artifact; small input names its paths with no elision; the producer excerpt is verbatim for BOTH the historical per-pin form and the CURRENT summary shape (pinned N pin_map entr(y|ies) (…; P moved) after rolling R leaf submodule(s) to their default-branch HEAD (RM moved) and advancing A leaf pin(s) in the index (AM moved); T pin(s) moved); the body carries the four required sections, the Change classification's change class + verification gate + attribution tier, and rule 7's two-line footer — the Agent: line directly above the italic Assisted-by trailer as the FINAL line, and exactly ONE literal 'Assisted-by:' in the body so squash_body.py's prose contract holds; an unset FF_AGENT fails loud, and the Agent: line is shown to TRACK its variable rather than a literal; a trailer with no (tier) fails loud; over-cap trips the hard guard; a .gitmodules with no submodule entry counts as 0 and reaches the floor guard's own message instead of aborting on grep's exit status)"
   exit 0
 fi
 
-build_body "${1:?usage: sync-pr-body.sh <root> <moved-file> <producer-log> <pin-check-log> <out-body> <out-evidence>}" \
+build_body "${1:?usage: ff-body.sh <root> <moved-file> <producer-log> <pin-check-log> <out-body> <out-evidence>}" \
   "${2:?moved-file}" "${3:?producer-log}" "${4:?pin-check-log}" "${5:?out-body}" "${6:?out-evidence}"

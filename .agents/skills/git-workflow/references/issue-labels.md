@@ -240,7 +240,7 @@ files the debt (R11); it never re-labels the debt as `design`.
 
 A new repository inherits everything and configures nothing:
 
-- `opencharly/.github` owns the taxonomy, the generic rules, the form, the sync/audit
+- `opencharly/.github` owns the taxonomy, the generic rules, the form, the label sync/audit
   workflows and the tests. **No repository ships a label config.**
 - The bootstrap workflow runs `labels.sh sync --repo <name>`; `gh label list` then shows
   the 12 labels. Verify it in the `repo-setup` checklist.

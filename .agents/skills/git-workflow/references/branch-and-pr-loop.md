@@ -369,11 +369,12 @@ checkouts stay DETACHED at their recorded gitlinks.
 5. Remove your umbrella worktree after its PR merged: `git -C <umbrella>
    worktree remove .worktrees/<slug>/<repo>`.
 6. Fast-forward the umbrella's own `main` (same ff-only rule).
-7. Advance pins ONLY with `charly task sync` — it advances EVERY pin the umbrella
-   declares, rolls the checkouts that exist and stages the gitlinks, so read its
-   scope before running it — prove with `charly task verify`,
-   and land the bump as a normal `feat/` PR
-   (`chore(sync): bump submodule pins …`). A submodule pin is a GITLINK: its
+7. Advance pins ONLY with `charly task ff` — it fast-forwards EVERY pin the umbrella
+   declares onto the tip of the branch its `.gitmodules` entry declares, rolls the
+   checkouts that exist and stages the gitlinks, and refuses a move that is not a
+   fast-forward, so read its scope before running it — prove with
+   `charly task verify` (it FAILS on a pin that is behind), and land the wave as a
+   normal `feat/` PR (`chore(ff): fast-forward submodule pins …`). A submodule pin is a GITLINK: its
    checkout stays DETACHED at the recorded commit — NEVER `git -C <sub>
    checkout main` / `git -C <sub> reset --hard origin/main` to "catch up" (that
    dirties the umbrella and fails `verify`). Setting up a NEW repo is

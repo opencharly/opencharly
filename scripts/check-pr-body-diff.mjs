@@ -22,7 +22,7 @@
 // ASSERTED — each proven LIVE by --self-test against a mutation of a fixture body:
 //   Z. The body's SIZE is within GitHub's cap for an issue or pull-request body. The
 //      cap is ONE number, read from `scripts/lib/pr-body-cap` — the same place
-//      `scripts/sync-pr-body.sh` reads it, so the two guards cannot drift (R2). An
+//      `scripts/ff-body.sh` reads it, so the two guards cannot drift (R2). An
 //      over-cap body is refused by the API with a 422 AFTER the push has already
 //      succeeded, so the branch is pushed and the pull request keeps a STALE body,
 //      and the operator finally sees a validator BLOCK about the body instead of
@@ -78,7 +78,7 @@
 //      a line of a file; the tree can decide it, so it needs no judgement. This arm
 //      exists because the `charly/pr-validator` found a body whose pasted sweep was
 //      taken on ANOTHER tree (2026-10-24, this branch's own PR: the body pasted
-//      `scripts/sync-pin-evidence.sh:290:` with the line's text, and on the head being
+//      `scripts/ff-evidence.sh:290:` with the line's text, and on the head being
 //      pushed line 290 read `guard_rc=0`) — a stale paste that H, T and N all accept,
 //      because a stale paste is well-formed. It is scoped to FENCED blocks (pasted
 //      output) and never to prose: prose may quote a line that has since moved, and
@@ -216,7 +216,7 @@ const notice = (m) => console.log(`  NOTE  ${m}`);
 /**
  * The ONE cap on a PR body's size, in BYTES — GitHub's limit for an issue or
  * pull-request body. It is read from `scripts/lib/pr-body-cap`, the SAME place
- * `scripts/sync-pr-body.sh` reads it, so the two guards cannot drift (R2): one
+ * `scripts/ff-body.sh` reads it, so the two guards cannot drift (R2): one
  * definition, two readers.
  *
  * The environment variable `GITHUB_BODY_MAX` overrides the number, in BOTH readers,
@@ -257,7 +257,7 @@ function capContentLines(text) {
  * whether the fixture fits (opencharly/opencharly#720).
  *
  * The rule is the cap file's, stated there and implemented here and in
- * `scripts/sync-pr-body.sh`: exactly ONE content line, and that line is a positive
+ * `scripts/ff-body.sh`: exactly ONE content line, and that line is a positive
  * integer and nothing else. A second content line is not a second reading of the
  * cap — it is a cap that cannot be read, and it fails loud here. The earlier
  * reader stripped the comments and whitespace from the WHOLE file and concatenated
@@ -365,7 +365,7 @@ const DIFF_ALGORITHMS = ["myers", "patience", "histogram", "minimal"];
  * arm says so. It used to run unconditionally, which made it a different and much
  * stronger rule — "no pull request may carry a diff with a moved block" — and that rule
  * cannot be obeyed by a restructure whose moved text is PINNED VERBATIM by other gates
- * (the copy of `## The org map` … `## Pinning`, the clone-shape rows and the pin-scope
+ * (the copy of `## The org map` … `## Tracking upstream `main``, the clone-shape rows and the pin-scope
  * surfaces are byte-identical requirements of `charly task org-map`,
  * `check-readme-measurements` and `check-pin-verb-scope`), so the remedy the old message
  * named — "reshape the diff" — was unavailable and the only remaining move would have
@@ -1156,7 +1156,7 @@ function checkRecordClaims(body, baseRef, statuses, headRef) {
  * Z. The body's size is within GitHub's cap for an issue or pull-request body.
  *
  * The cap is ONE number, read from `scripts/lib/pr-body-cap` — the same place
- * `scripts/sync-pr-body.sh` reads it (R2). The count is BYTES, the way `wc -c`
+ * `scripts/ff-body.sh` reads it (R2). The count is BYTES, the way `wc -c`
  * counts, and the message is that guard's message: the offending size, the cap,
  * and which section to bound.
  */
