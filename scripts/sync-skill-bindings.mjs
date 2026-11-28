@@ -4,8 +4,8 @@
 // WHY THIS EXISTS. The umbrella is a session root (Part II #2), but the skill corpus it needs is
 // three levels deep inside the pinned `marketplace` submodule
 // (`marketplace/<family>/skills/<name>/SKILL.md`), while each harness looks at the root in its own
-// shape. Four bindings bridge that — a mirror, a plugin set, a reference and a pin — and the difference
-// decides what is derivable and what is merely verifiable:
+// shape. Four bindings bridge that, and they are of TWO DIFFERENT KINDS — a distinction that decides
+// what is derivable and what is merely verifiable:
 //
 //   * A MIRROR — `.dsh/skills/<name>` is a flat symlink per corpus skill, because DSH's
 //     `dsh-skill-filesystem` discovers `<projectRoot>/.dsh/skills/<name>/SKILL.md` at rank 100 and
@@ -19,15 +19,15 @@
 //     marketplaces are not the corpus's to derive, so they are preserved as written.
 //   * A REFERENCE — `opencode.json`'s `skills.paths` is a single entry naming the corpus root.
 //     A single root entry cannot drift per family at all, so it is verified rather than derived.
-//   * A PIN — `.pi/settings.json`'s `packages` names the corpus as a git package at a TAG
-//     (`git:github.com/opencharly/marketplace@<tag>`), because pi resolves skills through the package
-//     rather than through a directory. It is not an enumeration but a single tag, and the only question
-//     is whether that tag is the corpus THIS tree carries — so it derives from `corpusTag`, the same
-//     predicate the gate's currency arm reads, and a wave that advances the corpus re-pins it in the
-//     same step (opencharly/opencharly#1344: it was left stale on every wave, reddening the gate).
 //
-// So this script DERIVES the two enumerations and the pin, and only VERIFIES the single-root reference.
-// Nothing here is a count carried by hand: the numbers below are measured
+//   * A PIN — `.pi/settings.json` names the corpus as a git PACKAGE (`git:github.com/opencharly/
+//     marketplace@<tag>`), so the harness follows one release of the corpus rather than a directory.
+//     It is DERIVED from the corpus checkout's own tag, through the SAME library the harness-config
+//     gate judges it with (`scripts/lib/corpus-tag.mjs`): the third surface a pin wave moves, and the
+//     one that used to be nobody's job (opencharly/opencharly#1344 — two hand edits in one cutover).
+//
+// So this script DERIVES two enumerations — the farm and Claude's plugin set — and one pin, and only
+// VERIFIES the single-root reference. Nothing here is a count carried by hand: the numbers below are measured
 // on every run. This is what makes the bindings derived rather than maintained, and a derived binding
 // has no parity burden — which is precisely what Part II #5's "no mirrors, no parity gate" is aimed at.
 // (The rule is not against bindings; it is against hand-maintained copies that drift.)
@@ -42,14 +42,14 @@
 //   node scripts/sync-skill-bindings.mjs --check      # exit 1 if a rewrite is needed (the gate's mode)
 //   node scripts/sync-skill-bindings.mjs --self-test  # prove each arm can FAIL, on temp fixtures
 //   node scripts/sync-skill-bindings.mjs --root <dir> # run against another tree (the self-test's arm)
-//   node scripts/sync-skill-bindings.mjs --only <all|farm|opencode|claude|pi>
 //
 // Exit codes: 0 clean · 1 a binding is stale (--check) or failed · 2 usage.
 
 import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, readlinkSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { CLAUDE_CATALOG, CORPUS_ROOT, CORPUS_NEEDS, corpusFamilies, corpusSkipReason, corpusTag } from "./lib/corpus.mjs";
+import { CLAUDE_CATALOG, CORPUS_ROOT, CORPUS_NEEDS, corpusFamilies, corpusSkipReason } from "./lib/corpus.mjs";
+import { corpusTag } from "./lib/corpus-tag.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const argv = process.argv.slice(2);
@@ -76,7 +76,6 @@ const FARM = ".dsh/skills";
 const OPENCODE = "opencode.json";
 const CLAUDE = ".claude/settings.json";
 const PI = ".pi/settings.json";
-const PI_PACKAGE = "git:github.com/opencharly/marketplace@";
 
 function fail(msg) {
   console.error(`FAIL: ${msg}`);
@@ -207,36 +206,8 @@ function syncClaude(r, want, { write }) {
   return { total: want.keys.length, have: have.length, same, missing, extra, disabled, orderOnly: !same && !missing.length && !extra.length && !disabled.length };
 }
 
-/** The pi package pin as it must be: `git:github.com/opencharly/marketplace@<the corpus tag>`, and
- *  every OTHER package entry left exactly as written (those are an operator's choice, not a projection
- *  of this corpus).
- *
- *  A PIN, not an enumeration: it names one package, and the only question is whether the tag it names
- *  is the corpus THIS tree carries. That question is `corpusTag`'s (lib/corpus.mjs), asked once, so the
- *  gate's currency arm and this writer cannot disagree about which tag the corpus is at. The rewrite is
- *  a byte-range edit of the tag inside the entry, because `JSON.stringify` would reformat a file whose
- *  indentation and ordering are the operator's. */
-function syncPi(r, tag, { write }) {
-  const file = join(r, PI);
-  if (!existsSync(file)) fail(`${PI} not found in ${r}`);
-  const src = readFileSync(file, "utf8");
-  try {
-    JSON.parse(src);
-  } catch (e) {
-    fail(`${PI} does not parse: ${e.message}`);
-  }
-  const m = src.match(/(git:github\.com\/opencharly\/marketplace@)([^"\\]*)/);
-  if (!m) fail(`${PI} pins no \`${PI_PACKAGE}<tag>\` package entry`);
-  const have = m[2];
-  const same = have === tag;
-  if (!same && write) {
-    const at = m.index + m[1].length;
-    writeFileSync(file, src.slice(0, at) + tag + src.slice(at + have.length));
-  }
-  return { have, tag, same };
-}
-
 // --------------------------------------------------------------------- apply
+
 function syncFarm(r, want, { write }) {
   const dir = join(r, FARM);
   const have = readFarm(r);
@@ -268,6 +239,45 @@ function syncOpencode(r) {
   }
   const paths = doc?.skills?.paths ?? [];
   return { present: true, namesRoot: paths.includes(CORPUS_ROOT), paths };
+}
+
+/**
+ * syncPi <root> -> { present, changes, pin, want, skip }
+ *
+ * The marketplace package pin, derived from the corpus tag THIS tree carries. The tag comes from
+ * `corpusTag()` — the library `check-harness-config` also reads — so the derivation and the gate are
+ * one rule with two consumers, never two copies that drift.
+ *
+ * SKIPS VISIBLY when the pin cannot be derived: no `.pi/settings.json` (not a pi tree), no marketplace
+ * package entry, or no corpus checkout (a session worktree carries an EMPTY `marketplace/`, Part II
+ * rule 2). A skip is never a silent pass: every one of those states is named in the output.
+ */
+function syncPi(r, { write }) {
+  const file = join(r, PI);
+  if (!existsSync(file)) return { present: false, changes: false };
+  let doc;
+  try {
+    doc = JSON.parse(readFileSync(file, "utf8"));
+  } catch (e) {
+    fail(`${PI} does not parse: ${e.message}`);
+  }
+  const pkgs = Array.isArray(doc.packages) ? doc.packages : [];
+  const at = pkgs.findIndex((p) => /^git:github\.com\/opencharly\/marketplace@.+$/.test(String(p)));
+  if (at < 0) return { present: true, changes: false, skip: "it names no marketplace package" };
+  const pin = String(pkgs[at]);
+  const { tag, reason } = corpusTag(r);
+  if (tag === "") return { present: true, changes: false, pin, skip: reason };
+  const want = `git:github.com/opencharly/marketplace@${tag}`;
+  const changes = pin !== want;
+  // THE CHECK MUST NOT MUTATE. `--check` is the gate's mode: it reports and exits 1, and a check that
+  // also writes turns "is this tree correct?" into "make this tree correct", which would hide the very
+  // staleness the pin wave is supposed to surface (measured: the first version of this function wrote
+  // on `--check`, so the failing gate repaired the file and the next run was green).
+  if (changes && write) {
+    pkgs[at] = want;
+    writeFileSync(file, JSON.stringify(doc, null, 2) + "\n");
+  }
+  return { present: true, changes, pin, want };
 }
 
 // ---------------------------------------------------------------------- main
@@ -320,11 +330,14 @@ function run(r, { write, quiet }) {
     }
   }
   if (wantPi) {
-    if (corpusRootOrSkip(r, "tag", parts) === null) { /* SKIPPED — the notice is in parts */ }
+    const pi = syncPi(r, { write });
+    if (!pi.present) parts.push(`sync-skill-bindings: ${PI}  SKIPPED (not a pi tree: no ${PI})`);
+    else if (pi.skip) parts.push(`sync-skill-bindings: ${PI} marketplace pin  SKIPPED (${pi.skip})`);
     else {
-      const pi = syncPi(r, corpusTag(r), { write });
-      if (!pi.same) stale.push(`${PI} marketplace package pin (${pi.have} -> ${pi.tag})`);
-      parts.push(`sync-skill-bindings: ${PI} marketplace package pin  ${pi.same ? `unchanged (${pi.tag})` : `STALE (${pi.have} -> ${pi.tag})`}`);
+      if (pi.changes) stale.push(`${PI} marketplace package pin (${pi.pin} -> ${pi.want})`);
+      parts.push(
+        `sync-skill-bindings: ${PI} marketplace pin  ${pi.changes ? `STALE (${pi.pin} -> ${pi.want})` : "unchanged"}`,
+      );
     }
   }
   if (wantOpencode) {

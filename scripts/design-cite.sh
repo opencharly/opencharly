@@ -30,6 +30,20 @@
 #      citations off line numbers for exactly this reason, and a pinned schema's construct has a
 #      name too.
 #
+#   A CONSTRUCT CITATION `<path>:<Symbol>` or `<path>:<Receiver>.<Method>` — "this file declares this
+#      symbol". Judged: the declaration EXISTS in the pinned file at the pin — a CUE `#Name`/`_name`
+#      header, a Go `func (r *Receiver) Method(`, or a top-level `func`/`type`/`var`/`const`. This is
+#      the same pin-advance-proof promise the NAME form makes, for a language whose declaration
+#      carries no `#`. A language this control has no construct model for is a FAILURE that says so,
+#      never a skip — `constructs()` and `declares_construct()` refuse to pretend.
+#
+#      A CONSTRUCT CARRYING A RANGE (`<path>:CpCmd.Run-485`) is a HYBRID and is refused: it names two
+#      subjects at once, and the form exists so that a reader can tell WHICH claim is being made.
+#      MEASURED (opencharly/opencharly#1349): before this arm existed, the scanner recognised only
+#      `:#Name`, `:N` and `:N-M`, so a construct citation fell through to the BARE-PATH pass and was
+#      judged as "the file exists" — `pod_cmd.go:NoSuchConstructXYZ` passed this control, and a
+#      hybrid produced by a find-and-replace reached the org validator instead of failing here.
+#
 #   A LINE CITATION    `<path>:<a>` or `<path>:<a>-<b>` — "these lines are the artifact". Judged on
 #      three decidable facts, and NOT on a fourth that is not decidable:
 #        (1) the range is inside the file at the pin: `1 <= a <= b <= <lines>`, non-empty;
@@ -169,7 +183,7 @@ cite_scan() {
 		}
 		{
 			ledger = $1; cap = $2; col = $3; text = $4
-			while (match(text, /[A-Za-z0-9_.@\/-]+:(#[A-Za-z][A-Za-z0-9_]*|[0-9]+(-[0-9]+)?)/)) {
+			while (match(text, /[A-Za-z0-9_.@\/-]+:(#[A-Za-z][A-Za-z0-9_]*|[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)?(-[0-9]+)?|[0-9]+(-[0-9]+)?)/)) {
 				tok = substr(text, RSTART, RLENGTH)
 				text = substr(text, 1, RSTART - 1) " " substr(text, RSTART + RLENGTH)
 				split(tok, parts, ":")
@@ -377,6 +391,91 @@ digest_of() { sed -n "$2,$3p" "$1" | sha256sum | cut -c1-16; }
 # line_count <file>
 line_count() { awk 'END { print NR }' "$1"; }
 
+# declares_construct <file> <cited-path> <construct> — does <file> DECLARE <construct> at the pin?
+#   0 the declaration is there   1 it is not   2 this control has no construct model for the language
+#
+# The language is read from the CITED PATH, never from the local file: `file_at` writes a cache file
+# named by a digest, so the extension a reader sees is the citation's, and a helper that keyed off the
+# cache name would answer "unmodelled" for every language (`design-cite --self-test`, arm 9b).
+#
+# THE THIRD ANSWER IS THIS FUNCTION'S TO MAKE, and it is checked BEFORE the language cases: that is what
+# keeps the dispatch in ONE place. `judge_construct` renders the three answers as messages and holds no
+# opinion of its own about which languages exist. An earlier version filtered the cited path before
+# calling, so this `return 2` was unreachable and the decision lived twice (opencharly/opencharly#1356,
+# blocks 1 and 2: dead code, and a comment describing behaviour the function did not perform).
+#
+# `#Name` (CUE) is judged by the existing `#` arm; this helper judges the form without the `#`.
+declares_construct() {
+	local file="$1" cited="$2" subject="$3" recv meth
+	case "$cited" in
+	*.cue|*.go) ;;
+	*)
+		return 2
+		;;
+	esac
+	case "$cited" in
+	*.cue)
+		grep -qE "^#?${subject//./\\.}[[:space:]]*:" "$file"
+		return $?
+		;;
+	*.go)
+		if [[ "$subject" == *.* ]]; then
+			recv="${subject%%.*}"
+			meth="${subject#*.}"
+			# THE RECEIVER IS ANCHORED. `[^)]*` alone is satisfied by `func (x *FooCpCmd) Run(`, so a
+			# citation of `CpCmd.Run` passed on a declaration that does not exist — the exact class this
+			# arm exists to close (opencharly/opencharly#1356, round 4 block 1). A Go receiver is
+			# `(name *Type)`, `(*Type)` or `(name Type)`, so the type must START after the optional name.
+			grep -qE "^func[[:space:]]+\(([A-Za-z_][A-Za-z0-9_]*[[:space:]]+)?\*?${recv}\)[[:space:]]+${meth}\(" "$file"
+			return $?
+		fi
+		grep -qE "^(func([[:space:]]+\([^)]*\))?|type|var|const)[[:space:]]+${subject}([[:space:](]|$)" "$file"
+		return $?
+		;;
+	esac
+	return 2
+}
+
+# judge_construct <file> <cited-path> <subject> <ledger> <cap> <where> <out>
+#
+# ONE implementation for BOTH call sites (R2). A construct citation arrives from two loops — one judging
+# a citation into a pinned module, one judging a citation into this repository's own tree — and the two
+# copies differed only in WHICH file they read and HOW they said so: exactly the pair of divergences that
+# let the same citation get two verdicts depending on the loop that reached it (opencharly/opencharly#1356
+# block 2). The caller supplies the file it resolved and the phrase that names it, so there is ONE
+# predicate, ONE message shape, and no second copy to drift.
+#
+# `<file>` is the PINNED content when the citation names a pin (`file_at` writes it), and this tree's own
+# file when it does not — the split the LINE arm documents, for the same reason: a pinned artifact can
+# drift under a third party's commit, a file of this repository cannot.
+judge_construct() {
+	local file="$1" cited="$2" subject="$3" ledger_name="$4" cap="$5" where="$6" out="$7"
+	local rc=0
+	if [[ "$cited" == *.md ]]; then
+		# A DOCUMENT REFERENCE, not a citation: `DESIGN.md:D-CLI-1` and `DESIGN.md:§A.13` are how every
+		# ledger row names its requirement. Skipped like any other prose token (an ungated arm turned 241
+		# of them into failures — measured).
+		return 0
+	fi
+	if [[ "$subject" =~ ^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)?-[0-9] ]]; then
+		printf 'FAIL %s:%s: %s:%s is a CONSTRUCT and a LINE RANGE at once — cite one subject (%s:%s, or %s:%s)\n' \
+			"$ledger_name" "$cap" "$cited" "$subject" "$cited" "${subject%-*}" "$cited" "${subject##*-}" >>"$out"
+		return 0
+	fi
+	declares_construct "$file" "$cited" "$subject" || rc=$?
+	case "$rc" in
+	0) [[ "$VERBOSE" == 1 ]] && printf '  ok   %s:%s  %s declares %s\n' "$ledger_name" "$cap" "$cited" "$subject" ;;
+	2)
+		printf 'FAIL %s:%s: %s is a %s file and this control has no construct model for that language %s — cite the path alone, or a subject it can judge\n' \
+			"$ledger_name" "$cap" "$cited" "${cited##*.}" "$where" >>"$out"
+		;;
+	*)
+		printf 'FAIL %s:%s: %s does not declare %s %s\n' "$ledger_name" "$cap" "$cited" "$subject" "$where" >>"$out"
+		;;
+	esac
+	return 0
+}
+
 # ── the judgement ───────────────────────────────────────────────────────────────────────────
 # judge <root> <out> — write FAIL lines to <out>; returns 0 when clean. Everything it reads comes
 # from <root>, so the self-test judges its own isolated fixture and not the repository's files.
@@ -459,6 +558,10 @@ judge() {
 				continue
 			fi
 			[[ -n "$subject" && "$subject" != "#"* ]] || continue
+			if [[ "$subject" =~ ^[A-Za-z_] ]]; then
+				judge_construct "$root/$path" "$path" "$subject" "$ledger_name" "$cap" "in this tree" "$out"
+				continue
+			fi
 			a="${subject%%-*}"
 			b="${subject#*-}"
 			[[ "$b" == "$subject" ]] && b="$a"
@@ -529,8 +632,13 @@ judge() {
 
 		local ext=".${path##*.}" total
 		total=$(line_count "$file")
+		# A CONSTRUCT citation (the form without `#`) — ONE helper, both call sites.
+		if [[ "$subject" =~ ^[A-Za-z_] ]]; then
+			judge_construct "$file" "$path" "$subject" "$ledger_name" "$cap" "at the pin ${PIN_OF[$module]:0:12}" "$out"
+			continue
+		fi
 		if [[ -z "$key" ]]; then
-			printf 'FAIL %s:%s: %s:%s is not a line, a line range or a #definition\n' \
+			printf 'FAIL %s:%s: %s:%s is not a line, a line range, a #definition or a construct\n' \
 				"$ledger_name" "$cap" "$module" "$subject" >>"$out"
 			continue
 		fi
@@ -843,6 +951,119 @@ INSIDE2_PY
 	# 9. a #name the pinned file does not declare
 	write_ledger '1-3' '5-8' ':#FixtureDelta' 'plugin-fixture/candy/plugin-fixture/schema'
 	expect "a #name the pin does not declare" 'does not declare #FixtureDelta'
+
+	# 9b. a CONSTRUCT citation — the form WITHOUT the `#` (opencharly/opencharly#1349). Before this
+	#     arm existed the scanner recognised only `:#Name`, `:N` and `:N-M`, so `:FixtureAlpha` fell
+	#     through to the bare-path pass and was judged as "the file exists".
+	write_ledger '1-3' '5-8' ':#FixtureGamma' 'plugin-fixture/candy/plugin-fixture/schema'
+	emit_baseline "$work" >"$work/design/cite-baseline.tsv"
+	{
+		cat "$work/design/dulling.tsv"
+		printf 'fixture:construct\t`fixture:` declares a symbol\t—\tx\tsharp\t—\t%s\tnone\n' \
+			'plugin-fixture/candy/plugin-fixture/schema/fixture.cue:FixtureAlpha'
+	} >"$work/l" && mv "$work/l" "$work/design/dulling.tsv"
+	green "a construct the pin does declare"
+	write_ledger '1-3' '5-8' ':#FixtureGamma' 'plugin-fixture/candy/plugin-fixture/schema'
+	emit_baseline "$work" >"$work/design/cite-baseline.tsv"
+
+	# 9c. THE MEASURED DEFECT: a construct the pin does NOT declare. It passed this control before
+	#     the construct arm existed, which is how a malformed citation reached the org validator.
+	{
+		cat "$work/design/dulling.tsv"
+		printf 'fixture:construct\t`fixture:` declares a symbol\t—\tx\tsharp\t—\t%s\tnone\n' \
+			'plugin-fixture/candy/plugin-fixture/schema/fixture.cue:NoSuchConstructXYZ'
+	} >"$work/l" && mv "$work/l" "$work/design/dulling.tsv"
+	expect "a construct the pin does not declare" 'does not declare NoSuchConstructXYZ'
+	write_ledger '1-3' '5-8' ':#FixtureGamma' 'plugin-fixture/candy/plugin-fixture/schema'
+	emit_baseline "$work" >"$work/design/cite-baseline.tsv"
+
+	# 9d. a construct carrying a range — the hybrid a find-and-replace produced on
+	#     opencharly/opencharly#1348 (`ConfigSetupCmd.Run-485`). It names two subjects at once.
+	{
+		cat "$work/design/dulling.tsv"
+		printf 'fixture:construct\t`fixture:` declares a symbol\t—\tx\tsharp\t—\t%s\tnone\n' \
+			'plugin-fixture/candy/plugin-fixture/schema/fixture.cue:FixtureAlpha-12'
+	} >"$work/l" && mv "$work/l" "$work/design/dulling.tsv"
+	expect "a construct carrying a line range" 'is a CONSTRUCT and a LINE RANGE at once'
+	write_ledger '1-3' '5-8' ':#FixtureGamma' 'plugin-fixture/candy/plugin-fixture/schema'
+	emit_baseline "$work" >"$work/design/cite-baseline.tsv"
+
+	# 9e. a construct in a language this control has no construct model for: a FAILURE that says so,
+	#     never the skip that a silent pass would be. (A `.md` file is the OTHER half of the same
+	#     decision and is NOT a failure: `DESIGN.md:D-CLI-1` is a reference, and arm 9f pins that.)
+	printf '# notes\n' >"$work/src/candy/plugin-fixture/schema/notes.py"
+	commit_pin "$work" unmodelled
+	{
+		cat "$work/design/dulling.tsv"
+		printf 'fixture:construct\t`fixture:` declares a symbol\t—\tx\tsharp\t—\t%s\tnone\n' \
+			'plugin-fixture/candy/plugin-fixture/schema/notes.py:Something'
+	} >"$work/l" && mv "$work/l" "$work/design/dulling.tsv"
+	expect "a construct in an unmodelled language" 'no construct model for that language'
+	write_ledger '1-3' '5-8' ':#FixtureGamma' 'plugin-fixture/candy/plugin-fixture/schema'
+	emit_baseline "$work" >"$work/design/cite-baseline.tsv"
+
+	# 9f. A DOCUMENT REFERENCE is not a citation: `DESIGN.md:D-CLI-1` and `DESIGN.md:§A.13` name a
+	#     requirement, and every ledger row carries one. An arm that failed them turned 241 legitimate
+	#     references into findings when it was first written, so the skip is pinned — and it must be a
+	#     real ROW in the citation column: a bare line appended to the file lands in column 0, which
+	#     `cite_scan` never reads, so the earlier version of this arm exercised NOTHING
+	#     (opencharly/opencharly#1356, round-4 note; proved by disabling the skip and watching the arm
+	#     stay green).
+	# The fixture must CARRY the document: without it the prose guard (a slash-less path that names no
+	# file here) swallows the row before the judge sees it, and the arm proves nothing — measured by
+	# disabling the `.md` skip and watching this arm stay green.
+	printf '# fixture design\n' >"$work/DESIGN.md"
+	{
+		cat "$work/design/dulling.tsv"
+		printf 'fixture:docref\t`fixture:` names its requirement\t—\tx\tsharp\t—\t%s\tnone\n' 'DESIGN.md:§A.13; DESIGN.md:D-VENUE-1'
+	} >"$work/l" && mv "$work/l" "$work/design/dulling.tsv"
+	green "a document reference is prose, not a citation"
+	write_ledger '1-3' '5-8' ':#FixtureGamma' 'plugin-fixture/candy/plugin-fixture/schema'
+	emit_baseline "$work" >"$work/design/cite-baseline.tsv"
+
+	# 9h. THE GO RECEIVER IS ANCHORED. `func (x *FooCpCmd) Run(` must NOT satisfy a citation of
+	#     `CpCmd.Run`: the unanchored form `\([^)]*${recv}\)` was satisfied by that declaration and
+	#     passed a construct the file does not declare — the class this arm exists to close
+	#     (opencharly/opencharly#1356, round-4 block 1).
+	printf 'package fixture\n\nfunc (x *FooCpCmd) Run() {}\n\nfunc (c *CpCmd) Stop() {}\n' \
+		>"$work/src/candy/plugin-fixture/schema/fixture.go"
+	commit_pin "$work" go-receivers
+	{
+		cat "$work/design/dulling.tsv"
+		printf 'fixture:go\t`fixture:` declares a method\t—\tx\tsharp\t—\t%s\tnone\n' \
+			'plugin-fixture/candy/plugin-fixture/schema/fixture.go:CpCmd.Stop'
+	} >"$work/l" && mv "$work/l" "$work/design/dulling.tsv"
+	green "a Go method the pin really declares"
+	write_ledger '1-3' '5-8' ':#FixtureGamma' 'plugin-fixture/candy/plugin-fixture/schema'
+	emit_baseline "$work" >"$work/design/cite-baseline.tsv"
+	{
+		cat "$work/design/dulling.tsv"
+		printf 'fixture:go\t`fixture:` declares a method\t—\tx\tsharp\t—\t%s\tnone\n' \
+			'plugin-fixture/candy/plugin-fixture/schema/fixture.go:CpCmd.Run'
+	} >"$work/l" && mv "$work/l" "$work/design/dulling.tsv"
+	expect "a Go method only a DIFFERENT receiver declares" 'does not declare CpCmd.Run at the pin'
+	write_ledger '1-3' '5-8' ':#FixtureGamma' 'plugin-fixture/candy/plugin-fixture/schema'
+	emit_baseline "$work" >"$work/design/cite-baseline.tsv"
+
+	# 9g. THE LOCAL CONSTRUCT PATH — the other caller of `judge_construct`, and the arm whose ABSENCE
+	#     let the two copies diverge (opencharly/opencharly#1356 block 2: every construct arm above is a
+	#     PINNED citation, so the working-tree path was never exercised). A file of this repository is
+	#     judged in the tree; the same helper must answer both ways, so both are pinned here.
+	printf '#LocalThing: {a?: bool}\n' >"$work/LOCAL.cue"
+	{
+		cat "$work/design/dulling.tsv"
+		printf 'fixture:local-construct\t`fixture:` names a local construct\t—\tx\tsharp\t—\t%s\tnone\n' 'LOCAL.cue:LocalThing'
+	} >"$work/l" && mv "$work/l" "$work/design/dulling.tsv"
+	green "a construct declared in this repository's own file"
+	write_ledger '1-3' '5-8' ':#FixtureGamma' 'plugin-fixture/candy/plugin-fixture/schema'
+	emit_baseline "$work" >"$work/design/cite-baseline.tsv"
+	{
+		cat "$work/design/dulling.tsv"
+		printf 'fixture:local-construct\t`fixture:` names a local construct\t—\tx\tsharp\t—\t%s\tnone\n' 'LOCAL.cue:NoSuchLocalThing'
+	} >"$work/l" && mv "$work/l" "$work/design/dulling.tsv"
+	expect "a construct this repository's own file does not declare" 'does not declare NoSuchLocalThing in this tree'
+	write_ledger '1-3' '5-8' ':#FixtureGamma' 'plugin-fixture/candy/plugin-fixture/schema'
+	emit_baseline "$work" >"$work/design/cite-baseline.tsv"
 
 	# 10. a line citation nobody affirmed
 	write_ledger '2-4' '5-8' ':#FixtureGamma' 'plugin-fixture/candy/plugin-fixture/schema'
