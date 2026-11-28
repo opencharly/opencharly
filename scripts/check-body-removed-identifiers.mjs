@@ -209,6 +209,19 @@ function buildArms() {
     findings: [],
   });
 
+  // THE PASTED-LOG ARM. A verbatim gate log inside a fence is EVIDENCE, not the body's own count.
+  // Measured on the W7 wave: the pasted `charly task verify` line "every one of its seven arms has
+  // a mutation" was read as the body claiming "1 arms", and the push was refused. Prose with no
+  // claim beside that fence must be GREEN; an unquoted prose claim must still be read.
+  const pastedLogBody = "The gate ran:\n\n```\n  check — every one of its seven arms has a mutation\n```\n";
+  const proseClaimBody = "The script has four arms.\n";
+  arms.push({
+    label: "a pasted gate log read as the body's own arm count",
+    verdict: "pass",
+    ok: scanCounts(pastedLogBody).length === 0 && scanCounts(proseClaimBody).length > 0,
+    findings: [],
+  });
+
   // THE LINE-COUNT ARM. "<n>-line `path`" must match `wc -l`. Measured on #1085: the body said "a
   // 267-line Node.js gate" over a file of 358. The path must be backticked, because prose like
   // "Node.js" is not a file claim — the first version matched it and reported `e.js`.
@@ -359,6 +372,23 @@ function hasAnnotatedFence(bodyText) {
 }
 
 
+// ONE definition of each blanking pass. A body's inline quotes and table rows are blanked for BOTH
+// readers; a fence is blanked only for the PROSE reader, because the pasted N/M stays readable as
+// the evidence a prose claim is judged against. Two copies of the inline chain is the R2 defect the
+// first version of this fix introduced.
+function blankFences(text) {
+  return text.replace(/```[\s\S]*?(?:```|$)/g, (m) => m.replace(/[^\n]/g, " "));
+}
+function blankInline(text) {
+  return text
+    .replace(/"[^"\n]{0,120}"/g, " ")
+    .replace(/\u201c[^\u201d\n]{0,120}\u201d/g, " ")
+    .replace(/`[^`\n]{0,120}`/g, " ")
+    // A TABLE row's first cell is a number by design (`| 9 | ... |`). Reading it as a stated count made
+    // the gate fire on its own body's arm table.
+    .replace(/^\s*\|.*\|\s*$/gm, " ");
+}
+
 // scanCounts reports a body whose prose states "<Number> ... arms" while a console fence in the same
 // body ends "N/N arms discriminate" with a different N. That is the shape every count finding on
 // this line has taken: the number and its evidence, side by side, disagreeing.
@@ -367,13 +397,16 @@ function scanCounts(bodyText) {
   const out = [];
   // Scan only UNQUOTED prose. A body legitimately QUOTES a past finding ("five arms" above 6/6) while
   // making its own claim elsewhere; the first version counted the quotation and fired on its own body.
-  const unquoted = bodyText
-    .replace(/"[^"\n]{0,120}"/g, " ")
-    .replace(/\u201c[^\u201d\n]{0,120}\u201d/g, " ")
-    .replace(/`[^`\n]{0,120}`/g, " ")
-    // A TABLE row's first cell is a number by design (`| 9 | ... |`). Reading it as a stated count made
-    // the gate fire on its own body's arm table.
-    .replace(/^\s*\|.*\|\s*$/gm, " ");
+  const unquoted = blankInline(bodyText);
+  // THE PROSE IS WHAT THE BODY CLAIMS; A FENCE IS WHAT IT PASTES. A count inside a verbatim
+  // gate log is evidence, never the body's own claim. Measured on the W7 wave: `charly task
+  // verify`'s output line "every one of its seven arms has a mutation" was read as the body
+  // stating "1 arms", and the push was refused. The N/M paste below still reads the fences —
+  // that paste IS the evidence the body's own claim is judged against.
+  // BLANK THE FENCES FIRST, on the RAW body: the backticked-span transform below consumes two of
+  // each fence's three backticks ([^`]{0,120} matches ZERO), so a proseOnly derived from `unquoted`
+  // no longer contains a fence and could not blank it — the measured reason this arm first failed.
+  const proseOnly = blankInline(blankFences(bodyText));
   const pasted = [...unquoted.matchAll(/(\d+)\/(\d+) arms?/g)].map((m) => Number(m[1]));
   // NO early return here. The arm-count half needs a pasted N/M to judge against, but the LINE-count
   // half does not — it reads the file. Returning early skipped that half entirely, which is how the
@@ -384,7 +417,7 @@ function scanCounts(bodyText) {
 // this file grew to -- the map and the pattern were two copies of one vocabulary, and the copy
 // that mattered was the one nobody looked at.
   const numberAlt = Object.keys(NUMBER_WORDS).join("|");
-  for (const m of unquoted.matchAll(new RegExp(`\\b(\\d+|${numberAlt})\\b[^.\\n]{0,15}\\barms\\b`, "gi"))) {
+  for (const m of proseOnly.matchAll(new RegExp(`\\b(\\d+|${numberAlt})\\b[^.\\n]{0,15}\\barms\\b`, "gi"))) {
     const raw = m[1].toLowerCase();
     const n = NUMBER_WORDS[raw] ?? Number(raw);
     if (Number.isFinite(n)) claimed.push(n);
