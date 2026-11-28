@@ -1146,7 +1146,7 @@ Each of these caught a real defect that survived author review:
     Then check each survivor resolves: expanded inline the first time
     the document uses it, or linked to the abbreviations table in
     `concepts/00-vocabulary.md`. `IR`, `CUE`, `OCI`, `MCP`, `RPC`, `CalVer`,
-    `ADE`, `RDD`, `SDD` and the probe protocols (`CDP`, `VNC`, `ADB`) all read as
+    `ADE`, `RDD`, `SDD` and the probe protocols (`CDP`, `VNC`, `SPICE`) all read as
     noise to someone meeting them cold — and an unexplained abbreviation in the
     sentence that carries a page's main claim makes that claim unreadable, which
     is indistinguishable from not having made it.
