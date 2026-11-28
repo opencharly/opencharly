@@ -222,8 +222,9 @@ $ true
 - **R12 — spike before implementing:** fixture.
 
 ### Plan conformance
-**Winning candidate:** N/A — the fixture is a body, not a change; nothing was implemented.
-No DESIGN-governed surface — the fixture changes no field, shape, kind, verb, capability or mechanism.
+**Winning candidate:** N/A — a test fixture, no candidate to spike.
+
+No DESIGN-governed surface — this body exists to exercise the hook's decision, and changes nothing.
 
 ## Change classification
 Test fixture, not a real change.
