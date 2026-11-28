@@ -139,7 +139,7 @@ const MUST_DENY = [
 // (measured 2026-11-27), so
 // the ceiling tightens to 174 — at 222 the self-test's dropping-a-row arm went green
 // again, the slack this ratchet forbids.
-const MAX_UNROUTED = 174;
+const MAX_UNROUTED = 173;
 
 // ── --self-test: prove the discriminating/structural split by executing it ──────────
 // Copies every surface this gate reads into a temp tree, asserts the gate is GREEN there

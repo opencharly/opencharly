@@ -1,0 +1,62 @@
+# brand/surfaces.tsv — the ONE register of the product's brand surfaces.
+#
+# Read by `scripts/check-brand.py` (the `brand` task, and hooks/pre-commit). One row per
+# tracked file that names the tagline:
+#
+#   repo <TAB> path <TAB> the exact text the surface must carry
+#
+# `repo` is a path under the umbrella root (`.` is the umbrella itself). A repo that is
+# not materialised in the current checkout is reported as SKIP, never treated as a pass.
+# The expected text is matched whitespace-normalised, so a wrapped paragraph still fits;
+# markdown punctuation is part of the expected text where the punctuation is load-bearing
+# (a README hero must be ONE bold run, or the docs landing page cannot lift it).
+#
+# A surface that names the tagline WITHOUT a row here fails the coverage arm. That is the
+# arm that closes the class this register exists for: each of the five renames swept the
+# surfaces its author remembered, and the surface it forgot went on shipping a dead
+# tagline for two brand generations (see scripts/check-brand.py's header).
+#
+# Generated trees are registered here too — they are brand surfaces, and the row is what
+# makes a STALE regeneration a finding instead of a surprise.
+
+# ── the umbrella ────────────────────────────────────────────────────────────────────────
+.	README.md	**The Agentic DevOps Factory for you and your agents.**
+
+# ── opencharly/charly (the hero line is ALSO the docs landing page's source) ────────────
+charly	README.md	**The Agentic DevOps Factory for you and your agents.**
+charly	charly/main.go	OpenCharly — The Agentic DevOps Factory for you and your agents.
+charly	packaging/charly.yml	The OpenCharly CLI — The Agentic DevOps Factory for you and your agents.
+
+# ── the agent definition that QUOTES the tail without being a tagline ───────────────────
+# The coverage predicate is the tagline's stable tail, which is deliberately broad (a new
+# tagline noun is unknowable). These two carry the tail in a QUOTED goal, so they are
+# registered with the text they must keep; the marketplace copy is GENERATED from the
+# umbrella's, and both rows are asserted so the projection cannot drift.
+.	.agents/agents/deploy-verifier.md	evaluate deployment configs, for you and your agents
+marketplace	internals/agents/deploy-verifier.md	evaluate deployment configs, for you and your agents
+
+# ── opencharly/pod-charly-hooks (the ONE marketplace: description) ──────────────────────
+pod-charly-hooks	charly.yml	Claude Code, Codex, and Kimi plugins for OpenCharly — The Agentic DevOps Factory for you and your agents:
+
+# ── opencharly/marketplace (README hand-authored; the three manifests GENERATED) ───────
+marketplace	README.md	the agentic DevOps Factory for you and your agents
+marketplace	package.json	Claude Code, Codex, and Kimi plugins for OpenCharly — The Agentic DevOps Factory for you and your agents:
+marketplace	.claude-plugin/marketplace.json	Claude Code, Codex, and Kimi plugins for OpenCharly — The Agentic DevOps Factory for you and your agents:
+marketplace	kimi.plugin.json	Claude Code, Codex, and Kimi plugins for OpenCharly — The Agentic DevOps Factory for you and your agents:
+
+# ── opencharly/docs (the three HAND-AUTHORED brand files) ───────────────────────────────
+# `src/content/docs/index.md` is deliberately NOT registered: it is GENERATED (it carries
+# the DO-NOT-EDIT marker, which the coverage arm skips and counts). A generated page's
+# tagline is only as current as the charly commit the docs repo pins, and the ONE control
+# for "generated content matches its pinned source" is that repo's own drift gate —
+# registering it here would be a second implementation of the same property. Its currency
+# is a PIN-CURRENCY question, reported by the docs deploy's own pin report.
+docs	astro.config.mjs	The Agentic DevOps Factory for you and your agents.
+docs	README.md	the agentic DevOps Factory for you and your agents
+docs	STYLE.md	OpenCharly is the agentic DevOps Factory for people and their agents.
+
+# ── the legacy per-distro package repos (kept consistent until they are archived) ──────
+pkg-arch	PKGBUILD	The Agentic DevOps Factory for you and your agents:
+pkg-arch	README.md	the agentic DevOps Factory for you and your agents
+pkg-fedora	opencharly.spec	The Agentic DevOps Factory for you and your agents
+pkg-debian	debian/control	The Agentic DevOps Factory for you and your agents
