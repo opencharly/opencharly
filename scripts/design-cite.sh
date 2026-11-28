@@ -1002,13 +1002,13 @@ INSIDE2_PY
 	write_ledger '1-3' '5-8' ':#FixtureGamma' 'plugin-fixture/candy/plugin-fixture/schema'
 	emit_baseline "$work" >"$work/design/cite-baseline.tsv"
 
-	# 9f. a DOCUMENT reference is not a citation: `DESIGN.md:D-CLI-1` and `DESIGN.md:§A.13` name a
-	#     requirement, and every ledger row carries one. An arm that failed them turned 241 legitimate
-	#     references into findings when it was first written — the blast radius this case pins.
 	# 9f. A DOCUMENT REFERENCE is not a citation: `DESIGN.md:D-CLI-1` and `DESIGN.md:§A.13` name a
-	#     requirement, and every ledger row carries one. It must be a real ROW in the citation column:
-	#     a bare line appended to the file lands in column 0, which `cite_scan` never reads, so the
-	#     earlier version of this arm exercised NOTHING (opencharly/opencharly#1356, round-4 note).
+	#     requirement, and every ledger row carries one. An arm that failed them turned 241 legitimate
+	#     references into findings when it was first written, so the skip is pinned — and it must be a
+	#     real ROW in the citation column: a bare line appended to the file lands in column 0, which
+	#     `cite_scan` never reads, so the earlier version of this arm exercised NOTHING
+	#     (opencharly/opencharly#1356, round-4 note; proved by disabling the skip and watching the arm
+	#     stay green).
 	# The fixture must CARRY the document: without it the prose guard (a slash-less path that names no
 	# file here) swallows the row before the judge sees it, and the arm proves nothing — measured by
 	# disabling the `.md` skip and watching this arm stay green.
@@ -1062,8 +1062,6 @@ INSIDE2_PY
 		printf 'fixture:local-construct\t`fixture:` names a local construct\t—\tx\tsharp\t—\t%s\tnone\n' 'LOCAL.cue:NoSuchLocalThing'
 	} >"$work/l" && mv "$work/l" "$work/design/dulling.tsv"
 	expect "a construct this repository's own file does not declare" 'does not declare NoSuchLocalThing in this tree'
-	write_ledger '1-3' '5-8' ':#FixtureGamma' 'plugin-fixture/candy/plugin-fixture/schema'
-	emit_baseline "$work" >"$work/design/cite-baseline.tsv"
 	write_ledger '1-3' '5-8' ':#FixtureGamma' 'plugin-fixture/candy/plugin-fixture/schema'
 	emit_baseline "$work" >"$work/design/cite-baseline.tsv"
 
