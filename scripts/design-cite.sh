@@ -398,13 +398,21 @@ line_count() { awk 'END { print NR }' "$1"; }
 # named by a digest, so the extension a reader sees is the citation's, and a helper that keyed off the
 # cache name would answer "unmodelled" for every language (`design-cite --self-test`, arm 9b).
 #
-# The third answer is the one that matters as much as the first: a file whose constructs this control
-# cannot locate must FAIL LOUD ("cite the path alone, or a subject this control can judge"), because a
-# silent pass on an unmodelled language is the same defect as the unrecognised-subject skip this arm
-# removes (opencharly/opencharly#1349). `#Name` (CUE) is judged by the existing `#` arm; this helper
-# judges the form without the `#`.
+# THE THIRD ANSWER IS THIS FUNCTION'S TO MAKE, and it is checked BEFORE the language cases: that is what
+# keeps the dispatch in ONE place. `judge_construct` renders the three answers as messages and holds no
+# opinion of its own about which languages exist. An earlier version filtered the cited path before
+# calling, so this `return 2` was unreachable and the decision lived twice (opencharly/opencharly#1356,
+# blocks 1 and 2: dead code, and a comment describing behaviour the function did not perform).
+#
+# `#Name` (CUE) is judged by the existing `#` arm; this helper judges the form without the `#`.
 declares_construct() {
 	local file="$1" cited="$2" subject="$3" recv meth
+	case "$cited" in
+	*.cue|*.go) ;;
+	*)
+		return 2
+		;;
+	esac
 	case "$cited" in
 	*.cue)
 		grep -qE "^#?${subject//./\\.}[[:space:]]*:" "$file"
@@ -439,31 +447,28 @@ declares_construct() {
 judge_construct() {
 	local file="$1" cited="$2" subject="$3" ledger_name="$4" cap="$5" where="$6" out="$7"
 	local rc=0
-	case "$cited" in
-	*.md)
+	if [[ "$cited" == *.md ]]; then
 		# A DOCUMENT REFERENCE, not a citation: `DESIGN.md:D-CLI-1` and `DESIGN.md:§A.13` are how every
 		# ledger row names its requirement. Skipped like any other prose token (an ungated arm turned 241
 		# of them into failures — measured).
 		return 0
-		;;
-	*.cue|*.go) ;;
-	*)
-		printf 'FAIL %s:%s: %s is a %s file and this control has no construct model for that language %s — cite the path alone, or a subject it can judge\n' \
-			"$ledger_name" "$cap" "$cited" "${cited##*.}" "$where" >>"$out"
-		return 0
-		;;
-	esac
+	fi
 	if [[ "$subject" =~ ^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)?-[0-9] ]]; then
 		printf 'FAIL %s:%s: %s:%s is a CONSTRUCT and a LINE RANGE at once — cite one subject (%s:%s, or %s:%s)\n' \
 			"$ledger_name" "$cap" "$cited" "$subject" "$cited" "${subject%-*}" "$cited" "${subject##*-}" >>"$out"
 		return 0
 	fi
 	declares_construct "$file" "$cited" "$subject" || rc=$?
-	if [[ "$rc" != 0 ]]; then
+	case "$rc" in
+	0) [[ "$VERBOSE" == 1 ]] && printf '  ok   %s:%s  %s declares %s\n' "$ledger_name" "$cap" "$cited" "$subject" ;;
+	2)
+		printf 'FAIL %s:%s: %s is a %s file and this control has no construct model for that language %s — cite the path alone, or a subject it can judge\n' \
+			"$ledger_name" "$cap" "$cited" "${cited##*.}" "$where" >>"$out"
+		;;
+	*)
 		printf 'FAIL %s:%s: %s does not declare %s %s\n' "$ledger_name" "$cap" "$cited" "$subject" "$where" >>"$out"
-	elif [[ "$VERBOSE" == 1 ]]; then
-		printf '  ok   %s:%s  %s declares %s\n' "$ledger_name" "$cap" "$cited" "$subject"
-	fi
+		;;
+	esac
 	return 0
 }
 
