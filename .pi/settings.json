@@ -7,7 +7,7 @@
     "./extensions/footer.ts"
   ],
   "packages": [
-    "git:github.com/opencharly/marketplace@v2026.332.1326"
+    "git:github.com/opencharly/marketplace@v2026.332.1434"
   ],
   "theme": "dark",
   "compaction": {

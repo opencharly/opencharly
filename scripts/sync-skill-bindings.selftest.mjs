@@ -66,9 +66,10 @@ const PI_SETTINGS = `{
 
 function run(args) {
   return spawnSync(process.execPath, [SCRIPT, ...args], { encoding: "utf8" });
-}export function runSelfTest() {
+}
+
+export function runSelfTest() {
   const base = mkdtempSync(join(tmpdir(), "sync-skill-bindings-"));
-  const arms = [];
   const newFixture = (name) => fixture(mkdtempSync(join(base, `${name}-`)));
   const green = (name, args, out) => arm(name, true, run(args), /\bclean\b|done/, out);
   const red = (name, args, want) => arm(name, false, run(args), want);
