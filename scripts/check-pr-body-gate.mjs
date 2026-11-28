@@ -221,6 +221,10 @@ $ true
 - **R11 — conform to DESIGN:** fixture.
 - **R12 — spike before implementing:** fixture.
 
+### Plan conformance
+**Winning candidate:** N/A — the fixture is a body, not a change; nothing was implemented.
+No DESIGN-governed surface — the fixture changes no field, shape, kind, verb, capability or mechanism.
+
 ## Change classification
 Test fixture, not a real change.
 
