@@ -4,8 +4,8 @@
 // WHY THIS EXISTS. The umbrella is a session root (Part II #2), but the skill corpus it needs is
 // three levels deep inside the pinned `marketplace` submodule
 // (`marketplace/<family>/skills/<name>/SKILL.md`), while each harness looks at the root in its own
-// shape. Four bindings bridge that, and they are of TWO DIFFERENT KINDS — a distinction that decides
-// what is derivable and what is merely verifiable:
+// shape. Four bindings bridge that — a mirror, a plugin set, a reference and a pin — and the difference
+// decides what is derivable and what is merely verifiable:
 //
 //   * A MIRROR — `.dsh/skills/<name>` is a flat symlink per corpus skill, because DSH's
 //     `dsh-skill-filesystem` discovers `<projectRoot>/.dsh/skills/<name>/SKILL.md` at rank 100 and
@@ -19,9 +19,15 @@
 //     marketplaces are not the corpus's to derive, so they are preserved as written.
 //   * A REFERENCE — `opencode.json`'s `skills.paths` is a single entry naming the corpus root.
 //     A single root entry cannot drift per family at all, so it is verified rather than derived.
+//   * A PIN — `.pi/settings.json`'s `packages` names the corpus as a git package at a TAG
+//     (`git:github.com/opencharly/marketplace@<tag>`), because pi resolves skills through the package
+//     rather than through a directory. It is not an enumeration but a single tag, and the only question
+//     is whether that tag is the corpus THIS tree carries — so it derives from `corpusTag`, the same
+//     predicate the gate's currency arm reads, and a wave that advances the corpus re-pins it in the
+//     same step (opencharly/opencharly#1344: it was left stale on every wave, reddening the gate).
 //
-// So this script DERIVES the two enumerations — the farm and Claude's plugin set — and only
-// VERIFIES the single-root reference. Nothing here is a count carried by hand: the numbers below are measured
+// So this script DERIVES the two enumerations and the pin, and only VERIFIES the single-root reference.
+// Nothing here is a count carried by hand: the numbers below are measured
 // on every run. This is what makes the bindings derived rather than maintained, and a derived binding
 // has no parity burden — which is precisely what Part II #5's "no mirrors, no parity gate" is aimed at.
 // (The rule is not against bindings; it is against hand-maintained copies that drift.)
@@ -36,13 +42,14 @@
 //   node scripts/sync-skill-bindings.mjs --check      # exit 1 if a rewrite is needed (the gate's mode)
 //   node scripts/sync-skill-bindings.mjs --self-test  # prove each arm can FAIL, on temp fixtures
 //   node scripts/sync-skill-bindings.mjs --root <dir> # run against another tree (the self-test's arm)
+//   node scripts/sync-skill-bindings.mjs --only <all|farm|opencode|claude|pi>
 //
 // Exit codes: 0 clean · 1 a binding is stale (--check) or failed · 2 usage.
 
 import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, readlinkSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { CLAUDE_CATALOG, CORPUS_ROOT, CORPUS_NEEDS, corpusFamilies, corpusSkipReason } from "./lib/corpus.mjs";
+import { CLAUDE_CATALOG, CORPUS_ROOT, CORPUS_NEEDS, corpusFamilies, corpusSkipReason, corpusTag } from "./lib/corpus.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const argv = process.argv.slice(2);
@@ -63,11 +70,13 @@ const selfTest = argv.includes("--self-test");
 // farm defect under a check that is not about the farm.
 const onlyIdx = argv.indexOf("--only");
 const only = onlyIdx === -1 ? "all" : argv[onlyIdx + 1];
-if (!["all", "farm", "opencode", "claude"].includes(only)) fail(`--only takes all|farm|opencode|claude, got ${only}`);
+if (!["all", "farm", "opencode", "claude", "pi"].includes(only)) fail(`--only takes all|farm|opencode|claude|pi, got ${only}`);
 
 const FARM = ".dsh/skills";
 const OPENCODE = "opencode.json";
 const CLAUDE = ".claude/settings.json";
+const PI = ".pi/settings.json";
+const PI_PACKAGE = "git:github.com/opencharly/marketplace@";
 
 function fail(msg) {
   console.error(`FAIL: ${msg}`);
@@ -198,8 +207,36 @@ function syncClaude(r, want, { write }) {
   return { total: want.keys.length, have: have.length, same, missing, extra, disabled, orderOnly: !same && !missing.length && !extra.length && !disabled.length };
 }
 
-// --------------------------------------------------------------------- apply
+/** The pi package pin as it must be: `git:github.com/opencharly/marketplace@<the corpus tag>`, and
+ *  every OTHER package entry left exactly as written (those are an operator's choice, not a projection
+ *  of this corpus).
+ *
+ *  A PIN, not an enumeration: it names one package, and the only question is whether the tag it names
+ *  is the corpus THIS tree carries. That question is `corpusTag`'s (lib/corpus.mjs), asked once, so the
+ *  gate's currency arm and this writer cannot disagree about which tag the corpus is at. The rewrite is
+ *  a byte-range edit of the tag inside the entry, because `JSON.stringify` would reformat a file whose
+ *  indentation and ordering are the operator's. */
+function syncPi(r, tag, { write }) {
+  const file = join(r, PI);
+  if (!existsSync(file)) fail(`${PI} not found in ${r}`);
+  const src = readFileSync(file, "utf8");
+  try {
+    JSON.parse(src);
+  } catch (e) {
+    fail(`${PI} does not parse: ${e.message}`);
+  }
+  const m = src.match(/(git:github\.com\/opencharly\/marketplace@)([^"\\]*)/);
+  if (!m) fail(`${PI} pins no \`${PI_PACKAGE}<tag>\` package entry`);
+  const have = m[2];
+  const same = have === tag;
+  if (!same && write) {
+    const at = m.index + m[1].length;
+    writeFileSync(file, src.slice(0, at) + tag + src.slice(at + have.length));
+  }
+  return { have, tag, same };
+}
 
+// --------------------------------------------------------------------- apply
 function syncFarm(r, want, { write }) {
   const dir = join(r, FARM);
   const have = readFarm(r);
@@ -241,6 +278,7 @@ function run(r, { write, quiet }) {
   const wantFarm = only === "all" || only === "farm";
   const wantOpencode = only === "all" || only === "opencode";
   const wantClaude = only === "all" || only === "claude";
+  const wantPi = only === "all" || only === "pi";
 
   // The skill NAMES are only needed to derive the flat farm. Skipped entirely otherwise, so a corpus
   // name collision cannot be reported by a check that is not about the farm.
@@ -279,6 +317,14 @@ function run(r, { write, quiet }) {
       for (const k of claude.extra) parts.push(`    - ${k}`);
       for (const k of claude.disabled) parts.push(`    ~ ${k}`);
     }
+    }
+  }
+  if (wantPi) {
+    if (corpusRootOrSkip(r, "tag", parts) === null) { /* SKIPPED — the notice is in parts */ }
+    else {
+      const pi = syncPi(r, corpusTag(r), { write });
+      if (!pi.same) stale.push(`${PI} marketplace package pin (${pi.have} -> ${pi.tag})`);
+      parts.push(`sync-skill-bindings: ${PI} marketplace package pin  ${pi.same ? `unchanged (${pi.tag})` : `STALE (${pi.have} -> ${pi.tag})`}`);
     }
   }
   if (wantOpencode) {

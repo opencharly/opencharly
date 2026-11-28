@@ -386,7 +386,7 @@ if (argv.includes("--self-test")) {
   stage();
   // Both surviving derivations read the shared corpus: the farm needs skill FILES, the Claude arm
   // needs the catalog, and this fixture holds neither.
-  const skips = ["carries no skills", "carries no catalog", "the .dsh/skills derivation check skipped", "enabledPlugins derivation check skipped"];
+  const skips = ["carries no skills", "carries no catalog", "carries no tag", "the .dsh/skills derivation check skipped", "enabledPlugins derivation check skipped"];
   for (const state of ["absent", "present-but-empty"]) {
     // BOTH non-materialised shapes, because they are not the same tree and the difference is the defect:
     // `git worktree add` creates the submodule MOUNT POINT, so a session worktree (Part II rule 2) has
@@ -812,35 +812,20 @@ ok(existsSync(join(root, ".dsh/watch.items")), ".dsh/watch.items (the DSH watch 
     }; on disk: ${onDisk.join(", ") || "none"})`,
   );
 
-  const pin = (Array.isArray(settings.packages) ? settings.packages : [])
-    .map((p) => /^git:github\.com\/opencharly\/marketplace@(.+)$/.exec(String(p)))
-    .find(Boolean);
-  const corpus = join(root, "marketplace");
-  if (!pin) {
-    ok(false, ".pi/settings.json pins the marketplace skill corpus (a git package on `packages`)");
-  } else if (!existsSync(join(corpus, ".git"))) {
-    pass(
-      `marketplace/ is not checked out in ${root} — the pi package pin currency check skipped (the registration assertion above still holds)`,
-    );
+  // The pin's CURRENCY is the generator's `--only pi` arm, INVOKED rather than re-implemented — the
+  // same contract as the farm (check 10) and the plugin set (check 3). A second copy of "which tag does
+  // this corpus carry" would answer the same question two ways, and the copy nobody runs is the one
+  // that goes stale; `corpusTag` in `scripts/lib/corpus.mjs` is that question's ONE implementation.
+  // The SKIP stays VISIBLE: an unmaterialized corpus (a session worktree, Part II rule 2) is a
+  // legitimate state, and a check that swallows the skip can never be noticed losing it.
+  const pi = derivedBindings("pi");
+  if (pi.rc === 0 && /carries no tag/.test(pi.out)) {
+    // The generator's OWN skip line is what the operator reads: one wording for the reason, printed
+    // rather than paraphrased, so the gate's notice and the writer's cannot drift apart.
+    const skip = pi.out.split("\n").find((l) => l.includes("carries no tag"))?.trim() ?? "the corpus carries no reachable tag";
+    pass(`${skip} — the pi package pin currency check skipped (the registration assertion above still holds)`);
   } else {
-    // The corpus tag THIS tree pins: the nearest tag reachable from the submodule's HEAD. The
-    // remote is not asked — the pi package must be the corpus this tree carries, never the newest
-    // one published, and a gate that reaches the network is not a gate.
-    const described = spawnSync("git", ["describe", "--tags", "--abbrev=0", "HEAD"], {
-      cwd: corpus,
-      encoding: "utf8",
-    });
-    const tag = (described.stdout ?? "").trim();
-    if (described.status !== 0 || tag === "") {
-      pass(
-        `marketplace/ carries no reachable tag in ${root} — the pi package pin currency check skipped (the registration assertion above still holds)`,
-      );
-    } else {
-      ok(
-        pin[1] === tag,
-        `.pi/settings.json's marketplace package pin matches the corpus this tree pins (pin: ${pin[1]}, corpus tag: ${tag})`,
-      );
-    }
+    ok(pi.rc === 0, `.pi/settings.json's marketplace package pin matches the corpus this tree pins (node scripts/sync-skill-bindings.mjs --check --only pi)\n${pi.out.trim()}`);
   }
 }
 

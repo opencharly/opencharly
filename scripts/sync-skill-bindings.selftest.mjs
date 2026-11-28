@@ -54,11 +54,19 @@ const CLAUDE_SETTINGS = `{
 }
 `;
 
+/** The fixture's `.pi/settings.json`: the marketplace package pinned at a tag the corpus does NOT carry,
+ *  and a second, foreign package whose value a rewrite must leave exactly as written. */
+const PI_SETTINGS = `{
+  "packages": [
+    "git:github.com/opencharly/marketplace@v2026.000.0000",
+    "git:github.com/acme/other@v1.0.0"
+  ]
+}
+`;
+
 function run(args) {
   return spawnSync(process.execPath, [SCRIPT, ...args], { encoding: "utf8" });
-}
-
-export function runSelfTest() {
+}export function runSelfTest() {
   const base = mkdtempSync(join(tmpdir(), "sync-skill-bindings-"));
   const arms = [];
   const newFixture = (name) => fixture(mkdtempSync(join(base, `${name}-`)));
@@ -163,6 +171,59 @@ export function runSelfTest() {
       && strict.status === 1 && /FAIL: marketplace\/ carries no catalog/.test(`${strict.stdout}${strict.stderr}`);
     results.push({
       name: "claude: no catalog SKIPS visibly and writes nothing, and --require-corpus turns that into a FAILURE",
+      ok,
+      status: w.status,
+      first: out.split("\n").find((l) => l.trim()) ?? "(no output)",
+      note: `--require-corpus rc=${strict.status}`,
+    });
+  }
+
+  // ---- the pi package pin ----------------------------------------------------
+  // The pin is a TAG, so the fixture corpus has to be a real repository carrying one — the same
+  // precondition the harness-config gate's scratch tree builds for check 14.
+  const piFixture = (name) => {
+    const d = newFixture(name);
+    mkdirSync(join(d, ".pi"), { recursive: true });
+    writeFileSync(join(d, ".pi", "settings.json"), PI_SETTINGS);
+    return d;
+  };
+  {
+    const d = piFixture("pi-stale");
+    const corpus = join(d, "marketplace");
+    const g = (...a) => spawnSync("git", a, { cwd: corpus, encoding: "utf8" });
+    g("init", "-q", "-b", "main");
+    g("config", "user.email", "gate@gate");
+    g("config", "user.name", "gate");
+    g("add", "-A");
+    g("commit", "-qm", "the corpus at v2099.001.0001");
+    g("tag", "v2099.001.0001");
+    const stale = run(["--root", d, "--check", "--only", "pi"]);
+    const wrote = run(["--root", d, "--only", "pi"]);
+    const again = run(["--root", d, "--only", "pi"]);
+    const after = readFileSync(join(d, ".pi", "settings.json"), "utf8");
+    const ok = stale.status === 1
+      && /\.pi\/settings\.json marketplace package pin.*STALE \(v2026\.000\.0000 -> v2099\.001\.0001\)/.test(`${stale.stdout}${stale.stderr}`)
+      && wrote.status === 0
+      && after === PI_SETTINGS.replace("v2026.000.0000", "v2099.001.0001")
+      && again.status === 0;
+    results.push({
+      name: "pi: a stale marketplace pin is stale, the write re-pins it to the corpus tag and moves nothing else, and a second write is a no-op",
+      ok,
+      status: stale.status,
+      first: ok ? "byte-identical except the tag" : `${stale.status}/${wrote.status}/${again.status}`,
+      note: "the entry's other package and the file's formatting are untouched",
+    });
+  }
+  {
+    const d = piFixture("pi-notag");
+    const before = readFileSync(join(d, ".pi", "settings.json"), "utf8");
+    const w = run(["--root", d, "--only", "pi"]);
+    const strict = run(["--root", d, "--only", "pi", "--require-corpus"]);
+    const out = `${w.stdout}${w.stderr}`;
+    const ok = w.status === 0 && /carries no tag/.test(out) && readFileSync(join(d, ".pi", "settings.json"), "utf8") === before
+      && strict.status === 1 && /FAIL: marketplace\/ carries no tag/.test(`${strict.stdout}${strict.stderr}`);
+    results.push({
+      name: "pi: a corpus with no reachable tag SKIPS visibly and writes nothing, and --require-corpus turns that into a FAILURE",
       ok,
       status: w.status,
       first: out.split("\n").find((l) => l.trim()) ?? "(no output)",

@@ -12,6 +12,7 @@
 // The defect was one predicate with three implementations and only one honest one, so a second copy
 // of this function would rebuild the defect it exists to remove.
 
+import { spawnSync } from "node:child_process";
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
@@ -58,11 +59,33 @@ export function corpusHasCatalog(root) {
   return existsSync(join(root, CLAUDE_CATALOG));
 }
 
+/** The TAG this tree's corpus carries: the nearest tag reachable from the submodule's HEAD.
+ *
+ *  It is the only thing `.pi/settings.json`'s marketplace package entry can resolve, and the pin must
+ *  name the corpus THIS tree carries — never the newest published one. So the remote is never asked: a
+ *  gate that reaches the network is not a gate, and a pin that follows the newest release would drift
+ *  one wave ahead of the corpus the rest of the tree reads (measured: the pin sat at `v2026.278.1917`
+ *  while the submodule had advanced to `v2026.329.1509`, so pi's `/skill:` listing was a different
+ *  corpus from every other harness's).
+ *
+ *  `null` when the checkout is not a git repo or carries no reachable tag — a legitimate state, and one
+ *  a session worktree really has, so the caller decides between SKIP and FAIL. */
+export function corpusTag(root) {
+  const dir = join(root, CORPUS_ROOT);
+  // `.git` is a DIRECTORY in a clone and a FILE (a gitdir link) in a worktree; existsSync covers both.
+  if (!existsSync(join(dir, ".git"))) return null;
+  const r = spawnSync("git", ["describe", "--tags", "--abbrev=0", "HEAD"], { cwd: dir, encoding: "utf8" });
+  if (r.status !== 0) return null;
+  const tag = (r.stdout ?? "").trim();
+  return tag === "" ? null : tag;
+}
+
 /** What a derivation needs from the corpus, and the ONE message each skip carries — so the writer's
  *  notice, both gate skip tests and the selftest key on the same strings instead of four paraphrases. */
 export const CORPUS_NEEDS = {
   skills: (root) => corpusHasSkills(root),
   catalog: (root) => corpusHasCatalog(root),
+  tag: (root) => corpusTag(root) !== null,
 };
 
 export function corpusRemedy() {

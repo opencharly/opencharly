@@ -526,7 +526,7 @@ ff:
           task: pins
           param: [MODE=ff]
         context: [runtime]
-      - run: re-derive the harness skill bindings from the corpus the fast-forward just advanced (the DSH farm and .claude/settings.json's enabledPlugins — a pin advance that skips this leaves them a family behind)
+      - run: re-derive the harness skill bindings from the corpus the fast-forward just advanced (the DSH farm, .claude/settings.json's enabledPlugins, and .pi/settings.json's marketplace package pin — a pin advance that skips this leaves them a family behind)
         # --require-corpus: an unmaterialized corpus must FAIL this step, not silently SKIP it.
         # The script's default is skip-visible because the GATE runs it on light/partial trees
         # where a skip is correct; here the corpus IS the input this step exists to read, so a
