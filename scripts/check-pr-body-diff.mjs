@@ -40,6 +40,19 @@
 //      block renders as CODE, and the org's linter reads the body's LINES, so it
 //      counts such a heading as a present section (opencharly/opencharly#717). A
 //      section the body hides in a fence is a hard failure naming its line.
+//   P. The body's PLAN CONFORMANCE MAP agrees with the DIFF. R11's map is a claim
+//      about the plan; the diff is that plan realized. The map's PRESENCE and SHAPE
+//      belong to the org linter, so this arm asks only what the diff can settle. R11 is
+//      CONFORMANCE: a map saying no DESIGN-governed surface was touched beside a diff
+//      editing `DESIGN.md`/`DESIGN.cue`/`design/` is a contradiction, and so is a
+//      conformance map published beside a diff that edits the design it claims to
+//      conform to. The ONE other form is the operator's own design-change cutover: a
+//      DESIGN-surface diff must declare `Design change — <reason>` and paste
+//      `design-check: all controls pass` (its maintainer sign-off is the validator's T4
+//      account check), while a `Design change` declaration over a diff that changes no
+//      DESIGN surface is the same contradiction mirrored — an implementation never
+//      carries a design change. A body carrying no map at all is NOTICED here, never
+//      failed twice — one rule, one owner.
 //   T. The body's FILE TABLE lists exactly the files the diff changes, against the base
 //      ref. A file the diff changes and the table omits is a finding; a file the table
 //      lists and the diff does not change is a finding. A body with no file table has
@@ -1241,6 +1254,80 @@ function checkSectionVisibility(body) {
   ok(`every required section the body carries is prose (${prose.size} section(s))`);
 }
 
+// ── P. the plan conformance map, against the diff ─────────────────────────────────
+// R11's map is a claim about the PLAN; the diff is that plan realized. The org linter
+// (`marketplace/scripts/pr_body_lint.py`) owns the map's PRESENCE and SHAPE — a block
+// that is missing, a row that leaves the disposition set, a `debt filed #N` with no
+// issue — and this arm never repeats those. It asks the one question only the diff can
+// answer: does the map agree with what the diff actually touches? A body that says no
+// DESIGN-governed surface was touched beside a diff that edits `DESIGN.md` is the same
+// contradiction the file-table arm catches, one level up, and it is the shape a
+// plan-time pass degenerates into when the pass is written after the code.
+const DESIGN_SURFACE = /^(?:DESIGN\.md|DESIGN\.cue|design\/)/;
+const PLAN_HEADING = /^###\s+Plan conformance\s*$/;
+
+/** The body's `### Plan conformance` block, as lines; null when the body carries none. */
+function planConformanceBlock(body) {
+  const lines = body.split("\n");
+  const at = lines.findIndex((l) => PLAN_HEADING.test(l));
+  if (at === -1) return null;
+  const out = [];
+  for (let i = at + 1; i < lines.length; i += 1) {
+    if (/^#{1,3} /.test(lines[i])) break;
+    out.push(lines[i]);
+  }
+  return out;
+}
+
+function checkPlanConformance(body, changed) {
+  const block = planConformanceBlock(body);
+  if (block === null) {
+    notice("the body carries no `### Plan conformance` map — the org linter owns the presence rule");
+    return;
+  }
+  const text = block.join("\n");
+  const designFiles = changed.filter((f) => DESIGN_SURFACE.test(f));
+  const saysNone = /^\s*No DESIGN-governed surface\b/m.test(text);
+  const designChange = /^\s*Design change\b/m.test(text);
+  const rows = block.filter((l) => l.trim().startsWith("|"));
+  const data = rows.filter((l) => !/^\s*\|?[\s|:-]+\|?\s*$/.test(l)).slice(1);
+  const pastesCheck = /design-check: all controls pass/.test(body);
+  let bad = 0;
+  if (designFiles.length > 0 && saysNone) {
+    bad += 1;
+    fail(
+      `the plan map says no DESIGN-governed surface was touched, and the diff changes ${designFiles.join(", ")}`,
+    );
+  }
+  if (designFiles.length > 0 && data.length > 0) {
+    bad += 1;
+    fail(
+      `the diff changes ${designFiles.join(", ")}, and the map publishes conformance rows for it — ` +
+        "a diff cannot both edit the design and claim to conform to it (R11 is conformance; a design " +
+        "change is the operator's own cutover)",
+    );
+  }
+  if (designFiles.length > 0 && designChange && !pastesCheck) {
+    bad += 1;
+    fail("the design-change cutover pastes no `design-check: all controls pass` — it is required, with a maintainer sign-off");
+  }
+  if (designFiles.length > 0 && !designChange && data.length === 0 && !saysNone) {
+    bad += 1;
+    fail(
+      `the diff changes ${designFiles.join(", ")}, and the map neither declares a design change nor ` +
+        "states a conformance row — a design change is its own cutover (DESIGN A.6)",
+    );
+  }
+  if (designFiles.length === 0 && designChange) {
+    bad += 1;
+    fail(
+      "the map declares a `Design change`, and the diff changes no DESIGN surface — an implementation " +
+        "never carries a design change",
+    );
+  }
+  if (bad === 0) ok(`the plan map agrees with the diff (${designFiles.length} DESIGN-surface file(s) changed)`);
+}
+
 function check() {
   if (!existsSync(bodyPath)) {
     notice(`no body at ${bodyPath} — nothing to reconcile`);
@@ -1323,6 +1410,11 @@ function check() {
       const parts = line.split("\t");
       return [parts[0], parts.slice(1).join("\t")];
     });
+
+  // P. the plan conformance map, against the diff. It runs before the table arm and
+  // independently of it: the map is a claim about the PLAN, and a body carrying no file
+  // table still makes it.
+  checkPlanConformance(body, changed);
 
   // DI. the diff's line count, under every diff algorithm — for a body that STATES one.
   // It runs before the table arm and independently of it: the count is a property of the
@@ -1564,6 +1656,12 @@ ${fence}
 - **R10 — fresh disposable proof:** fixture.
 - **R11 — conform to DESIGN:** fixture.
 - **R12 — spike before implementing:** fixture.
+
+### Plan conformance
+**Winning candidate:** the fixture winner.
+| Planned change | DESIGN requirement | Disposition |
+|---|---|---|
+| the fixture gate | D-PAT-4 | conforms |
 
 ## Change classification
 ${claim || "Test fixture, not a real change."}
@@ -2187,6 +2285,103 @@ function readCapBytes() {
         );
       }
     }
+    // ── P. the plan map, against the diff ──────────────────────────────────────────
+    // The map is a claim about the PLAN; the diff is the plan realized. Each case below proves
+    // one direction of the disagreement, and the green cases prove the arm stays silent on a
+    // body that agrees with its diff. The map's own FORM (presence, the disposition set,
+    // `amends DESIGN`, a `debt filed` row's issue) belongs to the org linter, so no case here
+    // tests it.
+    {
+      g("checkout", "-q", "-b", "design", "feat");
+      writeFileSync(join(repo, "DESIGN.md"), "# The design\n\nA fixture contract.\n");
+      g("add", "-A");
+      writeFileSync(join(scratch, "msg.txt"), "design\n");
+      g("commit", "-q", "-F", join(scratch, "msg.txt"));
+      const designHead = g("rev-parse", "HEAD").stdout.trim();
+      const DESIGN_TABLE = `${FULL_TABLE}\n| \`DESIGN.md\` | the contract |`;
+      const CONF = (disp) =>
+        "### Plan conformance\n" +
+        "**Winning candidate:** the fixture winner.\n" +
+        "| Planned change | DESIGN requirement | Disposition |\n" +
+        "|---|---|---|\n" +
+        `| the fixture gate | D-PAT-4 | ${disp} |`;
+      const NO_SURFACE =
+        "### Plan conformance\n**Winning candidate:** the fixture winner.\nNo DESIGN-governed surface — fixture.";
+      const DESIGN_CHANGE =
+        "### Plan conformance\n**Winning candidate:** the fixture winner.\nDesign change — D-LAW-8 names the new mechanism.";
+      const withPlan = (t, block) =>
+        t.replace(/### Plan conformance\n[\s\S]*?\n\n## /, `${block}\n\n## `);
+      const gateOn = (text, headRef) => {
+        writeFileSync(bodyFile, text, "utf8");
+        return spawnSync(
+          process.execPath,
+          [fileURLToPath(import.meta.url), "--body", bodyFile, "--repo", repo, "--base", "main", "--head", headRef],
+          { encoding: "utf8", env: { ...process.env, GITHUB_BODY_MAX: String(capBytes) } },
+        );
+      };
+      const withDesign = body(DESIGN_TABLE, designHead);
+      const pCases = [
+        [
+          "a map saying no DESIGN-governed surface beside a DESIGN-surface diff",
+          withPlan(withDesign, NO_SURFACE),
+          designHead,
+          "says no DESIGN-governed surface was touched",
+        ],
+        [
+          "a conformance map published beside a diff that edits the design it claims to conform to",
+          withPlan(withDesign, CONF("conforms")),
+          designHead,
+          "publishes conformance rows for it",
+        ],
+        [
+          "a design-change cutover with no pasted design-check",
+          withPlan(withDesign, DESIGN_CHANGE),
+          designHead,
+          "pastes no `design-check: all controls pass`",
+        ],
+        [
+          "a DESIGN-surface diff whose map neither declares the change nor states a row",
+          withPlan(withDesign, "### Plan conformance\n**Winning candidate:** the fixture winner."),
+          designHead,
+          "neither declares a design change nor states a conformance row",
+        ],
+        [
+          "a `Design change` declaration beside a diff that changes no DESIGN surface",
+          withPlan(body(FULL_TABLE, head), DESIGN_CHANGE),
+          head,
+          "changes no DESIGN surface",
+        ],
+      ];
+      for (const [label, text, headRef, needle] of pCases) {
+        stLive += 1;
+        const r = gateOn(text, headRef);
+        const out = `${r.stdout ?? ""}${r.stderr ?? ""}`;
+        if (r.status !== 0 && out.includes(needle)) {
+          console.log(`  PASS  ${label} turns the plan-map arm RED`);
+        } else {
+          stFails += 1;
+          console.error(`  FAIL  ${label} did NOT turn the plan-map arm RED (want \`${needle}\`):\n${out}`);
+        }
+      }
+      // The GREEN directions: a conformance map that agrees with a diff touching no design
+      // surface, and the operator's design-change cutover with its proof pasted.
+      for (const [label, text, headRef] of [
+        ["a conformance map beside a diff that changes no design surface", withPlan(body(FULL_TABLE, head), CONF("conforms")), head],
+        ["the operator's design-change cutover, with the design check pasted", withPlan(body(DESIGN_TABLE, designHead, "design-check: all controls pass"), DESIGN_CHANGE), designHead],
+      ]) {
+        stLive += 1;
+        const r = gateOn(text, headRef);
+        const out = `${r.stdout ?? ""}${r.stderr ?? ""}`;
+        if (r.status === 0 && out.includes("the plan map agrees with the diff")) {
+          console.log(`  PASS  ${label} is GREEN`);
+        } else {
+          stFails += 1;
+          console.error(`  FAIL  ${label} was NOT green:\n${out}`);
+        }
+      }
+      g("checkout", "-q", "feat");
+    }
+
     // The unmutated body is GREEN — and it states a count, so the green run also
     // proves the count rule does not fire on a count that MATCHES the diff.
     stLive += 1;

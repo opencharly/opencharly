@@ -139,6 +139,11 @@ const MUST_DENY = [
 // (measured 2026-11-27), so
 // the ceiling tightens to 174 — at 222 the self-test's dropping-a-row arm went green
 // again, the slack this ratchet forbids.
+// MEASURED AGAIN 2026-11-28 on the corpus the branch update carries
+// (opencharly/marketplace#667; corpus tag `v2026.331.2137`): `119/292 corpus skills routed,
+// 173 unrouted` (292 − 119 = 173). At 174 the ceiling left ONE unit of slack, and the
+// self-test's dropping-a-row arm went green again (174 <= 174), so the ceiling tightens
+// to 173.
 const MAX_UNROUTED = 173;
 
 // ── --self-test: prove the discriminating/structural split by executing it ──────────
