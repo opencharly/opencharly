@@ -215,7 +215,7 @@ build_body() {
       echo "**$RACE_COUNT of the $GITLINK_COUNT gitlink row(s) raced**: their repo's default branch advanced"
       echo "while this wave ran, so the staged commit is a strict ANCESTOR of that branch's HEAD and a"
       echo "DESCENDANT of the pin it replaces. AGENTS.md Part II #3 says a \`behind\` pin is REPORTED, not"
-      echo "chased; \`charly task sync\` advances it on the next wave."
+      echo "chased; \`charly task ff\` advances it on the next wave."
     else
       echo "No row raced: every staged pin still equals its repo's default-branch HEAD, so the"
       echo "\`!\` column of the table below is empty by measurement, not by assertion."
@@ -607,6 +607,12 @@ if [ "${1:-}" = "--self-test" ]; then
     || fail "R3 must state the pin contract in the past tense (the head at resolution, not an invariant)"
   grep -qF 'Part II #3' "$tmp/body4" \
     || fail "R3 must name the rule that reports a behind pin instead of chasing it"
+  # AND THE VERB IT NAMES IS THE ONE THE TREE SHIPS. The pin-advance verb was renamed in a hard cutover
+  # (opencharly/opencharly#1357); a body that sends the operator to the retired spelling is the R5 miss
+  # this arm exists to catch — the earlier arms pinned the rule but not the verb, so a stale name in the
+  # emitted sentence stayed green.
+  grep -qF 'charly task ff' "$tmp/body4" \
+    || fail "the raced sentence must name the pin-advance verb the tree ships (charly task ff)"
   # AND THE COUNT CANNOT DRIFT FROM THE TABLE: the stated race count is compared to the body's own
   # `!` rows, so a generator that counted differently from the table it rendered goes red here.
   races=$(grep -cE '(^|[[:space:]])!$' "$tmp/body4" || true)
