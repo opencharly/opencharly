@@ -315,6 +315,26 @@ def self_test():
         subprocess.run(["git", "-C", str(base / "repoA"), "add", "-A"], check=True)
         expect("A3 coverage", base, True, "A3 coverage")
 
+        # A0: the REGISTER itself. Every reject branch in parse_register/parse_retired
+        # needs a fixture that turns it RED, or the arm is new behaviour with no test.
+        base = fixture(tmp, "a0-duplicate-row")
+        (base / REGISTER_REL).write_text(
+            "repoA\tREADME.md\t**The Agentic DevOps Factory for you and your agents.**\n"
+            "repoA\tREADME.md\t**The Agentic DevOps Factory for you and your agents.**\n",
+            encoding="utf-8",
+        )
+        expect("A0 duplicate row", base, True, "A0 register")
+
+        base = fixture(tmp, "a0-two-columns")
+        (base / REGISTER_REL).write_text("repoA\tREADME.md\n", encoding="utf-8")
+        expect("A0 two-column row", base, True, "A0 register")
+
+        base = fixture(tmp, "a0-no-retired")
+        (base / RETIRED_REL).unlink()
+        findings, _, _, _ = arms(base)
+        if not any("A0 register" in f and "retired.txt" in f for f in findings):
+            failures.append(f"A0 missing retired file: expected the A0 finding, got {findings}")
+
         base = fixture(tmp, "generated")
         (base / "repoA/docs").mkdir(parents=True, exist_ok=True)
         (base / "repoA/docs/gen.md").write_text(
