@@ -372,6 +372,23 @@ function hasAnnotatedFence(bodyText) {
 }
 
 
+// ONE definition of each blanking pass. A body's inline quotes and table rows are blanked for BOTH
+// readers; a fence is blanked only for the PROSE reader, because the pasted N/M stays readable as
+// the evidence a prose claim is judged against. Two copies of the inline chain is the R2 defect the
+// first version of this fix introduced.
+function blankFences(text) {
+  return text.replace(/```[\s\S]*?(?:```|$)/g, (m) => m.replace(/[^\n]/g, " "));
+}
+function blankInline(text) {
+  return text
+    .replace(/"[^"\n]{0,120}"/g, " ")
+    .replace(/\u201c[^\u201d\n]{0,120}\u201d/g, " ")
+    .replace(/`[^`\n]{0,120}`/g, " ")
+    // A TABLE row's first cell is a number by design (`| 9 | ... |`). Reading it as a stated count made
+    // the gate fire on its own body's arm table.
+    .replace(/^\s*\|.*\|\s*$/gm, " ");
+}
+
 // scanCounts reports a body whose prose states "<Number> ... arms" while a console fence in the same
 // body ends "N/N arms discriminate" with a different N. That is the shape every count finding on
 // this line has taken: the number and its evidence, side by side, disagreeing.
@@ -380,13 +397,7 @@ function scanCounts(bodyText) {
   const out = [];
   // Scan only UNQUOTED prose. A body legitimately QUOTES a past finding ("five arms" above 6/6) while
   // making its own claim elsewhere; the first version counted the quotation and fired on its own body.
-  const unquoted = bodyText
-    .replace(/"[^"\n]{0,120}"/g, " ")
-    .replace(/\u201c[^\u201d\n]{0,120}\u201d/g, " ")
-    .replace(/`[^`\n]{0,120}`/g, " ")
-    // A TABLE row's first cell is a number by design (`| 9 | ... |`). Reading it as a stated count made
-    // the gate fire on its own body's arm table.
-    .replace(/^\s*\|.*\|\s*$/gm, " ");
+  const unquoted = blankInline(bodyText);
   // THE PROSE IS WHAT THE BODY CLAIMS; A FENCE IS WHAT IT PASTES. A count inside a verbatim
   // gate log is evidence, never the body's own claim. Measured on the W7 wave: `charly task
   // verify`'s output line "every one of its seven arms has a mutation" was read as the body
@@ -395,11 +406,7 @@ function scanCounts(bodyText) {
   // BLANK THE FENCES FIRST, on the RAW body: the backticked-span transform below consumes two of
   // each fence's three backticks ([^`]{0,120} matches ZERO), so a proseOnly derived from `unquoted`
   // no longer contains a fence and could not blank it — the measured reason this arm first failed.
-  const proseOnly = bodyText
-    .replace(/```[\s\S]*?(?:```|$)/g, (m) => m.replace(/[^\n]/g, " "))
-    .replace(/"[^"\n]{0,120}"/g, " ")
-    .replace(/`[^`\n]{0,120}`/g, " ")
-    .replace(/^\s*\|.*\|\s*$/gm, " ");
+  const proseOnly = blankInline(blankFences(bodyText));
   const pasted = [...unquoted.matchAll(/(\d+)\/(\d+) arms?/g)].map((m) => Number(m[1]));
   // NO early return here. The arm-count half needs a pasted N/M to judge against, but the LINE-count
   // half does not — it reads the file. Returning early skipped that half entirely, which is how the
